@@ -1,0 +1,43 @@
+# Project information
+project_name: "Sequence Analysis"
+description: "Protein sequence analysis pipeline"
+input_file: "datasets/avpdb.csv"
+output_dir: "results"
+
+# Scoring matrix settings
+matrix:
+  name: "blosum62" 
+  gap_open: 11
+  gap_extend: 1
+
+# Clustering settings
+clustering:
+  method: "kmeans"
+  n_clusters: 2
+  random_seed: 42
+  min_samples: 5
+  eps: 0.5
+
+# Visualization settings
+#visualization:
+  # TBD
+
+# Performance settings
+performance:
+  n_workers: 0
+  #chunk_size: 64
+  memory_limit: "4GB"
+
+# Analysis settings
+analysis:
+  calculate_properties: true
+  predict_features: true
+  significance_threshold: 0.05
+  minimum_length: 5
+  maximum_length: 10000
+
+# I/O settings
+io:
+  temp_dir: null
+  backup_results: true
+  sequence_format: "auto"
