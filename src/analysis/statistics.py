@@ -34,21 +34,18 @@ class StatisticsAnalyzer:
         self._analyze_sequence_properties()
         self._analyze_similarity_distribution()
 
-        # TODO: Review
         if labels is not None and np.any(labels != None):
             self._analyze_labeled_groups(labels)
 
             if clustering_results:
                 self._evaluate_clustering(clustering_results, labels)
 
-        # TODO: Review
         if sequences:
             self._analyze_aa_composition(sequences)
 
         return self.results
 
     def _analyze_sequence_properties(self) -> None:
-        # TODO: Review
         n_features = self.feature_matrix.shape[1]
 
         property_stats = []
@@ -65,7 +62,6 @@ class StatisticsAnalyzer:
 
         stats = self._calculate_descriptive_stats(similarities)
 
-        # TODO: Review
         stats["histogram"] = {
             "bins": [
                 float(b)
@@ -90,7 +86,6 @@ class StatisticsAnalyzer:
         unique_labels = np.unique(labels)
         n_labels = len(unique_labels)
 
-        # TODO: Review
         if n_labels <= 1:
             return
 
@@ -103,7 +98,6 @@ class StatisticsAnalyzer:
             "between_group_similarities": {},
         }
 
-        # TODO: Review
         group_indices = {
             int(label): np.where(labels == label)[0] for label in unique_labels
         }
@@ -134,7 +128,6 @@ class StatisticsAnalyzer:
                         "count": len(similarities),
                     }
 
-        # TODO: Review
         if n_labels == 2 and all(
             len(indices) > 1 for indices in group_indices.values()
         ):
@@ -147,7 +140,6 @@ class StatisticsAnalyzer:
     ) -> np.ndarray:
         similarities = []
 
-        # TODO: Review
         # Skip self-comparisons when the same indices are provided
         same_sets = np.array_equal(indices1, indices2)
 
@@ -175,7 +167,6 @@ class StatisticsAnalyzer:
             within_sim_1 = self._get_pairwise_similarities(indices1, indices1)
             between_sim = self._get_pairwise_similarities(indices0, indices1)
 
-            # TODO: Review
             if len(within_sim_0) > 1 and len(within_sim_1) > 1 and len(between_sim) > 1:
                 t_within, p_within = stats.ttest_ind(
                     within_sim_0, within_sim_1, equal_var=False
@@ -213,14 +204,12 @@ class StatisticsAnalyzer:
     ) -> None:
         clustering_eval = {}
 
-        # TODO: Review
         for method, result in clustering_results.items():
             if "labels" not in result:
                 continue
 
             pred_labels = result["labels"]
 
-            # TODO: Review
             if len(pred_labels) != len(true_labels):
                 logger.warning(
                     f"Label length mismatch for {method}: {len(pred_labels)} vs {len(true_labels)}"
@@ -241,7 +230,6 @@ class StatisticsAnalyzer:
     ) -> Dict:
         metrics = {}
 
-        # TODO: Review
         try:
             ari = adjusted_rand_score(true_labels, pred_labels)
             metrics["adjusted_rand_index"] = float(ari)
@@ -275,13 +263,11 @@ class StatisticsAnalyzer:
         return class_distribution
 
     def _analyze_aa_composition(self, sequences: SequenceCollection) -> None:
-        # TODO: Review
         aa_list = list("ACDEFGHIKLMNPQRSTVWY")
 
         total_aa = {aa: 0 for aa in aa_list}
         total_residues = 0
 
-        # TODO: Review
         for seq in sequences.get_sequences():
             aa_counts = seq.aa_counts
             for aa, count in aa_counts.items():

@@ -4,15 +4,10 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 import warnings
 
-# TODO: Review deprecated usage
-
 
 class Sequence:
-
-    # TODO: Review
     VALID_RESIDUES: Set[str] = set("ACDEFGHIKLMNPQRSTVWY")
 
-    # TODO: Review
     PROPERTY_GROUPS = {
         "hydrophobic": set("AILMFWV"),
         "polar": set("NCQSTY"),
@@ -23,7 +18,6 @@ class Sequence:
         "small": set("AGST"),
     }
 
-    # TODO: Review
     HYDROPHOBICITY = {  # Kyte-Doolittle
         "A": 1.8,
         "R": -4.5,
@@ -52,7 +46,6 @@ class Sequence:
     def __init__(
         self, sequence: str, seq_id: Optional[str] = None, label: Optional[int] = None
     ):
-        # TODO: Review
         if not all(aa in self.VALID_RESIDUES for aa in sequence):
             invalid_chars = set(sequence) - self.VALID_RESIDUES
             if invalid_chars:
@@ -103,7 +96,6 @@ class Sequence:
                 warnings.warn(
                     f"Could not calculate exact molecular weight for sequence {self._id}"
                 )
-                # TODO: Review
                 # Rough estimate: average AA weight ~ 110 Da
                 self._properties["molecular_weight"] = len(self._sequence) * 110.0
 
@@ -115,7 +107,6 @@ class Sequence:
                 analysis = ProteinAnalysis(self._sequence)
                 self._properties[f"charge_{pH}"] = analysis.charge_at_pH(pH)
             except Exception:
-                # TODO: Review
                 # Fallback calculation
                 pos_count = sum(
                     self.aa_counts.get(aa, 0) for aa in self.PROPERTY_GROUPS["positive"]
@@ -165,7 +156,6 @@ class Sequence:
 
     def to_feature_vector(self) -> np.ndarray:
         props = self.get_all_properties()
-        # TODO: Review
         return np.array(
             [
                 props["length"],
@@ -189,7 +179,6 @@ class Sequence:
         return self.length
 
 
-# TODO: Review
 class SequenceCollection:
 
     def __init__(self):
@@ -223,7 +212,6 @@ class SequenceCollection:
             if not self.sequences:
                 return np.empty((0, 0)), []
 
-            # TODO: Review
             sample_props = self.sequences[0].get_all_properties()
             self._feature_names = list(sample_props.keys())
 

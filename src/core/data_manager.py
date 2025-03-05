@@ -48,7 +48,6 @@ class DataManager:
             raise ValueError(f"Unsupported file format: {format_type}")
 
     def _detect_file_format(self, file_path: str) -> str:
-        # TODO: Review
         ext = os.path.splitext(file_path)[1].lower()
         if ext in [".fa", ".fasta"]:
             return "fasta"
@@ -76,8 +75,6 @@ class DataManager:
     def _load_fasta_sequences(self, file_path: str) -> SequenceCollection:
         from Bio import SeqIO
 
-        # TODO: Review
-
         if os.path.getsize(file_path) > 10_000_000:
             logger.info(f"Loading large FASTA file: {file_path}")
             return self._load_large_fasta(file_path)
@@ -86,7 +83,6 @@ class DataManager:
         for record in SeqIO.parse(file_path, "fasta"):
             seq_id = record.id
             sequence = str(record.seq)
-            # TODO: Review
             min_len = self.config.analysis.minimum_length
             max_len = self.config.analysis.maximum_length
 
@@ -100,7 +96,6 @@ class DataManager:
     def _load_large_fasta(self, file_path: str) -> SequenceCollection:
         from Bio import SeqIO
 
-        # TODO: Review
         h5_path = os.path.join(self.temp_dir, "sequences.h5")
 
         with h5py.File(h5_path, "w") as h5file:
@@ -115,7 +110,6 @@ class DataManager:
                 "ids", shape=(0,), maxshape=(None,), dtype=h5py.special_dtype(vlen=str)
             )
 
-            # TODO: Review
             chunk_size = 1000
             seq_buffer = []
             id_buffer = []
@@ -125,7 +119,6 @@ class DataManager:
                 seq_id = record.id
                 sequence = str(record.seq)
 
-                # TODO: Review
                 min_len = self.config.analysis.minimum_length
                 max_len = self.config.analysis.maximum_length
 
@@ -174,8 +167,6 @@ class DataManager:
 
     def _load_small_tabular(self, file_path: str, delimiter: str) -> SequenceCollection:
         df = pl.read_csv(file_path, separator=delimiter)
-        # TODO: Review
-        # Check required columns
         required_cols = ["sequence"]
         if not all(col in df.columns for col in required_cols):
             raise ValueError(f"File must contain column: {required_cols}")
@@ -187,7 +178,6 @@ class DataManager:
         id_col = df.columns.index("id") if "id" in df.columns else None
         data = df.to_numpy()
 
-        # TODO: Review
         for row in data:
             sequence = row[seq_col]
             label = int(row[label_col]) if label_col is not None else None
@@ -203,13 +193,11 @@ class DataManager:
 
     def _load_large_tabular(self, file_path: str, delimiter: str) -> SequenceCollection:
         with h5py.File(self.hdf5_path, "w") as hdf:
-            # TODO: Review
             # Create dataset placeholders
             hdf.create_group("sequences")
             hdf.create_dataset("labels", (0,), maxshape=(None,), dtype="i4")
             hdf.create_dataset("ids", (0,), maxshape=(None,), dtype=h5py.string_dtype())
 
-            # TODO: Review
             batch_size = 10000
             reader = pl.read_csv_batched(
                 file_path, batch_size=batch_size, separator=delimiter
@@ -233,7 +221,6 @@ class DataManager:
                 valid_labels = []
                 valid_ids = []
 
-                # TODO: Review
                 for seq, label, seq_id in zip(sequences, labels, ids):
                     try:
                         if all(aa in Sequence.VALID_RESIDUES for aa in seq):
@@ -335,7 +322,6 @@ class HDF5SequenceCollection(SequenceCollection):
     def get_labels(self) -> np.ndarray:
         with h5py.File(self.hdf5_path, "r") as hdf:
             labels = np.array(hdf["labels"])
-            # TODO: Review
             # Convert -1 (missing) to None
             mask = labels == -1
             result = labels.copy()

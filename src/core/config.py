@@ -95,8 +95,6 @@ class AnalysisConfig(BaseModel):
 
 
 class Config(BaseModel):
-
-    # User-friendly naming
     project_name: str = Field("Sequence Analysis", description="Project name")
     description: str = Field(
         "Protein sequence analysis pipeline", description="Project description"

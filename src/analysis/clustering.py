@@ -42,7 +42,6 @@ class ClusteringAnalyzer:
 
         method = self.config.clustering.method
 
-        # TODO: Review
         if method == "all":
             for method_name, method_func in self.clustering_methods.items():
                 self._run_method(method_name, method_func, scaled_features)
@@ -60,7 +59,6 @@ class ClusteringAnalyzer:
     def _run_method(
         self, method_name: str, method_func: Callable, features: np.ndarray
     ) -> None:
-        # TODO: Review
         try:
             logger.info(f"Running {method_name} clustering")
             method_func(features)
@@ -91,7 +89,6 @@ class ClusteringAnalyzer:
         dbscan = DBSCAN(eps=eps, min_samples=min_samples)
         labels = dbscan.fit_predict(features)
 
-        # TODO: Review
         unique_labels = np.unique(labels)
         n_clusters = len(unique_labels) - (1 if -1 in unique_labels else 0)
 
@@ -147,8 +144,6 @@ class ClusteringAnalyzer:
         self, features: np.ndarray, labels: np.ndarray, allow_noise: bool = False
     ) -> Dict:
         metrics = {}
-
-        # TODO: Review
         if allow_noise and -1 in labels:
             valid_indices = labels != -1
             if np.sum(valid_indices) < 2:
@@ -179,8 +174,6 @@ class ClusteringAnalyzer:
         return metrics
 
     def _prepare_similarity_matrix(self) -> np.ndarray:
-        # TODO: Review
-
         # Make a copy to avoid modifying the original
         matrix = self.similarity_matrix.copy()
 

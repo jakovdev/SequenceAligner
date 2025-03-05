@@ -26,21 +26,17 @@ class MLAnalyzer:
     def __init__(self, config: Config):
         self.config = config
         self.results = {}
-
-        # TODO: Review
         self.cv_metrics = ["accuracy", "precision", "recall", "f1"]
 
     def run_ml_analysis(self, feature_matrix: np.ndarray, labels: np.ndarray) -> Dict:
         logger.info("Running machine learning analysis")
 
-        # TODO: Review
         if feature_matrix.shape[0] < 10 or feature_matrix.shape[1] < 1:
             logger.warning(
                 f"Not enough samples or features for ML analysis: {feature_matrix.shape}"
             )
             return {"error": "Not enough samples or features for ML analysis"}
 
-        # TODO: Review
         if len(np.unique(labels)) < 2:
             logger.warning(f"Not enough classes for ML analysis: {np.unique(labels)}")
             return {"error": "Not enough classes for ML analysis"}
@@ -86,7 +82,6 @@ class MLAnalyzer:
 
         model_results = {}
 
-        # TODO: Review
         for metric in self.cv_metrics:
             scores = cross_val_score(model, features, labels, cv=cv, scoring=metric)
             model_results[metric] = {
@@ -95,7 +90,6 @@ class MLAnalyzer:
                 "values": [float(v) for v in scores],
             }
 
-        # TODO: Review
         if len(np.unique(labels)) == 2:
             try:
                 roc_auc = cross_val_score(
@@ -111,7 +105,6 @@ class MLAnalyzer:
 
         self.results[model_name] = model_results
 
-        # TODO: Review
         if model_name == "random_forest":
             try:
                 model.fit(features, labels)
@@ -129,7 +122,6 @@ class MLAnalyzer:
     ) -> None:
         logger.info("Running feature importance analysis")
 
-        # TODO: Review
         if features.shape[1] <= 1:
             return
 
@@ -149,7 +141,6 @@ class MLAnalyzer:
                 "n_selected": int(np.sum(support)),
             }
 
-            # TODO: Review
             if (
                 hasattr(self.config, "feature_names")
                 and len(self.config.feature_names) == features.shape[1]

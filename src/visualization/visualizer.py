@@ -1,25 +1,18 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union, Any
+from typing import Dict, List, Optional, Union
 import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 import plotly.figure_factory as ff
 from plotly.subplots import make_subplots
 from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 import pandas as pd
 import logging
+
 from ..core.config import Config
+from ..core.results import AnalysisResults
 
 logger = logging.getLogger(__name__)
-
-# TODO: Review
-
-
-@dataclass
-class VisualizationConfig:
-    output_dir: Path
 
 
 class PlotFactory:
@@ -49,49 +42,61 @@ class PlotFactory:
 
 class Visualizer:
     def __init__(self, config: Config):
-        self.config = VisualizationConfig(
-            output_dir=Path(config.output_dir) / "visualizations"
-        )
-        self.config.output_dir.mkdir(parents=True, exist_ok=True)
+        self.config = config
+        self.output_dir = Path(config.output_dir) / "visualizations"
+        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.visualizations = []
 
     def _save_figure(self, fig: go.Figure, name: str) -> str:
         safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
-        output_path = self.config.output_dir / f"{safe_name}.html"
+        output_path = self.output_dir / f"{safe_name}.html"
         fig.write_html(str(output_path))
         self.visualizations.append(str(output_path))
         return str(output_path)
 
-    def create_visualizations(self, data: Dict) -> List[str]:
+    def create_visualizations(self, results: AnalysisResults) -> List[str]:
         logger.info("Creating visualizations")
 
         with ThreadPoolExecutor() as executor:
             futures = []
 
-            if "similarity_matrix" in data:
+            similarity_matrix = results.get_matrix("similarity_matrix")
+            futures.append(
+                executor.submit(self._visualize_similarity, similarity_matrix)
+            )
+
+            feature_matrix = results.get_matrix("feature_matrix")
+            feature_names = results.get_feature_names()
+
+            try:
+                labels = results.get_matrix("labels")
+            except (KeyError, ValueError):
+                labels = None
+
+            futures.append(
+                executor.submit(
+                    self._visualize_features,
+                    feature_matrix,
+                    feature_names,
+                    labels,
+                )
+            )
+
+            if "statistics" in results.summary:
                 futures.append(
                     executor.submit(
-                        self._visualize_similarity, data["similarity_matrix"]
+                        self._visualize_statistics, results.summary["statistics"]
                     )
                 )
 
-            if "feature_matrix" in data and "feature_names" in data:
+            if "ml_analysis" in results.summary:
                 futures.append(
                     executor.submit(
-                        self._visualize_features,
-                        data["feature_matrix"],
-                        data["feature_names"],
-                        data.get("labels"),
+                        self._visualize_ml,
+                        results.summary["ml_analysis"],
+                        results.get_feature_names(),
                     )
                 )
-
-            if "statistics" in data:
-                futures.append(
-                    executor.submit(self._visualize_statistics, data["statistics"])
-                )
-
-            if "ml_analysis" in data:
-                futures.append(executor.submit(self._visualize_ml, data["ml_analysis"]))
 
             for future in futures:
                 future.result()
@@ -141,6 +146,8 @@ class Visualizer:
 
         pca = PCA(n_components=2)
         pca_result = pca.fit_transform(matrix)
+        # variance_explained = pca.explained_variance_ratio_.sum()
+        # f"PCA of Features (Variance Explained: {variance_explained:.2%})",
 
         fig = PlotFactory.create_scatter(
             pca_result[:, 0], pca_result[:, 1], "PCA of Features", labels
@@ -248,17 +255,68 @@ class Visualizer:
 
         self._save_figure(fig, "property_stats")
 
-    def _visualize_ml(self, ml_results: Dict) -> None:
-        if "feature_importance" in ml_results:
-            importances = ml_results["feature_importance"]
-            fig = PlotFactory.create_bar(
-                list(range(len(importances))), importances, "Feature Importance"
+    def _visualize_ml(self, ml_results: Dict, feature_names: List[str]) -> None:
+        if (
+            "random_forest" in ml_results
+            and "feature_importance" in ml_results["random_forest"]
+        ):
+            importances = ml_results["random_forest"]["feature_importance"]
+
+            if len(feature_names) == len(importances):
+                labels = feature_names
+            else:
+                labels = [f"Feature {i}" for i in range(len(importances))]
+
+            sorted_indices = np.argsort(importances)
+            sorted_importances = [importances[i] for i in sorted_indices]
+            sorted_labels = [labels[i] for i in sorted_indices]
+
+            fig = go.Figure()
+            fig.add_trace(
+                go.Bar(
+                    y=sorted_labels,
+                    x=sorted_importances,
+                    orientation="h",
+                    marker=dict(color="rgba(50, 171, 96, 0.7)"),
+                )
             )
+
+            fig.update_layout(
+                title="Feature Importance",
+                xaxis_title="Importance",
+                yaxis_title="Feature",
+                template="plotly_white",
+                height=max(300, 50 * len(importances)),  # Dynamic height
+            )
+
             self._save_figure(fig, "feature_importance")
 
-        if "roc_curve" in ml_results:
-            roc = ml_results["roc_curve"]
-            fig = PlotFactory.create_scatter(
-                roc["fpr"], roc["tpr"], f'ROC Curve (AUC = {roc["auc"]:.2f})'
+        if "roc_auc" in ml_results.get("random_forest", {}):
+            roc_data = ml_results["random_forest"]["roc_auc"]
+            fig = go.Figure()
+            fig.add_trace(
+                go.Scatter(
+                    x=[0, 1],
+                    y=[0, 1],
+                    mode="lines",
+                    line=dict(color="gray", dash="dash"),
+                    name="Random",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=[0, 0, 1],
+                    y=[0, 1, 1],
+                    mode="lines",
+                    line=dict(color="lightgray", dash="dot"),
+                    name="Perfect",
+                )
+            )
+            fig.update_layout(
+                title=f"ROC Curve (AUC = {roc_data['mean']:.3f} ± {roc_data['std']:.3f})",
+                xaxis_title="False Positive Rate",
+                yaxis_title="True Positive Rate",
+                template="plotly_white",
+                legend=dict(yanchor="bottom", y=0.01, xanchor="right", x=0.99),
             )
             self._save_figure(fig, "roc_curve")

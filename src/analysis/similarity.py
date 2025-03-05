@@ -12,14 +12,25 @@ logger = logging.getLogger(__name__)
 
 
 class SimilarityCalculator:
+    FEATURE_NAMES = [
+        "length",
+        "molecular_weight",
+        "charge",
+        "hydrophobicity",
+        "percent_hydrophobic",
+        "percent_charged",
+        "percent_polar",
+        "percent_aromatic",
+        "percent_positive",
+        "percent_negative",
+    ]
 
     def __init__(self, config: Config):
         self.config = config
         self._initialize_matrices()
-        self.results = {}
+        self.results = {"feature_names": self.FEATURE_NAMES}
 
     def _initialize_matrices(self):
-        # TODO: Review
         self.matrix_name = self.config.matrix.name
         self.gap_open = self.config.matrix.gap_open
         self.gap_extend = self.config.matrix.gap_extend
@@ -34,30 +45,13 @@ class SimilarityCalculator:
     def compute_feature_matrix(self, sequences: SequenceCollection) -> np.ndarray:
         n_sequences = len(sequences)
         logger.info(f"Computing feature matrix for {n_sequences} sequences")
+        n_features = len(self.FEATURE_NAMES)
 
-        feature_names = [
-            "length",
-            "molecular_weight",
-            "charge",
-            "hydrophobicity",
-            "percent_hydrophobic",
-            "percent_charged",
-            "percent_polar",
-            "percent_aromatic",
-            "percent_positive",
-            "percent_negative",
-        ]
-        n_features = len(feature_names)
-
-        self.results["feature_names"] = feature_names
-
-        # TODO: Review
         feature_matrix = np.zeros((n_sequences, n_features), dtype=np.float32)
         for i, seq in enumerate(sequences.get_sequences()):
             feature_matrix[i] = seq.to_feature_vector()
 
         self._collect_feature_stats(feature_matrix)
-
         return feature_matrix
 
     def _collect_feature_stats(self, feature_matrix: np.ndarray) -> None:
@@ -112,8 +106,6 @@ class SimilarityCalculator:
         gap_open = matrix_params["gap_open"]
         gap_extend = matrix_params["gap_extend"]
         parasail_matrix = parasail.Matrix(matrix_name)
-
-        # TODO: Review
         chunk_matrix = np.zeros((len(seqs_i), len(seqs_j)), dtype=np.float32)
 
         for i, seq_i in enumerate(seqs_i):
@@ -135,7 +127,6 @@ class SimilarityCalculator:
     def _calculate_sequence_similarity(
         seq1: str, seq2: str, gap_open: int, gap_extend: int, parasail_matrix
     ) -> float:
-        # TODO: Review
         if len(seq1) < 5 or len(seq2) < 5:
             matches = sum(
                 a == b
@@ -146,8 +137,7 @@ class SimilarityCalculator:
             return matches / max(len(seq1), len(seq2))
 
         try:
-            # TODO: Review
-            result = parasail.nw_stats(
+            result = parasail.sw_stats(
                 seq1, seq2, gap_open, gap_extend, parasail_matrix
             )
 
