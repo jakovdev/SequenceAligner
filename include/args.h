@@ -232,7 +232,7 @@ INLINE const char* get_alignment_method_name(void);
 INLINE const char* get_scoring_matrix_name(void);
 
 INLINE void print_config_section(void) {
-    if (g_args.verbose && !g_args.quiet) {
+    if (!g_args.quiet) {
         print_step_header_start("Configuration");
         char buffer[256];
         

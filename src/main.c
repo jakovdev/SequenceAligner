@@ -6,11 +6,13 @@
 
 int main(int argc, char* argv[]) {
     bench_init_start();
+
     init_colors();
+    print_header("SEQUENCE ALIGNER");
+    
     init_args(argc, argv);
     init_print_messages(get_verbose(), get_quiet());
     
-    print_header("SEQUENCE ALIGNER");
     print_step_header("Setting Up Alignment");
     
     SET_HIGH_CLASS();
