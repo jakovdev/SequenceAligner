@@ -65,52 +65,6 @@ INLINE char* copy_column_name(const char* start, const char* end) {
     return name;
 }
 
-INLINE void warn_column_not_found(void) {
-    print_warning("Could not detect sequence column. Using first column by default.\n");
-    
-    // Only prompt if running interactively
-    if (isatty(STDIN_FILENO)) {
-        print_info("Press ESC to cancel or ENTER to continue...\n");
-        
-        #ifdef _WIN32
-        while (1) {
-            int c = _getch(); // Windows non-buffered input
-            if (c == 27) {    // ESC key
-                exit(0);
-            } else if (c == 13) { // Enter key
-                break;
-            }
-        }
-        #else
-        struct termios term, orig_term;
-        if (tcgetattr(STDIN_FILENO, &orig_term) == 0) {
-            term = orig_term;
-            term.c_lflag &= ~(ICANON | ECHO);
-            if (tcsetattr(STDIN_FILENO, TCSANOW, &term) == 0) {
-                while (1) {
-                    int c = getchar();
-                    if (c == 27) {  // ESC key
-                        tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
-                        exit(0);
-                    } else if (c == '\n' || c == '\r') {
-                        break;
-                    }
-                }
-                // Restore terminal settings
-                tcsetattr(STDIN_FILENO, TCSANOW, &orig_term);
-            } else {
-                // If tcsetattr failed, fall back to simple getchar
-                print_info("Press Enter to continue...\n");
-                getchar();
-            }
-        } else {
-            print_info("Press Enter to continue...\n");
-            getchar();
-        }
-        #endif
-    }
-}
-
 INLINE int detect_sequence_column(char** headers, int num_cols) {
     const char* seq_keywords[] = {
         "sequence", "seq", "protein", "dna", "rna", "amino", "peptide", "chain"
@@ -285,14 +239,7 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     
     // If auto-detection failed
     if (g_csv_metadata.seq_col_index < 0) {
-        // If running interactively, prompt user
-        if (isatty(STDIN_FILENO)) {
             prompt_for_sequence_column();
-        } else {
-            // If non-interactive, warn and use first column
-            warn_column_not_found();
-            g_csv_metadata.seq_col_index = 0;
-        }
     }
     
     print_verbose("Detected %d columns in CSV\n", g_csv_metadata.num_columns);
