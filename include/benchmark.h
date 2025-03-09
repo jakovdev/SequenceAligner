@@ -75,13 +75,15 @@ INLINE void print_bench_item(const char* label, double time, double percentage) 
 INLINE void bench_total(void) {
     if (message_config.quiet) return;
     if (get_mode_benchmark()) {
-        g_times.total = g_times.init + g_times.align + g_times.write;
+        g_times.total = g_times.init + g_times.align + g_times.write * get_mode_write();
         print_step_header_start("Performance Summary");
         print_timing("Timing breakdown:");
         
         print_bench_item("Init", g_times.init, (g_times.init / g_times.total) * 100);
         print_bench_item("Compute", g_times.align, (g_times.align / g_times.total) * 100);
-        print_bench_item("I/O", g_times.write, (g_times.write / g_times.total) * 100);
+        if (get_mode_write()) {
+            print_bench_item("I/O", g_times.write, (g_times.write / g_times.total) * 100);
+        }
         print_bench_item("Total", g_times.total, 100.0);
         
         double alignments_per_sec = g_times.total_alignments / g_times.align;

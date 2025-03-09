@@ -237,7 +237,11 @@ INLINE void print_config_section(void) {
         char buffer[256];
         
         print_config_item("Input", g_args.input_file_path, NULL);
-        print_config_item("Output", g_args.output_file_path, BOX_TEE_RIGHT);
+        if (g_args.mode_write) {
+            print_config_item("Output", g_args.output_file_path, BOX_TEE_RIGHT);
+        } else {
+            print_config_item("Output", "Disabled", BOX_TEE_RIGHT);
+        }
         print_config_item("Method", get_alignment_method_name(), BOX_TEE_RIGHT);
         print_config_item("Matrix", get_scoring_matrix_name(), BOX_TEE_RIGHT);
         

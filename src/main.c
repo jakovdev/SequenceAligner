@@ -218,10 +218,6 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < seq_count * seq_count; i++) {
         checksum += h5_handler.buffer.data[i];
     }
-    
-    if (get_mode_write()) {
-        print_info("Writing results to output file: %s\n", get_output_file_path());
-    }
 
     print_info("Matrix checksum: %lld\n", checksum);
     

@@ -67,6 +67,7 @@ INLINE void write_matrix_to_h5(H5Handler* restrict handler) {
 
 INLINE void close_h5_handler(H5Handler* restrict handler) {
     if (get_mode_write()) {
+        print_info("Writing results to output file: %s\n", get_output_file_path());
         bench_write_start();
         write_matrix_to_h5(handler);
         H5Dclose(handler->dataset_id);
