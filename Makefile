@@ -20,16 +20,13 @@ CFLAGS := $(BASE_FLAGS) $(if $(filter debug,$(MAKECMDGOALS)),$(DBG_FLAGS),$(OPT_
 
 LIBS := -lm -lhdf5 $(if $(IS_WINDOWS),-lShlwapi,) $(if $(IS_CROSS),-lshlwapi,)
 
-.PHONY: all debug cross dataset clean
+.PHONY: all debug cross clean
 
 all: bin results clean $(MAIN_BINS)
 
 debug: bin results clean $(MAIN_BINS)
 
 cross: all
-
-dataset: testing/datasets/avpdb.csv
-	python3 scripts/create_mega_dataset.py -sc
 
 bin:
 	$(if $(IS_WINDOWS),powershell -Command "if (-not (Test-Path bin)) { New-Item -ItemType Directory -Path bin | Out-Null }",mkdir -p bin)
