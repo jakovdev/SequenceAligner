@@ -1,0 +1,16 @@
+bin/
+scripts/__pycache__/
+logs/
+
+# Too large for github
+results/results_mt.csv
+datasets/avpdb_mt.csv
+
+# Windows only distribution files
+w64devkit/
+build/
+dist/
+*.spec
+win_setup_scripts/
+build_exe.py
+winstart.pyw
