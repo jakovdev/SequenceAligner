@@ -41,6 +41,7 @@ INLINE void free_csv_metadata(void) {
 }
 
 INLINE int count_columns(const char* line) {
+    if (!line || !*line || *line == '\n' || *line == '\r') return 0;
     int count = 1;  // Start with 1 for the first column
     
     while (*line) {
@@ -200,13 +201,15 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     
     if (g_csv_metadata.num_columns <= 0) {
         print_error("Invalid CSV header");
-        return current;
+        print_step_header_end();
+        exit(1);
     }
     
     g_csv_metadata.column_headers = (char**)malloc(g_csv_metadata.num_columns * sizeof(char*));
     if (!g_csv_metadata.column_headers) {
         print_error("Memory allocation failed for column headers");
-        return current;
+        print_step_header_end();
+        exit(1);
     }
     
     const char* col_start = header_start;
