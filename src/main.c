@@ -171,8 +171,8 @@ int main(int argc, char* argv[]) {
         print_newline();
         
         destroy_thread_pool();
-        free(tasks);
-        free(results);
+        aligned_free(tasks);
+        aligned_free(results);
     } else {
         print_config("Using single-threaded mode\n");
         size_t progress_step = total_alignments / 100 + 1;
