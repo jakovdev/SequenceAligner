@@ -256,9 +256,13 @@ INLINE void print_config_section(void) {
         snprintf(buffer, sizeof(buffer), "%d", g_args.num_threads);
         print_config_item("Threads", buffer, BOX_TEE_RIGHT);
         
-        snprintf(buffer, sizeof(buffer), "%d", g_args.compression_level);
-        print_config_item("Compression", buffer, BOX_BOTTOM_LEFT);
-        
+        if (g_args.mode_write) {
+            snprintf(buffer, sizeof(buffer), "%d", g_args.compression_level);
+            print_config_item("Compression", buffer, BOX_BOTTOM_LEFT);
+        } else {
+            print_config_item("Compression", "Disabled", BOX_BOTTOM_LEFT);
+        }
+
         if (g_args.mode_benchmark) {
             print_timing("Benchmarking mode enabled");
         }
