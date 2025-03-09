@@ -12,6 +12,7 @@
 #define ANSI_COLOR_BLUE    "\x1b[34m"
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN    "\x1b[36m"
+#define ANSI_BRIGHT_CYAN   "\x1b[96m"
 #define ANSI_COLOR_GRAY    "\x1b[90m"
 
 #define ICON_INFO     "•"
@@ -21,6 +22,7 @@
 #define ICON_CLOCK    "⧗"
 #define ICON_DNA      "◇"
 #define ICON_GEAR     "⚙"
+#define ICON_ARROW    "▶"
 #define ICON_DOT      "·"
 
 #define BOX_TOP_LEFT     "┌"
@@ -41,6 +43,9 @@
 #define FANCY_BOTTOM_RIGHT "╝"
 #define FANCY_HORIZONTAL   "═"
 #define FANCY_VERTICAL     "║"
+
+#define PROGRESS_STEP_ICON "■"
+#define PROGRESS_EMPTY_ICON ICON_DOT //"·"
 
 #define OUTPUT_WIDTH 70
 
@@ -77,6 +82,13 @@ INLINE void apply_box_color(void) {
 
 INLINE void reset_color(void) {
     printf("%s", ANSI_COLOR_RESET);
+}
+
+INLINE int calculate_padding(int content_len) {
+    if (content_len < 0) content_len = 0;
+    int used_width = 1 + 1 + content_len + 1;
+    int padding = OUTPUT_WIDTH - used_width;
+    return padding > 0 ? padding : 0;
 }
 
 INLINE void print_box_line(const char* left, const char* mid, const char* right, int width, const char* title) {
@@ -142,6 +154,27 @@ INLINE void sanitize_message(char* buffer, size_t buffer_size, const char* forma
     }
 }
 
+INLINE void print_formatted_line(const char* content, int content_len) {
+    if (message_config.quiet) return;
+    
+    int padding = calculate_padding(content_len);
+    
+    apply_box_color();
+    printf("%s", BOX_VERTICAL);
+    reset_color();
+    
+    printf(" %s", content);
+    
+    for (int i = 0; i < padding; i++) printf(" ");
+    
+    apply_box_color();
+    printf("%s", BOX_VERTICAL);
+    reset_color();
+    
+    printf("\n");
+    message_config.content_printed = 1;
+}
+
 INLINE void print_formatted_message(const char* icon, const char* color, const char* format, va_list args) {
     if (message_config.quiet) return;
     
@@ -152,33 +185,13 @@ INLINE void print_formatted_message(const char* icon, const char* color, const c
     char buffer[OUTPUT_WIDTH * 2];
     sanitize_message(buffer, sizeof(buffer), format, args);
     
-    size_t content_len = strlen(buffer);
-    size_t icon_space = 2;
-    size_t total_len = icon_space + content_len;
-    int padding = (int)(OUTPUT_WIDTH - 2 - total_len - 1);
+    char formatted[OUTPUT_WIDTH * 3];
+    int content_len;
     
-    // Handle overflow by truncating the message
-    if (padding < 0) {
-        content_len += padding;
-        if (content_len > 0) {
-            buffer[content_len] = '\0';
-        }
-        padding = 0;
-    }
+    content_len = snprintf(formatted, sizeof(formatted), "%s%s %s%s", color, icon, buffer, ANSI_COLOR_RESET);
+    content_len = strlen(buffer) + 2;
     
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-    printf(" %s%s %s%s", color, icon, buffer, ANSI_COLOR_RESET);
-    
-    for (int i = 0; i < padding; i++) printf(" ");
-    
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-    
-    printf("\n");
-    message_config.content_printed = 1;
+    print_formatted_line(formatted, content_len);
 }
 
 INLINE void print_info(const char* format, ...) {
@@ -251,8 +264,8 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     }
     
     size_t prefix_len = strlen(prefix);
-    size_t reserved_space = 2 + 2 + 2 + 6;
-    int max_bar_width = (int)(OUTPUT_WIDTH - prefix_len - reserved_space);
+    size_t reserved_space = 1 + 1 + 1 + 2 + 6;
+    int max_bar_width = (int)(OUTPUT_WIDTH - prefix_len - reserved_space - 3);
     if ((int)width > max_bar_width) width = max_bar_width;
     size_t filled_width = (size_t)(percentage * width);
     if (filled_width > width) filled_width = width;
@@ -261,18 +274,18 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     printf("\r%s", BOX_VERTICAL);
     reset_color();
     
-    printf(" %s [", prefix);
+    printf(" %s%s %s [%s", ANSI_BRIGHT_CYAN, ICON_ARROW, prefix, ANSI_COLOR_RESET);
     
     printf("%s", ANSI_COLOR_GREEN);
-    for (size_t i = 0; i < filled_width; ++i) printf("■");
+    for (size_t i = 0; i < filled_width; ++i) printf(PROGRESS_STEP_ICON);
     printf("%s", ANSI_COLOR_RESET);
     
-    for (size_t i = filled_width; i < width; ++i) printf(ICON_DOT);
+    for (size_t i = filled_width; i < width; ++i) printf(PROGRESS_EMPTY_ICON);
     
-    printf("] %3d%%", (int)(percentage * 100));
+    printf("%s] %3d%%", ANSI_BRIGHT_CYAN, (int)(percentage * 100));
     
-    int content_len = prefix_len + width + 7;
-    int padding = OUTPUT_WIDTH - 3 - content_len - 1;
+    int content_len = 1 + 1 + prefix_len + 1 + 2 + width + 2 + 4;
+    int padding = OUTPUT_WIDTH - 2 - content_len;
     
     for (int i = 0; i < padding; i++) printf(" ");
     
@@ -316,6 +329,21 @@ INLINE void print_step_header(const char* title) {
     print_step_header_start(title);
 }
 
+INLINE void print_indented_item(const char* prefix, const char* item, const char* value) {
+    char buffer[OUTPUT_WIDTH * 2];
+    int content_len;
+    
+    if (prefix) {
+        content_len = snprintf(buffer, sizeof(buffer), "%s%s %s: %s", ANSI_COLOR_YELLOW, prefix, item, value);
+        content_len = strlen(prefix) + 1 + strlen(item) + strlen(value);
+    } else {
+        content_len = snprintf(buffer, sizeof(buffer), "%s%s: %s", ANSI_COLOR_YELLOW, item, value);
+        content_len = strlen(item) + strlen(value);
+    }
+    
+    print_formatted_line(buffer, content_len);
+}
+
 INLINE void print_config_item(const char* item, const char* value, const char* prefix) {
     if (message_config.quiet) return;
     
@@ -327,29 +355,11 @@ INLINE void print_config_item(const char* item, const char* value, const char* p
         print_config("%s", format);
         first_config_item = 0;
     } else {
-        char buffer[OUTPUT_WIDTH * 2];
-        snprintf(buffer, sizeof(buffer), "%s %s: %s", prefix, item, value);
         if (!message_config.section_open) {
             print_step_header_start("Configuration");
         }
-
-        size_t content_len = strlen(buffer);
-        int padding = (int)(OUTPUT_WIDTH - content_len - 1);
-        if (padding < 0) padding = 0;
         
-        apply_box_color();
-        printf("%s", BOX_VERTICAL);
-        reset_color();
-        printf(" %s%s", ANSI_COLOR_YELLOW, buffer);
-        
-        for (int i = 0; i < padding; i++) printf(" ");
-        
-        apply_box_color();
-        printf("%s", BOX_VERTICAL);
-        reset_color();
-        
-        printf("\n");
-        message_config.content_printed = 1;
+        print_indented_item(prefix, item, value);
     }
 }
 
