@@ -58,6 +58,8 @@ static struct option long_options[] = {
     {0, 0, 0, 0}
 };
 
+static Args g_args = {0};
+
 INLINE void print_usage(const char* program_name) {
     printf("Usage: %s [OPTIONS]\n\n", program_name);
     printf("Sequence Alignment Tool - Fast pairwise sequence alignment\n\n");
@@ -121,33 +123,29 @@ INLINE int parse_scoring_matrix(const char* arg) {
     return SCORE_BLOSUM50;
 }
 
-INLINE void init_default_args(Args* args) {
-    memset(args, 0, sizeof(Args));
+INLINE void init_default_args(void) {
+    strcpy(g_args.input_file_path, "./datasets/avpdb.csv");
+    strcpy(g_args.output_file_path, "./results/matrix.h5");
     
-    strcpy(args->input_file_path, "./datasets/avpdb.csv");
-    strcpy(args->output_file_path, "./results/matrix.h5");
+    g_args.align_method = ALIGN_NEEDLEMAN_WUNSCH;
+    g_args.scoring_matrix = SCORE_BLOSUM50;
+    g_args.gap_penalty = 4;
+    g_args.gap_start = 10;
+    g_args.gap_extend = 1;
+    g_args.num_threads = 0;
+    g_args.compression_level = 0;
     
-    args->align_method = ALIGN_NEEDLEMAN_WUNSCH;
-    args->scoring_matrix = SCORE_BLOSUM50;
-    args->gap_penalty = 4;
-    args->gap_start = 10;
-    args->gap_extend = 1;
-    args->num_threads = 0;
-    args->compression_level = 0;
-    
-    args->mode_write = 1;
-    args->mode_benchmark = 0;
-    args->mode_trim = 0;
+    g_args.mode_write = 1;
+    g_args.mode_benchmark = 0;
+    g_args.mode_trim = 0;
     #if MODE_CREATE_ALIGNED_STRINGS == 1
-    args->aligned_strings = 0;
+    g_args.aligned_strings = 0;
     #endif
-    args->verbose = 0;
-    args->quiet = 0;
+    g_args.verbose = 0;
+    g_args.quiet = 0;
 }
 
-INLINE Args* parse_args(int argc, char* argv[]) {
-    static Args args;
-    init_default_args(&args);
+INLINE void parse_args(int argc, char* argv[]) {
     // (EXPANDABLE)
     int opt;
     int option_index = 0;
@@ -160,59 +158,59 @@ INLINE Args* parse_args(int argc, char* argv[]) {
     while ((opt = getopt_long(argc, argv, optstring, long_options, &option_index)) != -1) {
         switch (opt) {
             case 'i':
-                strncpy(args.input_file_path, optarg, MAX_PATH - 1);
-                args.input_file_path[MAX_PATH - 1] = '\0';
+                strncpy(g_args.input_file_path, optarg, MAX_PATH - 1);
+                g_args.input_file_path[MAX_PATH - 1] = '\0';
                 break;
             case 'o':
-                strncpy(args.output_file_path, optarg, MAX_PATH - 1);
-                args.output_file_path[MAX_PATH - 1] = '\0';
+                strncpy(g_args.output_file_path, optarg, MAX_PATH - 1);
+                g_args.output_file_path[MAX_PATH - 1] = '\0';
                 break;
             case 'a':
-                args.align_method = parse_alignment_method(optarg);
+                g_args.align_method = parse_alignment_method(optarg);
                 break;
             case 'm':
-                args.scoring_matrix = parse_scoring_matrix(optarg);
+                g_args.scoring_matrix = parse_scoring_matrix(optarg);
                 break;
             case 'p':
-                args.gap_penalty = atoi(optarg);
+                g_args.gap_penalty = atoi(optarg);
                 break;
             case 's':
-                args.gap_start = atoi(optarg);
+                g_args.gap_start = atoi(optarg);
                 break;
             case 'e':
-                args.gap_extend = atoi(optarg);
+                g_args.gap_extend = atoi(optarg);
                 break;
             case 't':
-                args.num_threads = atoi(optarg);
-                if (args.num_threads < 0) {
-                    args.num_threads = 0;
+                g_args.num_threads = atoi(optarg);
+                if (g_args.num_threads < 0) {
+                    g_args.num_threads = 0;
                 }
                 break;
             case 'z':
-                args.compression_level = atoi(optarg);
-                if (args.compression_level < 0 || args.compression_level > 9) {
-                    args.compression_level = 1;
+                g_args.compression_level = atoi(optarg);
+                if (g_args.compression_level < 0 || g_args.compression_level > 9) {
+                    g_args.compression_level = 1;
                 }
                 break;
             case 'B':
-                args.mode_benchmark = 1;
+                g_args.mode_benchmark = 1;
                 break;
             case 'W':
-                args.mode_write = 0;
+                g_args.mode_write = 0;
                 break;
             case 'T':
-                args.mode_trim = 1;
+                g_args.mode_trim = 1;
                 break;
             #if MODE_CREATE_ALIGNED_STRINGS == 1
             case 'A':
-                args.aligned_strings = 1;
+                g_args.aligned_strings = 1;
                 break;
             #endif
             case 'v':
-                args.verbose = 1;
+                g_args.verbose = 1;
                 break;
             case 'q':
-                args.quiet = 1;
+                g_args.quiet = 1;
                 break;
             case 'h':
                 print_usage(argv[0]);
@@ -224,123 +222,130 @@ INLINE Args* parse_args(int argc, char* argv[]) {
         }
     }
     
-    if (args.num_threads == 0) {
-        args.num_threads = get_thread_count();
+    if (g_args.num_threads == 0) {
+        g_args.num_threads = get_thread_count();
     }
-    
-    return &args;
 }
 
-static Args* g_args = NULL;
 // forward declaration for get names
 INLINE const char* get_alignment_method_name(void);
 INLINE const char* get_scoring_matrix_name(void);
 
-INLINE void init_args(int argc, char* argv[]) {
-    g_args = parse_args(argc, argv);
-    
-    if (g_args->verbose && !g_args->quiet) {
+INLINE void print_config_section(void) {
+    if (g_args.verbose && !g_args.quiet) {
         print_step_header_start("Configuration");
         char buffer[256];
-        print_config_item("Input", g_args->input_file_path, NULL);
-        print_config_item("Output", g_args->output_file_path, BOX_TEE_RIGHT);
+        
+        print_config_item("Input", g_args.input_file_path, NULL);
+        print_config_item("Output", g_args.output_file_path, BOX_TEE_RIGHT);
         print_config_item("Method", get_alignment_method_name(), BOX_TEE_RIGHT);
         print_config_item("Matrix", get_scoring_matrix_name(), BOX_TEE_RIGHT);
-        if (g_args->align_method == ALIGN_NEEDLEMAN_WUNSCH) {
-            snprintf(buffer, sizeof(buffer), "%d", g_args->gap_penalty);
+        
+        if (g_args.align_method == ALIGN_NEEDLEMAN_WUNSCH) {
+            snprintf(buffer, sizeof(buffer), "%d", g_args.gap_penalty);
             print_config_item("Gap", buffer, BOX_TEE_RIGHT);
         } else {
-            snprintf(buffer, sizeof(buffer), "%d, extend: %d", g_args->gap_start, g_args->gap_extend);
+            snprintf(buffer, sizeof(buffer), "%d, extend: %d", g_args.gap_start, g_args.gap_extend);
             print_config_item("Gap open", buffer, BOX_TEE_RIGHT);
         }
-        snprintf(buffer, sizeof(buffer), "%d", g_args->num_threads);
+        
+        snprintf(buffer, sizeof(buffer), "%d", g_args.num_threads);
         print_config_item("Threads", buffer, BOX_TEE_RIGHT);
-        snprintf(buffer, sizeof(buffer), "%d", g_args->compression_level);
+        
+        snprintf(buffer, sizeof(buffer), "%d", g_args.compression_level);
         print_config_item("Compression", buffer, BOX_BOTTOM_LEFT);
-        if (g_args->mode_benchmark) {
+        
+        if (g_args.mode_benchmark) {
             print_timing("Benchmarking mode enabled");
         }
+        
         print_step_header_end();
     }
 }
 
+INLINE void init_args(int argc, char* argv[]) {
+    init_default_args();
+    parse_args(argc, argv);
+    print_config_section();
+}
+
 INLINE const char* get_input_file_path(void) {
-    return g_args->input_file_path;
+    return g_args.input_file_path;
 }
 
 INLINE const char* get_output_file_path(void) {
-    return g_args->output_file_path;
+    return g_args.output_file_path;
 }
 
 INLINE int get_gap_penalty(void) {
-    return g_args->gap_penalty;
+    return g_args.gap_penalty;
 }
 
 INLINE int get_gap_start(void) {
-    return g_args->gap_start;
+    return g_args.gap_start;
 }
 
 INLINE int get_gap_extend(void) {
-    return g_args->gap_extend;
+    return g_args.gap_extend;
 }
 
 INLINE int get_num_threads(void) {
-    return g_args->num_threads;
+    return g_args.num_threads;
 }
 
 INLINE int get_alignment_method(void) {
-    return g_args->align_method;
+    return g_args.align_method;
 }
 
 INLINE const char* get_alignment_method_name(void) {
     // (EXPANDABLE)
-    return g_args->align_method == ALIGN_NEEDLEMAN_WUNSCH ? "Needleman-Wunsch" :
-           g_args->align_method == ALIGN_GOTOH_AFFINE ? "Gotoh (affine)" : "Smith-Waterman";
+    return g_args.align_method == ALIGN_NEEDLEMAN_WUNSCH ? "Needleman-Wunsch" :
+           g_args.align_method == ALIGN_GOTOH_AFFINE ? "Gotoh (affine)" : "Smith-Waterman";
 }
 
 INLINE int get_scoring_matrix(void) {
-    return g_args->scoring_matrix;
+    return g_args.scoring_matrix;
 }
 
 INLINE const char* get_scoring_matrix_name(void) {
     // (EXPANDABLE)
-    return g_args->scoring_matrix == SCORE_BLOSUM50 ? "BLOSUM50" : "BLOSUM62";
+    return g_args.scoring_matrix == SCORE_BLOSUM50 ? "BLOSUM50" : "BLOSUM62";
 }
 
 INLINE int get_compression_level(void) {
-    return g_args->compression_level;
+    return g_args.compression_level;
 }
 
 INLINE int get_mode_multithread(void) {
-    return g_args->num_threads > 1;
+    return g_args.num_threads > 1;
 }
 
 INLINE int get_mode_benchmark(void) {
-    return g_args->mode_benchmark;
+    return g_args.mode_benchmark;
 }
 
 INLINE int get_mode_write(void) {
-    return g_args->mode_write;
+    return g_args.mode_write;
 }
 
 INLINE int get_mode_trim(void) {
-    return g_args->mode_trim;
+    return g_args.mode_trim;
 }
 
 INLINE int get_aligned_strings(void) {
     #if MODE_CREATE_ALIGNED_STRINGS == 1
-    return g_args->aligned_strings;
+    return g_args.aligned_strings;
     #else
     return 0;
     #endif
 }
 
 INLINE int get_verbose(void) {
-    return g_args->verbose;
+    return g_args.verbose;
 }
 
 INLINE int get_quiet(void) {
-    return g_args->quiet;
+    return g_args.quiet;
 }
 
 #endif // ARGS_H
