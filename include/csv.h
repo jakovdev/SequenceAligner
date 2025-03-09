@@ -136,7 +136,7 @@ INLINE void prompt_for_sequence_column(void) {
     // Pause the init timer before asking for user input
     double saved_time = bench_pause_init();
     
-    print_info("Could not automatically detect the sequence column.\n");
+    print_info("Could not automatically detect the sequence column.");
     print_info("Please select the column containing sequence data:");
     
     for (int i = 0; i < g_csv_metadata.num_columns; i++) {
@@ -199,13 +199,13 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     g_csv_metadata.num_columns = count_columns(header_start);
     
     if (g_csv_metadata.num_columns <= 0) {
-        print_error("Invalid CSV header\n");
+        print_error("Invalid CSV header");
         return current;
     }
     
     g_csv_metadata.column_headers = (char**)malloc(g_csv_metadata.num_columns * sizeof(char*));
     if (!g_csv_metadata.column_headers) {
-        print_error("Memory allocation failed for column headers\n");
+        print_error("Memory allocation failed for column headers");
         return current;
     }
     
@@ -239,11 +239,11 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     
     // If auto-detection failed
     if (g_csv_metadata.seq_col_index < 0) {
-            prompt_for_sequence_column();
+        prompt_for_sequence_column();
     }
     
-    print_verbose("Detected %d columns in CSV\n", g_csv_metadata.num_columns);
-    print_verbose("Using column %d ('%s') for sequences\n", 
+    print_verbose("Detected %d columns in CSV", g_csv_metadata.num_columns);
+    print_verbose("Using column %d ('%s') for sequences", 
                   g_csv_metadata.seq_col_index + 1, 
                   g_csv_metadata.column_headers[g_csv_metadata.seq_col_index]);
     
