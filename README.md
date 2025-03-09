@@ -12,17 +12,13 @@
 SequenceAligner is a highly optimized tool for performing rapid pairwise sequence alignments on protein or DNA sequences. It leverages low level optimizations like SIMD instructions (AVX/SSE), memory mapping, and efficient cache utilization to achieve better performance.
 
 <details open>
-<summary><strong>Key Features</strong></summary>
+<summary><strong>Features</strong></summary>
 
 - Multiple alignment algorithms:
   - Needleman-Wunsch (global alignment)
   - Smith-Waterman (local alignment)
   - Gotoh algorithm with affine gap penalties
 - Predefined scoring matrices (BLOSUM)
-- SIMD optimizations (AVX2/SSE2) for parallel computation
-- Memory mapped file I/O for efficient data handling
-- Multithreaded execution with work stealing
-- Efficient memory management with huge pages support
 - HDF5 output format with compression
 
 </details>
@@ -32,7 +28,7 @@ SequenceAligner is a highly optimized tool for performing rapid pairwise sequenc
 <details>
 <summary><strong>Dependencies</strong></summary>
 
-- GCC compiler with C99 support
+- GCC with C99 support
 - GNU Make
 - HDF5 library
 
@@ -46,12 +42,9 @@ sudo pacman -S gcc make hdf5
 ```
 
 ### Windows
-Auto-Build script coming soon (needs testing with HDF5)
-Currently, code is not yet buildable on Windows. Fix is coming soon.
-```
-# Using MSYS2/MinGW
-pacman -S mingw-w64-x86_64-gcc mingw-w64-x86_64-hdf5
-```
+
+- Windows support coming soon
+
 </details>
 
 <details>
@@ -65,10 +58,7 @@ cd SequenceAligner
 # Build the project
 make
 
-# For debug build
-make debug
-
-# For Windows cross compilation
+# For Windows cross compilation (not tested yet)
 make cross
 ```
 </details>
@@ -95,13 +85,12 @@ make cross
 | `-z, --compression N` | HDF5 compression level (0-9) [default: 1] |
 | `-B, --benchmark` | Enable benchmarking mode |
 | `-W, --no-write` | Disable writing to output file |
-| `-A, --aligned-strings` | Create aligned strings with gaps (slower) |
 | `-v, --verbose` | Enable verbose output |
 | `-h, --help` | Display help message |
 
 </details>
 
-### Example
+### Examples
 
 ```bash
 # Run with default settings
@@ -112,6 +101,9 @@ make cross
 
 # Enable benchmarking mode with verbose output
 ./bin/main -B -v
+
+# Custom paths
+./bin/main -i ~/Documents/my_dataset.csv -o ~/Documents/h5_files/my_dataset_results.h5
 ```
 
 ## Performance Benchmarks
@@ -181,7 +173,6 @@ make cross
 > [!NOTE]
 > - Processing speed: ~17-20 million alignments per second for my Ryzen 7 5700G
 > - Smith-Waterman and Gotoh algorithms are slower than Needleman-Wunsch
-> - Building aligned strings with gap characters adds ~5-10ms to processing time
 
 ## Implementation Details
 
