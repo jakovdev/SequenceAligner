@@ -22,9 +22,9 @@ LIBS := -lm -lhdf5 $(if $(IS_WINDOWS),-lShlwapi,) $(if $(IS_CROSS),-lshlwapi,)
 
 .PHONY: all debug cross dataset clean
 
-all: bin clean $(MAIN_BINS)
+all: bin results clean $(MAIN_BINS)
 
-debug: bin clean $(MAIN_BINS)
+debug: bin results clean $(MAIN_BINS)
 
 cross: all
 
@@ -33,6 +33,9 @@ dataset: testing/datasets/avpdb.csv
 
 bin:
 	$(if $(IS_WINDOWS),powershell -Command "if (-not (Test-Path bin)) { New-Item -ItemType Directory -Path bin | Out-Null }",mkdir -p bin)
+
+results:
+	$(if $(IS_WINDOWS),powershell -Command "if (-not (Test-Path results)) { New-Item -ItemType Directory -Path results | Out-Null }",mkdir -p results)
 
 bin/%$(BIN_EXT): src/%.c
 	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
