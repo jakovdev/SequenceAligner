@@ -10,7 +10,10 @@ MAIN_BINS := $(patsubst src/%.c,bin/%$(BIN_EXT),$(MAIN_SRC))
 
 IS_W64DEVKIT := $(if $(IS_WINDOWS),$(if $(findstring w64devkit,$(shell where gcc $(if $(IS_WINDOWS),2>nul,2>/dev/null))),yes,),)
 
-BASE_FLAGS := -march=native -pthread -Iinclude $(if $(IS_CROSS),-DCROSS_COMPILE,)
+HDF5_CFLAGS := $(if $(shell which pkg-config 2>/dev/null),$(shell pkg-config --cflags hdf5),)
+HDF5_LIBS := $(if $(shell which pkg-config 2>/dev/null),$(shell pkg-config --libs hdf5),-lhdf5)
+
+BASE_FLAGS := -march=native -pthread -Iinclude $(HDF5_CFLAGS) $(if $(IS_CROSS),-DCROSS_COMPILE,)
 OPT_FLAGS := -O3 -ffast-math -funroll-loops -fno-strict-aliasing \
              -fprefetch-loop-arrays "-Wl,--gc-sections" -DNDEBUG \
              $(if $(IS_W64DEVKIT),,-flto)
@@ -18,7 +21,7 @@ DBG_FLAGS := -g -O0 -Wall -Wextra -Wpedantic -Werror -fstack-protector-strong
 
 CFLAGS := $(BASE_FLAGS) $(if $(filter debug,$(MAKECMDGOALS)),$(DBG_FLAGS),$(OPT_FLAGS))
 
-LIBS := -lm -lhdf5 $(if $(IS_WINDOWS),-lShlwapi,) $(if $(IS_CROSS),-lshlwapi,)
+LIBS := -lm $(HDF5_LIBS) $(if $(IS_WINDOWS),-lShlwapi,) $(if $(IS_CROSS),-lshlwapi,)
 
 .PHONY: all debug cross clean
 

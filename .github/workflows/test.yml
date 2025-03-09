@@ -1,0 +1,30 @@
+name: Test for errors
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install dependencies
+        run: sudo apt-get update && sudo apt-get install -y build-essential libhdf5-dev pkg-config
+      
+      - name: Build
+        run: make
+      
+      - name: Run test
+        id: run_test
+        run: |
+          echo "Starting test run..."
+          bin/main -W -q
+          echo "test_exit_code=$?" >> $GITHUB_OUTPUT
+      
+      - name: Check test results
+        if: steps.run_test.outputs.test_exit_code != '0'
+        run: |
+          echo "::error::Test failed with exit code ${{ steps.run_test.outputs.test_exit_code }}"
+          exit 1
