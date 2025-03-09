@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
     print_step_header("Setting Up Alignment");
     
     SET_HIGH_CLASS();
-    if (get_mode_multithread()) {
+    if (!get_mode_multithread()) {
         PIN_THREAD(0);
     }
     
