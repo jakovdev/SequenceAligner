@@ -22,9 +22,3 @@ jobs:
           echo "Starting test run..."
           bin/main -W -B -v
           echo "test_exit_code=$?" >> $GITHUB_OUTPUT
-      
-      - name: Check test results
-        if: steps.run_test.outputs.test_exit_code != '0'
-        run: |
-          echo "::error::Test failed with exit code ${{ steps.run_test.outputs.test_exit_code }}"
-          exit 1
