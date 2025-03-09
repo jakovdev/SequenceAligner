@@ -69,7 +69,7 @@ typedef HANDLE sem_t;
     CPU_SET(t_id, &cpuset); \
     pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset); \
 } while(0)
-#define SET_HIGH_CLASS() (void)nice(-20)
+#define SET_HIGH_CLASS()
 
 #define aligned_free(ptr) free(ptr)
 
