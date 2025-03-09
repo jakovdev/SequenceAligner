@@ -11,14 +11,13 @@ int main(int argc, char* argv[]) {
     init_print_messages(get_verbose(), get_quiet());
     
     print_header("SEQUENCE ALIGNER", '=');
-    print_info("Starting sequence alignment...\n");
+    print_step_header("Setting Up Alignment");
     
     SET_HIGH_CLASS();
     if (get_mode_multithread()) {
         PIN_THREAD(0);
     }
     
-    print_step_header("Loading Sequences");
     File file = get_input_file();
     print_success("Successfully opened input file: %s\n", get_input_file_path());
     
@@ -62,7 +61,6 @@ int main(int argc, char* argv[]) {
     size_t* seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * seq_count);
     
     // Second pass: read all sequences
-    print_step_header("Setting Up Alignment");
     size_t idx = 0;
     current = file.file_data;
     current = skip_header(current, end);
@@ -79,13 +77,12 @@ int main(int argc, char* argv[]) {
     
     H5Handler h5_handler = init_h5_handler(seq_count);
     
-    print_config("Using %d threads for alignment\n", get_num_threads());
     print_config("Using alignment method: %s\n", get_alignment_method_name());
     
     bench_init_end();
     
     print_step_header("Performing Alignments");
-    print_info("Starting alignment process...\n");
+    
     bench_align_start();
     
     if (get_mode_multithread()) {
@@ -115,6 +112,7 @@ int main(int argc, char* argv[]) {
         
         AlignTask* tasks = (AlignTask*)task_memory;
         Alignment* results = (Alignment*)aligned_alloc(CACHE_LINE, sizeof(Alignment) * optimal_batch_size);
+        print_verbose("Allocated %zu bytes for result memory\n", sizeof(Alignment) * optimal_batch_size);
         
         // Process alignments in batches
         size_t processed = 0;
@@ -169,9 +167,11 @@ int main(int argc, char* argv[]) {
             print_progress_bar((double)processed / total_alignments, 40, "Aligning sequences");
         }
         print_newline();
-        
+        print_verbose("Destroying thread pool\n");
         destroy_thread_pool();
+        print_verbose("Freeing task memory\n");
         aligned_free(tasks);
+        print_verbose("Freeing result memory\n");
         aligned_free(results);
     } else {
         print_config("Using single-threaded mode\n");
