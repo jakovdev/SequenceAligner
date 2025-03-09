@@ -164,29 +164,48 @@ INLINE void prompt_for_sequence_column(void) {
     
     char input_buffer[32] = {0};
     int choice = -1;
-    
-    // Custom terminal handling to prevent line break
+    #ifdef _WIN32
+    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD mode;
+    GetConsoleMode(hStdin, &mode);
+    SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    #else
     struct termios old_term, new_term;
     tcgetattr(STDIN_FILENO, &old_term);
     new_term = old_term;
     new_term.c_lflag &= ~(ICANON | ECHO); // Disable canonical mode and echo
     tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
-    
-    // Display input prompt and get user input
+    #endif
+
+    // Display input prompt and get user input in the same line
     read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt, prompt_len);
-    printf("\n"); // Now manually add the newline
-    
-    // Restore terminal settings
+    printf("\n"); // Manually add the newline for consistency
+
+    #ifdef _WIN32
+    SetConsoleMode(hStdin, mode);
+    #else
     tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
-    
+    #endif
+
     // Validate input
     while (choice < 1 || choice > g_csv_metadata.num_columns) {
         print_warning("Invalid input! Please enter a number between 1 and %d.", g_csv_metadata.num_columns);
         memset(input_buffer, 0, sizeof(input_buffer));
+
+        #ifdef _WIN32
+        SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+        #else
         tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
+        #endif
+
         read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt, prompt_len);
         printf("\n");
+
+        #ifdef _WIN32
+        SetConsoleMode(hStdin, mode);
+        #else
         tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
+        #endif
     }
     
     g_csv_metadata.seq_col_index = choice - 1;
