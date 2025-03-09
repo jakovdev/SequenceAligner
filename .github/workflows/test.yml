@@ -20,7 +20,7 @@ jobs:
         id: run_test
         run: |
           echo "Starting test run..."
-          bin/main -W -q
+          bin/main -W -B -v
           echo "test_exit_code=$?" >> $GITHUB_OUTPUT
       
       - name: Check test results
