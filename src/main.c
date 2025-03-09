@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     Sequence* seqs = (Sequence*)huge_page_alloc(total_seq_mem);;
     size_t* seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * seq_count);
     
-    // Second pass: read all sequences
+    // Second pass: store all sequences
     size_t idx = 0;
     current = file.file_data;
     current = skip_header(current, end);
@@ -69,11 +69,11 @@ int main(int argc, char* argv[]) {
         seq_lens[idx] = parse_csv_line(&current, seqs[idx].data);
         idx++;
         if (idx % (seq_count / 10 + 1) == 0 || idx == seq_count) {
-            print_progress_bar((double)idx / seq_count, 40, "Reading sequences");
+            print_progress_bar((double)idx / seq_count, 40, "Storing sequences");
         }
     }
     print_newline();
-    print_success("Successfully read %zu sequences\n", seq_count);
+    print_success("Successfully stored %zu sequences\n", seq_count);
     
     H5Handler h5_handler = init_h5_handler(seq_count);
     
