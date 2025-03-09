@@ -94,8 +94,8 @@ int main(int argc, char* argv[]) {
         // Reference points for interpolation:
         // - For 1024 sequences: use L2_CACHE_SIZE (256KiB)
         // - For 32768 sequences: use 16MiB of tasks
-        const double ref_small_seqs = 1024.0;
-        const double ref_large_seqs = 32768.0;
+        const double ref_small_seqs = 1.0 * KiB;
+        const double ref_large_seqs = 32.0 * KiB;
         const double ref_small_bytes = L2_CACHE_SIZE;
         const double ref_large_bytes = 16.0 * MiB;
         
