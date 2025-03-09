@@ -311,11 +311,11 @@ INLINE void print_header(const char* title) {
     size_t title_len = strlen(title);
     size_t padding = (OUTPUT_WIDTH - 2 - title_len) / 2;
     
-    for (int i = 0; i < padding; i++) printf(" ");
+    for (size_t i = 0; i < padding; i++) printf(" ");
 
     printf("%s", title);
 
-    for (int i = 0; i < OUTPUT_WIDTH - 2 - title_len - padding; i++) printf(" ");
+    for (size_t i = 0; i < OUTPUT_WIDTH - 2 - title_len - padding; i++) printf(" ");
     
     printf("%s\n", FANCY_VERTICAL);
     printf("%s", FANCY_BOTTOM_LEFT);
