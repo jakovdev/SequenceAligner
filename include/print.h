@@ -284,7 +284,7 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     message_config.content_printed = 1;
 }
 
-INLINE void print_header(const char* title, char fill_char) {
+INLINE void print_header(const char* title) {
     if (message_config.quiet) return;
     
     printf("%s%s", ANSI_COLOR_BOLD, ANSI_COLOR_BLUE);
@@ -351,11 +351,6 @@ INLINE void print_config_item(const char* item, const char* value, const char* p
         printf("\n");
         message_config.content_printed = 1;
     }
-}
-
-INLINE void reset_config_counter(void) {
-    static int first_config_item = 1;
-    first_config_item = 1;
 }
 
 #endif // PRINT_H

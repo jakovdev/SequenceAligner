@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
     init_args(argc, argv);
     init_print_messages(get_verbose(), get_quiet());
     
-    print_header("SEQUENCE ALIGNER", '=');
+    print_header("SEQUENCE ALIGNER");
     print_step_header("Setting Up Alignment");
     
     SET_HIGH_CLASS();

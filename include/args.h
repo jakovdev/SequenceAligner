@@ -241,7 +241,6 @@ INLINE void init_args(int argc, char* argv[]) {
     
     if (g_args->verbose && !g_args->quiet) {
         print_step_header_start("Configuration");
-        reset_config_counter();
         char buffer[256];
         print_config_item("Input", g_args->input_file_path, NULL);
         print_config_item("Output", g_args->output_file_path, BOX_TEE_RIGHT);
