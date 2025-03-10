@@ -80,7 +80,6 @@ typedef HANDLE sem_t;
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
-#include <immintrin.h>
 #include <string.h>
 #include <stdbool.h>
 #include <limits.h>
@@ -94,8 +93,6 @@ typedef HANDLE sem_t;
 
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
-#define PREFETCH(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
-#define PREFETCH_WRITE(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 
 #define INLINE static inline //__attribute__((always_inline))
 #define ALIGN __attribute__((aligned(CACHE_LINE)))
@@ -104,11 +101,12 @@ typedef HANDLE sem_t;
 #define restrict __restrict
 #endif
 
-// Will fix later...
-/*#if defined(__AVX512F__)
+#if defined(__AVX512F__) && defined(__AVX512BW__)
+#include <immintrin.h>
+#include <x86intrin.h>
     #define USE_AVX
     typedef __m512i veci_t;
-    typedef uint64_t num_t;
+    typedef __mmask64 num_t;
     #define BYTES (64)
     #define NUM_ELEMS (16)
     #define ctz __builtin_ctzll
@@ -119,13 +117,15 @@ typedef HANDLE sem_t;
     #define mullo_epi32 _mm512_mullo_epi32
     #define set1_epi32 _mm512_set1_epi32
     #define set1_epi8 _mm512_set1_epi8
-    #define cmpeq_epi8 _mm512_cmpeq_epi8
-    #define movemask_epi8 _mm512_movm_epi8
+    #define cmpeq_epi8(a, b) _mm512_cmpeq_epi8_mask(a, b)
+    #define movemask_epi8(mask) (mask)
+    #define or_mask(a, b) ((a) | (b))
     #define or_si _mm512_or_si512
     #define setzero_si _mm512_setzero_si512
     #define and_si _mm512_and_si512
-    #define setr_indicies _mm512_setr_epi32(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)*/
-#if defined(__AVX2__)
+    #define setr_indicies _mm512_setr_epi32(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+#elif defined(__AVX2__)
+#include <immintrin.h>
     #define USE_AVX
     typedef __m256i veci_t;
     typedef uint32_t num_t;
@@ -145,7 +145,24 @@ typedef HANDLE sem_t;
     #define setzero_si _mm256_setzero_si256
     #define and_si _mm256_and_si256
     #define setr_indicies _mm256_setr_epi32(1,2,3,4,5,6,7,8)
+#endif
+
+#ifndef USE_AVX
+#if defined(__SSE4_2__)
+    #define USE_SSE
+    #include <nmmintrin.h>
+#elif defined(__SSE4_1__)
+    #define USE_SSE
+    #include <smmintrin.h>
 #elif defined(__SSE2__)
+    #define USE_SSE
+    #include <emmintrin.h>
+#elif defined(__SSE__)
+    #define USE_SSE
+    #include <xmmintrin.h>
+#endif
+
+#ifdef USE_SSE
     #define USE_AVX
     typedef __m128i veci_t;
     typedef uint16_t num_t;
@@ -156,7 +173,20 @@ typedef HANDLE sem_t;
     #define storeu _mm_storeu_si128
     #define add_epi32 _mm_add_epi32
     #define sub_epi32 _mm_sub_epi32
-    #define mullo_epi32 _mm_mullo_epi32
+    
+    #if defined(__SSE4_1__)
+        #define mullo_epi32 _mm_mullo_epi32
+    #else
+        // Fallback for SSE2
+        static inline __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b) {
+            __m128i tmp1 = _mm_mul_epu32(a, b);
+            __m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4));
+            return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0,0,2,0)),
+                                    _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0,0,2,0)));
+        }
+        #define mullo_epi32 _mm_mullo_epi32_fallback
+    #endif
+
     #define set1_epi32 _mm_set1_epi32
     #define set1_epi8 _mm_set1_epi8
     #define cmpeq_epi8 _mm_cmpeq_epi8
@@ -165,6 +195,15 @@ typedef HANDLE sem_t;
     #define setzero_si _mm_setzero_si128
     #define and_si _mm_and_si128
     #define setr_indicies _mm_setr_epi32(1,2,3,4)
+#endif
+#endif
+
+#ifdef USE_AVX
+#define PREFETCH(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
+#define PREFETCH_WRITE(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
+#else
+#define PREFETCH(x)
+#define PREFETCH_WRITE(x)
 #endif
 
 #endif

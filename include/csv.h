@@ -291,6 +291,13 @@ INLINE size_t parse_csv_line(char** current,
             write_pos = seq;
             while (*p && *p != ',' && *p != '\n' && *p != '\r') {
                 veci_t data = loadu((veci_t*)p);
+                
+                #if defined(__AVX512F__) && defined(__AVX512BW__)
+                num_t mask_delim = cmpeq_epi8(data, delim_vec);
+                num_t mask_nl = cmpeq_epi8(data, nl_vec);
+                num_t mask_cr = cmpeq_epi8(data, cr_vec);
+                num_t mask = or_mask(or_mask(mask_delim, mask_nl), mask_cr);
+                #else
                 veci_t is_delim = or_si(
                     or_si(
                         cmpeq_epi8(data, delim_vec),
@@ -299,6 +306,7 @@ INLINE size_t parse_csv_line(char** current,
                     cmpeq_epi8(data, cr_vec)
                 );
                 num_t mask = movemask_epi8(is_delim);
+                #endif
 
                 if (mask) {
                     num_t pos = ctz(mask);
