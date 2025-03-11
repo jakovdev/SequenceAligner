@@ -202,15 +202,17 @@ All implementations use dynamic programming with optimized matrix operations.
 ## File Formats
 
 - **Input**: CSV file with sequences
-  - Tries to auto-detect the column with sequences
-  - Prompts you if it can't find it
-  - Only requirement is to have 1 column with sequences
-  - Also, make sure that you have enough RAM if you're aligning very large datasets (10-50k+ sequences). It will fail if you do not. I might implement a chunking method for that case later.
+  - Automatically detects the column containing sequences
+  - Asks for your input if it can't find the sequence column
+  - Requires only one column with valid sequence data
+  - For large datasets (10k-50k+ sequences), ensure you have sufficient RAM
+  - Future updates may include chunked processing for memory-constrained environments
   
-- **Output**: HDF5 file containing similarity matrix
-  - Matrix dimensions match sequence count
-  - Configurable compression level
-  - Similar RAM restrictions as input, as for large datasets the result could be greater than amount of RAM available, though it will fail in the alignment phase before it even gets to this phase.
+- **Output**: HDF5 file storing the similarity matrix
+  - Matrix dimensions match the number of input sequences or filtered sequences if enabled
+  - Compression level adjustable through command line options
+  - Memory usage increases with the square of sequence count
+  - Similar RAM restrictions as input
 
 ## License
 
