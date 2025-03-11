@@ -41,6 +41,7 @@ INLINE H5Handler init_h5_handler(size_t matrix_size) {
         hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
         size_t chunk_dim = (size_t)sqrt(((4.0 * KiB) / sizeof(int)) * sqrt(matrix_size / 1000.0));
         chunk_dim = chunk_dim < 16 ? 16 : (chunk_dim > 128 ? 128 : chunk_dim);
+        chunk_dim = chunk_dim > matrix_size ? matrix_size : chunk_dim;
         print_verbose("HDF5 chunk size for %zux%zu matrix: %zu\n", matrix_size, matrix_size, chunk_dim);
         hsize_t chunk_dims[2] = {chunk_dim, chunk_dim};
         H5Pset_chunk(plist_id, 2, chunk_dims);
