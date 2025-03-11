@@ -122,7 +122,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         } else {
-            print_verbose("Using %zu of %zu allocated sequence slots after filtering (%.2f%% efficiency)", seq_count, total_seqs_in_file, (seq_count * 100.0) / total_seqs_in_file);
+            print_verbose("Using %zu of %zu sequence slots after filtering (%.2f%% eff)", seq_count, total_seqs_in_file, (seq_count * 100.0) / total_seqs_in_file);
         }
     } else {
         print_success("Stored %zu sequences", seq_count);
