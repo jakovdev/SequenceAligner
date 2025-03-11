@@ -5,7 +5,7 @@
 
 static const char AMINO_ACIDS[] = "ARNDCQEGHILKMFPSTWYV";
 
-#ifdef USE_AVX
+#ifdef USE_SIMD
 static veci_t FIRST_ROW_INDICES;
 static veci_t GAP_PENALTY_VEC;
 static veci_t GAP_START_VEC;
@@ -46,7 +46,7 @@ INLINE void init_scoring_matrix(ScoringMatrix* restrict matrix) {
         for (int i = 0; i < (int)strlen(AMINO_ACIDS); i++) {
             AMINO_LOOKUP[(int)AMINO_ACIDS[i]] = i;
         }
-        #ifdef USE_AVX
+        #ifdef USE_SIMD
         FIRST_ROW_INDICES = setr_indicies;
         GAP_PENALTY_VEC = set1_epi32(get_gap_penalty());
         GAP_START_VEC = set1_epi32(get_gap_start());

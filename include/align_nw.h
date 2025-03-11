@@ -19,7 +19,7 @@ INLINE Alignment nw_align(const char seq1[MAX_SEQ_LEN],
     int* restrict curr_row = matrix;
     curr_row[0] = 0;
     
-    #ifdef USE_AVX
+    #ifdef USE_SIMD
     veci_t indices = FIRST_ROW_INDICES;
     for (int j = 1; j <= (int)len1; j += NUM_ELEMS) {
         veci_t values = mullo_epi32(indices, GAP_PENALTY_VEC);

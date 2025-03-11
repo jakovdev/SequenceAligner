@@ -104,7 +104,7 @@ typedef HANDLE sem_t;
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 #include <immintrin.h>
 #include <x86intrin.h>
-    #define USE_AVX
+    #define USE_SIMD
     typedef __m512i veci_t;
     typedef __mmask64 num_t;
     #define BYTES (64)
@@ -126,7 +126,7 @@ typedef HANDLE sem_t;
     #define setr_indicies _mm512_setr_epi32(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
 #elif defined(__AVX2__)
 #include <immintrin.h>
-    #define USE_AVX
+    #define USE_SIMD
     typedef __m256i veci_t;
     typedef uint32_t num_t;
     #define BYTES (32)
@@ -147,7 +147,7 @@ typedef HANDLE sem_t;
     #define setr_indicies _mm256_setr_epi32(1,2,3,4,5,6,7,8)
 #endif
 
-#ifndef USE_AVX
+#ifndef USE_SIMD
 #if defined(__SSE4_2__)
     #define USE_SSE
     #include <nmmintrin.h>
@@ -163,7 +163,7 @@ typedef HANDLE sem_t;
 #endif
 
 #ifdef USE_SSE
-    #define USE_AVX
+    #define USE_SIMD
     typedef __m128i veci_t;
     typedef uint16_t num_t;
     #define BYTES (16)
@@ -198,7 +198,7 @@ typedef HANDLE sem_t;
 #endif
 #endif
 
-#ifdef USE_AVX
+#ifdef USE_SIMD
 #define PREFETCH(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
 #define PREFETCH_WRITE(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 #else

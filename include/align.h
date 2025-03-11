@@ -62,7 +62,7 @@ INLINE float calculate_similarity(const char* seq1, size_t len1, const char* seq
     size_t matches = 0;
     size_t compare_len = min_len;
     
-    #ifdef USE_AVX
+    #ifdef USE_SIMD
     // Process in vector chunks
     size_t vec_limit = (compare_len / BYTES) * BYTES;
     for (size_t i = 0; i < vec_limit; i += BYTES) {

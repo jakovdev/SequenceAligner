@@ -22,7 +22,7 @@ INLINE Alignment sw_align(const char seq1[MAX_SEQ_LEN],
     int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
     const int cols = len1 + 1;
 
-    #ifdef USE_AVX
+    #ifdef USE_SIMD
     veci_t zero_vec = setzero_si();
     veci_t int_min_half = set1_epi32(INT_MIN/2);
     

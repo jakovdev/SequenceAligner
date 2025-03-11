@@ -191,7 +191,7 @@ All implementations use dynamic programming with optimized matrix operations.
 <details>
 <summary><strong>Optimization Techniques</strong></summary>
 
-- SIMD vectorization using AVX2/SSE2 instructions
+- SIMD vectorization using AVX/SSE instructions
 - Cache friendly memory access patterns
 - Memory prefetching
 - Thread work stealing for load balancing

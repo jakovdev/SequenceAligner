@@ -25,7 +25,7 @@ INLINE Alignment ga_align(const char seq1[MAX_SEQ_LEN],
     match[0] = 0;
     gap_x[0] = gap_y[0] = INT_MIN/2; // So that it's not chosen / no overflow
     
-    #ifdef USE_AVX
+    #ifdef USE_SIMD
     veci_t indices = FIRST_ROW_INDICES;
     veci_t int_min_half = set1_epi32(INT_MIN/2);
     

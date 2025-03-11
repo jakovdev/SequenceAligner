@@ -281,7 +281,7 @@ INLINE size_t parse_csv_line(char** current,
 
     while (*p && (*p == ' ' || *p == '\r' || *p == '\n')) p++;
 
-    #ifdef USE_AVX
+    #ifdef USE_SIMD
     const veci_t delim_vec = set1_epi8(',');
     const veci_t nl_vec = set1_epi8('\n');
     const veci_t cr_vec = set1_epi8('\r');

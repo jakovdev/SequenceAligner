@@ -12,7 +12,7 @@ INLINE char* fast_strcpy(char* restrict dst, const char* restrict src, size_t le
         while (i < len && ((uintptr_t)(src + i) & (CACHE_LINE-1))) {
             dst[i] = src[i]; i++;
         }
-    #ifdef USE_AVX
+    #ifdef USE_SIMD
         for (; i <= len - BYTES; i += BYTES) {
             storeu((veci_t*)(dst+i), loadu((veci_t*)(src+i)));
         }
