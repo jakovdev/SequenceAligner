@@ -18,7 +18,8 @@ SequenceAligner is a highly optimized tool for performing rapid pairwise sequenc
   - Needleman-Wunsch (global alignment)
   - Smith-Waterman (local alignment)
   - Gotoh algorithm with affine gap penalties
-- Predefined scoring matrices (BLOSUM)
+- [Multiple configurable options](#usage)
+- Predefined scoring matrices
 - HDF5 output format with compression
 
 </details>
@@ -69,7 +70,7 @@ make cross
 ./bin/main [OPTIONS]
 ```
 
-<details>
+<details open>
 <summary><strong>Command line options</strong></summary>
 
 | Option | Description |
