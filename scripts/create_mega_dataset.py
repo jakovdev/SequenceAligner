@@ -176,8 +176,8 @@ if __name__ == "__main__":
     project_root = script_dir.parent
 
     # Default paths
-    input_path = project_root / "datasets" / "avpdb.csv"
-    output_path = project_root / "datasets" / "avpdb_mt.csv"
+    input_path = project_root / "datasets" / "avppred.csv"
+    output_path = project_root / "datasets" / "avppred_enlarged.csv"
 
     parser = ArgumentParser(
         description="Create enlarged dataset by multiplying the original data"
@@ -194,14 +194,14 @@ if __name__ == "__main__":
         type=str,
         nargs="?",
         default=input_path,
-        help="Path to input CSV file (default: avpdb.csv)",
+        help="Path to input CSV file (default: avppred.csv)",
     )
     parser.add_argument(
         "output_path",
         type=str,
         nargs="?",
         default=output_path,
-        help="Path to output CSV file (default: avpdb_mega.csv)",
+        help="Path to output CSV file (default: avppred_enlarged.csv)",
     )
     parser.add_argument(
         "--no-reverse",

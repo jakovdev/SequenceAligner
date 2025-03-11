@@ -64,8 +64,8 @@ INLINE void print_usage(const char* program_name) {
     printf("Usage: %s [OPTIONS]\n\n", program_name);
     printf("Sequence Alignment Tool - Fast pairwise sequence alignment\n\n");
     printf("Options:\n");
-    printf("  -i, --input FILE       Input CSV file path [default: ./datasets/avpdb.csv]\n");
-    printf("  -o, --output FILE      Output HDF5 file path [default: ./results/matrix.h5]\n");
+    printf("  -i, --input FILE       Input CSV file path [default: ./datasets/avppred.csv]\n");
+    printf("  -o, --output FILE      Output HDF5 file path [default: ./results/avppred_results.h5]\n");
     printf("  -a, --align METHOD     Alignment method [default: nw]\n");
     printf("                           nw: Needleman-Wunsch (global alignment)\n");
     printf("                           ga: Gotoh algorithm with affine gap penalty\n");
@@ -124,8 +124,8 @@ INLINE int parse_scoring_matrix(const char* arg) {
 }
 
 INLINE void init_default_args(void) {
-    strcpy(g_args.input_file_path, "./datasets/avpdb.csv");
-    strcpy(g_args.output_file_path, "./results/matrix.h5");
+    strcpy(g_args.input_file_path, "./datasets/avppred.csv");
+    strcpy(g_args.output_file_path, "./results/avppred_results.h5");
     
     g_args.align_method = ALIGN_NEEDLEMAN_WUNSCH;
     g_args.scoring_matrix = SCORE_BLOSUM50;

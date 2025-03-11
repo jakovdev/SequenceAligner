@@ -74,8 +74,8 @@ make cross
 
 | Option | Description |
 |--------|-------------|
-| `-i, --input FILE` | Input CSV file path [default: ./datasets/avpdb.csv] |
-| `-o, --output FILE` | Output HDF5 file path [default: ./results/matrix.h5] |
+| `-i, --input FILE` | Input CSV file path [default: ./datasets/avppred.csv] |
+| `-o, --output FILE` | Output HDF5 file path [default: ./results/avppred_results.h5] |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw [default: nw] |
 | `-m, --matrix MATRIX` | Scoring matrix: blosum50, blosum62 [default: blosum50] |
 | `-p, --gap-penalty N` | Linear gap penalty for NW [default: 4] |
@@ -103,7 +103,7 @@ make cross
 ./bin/main -B -v
 
 # Custom paths
-./bin/main -i ~/Documents/my_dataset.csv -o ~/Documents/h5_files/my_dataset_results.h5
+./bin/main -i dataset/avppred.csv -o results/avppred_results.h5
 ```
 
 ## Performance Benchmarks
