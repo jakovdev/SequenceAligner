@@ -83,6 +83,7 @@ make cross
 | `-e, --gap-extend N` | Affine gap extend penalty for GA/SW [default: 1] |
 | `-t, --threads N` | Number of threads (0 = auto) [default: 0] |
 | `-z, --compression N` | HDF5 compression level (0-9) [default: 1] |
+| `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold |
 | `-B, --benchmark` | Enable benchmarking mode |
 | `-W, --no-write` | Disable writing to output file |
 | `-v, --verbose` | Enable verbose output |

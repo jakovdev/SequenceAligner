@@ -42,7 +42,7 @@ INLINE H5Handler init_h5_handler(size_t matrix_size) {
         size_t chunk_dim = (size_t)sqrt(((4.0 * KiB) / sizeof(int)) * sqrt(matrix_size / 1000.0));
         chunk_dim = chunk_dim < 16 ? 16 : (chunk_dim > 128 ? 128 : chunk_dim);
         chunk_dim = chunk_dim > matrix_size ? matrix_size : chunk_dim;
-        print_verbose("HDF5 chunk size for %zux%zu matrix: %zu\n", matrix_size, matrix_size, chunk_dim);
+        print_verbose("HDF5 chunk size for %zux%zu matrix: %zu", matrix_size, matrix_size, chunk_dim);
         hsize_t chunk_dims[2] = {chunk_dim, chunk_dim};
         H5Pset_chunk(plist_id, 2, chunk_dims);
         H5Pset_deflate(plist_id, get_compression_level());
@@ -68,7 +68,7 @@ INLINE void write_matrix_to_h5(H5Handler* restrict handler) {
 
 INLINE void close_h5_handler(H5Handler* restrict handler) {
     if (get_mode_write()) {
-        print_info("Writing results to output file: %s\n", get_output_file_path());
+        print_info("Writing results to output file: %s", get_file_name(get_output_file_path()));
         bench_write_start();
         write_matrix_to_h5(handler);
         H5Dclose(handler->dataset_id);

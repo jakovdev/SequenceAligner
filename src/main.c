@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     }
     
     File file = get_input_file();
-    print_success("Successfully opened input file: %s\n", get_input_file_path());
+    print_success("Successfully opened input file: %s", get_file_name(get_input_file_path()));
     
     char* current = file.file_data;
     char* restrict end = file.file_data + file.data_size;
@@ -29,57 +29,112 @@ int main(int argc, char* argv[]) {
     
     ScoringMatrix scoring;
     init_scoring_matrix(&scoring);
-    print_verbose("Initialized scoring matrix\n");
+    print_verbose("Initialized scoring matrix");
 
     // First pass: count sequences
+    size_t total_seqs_in_file = 0;
     size_t seq_count = 0;
     char* count_ptr = current;
     
-    print_verbose("Counting sequences in input file...\n");
+    print_verbose("Counting sequences in input file...");
     while (count_ptr < end && *count_ptr) {
         char dummy[MAX_SEQ_LEN];
-        // TODO: Trim similar sequences for ML
         parse_csv_line(&count_ptr, dummy);
-        seq_count++;
+        total_seqs_in_file++;
     }
     
-    if (seq_count == 0) {
-        print_error("No sequences found in input file\n");
+    if (total_seqs_in_file == 0) {
+        print_error("No sequences found in input file");
         free_csv_metadata();
         free_input_file(&file);
         return 0;
     }
     
-    print_dna("Found %zu sequences\n", seq_count);
-    size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
-    print_info("Will perform %zu pairwise alignments\n", total_alignments);
-    bench_set_alignments(total_alignments);
+    print_dna("Found %zu sequences", total_seqs_in_file);
 
     size_t seq_struct_size = ((sizeof(Sequence) + CACHE_LINE - 1) / CACHE_LINE) * CACHE_LINE;
-    size_t total_seq_mem = seq_struct_size * seq_count;
-    print_verbose("Allocating %zu bytes for sequence data\n", total_seq_mem);
+    size_t total_seq_mem = seq_struct_size * total_seqs_in_file;
+    print_verbose("Allocating %zu bytes for sequence data", total_seq_mem);
 
-    Sequence* seqs = (Sequence*)huge_page_alloc(total_seq_mem);;
-    size_t* seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * seq_count);
+    Sequence* seqs = (Sequence*)huge_page_alloc(total_seq_mem);
+    size_t* seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * total_seqs_in_file);
     
     // Second pass: store all sequences
     size_t idx = 0;
     current = file.file_data;
     current = skip_header(current, end);
-    
-    while (idx < seq_count && current < end && *current) {
-        seq_lens[idx] = parse_csv_line(&current, seqs[idx].data);
-        idx++;
-        if (idx % (seq_count / 10 + 1) == 0 || idx == seq_count) {
-            print_progress_bar((double)idx / seq_count, 40, "Storing sequences");
+
+    size_t filtered_count = 0;
+    float filter_threshold = get_filter_threshold();
+    bool apply_filtering = get_mode_filter();
+
+    while (current < end && *current) {
+        char temp_seq[MAX_SEQ_LEN];
+        size_t seq_len = parse_csv_line(&current, temp_seq);
+        
+        if (seq_len == 0) continue;
+        
+        bool should_include = true;
+        
+        if (apply_filtering && idx > 0) {
+            for (size_t j = 0; j < idx; j++) {
+                float similarity = calculate_similarity(temp_seq, seq_len, seqs[j].data, seq_lens[j]);
+                if (similarity >= filter_threshold) {
+                    should_include = false;
+                    filtered_count++;
+                    break;
+                }
+            }
+        }
+        
+        if (should_include) {
+            memcpy(seqs[idx].data, temp_seq, seq_len);
+            seqs[idx].data[seq_len] = '\0';
+            seq_lens[idx] = seq_len;
+            idx++;
+        }
+        
+        if ((idx + filtered_count) % 1000 == 0 || current >= end) {
+            print_progress_bar((double)(idx + filtered_count) / total_seqs_in_file, 40, apply_filtering ? "Filtering sequences" : "Storing sequences");
         }
     }
+    
+    seq_count = idx;
     print_newline();
-    print_success("Successfully stored %zu sequences\n", seq_count);
+    
+    if (apply_filtering) {
+        print_success("Stored %zu sequences (filtered out %zu)", seq_count, filtered_count);
+        
+        if (filtered_count > 0 && filtered_count >= total_seqs_in_file / 4) {
+            print_verbose("Reallocating memory to save %zu sequence slots (%.2f MiB)", filtered_count, (filtered_count * seq_struct_size) / (1024.0 * 1024.0));
+            size_t new_seq_mem = seq_struct_size * seq_count;
+            Sequence* new_seqs = (Sequence*)huge_page_alloc(new_seq_mem);
+            if (new_seqs) {
+                memcpy(new_seqs, seqs, new_seq_mem);
+                aligned_free(seqs);
+                seqs = new_seqs;
+                size_t* new_seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * seq_count);
+                if (new_seq_lens) {
+                    memcpy(new_seq_lens, seq_lens, sizeof(size_t) * seq_count);
+                    aligned_free(seq_lens);
+                    seq_lens = new_seq_lens;
+                    print_success("Memory reallocated, now using %zu bytes for sequences", new_seq_mem);
+                }
+            }
+        } else {
+            print_verbose("Using %zu of %zu allocated sequence slots after filtering (%.2f%% efficiency)", seq_count, total_seqs_in_file, (seq_count * 100.0) / total_seqs_in_file);
+        }
+    } else {
+        print_success("Stored %zu sequences", seq_count);
+    }
+
+    size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
+    print_info("Will perform %zu pairwise alignments", total_alignments);
+    bench_set_alignments(total_alignments);
     
     H5Handler h5_handler = init_h5_handler(seq_count);
     
-    print_config("Using alignment method: %s\n", get_alignment_method_name());
+    print_config("Using alignment method: %s", get_alignment_method_name());
     
     bench_init_end();
     
@@ -88,7 +143,7 @@ int main(int argc, char* argv[]) {
     bench_align_start();
     
     if (get_mode_multithread()) {
-        print_config("Using multithreaded mode with %d threads\n", get_num_threads());
+        print_config("Using multithreaded mode with %d threads", get_num_threads());
         init_thread_pool(&h5_handler);
         
         // Calculate optimal batch size based on testing data
@@ -106,15 +161,15 @@ int main(int argc, char* argv[]) {
         double optimal_memory = ref_small_bytes + clamped_ratio * (ref_large_bytes - ref_small_bytes);
         size_t optimal_batch_size = (size_t)(optimal_memory / task_size);
         optimal_batch_size = optimal_batch_size < total_alignments ? optimal_batch_size : total_alignments;
-        print_verbose("Batch size: %zu tasks per batch\n", optimal_batch_size);
+        print_verbose("Batch size: %zu tasks per batch", optimal_batch_size);
         
         size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
         void* task_memory = huge_page_alloc(tasks_memory_size);
-        print_verbose("Allocated %zu bytes for task memory\n", tasks_memory_size);
+        print_verbose("Allocated %zu bytes for task memory", tasks_memory_size);
         
         AlignTask* tasks = (AlignTask*)task_memory;
         Alignment* results = (Alignment*)aligned_alloc(CACHE_LINE, sizeof(Alignment) * optimal_batch_size);
-        print_verbose("Allocated %zu bytes for result memory\n", sizeof(Alignment) * optimal_batch_size);
+        print_verbose("Allocated %zu bytes for result memory", sizeof(Alignment) * optimal_batch_size);
         
         // Process alignments in batches
         size_t processed = 0;
@@ -169,14 +224,14 @@ int main(int argc, char* argv[]) {
             print_progress_bar((double)processed / total_alignments, 40, "Aligning sequences");
         }
         print_newline();
-        print_verbose("Destroying thread pool\n");
+        print_verbose("Destroying thread pool");
         destroy_thread_pool();
-        print_verbose("Freeing task memory\n");
+        print_verbose("Freeing task memory");
         aligned_free(tasks);
-        print_verbose("Freeing result memory\n");
+        print_verbose("Freeing result memory");
         aligned_free(results);
     } else {
-        print_config("Using single-threaded mode\n");
+        print_config("Using single-threaded mode");
         size_t progress_step = total_alignments / 100 + 1;
         size_t progress_counter = 0;
         
@@ -211,7 +266,7 @@ int main(int argc, char* argv[]) {
         print_newline();
     }
     
-    print_success("Alignment completed successfully!\n");
+    print_success("Alignment completed successfully!");
     bench_align_end();
     
     print_step_header("Finalizing Results");
@@ -221,23 +276,23 @@ int main(int argc, char* argv[]) {
         checksum += h5_handler.buffer.data[i];
     }
 
-    print_info("Matrix checksum: %lld\n", checksum);
+    print_info("Matrix checksum: %lld", checksum);
     
     close_h5_handler(&h5_handler);
     
     bench_total();
     
     print_step_header("Cleaning Up");
-    print_verbose("Freeing csv metadata\n");
+    print_verbose("Freeing csv metadata");
     free_csv_metadata();
-    print_verbose("Freeing sequence data\n");
+    print_verbose("Freeing sequence data");
     aligned_free(seqs);
-    print_verbose("Freeing sequence lengths\n");
+    print_verbose("Freeing sequence lengths");
     aligned_free(seq_lens);
-    print_verbose("Closing input file\n");
+    print_verbose("Closing input file");
     free_input_file(&file);
     
-    print_success("All operations completed successfully!\n");
+    print_success("All operations completed successfully!");
     print_step_header_end();
     return 0;
 }

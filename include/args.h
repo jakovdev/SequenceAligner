@@ -23,11 +23,12 @@ typedef struct {
     int gap_extend;             // Affine gap extend penalty (GA|SW)
     int num_threads;            // Number of threads (0 = auto)
     int compression_level;      // HDF5 compression level (0-9)
+    float filter_threshold;     // Sequence similarity threshold for filtering
     
     // Flags
     unsigned mode_benchmark : 1; // Enable benchmarking
     unsigned mode_write : 1;     // Enable output file writing
-    unsigned mode_trim : 1;      // Enable sequence trimming
+    unsigned mode_filter : 1;    // Enable sequence filtering
     #if MODE_CREATE_ALIGNED_STRINGS == 1
     unsigned aligned_strings : 1;// Create strings with gaps vs score-only
     #endif
@@ -46,9 +47,9 @@ static struct option long_options[] = {
     {"gap-extend",      required_argument, 0, 'e'},
     {"threads",         required_argument, 0, 't'},
     {"compression",     required_argument, 0, 'z'},
+    {"filter",          required_argument, 0, 'f'},
     {"benchmark",       no_argument,       0, 'B'},
     {"no-write",        no_argument,       0, 'W'},
-    {"trim",            no_argument,       0, 'T'},
     #if MODE_CREATE_ALIGNED_STRINGS == 1
     {"aligned-strings", no_argument,       0, 'A'},
     #endif
@@ -77,9 +78,9 @@ INLINE void print_usage(const char* program_name) {
     printf("  -e, --gap-extend N     Affine gap extend penalty for GA/SW [default: 1]\n");
     printf("  -t, --threads N        Number of threads (0 = auto) [default: 0]\n");
     printf("  -z, --compression N    HDF5 compression level (0-9) [default: 1]\n");
+    printf("  -f, --filter THRESHOLD Filter sequences with similarity above threshold\n");
     printf("  -B, --benchmark        Enable benchmarking mode\n");
     printf("  -W, --no-write         Disable writing to output file\n");
-    printf("  -T, --trim             Enable sequence trimming\n");
     #if MODE_CREATE_ALIGNED_STRINGS == 1
     printf("  -A, --aligned-strings  Create aligned strings with gaps (slower)\n");
     #endif
@@ -134,10 +135,11 @@ INLINE void init_default_args(void) {
     g_args.gap_extend = 1;
     g_args.num_threads = 0;
     g_args.compression_level = 0;
+    g_args.filter_threshold = 0.0f;
     
     g_args.mode_write = 1;
     g_args.mode_benchmark = 0;
-    g_args.mode_trim = 0;
+    g_args.mode_filter = 0;
     #if MODE_CREATE_ALIGNED_STRINGS == 1
     g_args.aligned_strings = 0;
     #endif
@@ -150,9 +152,9 @@ INLINE void parse_args(int argc, char* argv[]) {
     int opt;
     int option_index = 0;
     #if MODE_CREATE_ALIGNED_STRINGS == 1
-    const char* optstring = "i:o:a:m:p:s:e:t:z:BWTAvqh";
+    const char* optstring = "i:o:a:m:p:s:e:t:z:f:BWTAvqh";
     #else
-    const char* optstring = "i:o:a:m:p:s:e:t:z:BWTvqh";
+    const char* optstring = "i:o:a:m:p:s:e:t:z:f:BWTvqh";
     #endif
     
     while ((opt = getopt_long(argc, argv, optstring, long_options, &option_index)) != -1) {
@@ -192,14 +194,20 @@ INLINE void parse_args(int argc, char* argv[]) {
                     g_args.compression_level = 1;
                 }
                 break;
+            case 'f':
+                {
+                    float value = atof(optarg);
+                    // Convert to fraction if given as percentage (>1)
+                    if (value > 1.0f) value /= 100.0f;
+                    g_args.filter_threshold = value;
+                }
+                g_args.mode_filter = 1;
+                break;
             case 'B':
                 g_args.mode_benchmark = 1;
                 break;
             case 'W':
                 g_args.mode_write = 0;
-                break;
-            case 'T':
-                g_args.mode_trim = 1;
                 break;
             #if MODE_CREATE_ALIGNED_STRINGS == 1
             case 'A':
@@ -216,7 +224,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                 print_usage(argv[0]);
                 exit(0);
             default:
-                fprintf(stderr, "Unknown option: %c\n", opt);
+                print_error("Unknown option: %c", opt);
                 print_usage(argv[0]);
                 exit(1);
         }
@@ -236,9 +244,9 @@ INLINE void print_config_section(void) {
         print_step_header_start("Configuration");
         char buffer[256];
         
-        print_config_item("Input", g_args.input_file_path, NULL);
+        print_config_item("Input", get_file_name(g_args.input_file_path), NULL);
         if (g_args.mode_write) {
-            print_config_item("Output", g_args.output_file_path, BOX_TEE_RIGHT);
+            print_config_item("Output", get_file_name(g_args.output_file_path), BOX_TEE_RIGHT);
         } else {
             print_config_item("Output", "Disabled", BOX_TEE_RIGHT);
         }
@@ -255,12 +263,15 @@ INLINE void print_config_section(void) {
         
         snprintf(buffer, sizeof(buffer), "%d", g_args.num_threads);
         print_config_item("Threads", buffer, BOX_TEE_RIGHT);
+
+        if (g_args.mode_filter) {
+            snprintf(buffer, sizeof(buffer), "%.1f%%", g_args.filter_threshold * 100.0f);
+            print_config_item("Filter threshold", buffer, BOX_TEE_RIGHT);
+        }
         
         if (g_args.mode_write) {
             snprintf(buffer, sizeof(buffer), "%d", g_args.compression_level);
             print_config_item("Compression", buffer, BOX_BOTTOM_LEFT);
-        } else {
-            print_config_item("Compression", "Disabled", BOX_BOTTOM_LEFT);
         }
 
         if (g_args.mode_benchmark) {
@@ -336,8 +347,12 @@ INLINE int get_mode_write(void) {
     return g_args.mode_write;
 }
 
-INLINE int get_mode_trim(void) {
-    return g_args.mode_trim;
+INLINE int get_mode_filter(void) {
+    return g_args.mode_filter;
+}
+
+INLINE float get_filter_threshold(void) {
+    return g_args.filter_threshold;
 }
 
 INLINE int get_aligned_strings(void) {

@@ -54,4 +54,41 @@ INLINE void free_matrix(int* matrix, int* stack_matrix) {
     }
 }
 
+INLINE float calculate_similarity(const char* seq1, size_t len1, const char* seq2, size_t len2) {
+    // Use the shorter length as reference for percentage calculation
+    size_t min_len = len1 < len2 ? len1 : len2;
+    if (min_len == 0) return 0.0f;
+    
+    size_t matches = 0;
+    size_t compare_len = min_len;
+    
+    #ifdef USE_AVX
+    // Process in vector chunks
+    size_t vec_limit = (compare_len / BYTES) * BYTES;
+    for (size_t i = 0; i < vec_limit; i += BYTES) {
+        veci_t v1 = loadu((veci_t*)(seq1 + i));
+        veci_t v2 = loadu((veci_t*)(seq2 + i));
+        veci_t eq = cmpeq_epi8(v1, v2);
+        num_t mask = movemask_epi8(eq);
+        matches += __builtin_popcount(mask);
+    }
+    
+    // Process remaining characters
+    for (size_t i = vec_limit; i < compare_len; i++) {
+        if (seq1[i] == seq2[i]) {
+            matches++;
+        }
+    }
+    #else
+    // Basic character-by-character comparison
+    for (size_t i = 0; i < compare_len; i++) {
+        if (seq1[i] == seq2[i]) {
+            matches++;
+        }
+    }
+    #endif
+    
+    return (float)matches / min_len;
+}
+
 #endif

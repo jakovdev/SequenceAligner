@@ -72,5 +72,13 @@ INLINE void* huge_page_alloc(size_t size) {
     return ptr;
 }
 
+INLINE const char* get_file_name(const char* path) {
+    #ifdef _WIN32
+    const char* name = strrchr(path, '\\');
+    #else
+    const char* name = strrchr(path, '/');
+    #endif
+    return name ? name + 1 : path;
+}
 
 #endif
