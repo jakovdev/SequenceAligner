@@ -292,6 +292,6 @@ int main(int argc, char* argv[]) {
     free_input_file(&file);
     
     print_success("All operations completed successfully!");
-    print_step_header_end();
+    print_step_header_end(0);
     return 0;
 }

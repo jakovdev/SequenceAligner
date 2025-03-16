@@ -213,7 +213,7 @@ INLINE void print_config_section(void) {
             print_timing("Benchmarking mode enabled");
         }
         
-        print_step_header_end();
+        print_step_header_end(0);
     }
 }
 
@@ -440,6 +440,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                 g_args.compression_level = atoi(optarg);
                 if (g_args.compression_level < 0 || g_args.compression_level > 9) {
                     print_error("Invalid compression level %d, valid range is 0-9\n", g_args.compression_level);
+                    print_step_header_end(1);
                     exit(1);
                 }
                 break;
@@ -448,6 +449,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                     float value = atof(optarg);
                     if (value < 0.0f || value > 100.0f) {
                         print_error("Invalid filter threshold %.2f, it must be a percentage between 0 and 100 or a decimal between 0 and 1\n", value);
+                        print_step_header_end(1);
                         exit(1);
                     }
                     // Convert to fraction if given as percentage (>1)
@@ -482,6 +484,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                 exit(0);
             default:
                 print_error("Unknown option: %c\n", opt);
+                print_step_header_end(1);
                 print_usage(argv[0]);
                 exit(1);
         }
@@ -497,6 +500,7 @@ INLINE void init_args(int argc, char* argv[]) {
     parse_args(argc, argv);
     init_print_messages(g_args.verbose, g_args.quiet);
     if (!validate_required_arguments()) {
+        print_step_header_end(1);
         printf("\nPlease check the usage below to properly start the program\n\n");
         print_usage(argv[0]);
         exit(1);

@@ -220,14 +220,14 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     
     if (g_csv_metadata.num_columns <= 0) {
         print_error("Invalid CSV header");
-        print_step_header_end();
+        print_step_header_end(1);
         exit(1);
     }
     
     g_csv_metadata.column_headers = (char**)malloc(g_csv_metadata.num_columns * sizeof(char*));
     if (!g_csv_metadata.column_headers) {
         print_error("Memory allocation failed for column headers");
-        print_step_header_end();
+        print_step_header_end(1);
         exit(1);
     }
     

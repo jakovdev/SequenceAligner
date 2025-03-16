@@ -23,20 +23,20 @@ INLINE File get_input_file(void) {
     file.hFile = CreateFileA(file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (file.hFile == INVALID_HANDLE_VALUE) {
         print_error("Could not open input file '%s'", file_path);
-        print_step_header_end();
+        print_step_header_end(1);
         exit(1);
     }
     file.hMapping = CreateFileMapping(file.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if (file.hMapping == NULL) {
         print_error("Could not create file mapping for '%s'", file_path);
-        print_step_header_end();
+        print_step_header_end(1);
         CloseHandle(file.hFile);
         exit(1);
     }
     file.file_data = (char*)MapViewOfFile(file.hMapping, FILE_MAP_READ, 0, 0, 0);
     if (file.file_data == NULL) {
         print_error("Could not map view of file '%s'", file_path);
-        print_step_header_end();
+        print_step_header_end(1);
         CloseHandle(file.hMapping);
         CloseHandle(file.hFile);
         exit(1);
@@ -48,13 +48,13 @@ INLINE File get_input_file(void) {
     file.fd = open(file_path, O_RDONLY);
     if (file.fd == -1) {
         print_error("Could not open input file '%s'", file_path);
-        print_step_header_end();
+        print_step_header_end(1);
         exit(1);
     }
     struct stat sb;
     if (fstat(file.fd, &sb) == -1) {
         print_error("Could not stat file '%s'", file_path);
-        print_step_header_end();
+        print_step_header_end(1);
         close(file.fd);
         exit(1);
     }
@@ -62,7 +62,7 @@ INLINE File get_input_file(void) {
     file.file_data = mmap(NULL, file.data_size, PROT_READ, MAP_PRIVATE, file.fd, 0);
     if (file.file_data == MAP_FAILED) {
         print_error("Could not memory map file '%s'", file_path);
-        print_step_header_end();
+        print_step_header_end(1);
         close(file.fd);
         exit(1);
     }

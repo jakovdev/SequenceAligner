@@ -136,8 +136,8 @@ INLINE void print_step_header_start(const char* title) {
     message_config.content_printed = 0;
 }
 
-INLINE void print_step_header_end(void) {
-    if (message_config.quiet || !message_config.section_open) return;
+INLINE void print_step_header_end(bool is_error) {
+    if (!is_error && (message_config.quiet || !message_config.section_open)) return;
     print_box_line(BOX_BOTTOM_LEFT, BOX_HORIZONTAL, BOX_BOTTOM_RIGHT, OUTPUT_WIDTH, NULL);
     message_config.section_open = 0;
     message_config.content_printed = 0;
@@ -190,7 +190,11 @@ INLINE void print_formatted_message(const char* icon, const char* color, const c
     }
     
     if (!message_config.section_open) {
-        print_step_header_start("Information");
+        if (icon[0] == ICON_ERROR[0]) {
+            print_step_header_start("Error");
+        } else {
+            print_step_header_start("Information");
+        }
     }
     
     char buffer[OUTPUT_WIDTH * 2];
