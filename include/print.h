@@ -70,8 +70,12 @@ INLINE void init_print_messages(int verbose, int quiet) {
     message_config.content_printed = 0;
 }
 
-INLINE void print_newline(void) {
-    if (!message_config.quiet) {
+INLINE void print_progress_bar_end(void) {
+    static int is_terminal = -1;
+    if (is_terminal == -1) {
+        is_terminal = isatty(STDOUT_FILENO);
+    }
+    if (!message_config.quiet && is_terminal) {
         printf("\n");
     }
 }

@@ -99,7 +99,7 @@ int main(int argc, char* argv[]) {
     }
     
     seq_count = idx;
-    print_newline();
+    print_progress_bar_end();
     
     if (apply_filtering) {
         print_success("Stored %zu sequences (filtered out %zu)", seq_count, filtered_count);
@@ -222,7 +222,7 @@ int main(int argc, char* argv[]) {
             processed += batch_size;
             print_progress_bar((double)processed / total_alignments, 40, "Aligning sequences");
         }
-        print_newline();
+        print_progress_bar_end();
         print_verbose("Destroying thread pool");
         destroy_thread_pool();
         print_verbose("Freeing task memory");
@@ -262,7 +262,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        print_newline();
+        print_progress_bar_end();
     }
     
     print_success("Alignment completed successfully!");
