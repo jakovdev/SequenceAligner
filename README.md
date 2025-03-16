@@ -103,9 +103,10 @@ make cross
 ### Examples
 
 > [!NOTE]
-> The input file is my own testing dataset provided with the codebase
-> This means all arguments are ones which work for that dataset (like sequence type)
-> You should change the arguments to match your dataset
+> - The input file is my own testing dataset provided with the codebase
+> - This means all arguments are ones which work for that dataset (like sequence type)
+> - You should change the arguments to match your dataset
+> - Also, for relative file paths they should be relative to your current directory, not the binary location
 
 ```bash
 # Run with all required parameters
