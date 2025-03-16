@@ -331,6 +331,7 @@ INLINE void print_header(const char* title) {
     for (int i = 0; i < OUTPUT_WIDTH - 2; i++) printf("%s", FANCY_HORIZONTAL);
 
     printf("%s\n", FANCY_TOP_RIGHT);
+    printf("%s%s%s", ANSI_COLOR_RESET, ANSI_COLOR_BOLD, ANSI_COLOR_BLUE);
     printf("%s", FANCY_VERTICAL);
     
     size_t title_len = strlen(title);
@@ -343,6 +344,8 @@ INLINE void print_header(const char* title) {
     for (size_t i = 0; i < OUTPUT_WIDTH - 2 - title_len - padding; i++) printf(" ");
     
     printf("%s\n", FANCY_VERTICAL);
+    printf("%s%s%s", ANSI_COLOR_RESET, ANSI_COLOR_BOLD, ANSI_COLOR_BLUE);
+
     printf("%s", FANCY_BOTTOM_LEFT);
     for (int i = 0; i < OUTPUT_WIDTH - 2; i++) printf("%s", FANCY_HORIZONTAL);
     printf("%s", FANCY_BOTTOM_RIGHT);
