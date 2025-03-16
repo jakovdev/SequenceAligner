@@ -118,7 +118,7 @@ make cross
 # Gotoh algorithm with affine gaps
 ./bin/seqalign -i datasets/avppred.csv -o results/avppred_results.h5 -t amino -a ga -m pam250 -s 12 -e 2
 
-# Enable benchmarking mode with verbose output
+# Enable benchmarking mode with verbose output and without creating the HDF5 result
 ./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
 
 # List all available scoring matrices
