@@ -270,8 +270,18 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     size_t filled_width = (size_t)(percentage * width);
     if (filled_width > width) filled_width = width;
     
+    static int is_terminal = -1;
+    if (is_terminal == -1) {
+        is_terminal = isatty(STDOUT_FILENO);
+    }
+    
     apply_box_color();
-    printf("\r%s", BOX_VERTICAL);
+
+    if (is_terminal) {
+        printf("\r%s", BOX_VERTICAL);
+    } else {
+        printf("%s", BOX_VERTICAL);
+    }
     reset_color();
     
     printf(" %s%s %s [%s", ANSI_BRIGHT_CYAN, ICON_ARROW, prefix, ANSI_COLOR_RESET);
@@ -292,6 +302,10 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     apply_box_color();
     printf("%s", BOX_VERTICAL);
     reset_color();
+    
+    if (!is_terminal) {
+        printf("\n");
+    }
     
     fflush(stdout);
     message_config.content_printed = 1;
