@@ -6,7 +6,7 @@ CC := $(if $(IS_CROSS),x86_64-w64-mingw32-gcc,gcc)
 BIN_EXT := $(if $(or $(IS_CROSS),$(IS_WINDOWS)),.exe,)
 
 MAIN_SRC := src/main.c #$(wildcard src/*.c)
-MAIN_BINS := $(patsubst src/%.c,bin/%$(BIN_EXT),$(MAIN_SRC))
+MAIN_BINS := bin/seqalign$(BIN_EXT)
 
 IS_W64DEVKIT := $(if $(IS_WINDOWS),$(if $(findstring w64devkit,$(shell where gcc $(if $(IS_WINDOWS),2>nul,2>/dev/null))),yes,),)
 
@@ -49,7 +49,7 @@ bin:
 results:
 	$(if $(IS_WINDOWS),powershell -Command "if (-not (Test-Path results)) { New-Item -ItemType Directory -Path results | Out-Null }",mkdir -p results)
 
-bin/%$(BIN_EXT): src/%.c
+bin/seqalign$(BIN_EXT): src/main.c
 	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
 
 clean:

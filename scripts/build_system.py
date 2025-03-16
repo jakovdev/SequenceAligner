@@ -6,6 +6,7 @@ from pathlib import Path
 
 project_root = Path(__file__).resolve().parent.parent
 
+
 class BuildEnvironment:
     def __init__(self):
         self.os_name = platform.system().lower()
@@ -296,5 +297,5 @@ class BuildEnvironment:
 build_env = BuildEnvironment()
 
 DISPLAY_BINARY_PROFILE = [
-    ("Run", "main", "all"),
+    ("Run", "seqalign", "all"),
 ]
