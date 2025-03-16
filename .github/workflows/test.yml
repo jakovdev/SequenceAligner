@@ -10,14 +10,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       
-      - name: Install dependencies
-        run: sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends libhdf5-dev
+      - name: Set up apt cache
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libhdf5-dev
+          version: 1.0 # change this to clear the cache and reinstall the packages
       
       - name: Build
         run: make
       
       - name: Run test
-        run: |
-          echo "Starting test run..."
-          bin/main -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
-          echo "test_exit_code=$?" >> $GITHUB_OUTPUT
+        run: bin/main -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
