@@ -221,12 +221,12 @@ INLINE int validate_required_arguments(void) {
     int valid = 1;
     
     if (!g_args.input_file_set) {
-        printf("ERROR: Missing required parameter: input file (-i, --input)\n");
+        print_error("Missing required parameter: input file (-i, --input)\n");
         valid = 0;
     } else {
         FILE* test = fopen(g_args.input_file_path, "r");
         if (!test) {
-            printf("ERROR: Cannot open input file: %s\n", g_args.input_file_path);
+            print_error("Cannot open input file: %s\n", g_args.input_file_path);
             valid = 0;
         } else {
             fclose(test);
@@ -234,17 +234,17 @@ INLINE int validate_required_arguments(void) {
     }
     
     if (!g_args.seq_type_set) {
-        printf("ERROR: Missing required parameter: sequence type (-t, --type)\n");
+        print_error("Missing required parameter: sequence type (-t, --type)\n");
         valid = 0;
     }
     
     if (!g_args.align_method_set) {
-        printf("ERROR: Missing required parameter: alignment method (-a, --align)\n");
+        print_error("Missing required parameter: alignment method (-a, --align)\n");
         valid = 0;
     }
     
     if (!g_args.matrix_set) {
-        printf("ERROR: Missing required parameter: scoring matrix (-m, --matrix)\n");
+        print_error("Missing required parameter: scoring matrix (-m, --matrix)\n");
         valid = 0;
     }
     
@@ -252,17 +252,17 @@ INLINE int validate_required_arguments(void) {
         GapPenaltyType gap_type = ALIGNMENT_METHODS[g_args.align_method].gap_type;
         
         if (gap_type == GAP_TYPE_LINEAR && !g_args.gap_penalty_set) {
-            printf("ERROR: Missing required parameter: gap penalty (-p, --gap-penalty) for %s\n", get_alignment_method_name(g_args.align_method));
+            print_error("Missing required parameter: gap penalty (-p, --gap-penalty) for %s\n", get_alignment_method_name(g_args.align_method));
             valid = 0;
         }
         
         if (gap_type == GAP_TYPE_AFFINE) {
             if (!g_args.gap_start_set) {
-                printf("ERROR: Missing required parameter: gap start (-s, --gap-start) for %s\n", get_alignment_method_name(g_args.align_method));
+                print_error("Missing required parameter: gap start (-s, --gap-start) for %s\n", get_alignment_method_name(g_args.align_method));
                 valid = 0;
             }
             if (!g_args.gap_extend_set) {
-                printf("ERROR: Missing required parameter: gap extend (-e, --gap-extend) for %s\n", get_alignment_method_name(g_args.align_method));
+                print_error("Missing required parameter: gap extend (-e, --gap-extend) for %s\n", get_alignment_method_name(g_args.align_method));
                 valid = 0;
             }
         }
@@ -277,7 +277,7 @@ INLINE int parse_sequence_type(const char* arg) {
     if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1]))) {
         int type = atoi(arg);
         if (type >= 0 && type < SEQ_TYPE_COUNT) return type;
-        printf("ERROR: Invalid sequence type index %d, valid range is 0-%d", type, SEQ_TYPE_COUNT - 1);
+        print_error("Invalid sequence type index %d, valid range is 0-%d", type, SEQ_TYPE_COUNT - 1);
         return PARAM_UNSET;
     }
     
@@ -289,7 +289,7 @@ INLINE int parse_sequence_type(const char* arg) {
         }
     }
     
-    printf("ERROR: Unknown sequence type '%s'", arg);
+    print_error("Unknown sequence type '%s'", arg);
     return PARAM_UNSET;
 }
 
@@ -297,7 +297,7 @@ INLINE int parse_scoring_matrix(const char* arg, int seq_type) {
     if (!arg) return PARAM_UNSET;
     
     if (seq_type < 0 || seq_type >= SEQ_TYPE_COUNT) {
-        printf("ERROR: Cannot select scoring matrix without specifying sequence type first");
+        print_error("Cannot select scoring matrix without specifying sequence type first");
         return PARAM_UNSET;
     }
 
@@ -308,14 +308,14 @@ INLINE int parse_scoring_matrix(const char* arg, int seq_type) {
         if (matrix_id >= 0 && matrix_id <= max_matrix) {
             return matrix_id;
         } else {
-            printf("ERROR: Invalid matrix index %d, valid range is 0-%d", matrix_id, max_matrix);
+            print_error("Invalid matrix index %d, valid range is 0-%d", matrix_id, max_matrix);
             return PARAM_UNSET;
         }
     }
     
     int matrix_id = find_matrix_by_name(seq_type, arg);
     if (matrix_id < 0) {
-        printf("ERROR: Unknown scoring matrix '%s' for %s sequences", arg, seq_type == SEQ_TYPE_AMINO ? "amino acid" : "nucleotide");
+        print_error("Unknown scoring matrix '%s' for %s sequences", arg, seq_type == SEQ_TYPE_AMINO ? "amino acid" : "nucleotide");
         return PARAM_UNSET;
     }
     
@@ -385,7 +385,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                         g_args.align_method = method;
                         g_args.align_method_set = 1;
                     } else {
-                        printf("ERROR: Unknown alignment method '%s'", optarg);
+                        print_error("Unknown alignment method '%s'", optarg);
                     }
                 }
                 break;
@@ -402,7 +402,7 @@ INLINE void parse_args(int argc, char* argv[]) {
             case 'm':
                 {
                     if (!g_args.seq_type_set) {
-                        printf("ERROR: Must specify sequence type (-t) before specifying matrix\n");
+                        print_error("Must specify sequence type (-t) before specifying matrix\n");
                     } else {
                         int matrix_id = parse_scoring_matrix(optarg, g_args.seq_type);
                         if (matrix_id != PARAM_UNSET) {
@@ -439,7 +439,7 @@ INLINE void parse_args(int argc, char* argv[]) {
             case 'z':
                 g_args.compression_level = atoi(optarg);
                 if (g_args.compression_level < 0 || g_args.compression_level > 9) {
-                    printf("ERROR: Invalid compression level %d, valid range is 0-9\n", g_args.compression_level);
+                    print_error("Invalid compression level %d, valid range is 0-9\n", g_args.compression_level);
                     exit(1);
                 }
                 break;
@@ -447,7 +447,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                 {
                     float value = atof(optarg);
                     if (value < 0.0f || value > 100.0f) {
-                        printf("ERROR: Invalid filter threshold %.2f, it must be a percentage between 0 and 100 or a decimal between 0 and 1\n", value);
+                        print_error("Invalid filter threshold %.2f, it must be a percentage between 0 and 100 or a decimal between 0 and 1\n", value);
                         exit(1);
                     }
                     // Convert to fraction if given as percentage (>1)
@@ -481,7 +481,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                 print_usage(argv[0]);
                 exit(0);
             default:
-                printf("ERROR: Unknown option: %c\n", opt);
+                print_error("Unknown option: %c\n", opt);
                 print_usage(argv[0]);
                 exit(1);
         }

@@ -176,7 +176,14 @@ INLINE void print_formatted_line(const char* content, int content_len) {
 }
 
 INLINE void print_formatted_message(const char* icon, const char* color, const char* format, va_list args) {
-    if (message_config.quiet) return;
+    if (message_config.quiet) {
+        if (icon[0] == ICON_ERROR[0]) {
+            printf("%s%s ", color, icon);
+            vprintf(format, args);
+            printf("%s\n", ANSI_COLOR_RESET);
+        }
+        return;
+    }
     
     if (!message_config.section_open) {
         print_step_header_start("Information");
