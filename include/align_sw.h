@@ -13,9 +13,8 @@ INLINE Alignment sw_align(const char seq1[MAX_SEQ_LEN],
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
     int* restrict matrix = allocate_matrix(stack_matrix, matrices_bytes);
-
-    int GAP_START = get_gap_start();
-    int GAP_EXTEND = get_gap_extend();
+    const int GAP_START = g_gap_penalties.gap_open;
+    const int GAP_EXTEND = g_gap_penalties.gap_extend;
 
     int* restrict match = matrix;
     int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
@@ -67,7 +66,7 @@ INLINE Alignment sw_align(const char seq1[MAX_SEQ_LEN],
     for (int i = 1; i <= (int)len2; ++i) {
         int row_offset = i * cols;
         int prev_row_offset = (i-1) * cols;
-        int c2_idx = AMINO_LOOKUP[(int)seq2[i - 1]];
+        int c2_idx = sequence_char_to_index(seq2[i - 1]);
 
         PREFETCH(&match[row_offset + PREFETCH_DISTANCE]);
         PREFETCH(&gap_x[row_offset + PREFETCH_DISTANCE]);
@@ -127,7 +126,7 @@ INLINE Alignment sw_align(const char seq1[MAX_SEQ_LEN],
             if (curr_score <= 0) break; // End local alignment when hitting 0
             
             // Check diagonal move
-            int diag_score = match[(i-1) * cols + (j-1)] + scoring->matrix[seq1_indices[j-1]][AMINO_LOOKUP[(int)seq2[i-1]]];
+            int diag_score = match[(i-1) * cols + (j-1)] + scoring->matrix[seq1_indices[j-1]][sequence_char_to_index(seq2[i-1])];
             
             if (curr_score == diag_score) {
                 // Diagonal move

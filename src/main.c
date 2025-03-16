@@ -11,7 +11,6 @@ int main(int argc, char* argv[]) {
     print_header("SEQUENCE ALIGNER");
     
     init_args(argc, argv);
-    init_print_messages(get_verbose(), get_quiet());
     
     print_step_header("Setting Up Alignment");
     
@@ -134,7 +133,7 @@ int main(int argc, char* argv[]) {
     
     H5Handler h5_handler = init_h5_handler(seq_count);
     
-    print_config("Using alignment method: %s", get_alignment_method_name());
+    print_config("Using alignment method: %s", get_current_alignment_method_name());
     
     bench_init_end();
     

@@ -1,7 +1,7 @@
 #ifndef FSTRING_H
 #define FSTRING_H
 
-#include "args.h"
+#include "common.h"
 
 INLINE char* fast_strcpy(char* restrict dst, const char* restrict src, size_t len) {
     size_t i = 0;

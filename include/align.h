@@ -2,6 +2,7 @@
 #define ALIGN_H
 
 #include "scoring.h"
+#include "methods.h"
 
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
 #define MATRIX_SIZE(len1, len2) ((len1 + 1) * (len2 + 1))
@@ -17,10 +18,30 @@
 static const int8_t next_i[] = {-1, -1, 0};    // DIAG, UP, LEFT
 static const int8_t next_j[] = {-1, 0, -1};
 
+typedef struct {
+    int gap_penalty;
+    int gap_open;
+    int gap_extend;
+} GapPenalties;
+
+static GapPenalties g_gap_penalties = {0, 0, 0};
+
+INLINE void init_gap_penalties(void) {
+    int method = get_alignment_method();
+    GapPenaltyType gap_type = ALIGNMENT_METHODS[method].gap_type;
+    
+    if (gap_type == GAP_TYPE_LINEAR) {
+        g_gap_penalties.gap_penalty = get_gap_penalty();
+    } else if (gap_type == GAP_TYPE_AFFINE) {
+        g_gap_penalties.gap_open = get_gap_start();
+        g_gap_penalties.gap_extend = get_gap_extend();
+    }
+}
+
 INLINE void precompute_seq_indices(const char* restrict seq, int* restrict indices, size_t len) {
     #pragma GCC unroll 8
     for (size_t i = 0; i < len; ++i) {
-        indices[i] = AMINO_LOOKUP[(int)seq[i]];
+        indices[i] = sequence_char_to_index(seq[i]);
     }
 }
 

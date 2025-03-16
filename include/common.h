@@ -3,14 +3,14 @@
 
 #include "user.h"
 #include "macros.h"
+#include "matrices.h"
 
-#define BLOSUM_SIZE (20)
 #if MODE_CREATE_ALIGNED_STRINGS == 1
 #define ALIGN_BUF (MAX_SEQ_LEN * 2)
 #endif
 
 typedef struct {
-    int matrix[BLOSUM_SIZE][BLOSUM_SIZE];
+    int matrix[AMINO_SIZE][AMINO_SIZE];
 } ScoringMatrix;
 
 typedef struct {
