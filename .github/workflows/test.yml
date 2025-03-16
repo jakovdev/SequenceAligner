@@ -19,5 +19,5 @@ jobs:
       - name: Run test
         run: |
           echo "Starting test run..."
-          bin/main -W -B -v
+          bin/main -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
           echo "test_exit_code=$?" >> $GITHUB_OUTPUT
