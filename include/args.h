@@ -40,6 +40,7 @@ typedef struct {
     unsigned gap_penalty_set : 1;
     unsigned gap_start_set : 1;
     unsigned gap_extend_set : 1;
+    unsigned no_write_flag_set : 1;
 } Args;
 
 // Long options equivalents for getopt
@@ -173,7 +174,7 @@ INLINE void print_config_section(void) {
         
         if (g_args.output_file_set) {
             print_config_item("Output", get_file_name(g_args.output_file_path), BOX_TEE_RIGHT);
-        } else if (!g_args.mode_write) {
+        } else if (g_args.no_write_flag_set) {
             print_config_item("Output", "Disabled (--no-write)", BOX_TEE_RIGHT);
         } else {
             print_config_item("Output", "Disabled (no output file specified)", BOX_TEE_RIGHT);
@@ -352,6 +353,7 @@ INLINE void init_default_args(void) {
     g_args.gap_penalty_set = 0;
     g_args.gap_start_set = 0;
     g_args.gap_extend_set = 0;
+    g_args.no_write_flag_set = 0;
 }
 
 INLINE void parse_args(int argc, char* argv[]) {
@@ -459,6 +461,7 @@ INLINE void parse_args(int argc, char* argv[]) {
                 break;
             case 'W':
                 g_args.mode_write = 0;
+                g_args.no_write_flag_set = 1;
                 break;
             #if MODE_CREATE_ALIGNED_STRINGS == 1
             case 'A':
