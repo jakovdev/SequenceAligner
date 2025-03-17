@@ -45,20 +45,6 @@ INLINE void precompute_seq_indices(const char* restrict seq, int* restrict indic
     }
 }
 
-#if MODE_CREATE_ALIGNED_STRINGS == 1
-INLINE void construct_alignment_result(Alignment* restrict result, 
-                                      char* restrict temp_seq1, 
-                                      char* restrict temp_seq2, 
-                                      int pos) {
-    #pragma GCC unroll 8
-    for (int k = 0; k < pos; k++) {
-        result->seq1_aligned[k] = temp_seq1[pos - k - 1];
-        result->seq2_aligned[k] = temp_seq2[pos - k - 1];
-    }
-    result->seq1_aligned[pos] = result->seq2_aligned[pos] = '\0';
-}
-#endif
-
 INLINE int* allocate_matrix(int* stack_matrix, size_t bytes) {
     if (USE_STACK_MATRIX(bytes)) {
         return stack_matrix;

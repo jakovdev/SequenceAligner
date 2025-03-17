@@ -164,12 +164,8 @@ int main(int argc, char* argv[]) {
         print_verbose("Batch size: %zu tasks per batch", optimal_batch_size);
         
         size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
-        void* task_memory = huge_page_alloc(tasks_memory_size);
-        print_verbose("Allocated %zu bytes for task memory", tasks_memory_size);
-        
-        AlignTask* tasks = (AlignTask*)task_memory;
-        Alignment* results = (Alignment*)aligned_alloc(CACHE_LINE, sizeof(Alignment) * optimal_batch_size);
-        print_verbose("Allocated %zu bytes for result memory", sizeof(Alignment) * optimal_batch_size);
+        print_verbose("Allocating %zu bytes for task memory", tasks_memory_size);
+        AlignTask* tasks = (AlignTask*)huge_page_alloc(tasks_memory_size);
         
         // Process alignments in batches
         size_t processed = 0;
@@ -207,7 +203,6 @@ int main(int argc, char* argv[]) {
                 tasks[t].len1 = seq_lens[i];
                 tasks[t].len2 = seq_lens[j];
                 tasks[t].scoring = &scoring;
-                tasks[t].result = &results[t];
                 tasks[t].i = i;
                 tasks[t].j = j;
                 
@@ -228,8 +223,6 @@ int main(int argc, char* argv[]) {
         destroy_thread_pool();
         print_verbose("Freeing task memory");
         aligned_free(tasks);
-        print_verbose("Freeing result memory");
-        aligned_free(results);
     } else {
         print_config("Using single-threaded mode");
         size_t progress_step = total_alignments / 100 + 1;
@@ -247,15 +240,15 @@ int main(int argc, char* argv[]) {
                     PREFETCH(seqs[i+2].data);
                 }
                 
-                Alignment result = align_sequences(
+                int score = align_sequences(
                     seqs[i].data, seq_lens[i],
                     seqs[j].data, seq_lens[j],
                     &scoring
                 );
                 
                 // Write directly to the in-memory buffer
-                set_matrix_value(&h5_handler, i, j, result.score);
-                set_matrix_value(&h5_handler, j, i, result.score);
+                set_matrix_value(&h5_handler, i, j, score);
+                set_matrix_value(&h5_handler, j, i, score);
                 
                 progress_counter++;
                 if (progress_counter % progress_step == 0) {

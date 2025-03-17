@@ -11,7 +11,6 @@ typedef struct {
     size_t len1;
     size_t len2;
     const ScoringMatrix* scoring;
-    Alignment* result;
     size_t i;  // Index of first sequence
     size_t j;  // Index of second sequence
 } AlignTask;
@@ -61,14 +60,14 @@ INLINE T_Func thread_pool_worker(void* restrict arg) {
             for (size_t task_idx = task_block; task_idx < block_end; task_idx++) {
                 AlignTask* task = &g_work_queue.tasks[task_idx];
                 
-                *task->result = align_sequences(
+                int score = align_sequences(
                     task->seq1, task->len1, 
                     task->seq2, task->len2, 
                     task->scoring
                 );
                 
-                set_matrix_value(g_h5_handler, task->i, task->j, task->result->score);
-                set_matrix_value(g_h5_handler, task->j, task->i, task->result->score);
+                set_matrix_value(g_h5_handler, task->i, task->j, score);
+                set_matrix_value(g_h5_handler, task->j, task->i, score);
             }
         }
         

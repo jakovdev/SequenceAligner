@@ -5,21 +5,9 @@
 #include "macros.h"
 #include "matrices.h"
 
-#if MODE_CREATE_ALIGNED_STRINGS == 1
-#define ALIGN_BUF (MAX_SEQ_LEN * 2)
-#endif
-
 typedef struct {
     int matrix[AMINO_SIZE][AMINO_SIZE];
 } ScoringMatrix;
-
-typedef struct {
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    char seq1_aligned[ALIGN_BUF];
-    char seq2_aligned[ALIGN_BUF];
-    #endif
-    int score;
-} Alignment;
 
 typedef struct {
     char data[MAX_SEQ_LEN];

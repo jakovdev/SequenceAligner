@@ -25,9 +25,6 @@ typedef struct {
     unsigned mode_benchmark : 1; // Enable benchmarking
     unsigned mode_write : 1;     // Enable output file writing
     unsigned mode_filter : 1;    // Enable sequence filtering
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    unsigned aligned_strings : 1;// Create strings with gaps vs score-only
-    #endif
     unsigned verbose : 1;        // Verbose output
     unsigned quiet : 1;          // Quiet output
     
@@ -58,9 +55,6 @@ static struct option long_options[] = {
     {"filter",          required_argument, 0, 'f'},
     {"benchmark",       no_argument,       0, 'B'},
     {"no-write",        no_argument,       0, 'W'},
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    {"aligned-strings", no_argument,       0, 'A'},
-    #endif
     {"verbose",         no_argument,       0, 'v'},
     {"quiet",           no_argument,       0, 'q'},
     {"help",            no_argument,       0, 'h'},
@@ -87,14 +81,6 @@ INLINE int get_mode_filter(void) { return g_args.mode_filter; }
 INLINE float get_filter_threshold(void) { return g_args.filter_threshold; }
 INLINE int get_verbose(void) { return g_args.verbose; }
 INLINE int get_quiet(void) { return g_args.quiet; }
-
-INLINE int get_aligned_strings(void) {
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    return g_args.aligned_strings;
-    #else
-    return 0;
-    #endif
-}
 
 INLINE const char* get_current_alignment_method_name(void) {
     return get_alignment_method_name(g_args.align_method);
@@ -156,9 +142,6 @@ INLINE void print_usage(const char* program_name) {
     printf("  -f, --filter THRESHOLD Filter sequences with similarity above threshold\n");
     printf("  -B, --benchmark        Enable benchmarking mode\n");
     printf("  -W, --no-write         Disable writing to output file\n");
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    printf("  -A, --aligned-strings  Create aligned strings with gaps (slower)\n");
-    #endif
     printf("  -v, --verbose          Enable verbose output\n");
     printf("  -q, --quiet            Suppress all non-error output\n");
     printf("  -l, --list-matrices    List all available scoring matrices\n");
@@ -339,9 +322,6 @@ INLINE void init_default_args(void) {
     g_args.mode_write = 0;
     g_args.mode_benchmark = 0;
     g_args.mode_filter = 0;
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    g_args.aligned_strings = 0;
-    #endif
     g_args.verbose = 0;
     g_args.quiet = 0;
     
@@ -359,11 +339,7 @@ INLINE void init_default_args(void) {
 INLINE void parse_args(int argc, char* argv[]) {
     int opt;
     int option_index = 0;
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWAlvqh";
-    #else
     const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWlvqh";
-    #endif
     
     while ((opt = getopt_long(argc, argv, optstring, long_options, &option_index)) != -1) {
         switch (opt) {
@@ -464,11 +440,6 @@ INLINE void parse_args(int argc, char* argv[]) {
                 g_args.mode_write = 0;
                 g_args.no_write_flag_set = 1;
                 break;
-            #if MODE_CREATE_ALIGNED_STRINGS == 1
-            case 'A':
-                g_args.aligned_strings = 1;
-                break;
-            #endif
             case 'v':
                 g_args.verbose = 1;
                 break;

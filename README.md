@@ -187,7 +187,7 @@ make cross
   <tr>
     <td>Linux (Arch)</td>
     <td>16</td>
-    <td><strong>28.31s</strong></td>
+    <td><strong>28.197s</strong></td>
     <td>5.85s</td>
   </tr>
 </table>

@@ -4,11 +4,11 @@
 #include "align.h"
 
 // Gotoh global alignment with affine gap penalty
-INLINE Alignment ga_align(const char* seq1,
-                          const size_t len1,
-                          const char* seq2, 
-                          const size_t len2,
-                          const ScoringMatrix* restrict scoring) {
+INLINE int ga_align(const char* seq1,
+                    const size_t len1,
+                    const char* seq2, 
+                    const size_t len2,
+                    const ScoringMatrix* restrict scoring) {
     // Three matrices needed for affine gap penalties: match, gap_x, gap_y
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -103,58 +103,10 @@ INLINE Alignment ga_align(const char* seq1,
         }
     }
 
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    if (get_aligned_strings()) {
-        // Traceback
-        char temp_seq1[ALIGN_BUF];
-        char temp_seq2[ALIGN_BUF];
-        int pos = 0;
-        int i = len2, j = len1;
-        
-        while (i > 0 || j > 0) {
-            int curr_idx = i * cols + j;
-            
-            if (i > 0 && j > 0) {
-                int diag_score = match[(i-1) * cols + (j-1)] + scoring->matrix[seq1_indices[j-1]][SEQUENCE_LOOKUP[(int)seq2[i - 1]]];
-                            
-                if (match[curr_idx] == diag_score) {
-                    // Diagonal move
-                    temp_seq1[pos] = seq1[j-1];
-                    temp_seq2[pos] = seq2[i-1];
-                    i--; j--;
-                    pos++;
-                    continue;
-                }
-            }
-            
-            // Try gap states
-            if (i > 0 && match[curr_idx] == gap_y[curr_idx]) {
-                // Gap in Y (vertical move)
-                temp_seq1[pos] = '-';
-                temp_seq2[pos] = seq2[i-1];
-                i--; 
-                pos++;
-            }
-            else if (j > 0) {
-                // Gap in X (horizontal move)
-                temp_seq1[pos] = seq1[j-1];
-                temp_seq2[pos] = '-';
-                j--;
-                pos++;
-            }
-        }
-    }
-    #endif
+    int score = match[len2 * cols + len1];
 
-    int final_score = match[len2 * cols + len1];
     free_matrix(matrix, stack_matrix);
-
-    Alignment result = {0};
-    #if MODE_CREATE_ALIGNED_STRINGS == 1
-    if (get_aligned_strings()) construct_alignment_result(&result, temp_seq1, temp_seq2, pos, final_score);
-    #endif
-    result.score = final_score;
-    return result;
+    return score;
 }
 
 #endif
