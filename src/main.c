@@ -38,9 +38,9 @@ int main(int argc, char* argv[]) {
     
     print_verbose("Counting sequences in input file...");
     while (count_ptr < end && *count_ptr) {
-        char dummy[MAX_SEQ_LEN];
-        parse_csv_line(&count_ptr, dummy);
-        total_seqs_in_file++;
+        if (count_csv_line(&count_ptr)) {
+            total_seqs_in_file++;
+        }
     }
     
     if (total_seqs_in_file == 0) {

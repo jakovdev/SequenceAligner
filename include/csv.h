@@ -272,6 +272,54 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     return current;
 }
 
+INLINE size_t count_csv_line(char** current) {
+    char* p = *current;
+    
+    while (*p && (*p == ' ' || *p == '\r' || *p == '\n')) p++;
+    
+    if (!*p) {
+        *current = p;
+        return 0;
+    }
+
+    #ifdef USE_SIMD
+    const veci_t nl_vec = set1_epi8('\n');
+    const veci_t cr_vec = set1_epi8('\r');
+    
+    while (*p) {
+        veci_t data = loadu((veci_t*)p);
+        
+        #if defined(__AVX512F__) && defined(__AVX512BW__)
+        num_t mask_nl = cmpeq_epi8(data, nl_vec);
+        num_t mask_cr = cmpeq_epi8(data, cr_vec);
+        num_t mask = or_mask(mask_nl, mask_cr);
+        #else
+        veci_t is_newline = or_si(
+            cmpeq_epi8(data, nl_vec),
+            cmpeq_epi8(data, cr_vec)
+        );
+        num_t mask = movemask_epi8(is_newline);
+        #endif
+        
+        if (mask) {
+            num_t pos = ctz(mask);
+            p += pos;
+            break;
+        }
+        
+        p += BYTES;
+    }
+    #else
+    while (*p && *p != '\n' && *p != '\r') {
+        p++;
+    }
+    #endif
+    
+    while (*p && (*p == '\n' || *p == '\r')) p++;
+    *current = p;
+    return 1;
+}
+
 INLINE size_t parse_csv_line(char** current, char* seq) {
     char* p = *current;
     char* write_pos = NULL;
