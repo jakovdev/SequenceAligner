@@ -1,8 +1,7 @@
 #ifndef FILES_H
 #define FILES_H
 
-#include "seqalign.h"
-#include "print.h"
+#include "args.h"
 
 typedef struct {
     char* file_data;

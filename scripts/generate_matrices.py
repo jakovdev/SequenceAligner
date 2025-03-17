@@ -190,7 +190,7 @@ def generate_matrix_tables():
         alphabet_name = type_name.upper()
         header_content.extend(
             [
-                f'#define {alphabet_name}_ALPHABET "{alphabet}"',
+                f'static const char {alphabet_name}_ALPHABET[] = "{alphabet}";',
                 f"#define {alphabet_name}_SIZE {len(alphabet)}",
                 "",
             ]
@@ -229,36 +229,6 @@ def generate_matrix_tables():
         if not type_info["matrices"]:
             continue
 
-        alphabet = type_info["alphabet"]
-        alphabet_name = type_name.upper()
-
-        header_content.extend(
-            [
-                f"// Lookup table for {alphabet_name} indices",
-                f"static const int {alphabet_name}_LOOKUP[128] = {{",
-            ]
-        )
-
-        lookup_values = []
-        for i in range(16):
-            row = []
-            for j in range(8):
-                char_index = i * 8 + j
-                value = -1
-                if char_index < 128:
-                    char = chr(char_index)
-                    value = alphabet.find(char) if char in alphabet else -1
-                row.append(f"{value:2d}")
-            lookup_values.append("    " + ", ".join(row) + ",")
-
-        header_content.extend(lookup_values)
-        header_content.append("};")
-        header_content.append("")
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
         alphabet_name = type_name.upper()
         header_content.append(f"// {type_name.capitalize()} matrices")
 
@@ -283,23 +253,6 @@ def generate_matrix_tables():
 
     header_content.extend(
         [
-            "INLINE int amino_char_to_index(char c) {",
-            "    return (c >= 0 && c < 128) ? AMINO_LOOKUP[(int)c] : -1;",
-            "}",
-            "",
-            "INLINE int nucleotide_char_to_index(char c) {",
-            "    return (c >= 0 && c < 128) ? NUCLEOTIDE_LOOKUP[(int)c] : -1;",
-            "}",
-            "",
-            "typedef int (*char_to_index_fn)(char);",
-            "static char_to_index_fn current_char_to_index = amino_char_to_index;",
-            "",
-            "INLINE int sequence_char_to_index(char c) { return current_char_to_index(c); }",
-            "",
-            "INLINE void update_sequence_lookup_function(int seq_type) {",
-            "    current_char_to_index = (seq_type == SEQ_TYPE_AMINO) ? amino_char_to_index : nucleotide_char_to_index;",
-            "}",
-            "",
             "INLINE const char* get_matrix_name_by_id(int seq_type, int matrix_id) {",
             "    if (seq_type < 0 || matrix_id < 0) {",
             '        return "Unknown";',

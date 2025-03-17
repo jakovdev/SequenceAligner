@@ -9,13 +9,7 @@ INLINE Alignment align_sequences(const char seq1[MAX_SEQ_LEN],
                                  const size_t len1,
                                  const char seq2[MAX_SEQ_LEN], 
                                  const size_t len2,
-                                 const ScoringMatrix* restrict scoring) {
-    static bool initialized = 0;
-    if (UNLIKELY(!initialized)) {
-        init_gap_penalties();
-        initialized = 1;
-    }
-    
+                                 const ScoringMatrix* restrict scoring) {    
     switch(get_alignment_method()) {
         case ALIGN_GOTOH_AFFINE:
             return ga_align(seq1, len1, seq2, len2, scoring);

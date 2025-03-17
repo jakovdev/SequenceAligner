@@ -41,7 +41,7 @@ INLINE void init_gap_penalties(void) {
 INLINE void precompute_seq_indices(const char* restrict seq, int* restrict indices, size_t len) {
     #pragma GCC unroll 8
     for (size_t i = 0; i < len; ++i) {
-        indices[i] = sequence_char_to_index(seq[i]);
+        indices[i] = SEQUENCE_LOOKUP[(int)seq[i]];
     }
 }
 

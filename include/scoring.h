@@ -12,6 +12,8 @@ static veci_t GAP_START_VEC;
 static veci_t GAP_EXTEND_VEC;
 #endif
 
+static int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
+
 INLINE void init_scoring_matrix(ScoringMatrix* restrict matrix) {
     int matrix_id = get_scoring_matrix();
     int seq_type = get_sequence_type();
@@ -41,16 +43,33 @@ INLINE void init_scoring_matrix(ScoringMatrix* restrict matrix) {
         }
     }
 
-    #ifdef USE_SIMD
     static bool initialized = false;
     if (UNLIKELY(!initialized)) {
+        memset(SEQUENCE_LOOKUP, -1, sizeof(SEQUENCE_LOOKUP));
+        switch (seq_type) {
+            case SEQ_TYPE_NUCLEOTIDE: {
+                for (int i = 0; i < (int)strlen(NUCLEOTIDE_ALPHABET); i++) {
+                    SEQUENCE_LOOKUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
+                }
+                break;
+            }
+            // Expandable
+            case SEQ_TYPE_AMINO:
+            default: {
+                for (int i = 0; i < (int)strlen(AMINO_ALPHABET); i++) {
+                    SEQUENCE_LOOKUP[(int)AMINO_ALPHABET[i]] = i;
+                }
+                break;
+            }
+        }
+        #ifdef USE_SIMD
         FIRST_ROW_INDICES = setr_indicies;
         GAP_PENALTY_VEC = set1_epi32(get_gap_penalty());
         GAP_START_VEC = set1_epi32(get_gap_start());
         GAP_EXTEND_VEC = set1_epi32(get_gap_extend());
         initialized = true;
+        #endif
     }
-    #endif
 }
 
 #endif

@@ -395,7 +395,6 @@ INLINE void parse_args(int argc, char* argv[]) {
                     if (type != PARAM_UNSET) {
                         g_args.seq_type = type;
                         g_args.seq_type_set = 1;
-                        update_sequence_lookup_function(type);
                     }
                 }
                 break;

@@ -26,9 +26,10 @@ int main(int argc, char* argv[]) {
     char* restrict end = file.file_data + file.data_size;
     current = parse_header(current, end);
     
+    print_verbose("Initializing scoring matrix and gap penalties");
     ScoringMatrix scoring;
     init_scoring_matrix(&scoring);
-    print_verbose("Initialized scoring matrix");
+    init_gap_penalties();
 
     // First pass: count sequences
     size_t total_seqs_in_file = 0;

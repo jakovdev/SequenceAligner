@@ -40,7 +40,7 @@ INLINE Alignment nw_align(const char seq1[MAX_SEQ_LEN],
         int* restrict prev_row = curr_row;
         curr_row = matrix + i * cols;
         curr_row[0] = i * GAP_PENALTY;
-        int c2_idx = sequence_char_to_index(seq2[i - 1]);
+        int c2_idx = SEQUENCE_LOOKUP[(int)seq2[i - 1]];
         #pragma GCC unroll 4
         for (int j = 1; j <= (int)len1; j++) {
             int match = prev_row[j - 1] + scoring->matrix[seq1_indices[j - 1]][c2_idx];
@@ -64,7 +64,7 @@ INLINE Alignment nw_align(const char seq1[MAX_SEQ_LEN],
             
             if (i > 0 && j > 0) {
                 int diag_score = matrix[(i - 1) * cols + (j - 1)];
-                int match_score = scoring->matrix[seq1_indices[j - 1]][sequence_char_to_index(seq2[i - 1])];
+                int match_score = scoring->matrix[seq1_indices[j - 1]][SEQUENCE_LOOKUP[(int)seq2[i - 1]]];
                 move = (curr_score == diag_score + match_score) ? 0 : (i > 0 && curr_score == matrix[(i - 1) * cols + j] - GAP_PENALTY) ? 1 : 2;
                 /* ^^^ This is equivalent to the following code:
                 if (curr_score == diag_score + match_score) {

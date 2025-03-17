@@ -33,10 +33,10 @@ static const SequenceTypeInfo SEQUENCE_TYPES[] = {
     },
 };
 
-#define AMINO_ALPHABET "ARNDCQEGHILKMFPSTWYV"
+static const char AMINO_ALPHABET[] = "ARNDCQEGHILKMFPSTWYV";
 #define AMINO_SIZE 20
 
-#define NUCLEOTIDE_ALPHABET "ACGT"
+static const char NUCLEOTIDE_ALPHABET[] = "ACGT";
 #define NUCLEOTIDE_SIZE 4
 
 #define NUM_AMINO_MATRICES 65
@@ -127,46 +127,6 @@ typedef enum {
     DNAFULL_ID = 0,
     NUC44_ID = 1,
 } NucleotideMatrixID;
-
-// Lookup table for AMINO indices
-static const int AMINO_LOOKUP[128] = {
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1,  0, -1,  4,  3,  6, 13,  7,
-     8,  9, -1, 11, 10, 12,  2, -1,
-    14,  5,  1, 15, 16, -1, 19, 17,
-    -1, 18, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-};
-
-// Lookup table for NUCLEOTIDE indices
-static const int NUCLEOTIDE_LOOKUP[128] = {
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1,  0, -1,  1, -1, -1, -1,  2,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1,  3, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-    -1, -1, -1, -1, -1, -1, -1, -1,
-};
 
 // Amino matrices
 static const int BLOSUM100[AMINO_SIZE][AMINO_SIZE] = {
@@ -1751,23 +1711,6 @@ static const NucleotideMatrix ALL_NUCLEOTIDE_MATRICES[NUM_NUCLEOTIDE_MATRICES] =
     {"DNAFULL", DNAFULL},
     {"NUC44", NUC44},
 };
-
-INLINE int amino_char_to_index(char c) {
-    return (c >= 0 && c < 128) ? AMINO_LOOKUP[(int)c] : -1;
-}
-
-INLINE int nucleotide_char_to_index(char c) {
-    return (c >= 0 && c < 128) ? NUCLEOTIDE_LOOKUP[(int)c] : -1;
-}
-
-typedef int (*char_to_index_fn)(char);
-static char_to_index_fn current_char_to_index = amino_char_to_index;
-
-INLINE int sequence_char_to_index(char c) { return current_char_to_index(c); }
-
-INLINE void update_sequence_lookup_function(int seq_type) {
-    current_char_to_index = (seq_type == SEQ_TYPE_AMINO) ? amino_char_to_index : nucleotide_char_to_index;
-}
 
 INLINE const char* get_matrix_name_by_id(int seq_type, int matrix_id) {
     if (seq_type < 0 || matrix_id < 0) {

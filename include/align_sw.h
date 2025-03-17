@@ -66,7 +66,7 @@ INLINE Alignment sw_align(const char seq1[MAX_SEQ_LEN],
     for (int i = 1; i <= (int)len2; ++i) {
         int row_offset = i * cols;
         int prev_row_offset = (i-1) * cols;
-        int c2_idx = sequence_char_to_index(seq2[i - 1]);
+        int c2_idx = SEQUENCE_LOOKUP[(int)seq2[i - 1]];
 
         PREFETCH(&match[row_offset + PREFETCH_DISTANCE]);
         PREFETCH(&gap_x[row_offset + PREFETCH_DISTANCE]);
@@ -126,7 +126,7 @@ INLINE Alignment sw_align(const char seq1[MAX_SEQ_LEN],
             if (curr_score <= 0) break; // End local alignment when hitting 0
             
             // Check diagonal move
-            int diag_score = match[(i-1) * cols + (j-1)] + scoring->matrix[seq1_indices[j-1]][sequence_char_to_index(seq2[i-1])];
+            int diag_score = match[(i-1) * cols + (j-1)] + scoring->matrix[seq1_indices[j-1]][SEQUENCE_LOOKUP[(int)seq2[i - 1]]];
             
             if (curr_score == diag_score) {
                 // Diagonal move
