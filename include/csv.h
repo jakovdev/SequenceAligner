@@ -272,8 +272,7 @@ INLINE char* parse_header(char* restrict current, char* restrict end) {
     return current;
 }
 
-INLINE size_t parse_csv_line(char** current, 
-                             char seq[MAX_SEQ_LEN]) {
+INLINE size_t parse_csv_line(char** current, char* seq) {
     char* p = *current;
     char* write_pos = NULL;
     size_t col = 0;

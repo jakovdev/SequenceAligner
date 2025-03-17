@@ -49,15 +49,13 @@ INLINE void precompute_seq_indices(const char* restrict seq, int* restrict indic
 INLINE void construct_alignment_result(Alignment* restrict result, 
                                       char* restrict temp_seq1, 
                                       char* restrict temp_seq2, 
-                                      int pos, 
-                                      int score) {
+                                      int pos) {
     #pragma GCC unroll 8
     for (int k = 0; k < pos; k++) {
         result->seq1_aligned[k] = temp_seq1[pos - k - 1];
         result->seq2_aligned[k] = temp_seq2[pos - k - 1];
     }
     result->seq1_aligned[pos] = result->seq2_aligned[pos] = '\0';
-    result->score = score;
 }
 #endif
 

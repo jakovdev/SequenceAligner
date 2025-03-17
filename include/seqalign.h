@@ -5,9 +5,9 @@
 #include "align_ga.h"
 #include "align_sw.h"
 
-INLINE Alignment align_sequences(const char seq1[MAX_SEQ_LEN],
+INLINE Alignment align_sequences(const char* seq1,
                                  const size_t len1,
-                                 const char seq2[MAX_SEQ_LEN], 
+                                 const char* seq2, 
                                  const size_t len2,
                                  const ScoringMatrix* restrict scoring) {    
     switch(get_alignment_method()) {

@@ -4,9 +4,9 @@
 #include "align.h"
 
 // Needleman-Wunsch global alignment with linear gap penalty
-INLINE Alignment nw_align(const char seq1[MAX_SEQ_LEN],
+INLINE Alignment nw_align(const char* seq1,
                           const size_t len1,
-                          const char seq2[MAX_SEQ_LEN], 
+                          const char* seq2, 
                           const size_t len2,
                           const ScoringMatrix* restrict scoring) {
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
@@ -97,14 +97,9 @@ INLINE Alignment nw_align(const char seq1[MAX_SEQ_LEN],
 
     Alignment result = {0};
     #if MODE_CREATE_ALIGNED_STRINGS == 1
-    if (get_aligned_strings()) {
-        construct_alignment_result(&result, temp_seq1, temp_seq2, pos, final_score);
-    } else {
-        result.score = final_score;
-    }
-    #else
-    result.score = final_score;
+    if (get_aligned_strings()) construct_alignment_result(&result, temp_seq1, temp_seq2, pos, final_score);
     #endif
+    result.score = final_score;
     return result;
 }
 
