@@ -3,6 +3,7 @@
 
 #include "user.h"
 #include "common.h"
+#include "terminal.h"
 
 #define ANSI_COLOR_RESET   "\x1b[0m"
 #define ANSI_COLOR_BOLD    "\x1b[1m"
@@ -60,6 +61,7 @@ typedef struct {
 static MessageConfig message_config = {0, 0, 0, 0, ANSI_COLOR_BLUE};
 
 INLINE void init_colors(void) {
+    init_terminal();
     message_config.box_color = ANSI_COLOR_BLUE;
 }
 
@@ -71,11 +73,7 @@ INLINE void init_print_messages(int verbose, int quiet) {
 }
 
 INLINE void print_progress_bar_end(void) {
-    static int is_terminal = -1;
-    if (is_terminal == -1) {
-        is_terminal = isatty(STDOUT_FILENO);
-    }
-    if (!message_config.quiet && is_terminal) {
+    if (!message_config.quiet && is_terminal()) {
         printf("\n");
     }
 }
@@ -285,14 +283,9 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     size_t filled_width = (size_t)(percentage * width);
     if (filled_width > width) filled_width = width;
     
-    static int is_terminal = -1;
-    if (is_terminal == -1) {
-        is_terminal = isatty(STDOUT_FILENO);
-    }
-    
     apply_box_color();
 
-    if (is_terminal) {
+    if (is_terminal()) {
         printf("\r%s", BOX_VERTICAL);
     } else {
         printf("%s", BOX_VERTICAL);
@@ -318,7 +311,7 @@ INLINE void print_progress_bar(double percentage, size_t width, const char* pref
     printf("%s", BOX_VERTICAL);
     reset_color();
     
-    if (!is_terminal) {
+    if (!is_terminal()) {
         printf("\n");
     }
     

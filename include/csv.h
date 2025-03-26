@@ -4,6 +4,7 @@
 #include "files.h"
 #include "print.h"
 #include "benchmark.h"
+#include "terminal.h"
 
 typedef struct {
     const char* seq;
@@ -94,45 +95,6 @@ INLINE int detect_sequence_column(char** headers, int num_cols) {
     return -1;
 }
 
-INLINE void read_line_input(char* input_buffer, int buffer_size, int* choice, 
-                            const char* prompt, size_t prompt_len) {
-    int idx = 0;
-    int c;
-    
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-    printf(" %s", prompt);
-    
-    fflush(stdout);
-    
-    // Read input character by character
-    while (1) {
-        c = getchar();
-        
-        // Exit on Enter key
-        if (c == '\n' || c == '\r') {
-            break;
-        }
-        
-        // Only accept digits and limit input length
-        if (isdigit(c) && idx < buffer_size - 1) {
-            input_buffer[idx++] = c;
-            input_buffer[idx] = '\0';
-            printf("%c", c); // Echo the character
-            fflush(stdout);
-        }
-    }
-    
-    *choice = atoi(input_buffer);
-    int padding = OUTPUT_WIDTH + 8 - prompt_len - idx;
-    for (int i = 0; i < padding; i++) printf(" ");
-
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-}
-
 INLINE void prompt_for_sequence_column(void) {
     // Pause the init timer before asking for user input
     double saved_time = bench_pause_init();
@@ -164,48 +126,38 @@ INLINE void prompt_for_sequence_column(void) {
     
     char input_buffer[32] = {0};
     int choice = -1;
-    #ifdef _WIN32
-    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-    DWORD mode;
-    GetConsoleMode(hStdin, &mode);
-    SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
-    #else
-    struct termios old_term, new_term;
-    tcgetattr(STDIN_FILENO, &old_term);
-    new_term = old_term;
-    new_term.c_lflag &= ~(ICANON | ECHO); // Disable canonical mode and echo
-    tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
-    #endif
+
+    apply_box_color();
+    printf("%s ", BOX_VERTICAL);
+    reset_color();
 
     // Display input prompt and get user input in the same line
-    read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt, prompt_len);
-    printf("\n"); // Manually add the newline for consistency
-
-    #ifdef _WIN32
-    SetConsoleMode(hStdin, mode);
-    #else
-    tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
-    #endif
+    read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt);
+    
+    int padding = OUTPUT_WIDTH + 8 - prompt_len - strlen(input_buffer);
+    for (int i = 0; i < padding; i++) printf(" ");
+    
+    apply_box_color();
+    printf("%s\n", BOX_VERTICAL);
+    reset_color();
 
     // Validate input
     while (choice < 1 || choice > g_csv_metadata.num_columns) {
         print_warning("Invalid input! Please enter a number between 1 and %d.", g_csv_metadata.num_columns);
         memset(input_buffer, 0, sizeof(input_buffer));
 
-        #ifdef _WIN32
-        SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
-        #else
-        tcsetattr(STDIN_FILENO, TCSANOW, &new_term);
-        #endif
+        apply_box_color();
+        printf("%s ", BOX_VERTICAL);
+        reset_color();
 
-        read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt, prompt_len);
-        printf("\n");
-
-        #ifdef _WIN32
-        SetConsoleMode(hStdin, mode);
-        #else
-        tcsetattr(STDIN_FILENO, TCSANOW, &old_term);
-        #endif
+        read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt);
+        
+        padding = OUTPUT_WIDTH + 8 - prompt_len - strlen(input_buffer);
+        for (int i = 0; i < padding; i++) printf(" ");
+        
+        apply_box_color();
+        printf("%s\n", BOX_VERTICAL);
+        reset_color();
     }
     
     g_csv_metadata.seq_col_index = choice - 1;
