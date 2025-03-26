@@ -26,14 +26,21 @@ SequenceAligner is a highly optimized tool for performing rapid pairwise sequenc
 
 ## Installation
 
-<details>
-<summary><strong>Dependencies</strong></summary>
+### Releases
 
+- Download the latest release from [Releases](https://github.com/jakovdev/SequenceAligner/releases/latest)
+
+
+### Building from source
+
+<details>
+<summary><strong>Linux</strong></summary>
+
+#### Dependencies
 - GCC with C99 support
 - GNU Make
 - HDF5 library
 
-### Linux
 ```bash
 # Debian/Ubuntu
 sudo apt install build-essential libhdf5-dev
@@ -42,14 +49,7 @@ sudo apt install build-essential libhdf5-dev
 sudo pacman -S gcc make hdf5
 ```
 
-### Windows
-
-- Windows support coming soon
-
-</details>
-
-<details>
-<summary><strong>Building from source</strong></summary>
+#### Building
 
 ```bash
 # Clone the repository
@@ -59,22 +59,61 @@ cd SequenceAligner
 # Build the project
 make
 
-# For Windows cross compilation (not tested yet)
-make cross
+# Profiles
+make help
 ```
+</details>
+
+<details>
+<summary><strong>Windows</strong></summary>
+
+#### Prerequisite
+
+1. Install MSYS2 from https://www.msys2.org/
+2. Open the MSYS2 UCRT64 terminal
+3. Navigate to the folder you downloaded the project using:
+
+```bash
+cd /c/Users/John/Downloads/SequenceAligner
+```
+
+> - Replace the folder path to the location you downloaded the project files
+> - MSYS2 uses `/c/...` instead of `C:\...`
+
+4. Install required tools by running:
+```bash
+./scripts/msys2_setup.sh
+```
+
+#### Building
+
+```bash
+# Build the program
+mingw32-make
+```
+
+```bash
+# All available commands
+mingw32-make help
+```
+
 </details>
 
 ## Usage
 
 ```bash
-./bin/seqalign [OPTIONS]
+# Linux
+./bin/seqalign [ARGUMENTS]
+
+# Windows
+./bin/seqalign.exe [ARGUMENTS]
 ```
 
 <details open>
-<summary><strong>Command line options</strong></summary>
+<summary><strong>Command line arguments</strong></summary>
 
 **Required arguments:**
-| Option | Description |
+| Argument | Description |
 |--------|-------------|
 | `-i, --input FILE` | Input CSV file path |
 | `-t, --type TYPE` | Sequence type: amino (protein), nucleotide (DNA/RNA) |
@@ -85,7 +124,7 @@ make cross
 | `-e, --gap-extend N` | Affine gap extend penalty (required for affine gap methods) |
 
 **Optional arguments:**
-| Option | Description |
+| Argument | Description |
 |--------|-------------|
 | `-o, --output FILE` | Output HDF5 file path (required if writing results) |
 | `-T, --threads N` | Number of threads (0 = auto) [default: auto] |

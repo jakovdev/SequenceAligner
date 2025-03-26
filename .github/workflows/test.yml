@@ -17,7 +17,7 @@ jobs:
           version: 1.0 # change this to clear the cache and reinstall the packages
       
       - name: Build
-        run: make __github_action_test__
+        run: make
       
       - name: Run test
         run: bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
