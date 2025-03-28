@@ -264,14 +264,12 @@ All implementations use dynamic programming with optimized matrix operations.
   - Automatically detects the column containing sequences
   - Asks for your input if it can't find the sequence column
   - Requires only one column with valid sequence data
-  - For large datasets (10k-50k+ sequences), ensure you have sufficient RAM
-  - Future updates may include chunked processing for memory-constrained environments
+  - For large datasets (10k-50k+ sequences), ensure you have sufficient RAM since that will result in multi GB output
   
 - **Output**: HDF5 file storing the similarity matrix
   - Matrix dimensions match the number of input sequences or filtered sequences if enabled
   - Compression level adjustable through command line options
   - Memory usage increases with the square of sequence count
-  - Similar RAM restrictions as input
 
 ## License
 
