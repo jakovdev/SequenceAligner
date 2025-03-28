@@ -5,8 +5,6 @@
 #include "print.h"
 
 int main(int argc, char* argv[]) {
-    bench_init_start();
-
     init_colors();
     print_header("SEQUENCE ALIGNER");
     
@@ -14,6 +12,8 @@ int main(int argc, char* argv[]) {
     
     print_step_header("Setting Up Alignment");
     
+    bench_init_start();
+
     SET_HIGH_CLASS();
     if (!get_mode_multithread()) {
         PIN_THREAD(0);
@@ -52,13 +52,17 @@ int main(int argc, char* argv[]) {
     
     print_dna("Found %zu sequences", total_seqs_in_file);
 
-    size_t seq_struct_size = ((sizeof(Sequence) + CACHE_LINE - 1) / CACHE_LINE) * CACHE_LINE;
-    size_t total_seq_mem = seq_struct_size * total_seqs_in_file;
-    print_verbose("Allocating %zu bytes for sequence data", total_seq_mem);
-
-    Sequence* seqs = (Sequence*)huge_page_alloc(total_seq_mem);
-    size_t* seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * total_seqs_in_file);
+    init_seq_pool();
     
+    print_verbose("Allocating memory for sequence data");
+    Sequence* seqs = (Sequence*)malloc(total_seqs_in_file * sizeof(Sequence));
+    if (!seqs) {
+        print_error("Failed to allocate memory for sequence pointers");
+        free_csv_metadata();
+        free_input_file(&file);
+        return 1;
+    }
+
     // Second pass: store all sequences
     size_t idx = 0;
     current = file.file_data;
@@ -68,8 +72,35 @@ int main(int argc, char* argv[]) {
     float filter_threshold = get_filter_threshold();
     bool apply_filtering = get_mode_filter();
 
+    char* temp_seq = NULL;
+    size_t temp_seq_capacity = 0;
+    
     while (current < end && *current) {
-        char temp_seq[MAX_SEQ_LEN];
+        char* line_end = current;
+        while (*line_end && *line_end != '\n' && *line_end != '\r') line_end++;
+        size_t max_line_len = line_end - current;
+        
+        if (max_line_len + 16 > temp_seq_capacity) {
+            size_t new_capacity = max_line_len + 64;
+            char* new_buffer = (char*)malloc(new_capacity);
+            if (!new_buffer) {
+                print_error("Failed to allocate memory for sequence");
+                free(temp_seq);
+                free_csv_metadata();
+                free_input_file(&file);
+                free_seq_pool();
+                free(seqs);
+                return 1;
+            }
+            
+            if (temp_seq) {
+                free(temp_seq);
+            }
+            
+            temp_seq = new_buffer;
+            temp_seq_capacity = new_capacity;
+        }
+        
         size_t seq_len = parse_csv_line(&current, temp_seq);
         
         if (seq_len == 0) continue;
@@ -78,7 +109,7 @@ int main(int argc, char* argv[]) {
         
         if (apply_filtering && idx > 0) {
             for (size_t j = 0; j < idx; j++) {
-                float similarity = calculate_similarity(temp_seq, seq_len, seqs[j].data, seq_lens[j]);
+                float similarity = calculate_similarity(temp_seq, seq_len, seqs[j].data, seqs[j].length);
                 if (similarity >= filter_threshold) {
                     should_include = false;
                     filtered_count++;
@@ -88,9 +119,7 @@ int main(int argc, char* argv[]) {
         }
         
         if (should_include) {
-            memcpy(seqs[idx].data, temp_seq, seq_len);
-            seqs[idx].data[seq_len] = '\0';
-            seq_lens[idx] = seq_len;
+            init_sequence(&seqs[idx], temp_seq, seq_len);
             idx++;
         }
         
@@ -99,6 +128,8 @@ int main(int argc, char* argv[]) {
         }
     }
     
+    free(temp_seq);
+    
     seq_count = idx;
     print_progress_bar_end();
     
@@ -106,20 +137,11 @@ int main(int argc, char* argv[]) {
         print_success("Stored %zu sequences (filtered out %zu)", seq_count, filtered_count);
         
         if (filtered_count > 0 && filtered_count >= total_seqs_in_file / 4) {
-            print_verbose("Reallocating memory to save %zu sequence slots (%.2f MiB)", filtered_count, (filtered_count * seq_struct_size) / (1024.0 * 1024.0));
-            size_t new_seq_mem = seq_struct_size * seq_count;
-            Sequence* new_seqs = (Sequence*)huge_page_alloc(new_seq_mem);
+            print_verbose("Reallocating memory to save %zu sequence slots", filtered_count);
+            Sequence* new_seqs = (Sequence*)realloc(seqs, seq_count * sizeof(Sequence));
             if (new_seqs) {
-                memcpy(new_seqs, seqs, new_seq_mem);
-                aligned_free(seqs);
                 seqs = new_seqs;
-                size_t* new_seq_lens = (size_t*)aligned_alloc(CACHE_LINE, sizeof(size_t) * seq_count);
-                if (new_seq_lens) {
-                    memcpy(new_seq_lens, seq_lens, sizeof(size_t) * seq_count);
-                    aligned_free(seq_lens);
-                    seq_lens = new_seq_lens;
-                    print_success("Memory reallocated, now using %zu bytes for sequences", new_seq_mem);
-                }
+                print_success("Memory reallocated successfully");
             }
         } else {
             print_verbose("Using %zu of %zu sequence slots after filtering (%.2f%% eff)", seq_count, total_seqs_in_file, (seq_count * 100.0) / total_seqs_in_file);
@@ -134,12 +156,16 @@ int main(int argc, char* argv[]) {
     
     H5Handler h5_handler = init_h5_handler(seq_count);
     
-    print_config("Using alignment method: %s", get_current_alignment_method_name());
+    bench_write_start();
+
+    store_sequences_in_h5(&h5_handler, seqs, seq_count);
     
     bench_init_end();
     
     print_step_header("Performing Alignments");
     
+    print_config("Using alignment method: %s", get_current_alignment_method_name());
+
     bench_align_start();
     
     if (get_mode_multithread()) {
@@ -180,7 +206,6 @@ int main(int argc, char* argv[]) {
             // Fill the task queue
             for (size_t t = 0; t < batch_size; t++) {
                 // Prefetch sequences for next task to reduce cache misses
-                // TODO: Benchmark
                 if (t + PREFETCH_DISTANCE < batch_size) {
                     size_t prefetch_i = i;
                     size_t prefetch_j = j + PREFETCH_DISTANCE;
@@ -200,8 +225,8 @@ int main(int argc, char* argv[]) {
                 // Set up the current task
                 tasks[t].seq1 = seqs[i].data;
                 tasks[t].seq2 = seqs[j].data;
-                tasks[t].len1 = seq_lens[i];
-                tasks[t].len2 = seq_lens[j];
+                tasks[t].len1 = seqs[i].length;
+                tasks[t].len2 = seqs[j].length;
                 tasks[t].scoring = &scoring;
                 tasks[t].i = i;
                 tasks[t].j = j;
@@ -233,16 +258,16 @@ int main(int argc, char* argv[]) {
             for (size_t j = i + 1; j < seq_count; j++) {
                 // Prefetch next sequences to reduce cache misses
                 if (j + 1 < seq_count) {
-                    PREFETCH(seqs[i].data + seq_lens[i]/2);  // Prefetch middle of current sequence
-                    PREFETCH(seqs[j+1].data);                // Prefetch next sequence
+                    PREFETCH(seqs[i].data + seqs[i].length/2);  // Prefetch middle of current sequence
+                    PREFETCH(seqs[j+1].data);                   // Prefetch next sequence
                 } else if (i + 1 < seq_count) {
                     PREFETCH(seqs[i+1].data);
                     PREFETCH(seqs[i+2].data);
                 }
                 
                 int score = align_sequences(
-                    seqs[i].data, seq_lens[i],
-                    seqs[j].data, seq_lens[j],
+                    seqs[i].data, seqs[i].length,
+                    seqs[j].data, seqs[j].length,
                     &scoring
                 );
                 
@@ -262,15 +287,6 @@ int main(int argc, char* argv[]) {
     print_success("Alignment completed successfully!");
     bench_align_end();
     
-    print_step_header("Finalizing Results");
-    
-    int64_t checksum = 0;
-    for (size_t i = 0; i < seq_count * seq_count; i++) {
-        checksum += h5_handler.buffer.data[i];
-    }
-
-    print_info("Matrix checksum: %lld", checksum);
-    
     close_h5_handler(&h5_handler);
     
     bench_total();
@@ -278,10 +294,10 @@ int main(int argc, char* argv[]) {
     print_step_header("Cleaning Up");
     print_verbose("Freeing csv metadata");
     free_csv_metadata();
-    print_verbose("Freeing sequence data");
-    aligned_free(seqs);
-    print_verbose("Freeing sequence lengths");
-    aligned_free(seq_lens);
+    print_verbose("Freeing sequence memory pool");
+    free_seq_pool();
+    print_verbose("Freeing sequence pointers");
+    free(seqs);
     print_verbose("Closing input file");
     free_input_file(&file);
     

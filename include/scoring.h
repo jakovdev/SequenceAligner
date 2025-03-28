@@ -14,6 +14,10 @@ static veci_t GAP_EXTEND_VEC;
 
 static int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
 
+typedef struct {
+    int matrix[AMINO_SIZE][AMINO_SIZE];
+} ScoringMatrix;
+
 INLINE void init_scoring_matrix(ScoringMatrix* restrict matrix) {
     int matrix_id = get_scoring_matrix();
     int seq_type = get_sequence_type();

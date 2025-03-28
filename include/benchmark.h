@@ -13,14 +13,17 @@ typedef struct {
     double write_start;
     double write;
     double total;
+    double accumulated_io_time;
     size_t total_alignments;
 } BenchmarkTimes;
 
 static BenchmarkTimes g_times = {0};
 
 INLINE void bench_init_start(void) {
-    g_times.init_start = get_time();
-    g_times.elapsed_init_time = 0.0;
+    if (get_mode_benchmark()) {
+        g_times.init_start = get_time();
+        g_times.elapsed_init_time = 0.0;
+    }
 }
 
 INLINE void bench_init_end(void) {
@@ -31,17 +34,22 @@ INLINE void bench_init_end(void) {
 }
 
 INLINE double bench_pause_init(void) {
+    if (!get_mode_benchmark()) return 0.0;
     double current_time = get_time();
     g_times.elapsed_init_time += (current_time - g_times.init_start);
     return current_time;
 }
 
 INLINE void bench_resume_init(double saved_time) {
-    g_times.init_start = get_time() - (saved_time - g_times.init_start) + g_times.elapsed_init_time;
+    if (get_mode_benchmark()) {
+        g_times.init_start = get_time() - (saved_time - g_times.init_start) + g_times.elapsed_init_time;
+    }
 }
 
 INLINE void bench_align_start(void) {
-    g_times.align_start = get_time();
+    if (get_mode_benchmark()) {
+        g_times.align_start = get_time();
+    }
 }
 
 INLINE void bench_align_end(void) {
@@ -51,19 +59,30 @@ INLINE void bench_align_end(void) {
     }
 }
 
+INLINE void add_io_time(double elapsed) {
+    if (get_mode_benchmark() && get_mode_write()) {
+        g_times.accumulated_io_time += elapsed;
+    }
+}
+
 INLINE void bench_write_start(void) {
-    g_times.write_start = get_time();
+    if (get_mode_benchmark() && get_mode_write()) {
+        g_times.accumulated_io_time = 0.0;
+        g_times.write_start = get_time();
+    }
 }
 
 INLINE void bench_write_end(void) {
-    if (get_mode_benchmark()) {
-        g_times.write = get_time() - g_times.write_start;
+    if (get_mode_benchmark() && get_mode_write()) {
+        g_times.write = g_times.accumulated_io_time;
         print_timing("I/O operations: %.3f sec", g_times.write);
     }
 }
 
 INLINE void bench_set_alignments(size_t total_alignments) {
-    g_times.total_alignments = total_alignments;
+    if (get_mode_benchmark()) {
+        g_times.total_alignments = total_alignments;
+    }
 }
 
 INLINE void print_bench_item(const char* label, double time, double percentage) {

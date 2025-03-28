@@ -3,15 +3,6 @@
 
 #include "user.h"
 #include "macros.h"
-#include "matrices.h"
-
-typedef struct {
-    int matrix[AMINO_SIZE][AMINO_SIZE];
-} ScoringMatrix;
-
-typedef struct {
-    char data[MAX_SEQ_LEN];
-} Sequence;
 
 INLINE int get_thread_count(void) {
     #ifdef _WIN32
