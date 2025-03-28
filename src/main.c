@@ -252,6 +252,7 @@ int main(int argc, char* argv[]) {
         print_config("Using single-threaded mode");
         size_t progress_step = total_alignments / 100 + 1;
         size_t progress_counter = 0;
+        int64_t local_checksum = 0;
         
         #pragma GCC unroll 8
         for (size_t i = 0; i < seq_count; i++) {
@@ -271,6 +272,8 @@ int main(int argc, char* argv[]) {
                     &scoring
                 );
                 
+                local_checksum += score;
+                
                 // Write directly to the in-memory buffer
                 set_matrix_value(&h5_handler, i, j, score);
                 set_matrix_value(&h5_handler, j, i, score);
@@ -281,6 +284,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
+        h5_handler.matrix_checksum = local_checksum * 2;
         print_progress_bar_end();
     }
     

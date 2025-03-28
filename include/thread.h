@@ -36,6 +36,7 @@ static H5Handler* g_h5_handler;
 INLINE T_Func thread_pool_worker(void* restrict arg) {
     int thread_id = *(int*)arg;
     PIN_THREAD(thread_id);
+    int64_t local_checksum = 0;
     
     while (1) {
         sem_wait(g_work_queue.work_ready);
@@ -65,11 +66,16 @@ INLINE T_Func thread_pool_worker(void* restrict arg) {
                     task->seq2, task->len2, 
                     task->scoring
                 );
+
+                local_checksum += score;
                 
                 set_matrix_value(g_h5_handler, task->i, task->j, score);
                 set_matrix_value(g_h5_handler, task->j, task->i, score);
             }
         }
+
+        __atomic_fetch_add(&g_h5_handler->thread_checksums[thread_id], local_checksum, __ATOMIC_RELAXED);
+        local_checksum = 0;
         
         // Signal that this thread is done processing
         if (__atomic_add_fetch(&g_threads_waiting, 1, __ATOMIC_SEQ_CST) == g_num_threads) {
@@ -88,7 +94,11 @@ INLINE void init_thread_pool(H5Handler* h5_handler) {
     // Allocate aligned memory for thread resources
     g_threads = (pthread_t*)aligned_alloc(CACHE_LINE, sizeof(pthread_t) * g_num_threads);
     g_thread_ids = (int*)aligned_alloc(CACHE_LINE, sizeof(int) * g_num_threads);
-    
+
+    g_h5_handler->thread_checksums = (int64_t*)aligned_alloc(CACHE_LINE, sizeof(int64_t) * g_num_threads);
+    for (int i = 0; i < g_num_threads; i++) {
+        g_h5_handler->thread_checksums[i] = 0;
+    }    
     // Create semaphores for work coordination
     g_work_queue.work_ready = (sem_t*)malloc(sizeof(sem_t));
     g_work_queue.work_done = (sem_t*)malloc(sizeof(sem_t));

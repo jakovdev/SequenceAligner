@@ -29,6 +29,7 @@ typedef struct {
     size_t max_seq_length;
 
     MatrixBuffer buffer;
+    int64_t* thread_checksums;
     int64_t matrix_checksum;
     
     bool sequences_stored;
@@ -173,6 +174,7 @@ INLINE H5Handler init_h5_handler(size_t matrix_size) {
     
     handler.matrix_size = matrix_size;
     handler.matrix_checksum = 0;
+    handler.thread_checksums = NULL;
     handler.sequences_stored = false;
     handler.is_init = false;
     
@@ -398,32 +400,14 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
     print_verbose("Successfully stored sequences in HDF5 file");
 }
 
-INLINE int64_t calculate_matrix_checksum(H5Handler* handler) {
-    if (!handler->is_init) {
-        print_error("Cannot calculate checksum: H5Handler not initialized");
-        return 0;
+INLINE int64_t collect_thread_checksums(H5Handler* handler) {
+    if (!handler->thread_checksums) return 0;
+    
+    int64_t total_checksum = 0;
+    for (int t = 0; t < get_num_threads(); t++) {
+        total_checksum += handler->thread_checksums[t];
     }
-    
-    int64_t checksum = 0;
-    size_t size = handler->matrix_size;
-    
-    if (get_mode_write()) {
-        for (size_t i = 0; i < size; i++) {
-            for (size_t j = i; j < size; j++) {
-                size_t pos = i * size + j;
-                int value = handler->buffer.data[pos];
-                
-                if (i == j) {
-                    checksum += value;
-                } else {
-                    checksum += value * 2;
-                }
-            }
-        }
-    }
-    
-    handler->matrix_checksum = checksum;
-    return checksum;
+    return total_checksum * 2;
 }
 
 INLINE void close_h5_handler(H5Handler* handler) {
@@ -433,8 +417,11 @@ INLINE void close_h5_handler(H5Handler* handler) {
         print_step_header("Finalizing Results");
         print_info("Writing results to output file: %s", get_file_name(get_output_file_path()));
         flush_matrix_to_hdf5(handler);
-        int64_t checksum = calculate_matrix_checksum(handler);
-        print_info("Matrix checksum: %lld", checksum);
+        if (get_mode_multithread()) {
+            handler->matrix_checksum = collect_thread_checksums(handler);
+            aligned_free(handler->thread_checksums);
+        }
+        print_info("Matrix checksum: %lld", handler->matrix_checksum);
         bench_write_end();
 
         if (handler->seq_dataset_id > 0) H5Dclose(handler->seq_dataset_id);
