@@ -82,7 +82,7 @@ INLINE T_Func thread_pool_worker(void* restrict arg) {
 }
 
 INLINE void init_thread_pool(H5Handler* h5_handler) {
-    g_num_threads = get_thread_count();
+    g_num_threads = get_num_threads();
     g_h5_handler = h5_handler;
     
     // Allocate aligned memory for thread resources
