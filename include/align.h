@@ -38,10 +38,34 @@ INLINE void init_gap_penalties(void) {
     }
 }
 
-INLINE void precompute_seq_indices(const char* restrict seq, int* restrict indices, size_t len) {
+typedef struct {
+    int* data;
+    size_t size;
+    bool is_stack;
+} SeqIndices;
+
+INLINE void precompute_seq_indices(SeqIndices* indices, const char* restrict seq, size_t len) {
+    indices->size = len;
+    
+    if (len <= MAX_STACK_SEQUENCE_LENGTH) {
+        int* stack_buffer = alloca(len * sizeof(int));
+        indices->data = stack_buffer;
+        indices->is_stack = true;
+    } else {
+        indices->data = (int*)malloc(len * sizeof(int));
+        indices->is_stack = false;
+    }
+    
     #pragma GCC unroll 8
     for (size_t i = 0; i < len; ++i) {
-        indices[i] = SEQUENCE_LOOKUP[(int)seq[i]];
+        indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
+    }
+}
+
+INLINE void free_seq_indices(SeqIndices* indices) {
+    if (!indices->is_stack && indices->data) {
+        free(indices->data);
+        indices->data = NULL;
     }
 }
 

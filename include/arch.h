@@ -16,6 +16,8 @@
 #define L2_CACHE_SIZE (256 * KiB) // Typical L2 cache size
 #define MAX_THREADS (32)
 
+#define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
+
 // CPU architecture detection
 #if defined(__x86_64__) || defined(_M_X64)
     #define ARCH_X86_64 1

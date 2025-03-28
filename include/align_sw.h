@@ -56,8 +56,8 @@ INLINE int sw_align(const char* seq1,
         gap_x[idx] = gap_y[idx] = INT_MIN/2;
     }
 
-    int seq1_indices[MAX_SEQ_LEN];
-    precompute_seq_indices(seq1, seq1_indices, len1);
+    SeqIndices seq1_indices = {0};
+    precompute_seq_indices(&seq1_indices, seq1, len1);
 
     int final_score = 0;
     int max_i = 0, max_j = 0;
@@ -66,7 +66,7 @@ INLINE int sw_align(const char* seq1,
     for (int i = 1; i <= (int)len2; ++i) {
         int row_offset = i * cols;
         int prev_row_offset = (i-1) * cols;
-        int c2_idx = SEQUENCE_LOOKUP[(int)seq2[i - 1]];
+        int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2[i - 1]];
 
         PREFETCH(&match[row_offset + PREFETCH_DISTANCE]);
         PREFETCH(&gap_x[row_offset + PREFETCH_DISTANCE]);
@@ -74,7 +74,7 @@ INLINE int sw_align(const char* seq1,
         
         for (int j = 1; j <= (int)len1; j++) {
             // Calculate match score (diagonal move)
-            int similarity = scoring->matrix[seq1_indices[j - 1]][c2_idx];
+            int similarity = scoring->matrix[seq1_indices.data[j - 1]][c2_idx];
             int diag_score = match[prev_row_offset + j - 1] + similarity;
             
             // Calculate gap scores
@@ -110,6 +110,7 @@ INLINE int sw_align(const char* seq1,
         }
     }
 
+    free_seq_indices(&seq1_indices);
     free_matrix(matrix, stack_matrix);
     
     return final_score;

@@ -31,8 +31,8 @@ INLINE int nw_align(const char* seq1,
     }
     #endif
 
-    int seq1_indices[MAX_SEQ_LEN];
-    precompute_seq_indices(seq1, seq1_indices, len1);
+    SeqIndices seq1_indices = {0};
+    precompute_seq_indices(&seq1_indices, seq1, len1);
 
     // Fill matrix
     #pragma GCC unroll 8
@@ -40,10 +40,10 @@ INLINE int nw_align(const char* seq1,
         int* restrict prev_row = curr_row;
         curr_row = matrix + i * cols;
         curr_row[0] = i * GAP_PENALTY;
-        int c2_idx = SEQUENCE_LOOKUP[(int)seq2[i - 1]];
+        int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2[i - 1]];
         #pragma GCC unroll 4
         for (int j = 1; j <= (int)len1; j++) {
-            int match = prev_row[j - 1] + scoring->matrix[seq1_indices[j - 1]][c2_idx];
+            int match = prev_row[j - 1] + scoring->matrix[seq1_indices.data[j - 1]][c2_idx];
             int del = prev_row[j] - GAP_PENALTY;
             int insert = curr_row[j - 1] - GAP_PENALTY;
             curr_row[j] = match > del ? (match > insert ? match : insert) : (del > insert ? del : insert);
@@ -52,6 +52,7 @@ INLINE int nw_align(const char* seq1,
 
     int score = matrix[len2 * cols + len1];
 
+    free_seq_indices(&seq1_indices);
     free_matrix(matrix, stack_matrix);
     
     return score;
