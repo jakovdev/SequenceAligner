@@ -149,13 +149,13 @@ mingw32-make help
 
 ```bash
 # Run with all required parameters
-./bin/seqalign -i datasets/avppred.csv -o results/avppred_results.h5 -t amino -a nw -m blosum50 -p 4
+./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4
 
 # Using Smith-Waterman algorithm (requires affine gap parameters) with 8 threads
-./bin/seqalign -i datasets/avppred.csv -o results/avppred_results.h5 -t amino -a sw -m blosum62 -s 10 -e 1 -T 8
+./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a sw -m blosum62 -s 10 -e 1 -T 8
 
 # Gotoh algorithm with affine gaps
-./bin/seqalign -i datasets/avppred.csv -o results/avppred_results.h5 -t amino -a ga -m pam250 -s 12 -e 2
+./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a ga -m pam250 -s 12 -e 2
 
 # Enable benchmarking mode with verbose output and without creating the HDF5 result
 ./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
