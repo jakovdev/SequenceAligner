@@ -126,7 +126,7 @@ int main(int argc, char* argv[]) {
         }
         
         if ((idx + filtered_count) % 1000 == 0 || current >= end) {
-            print_progress_bar((double)(idx + filtered_count) / total_seqs_in_file, 40, apply_filtering ? "Filtering sequences" : "Storing sequences");
+            print_progress_bar((double)(idx + filtered_count) / total_seqs_in_file, 40, apply_filtering ? "Filtering sequences" : "Loading sequences");
         }
     }
     
@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
     print_progress_bar_end();
     
     if (apply_filtering) {
-        print_success("Stored %zu sequences (filtered out %zu)", seq_count, filtered_count);
+        print_success("Loaded %zu sequences (filtered out %zu)", seq_count, filtered_count);
         
         if (filtered_count > 0 && filtered_count >= total_seqs_in_file / 4) {
             print_verbose("Reallocating memory to save %zu sequence slots", filtered_count);

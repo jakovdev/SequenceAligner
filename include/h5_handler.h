@@ -411,7 +411,7 @@ INLINE void set_matrix_value(H5Handler* handler, size_t row, size_t col, int val
     }
 }
 
-INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_t count) {
+INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_t seq_count) {
     if (!get_mode_write() || !handler->is_init || handler->sequences_stored) return true;
     
     if (handler->file_id < 0) {
@@ -421,10 +421,10 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
 
     double write_start = get_time();
     
-    print_verbose("Storing %zu sequences in HDF5 file", count);
+    print_info("Storing %zu sequences in HDF5 file", seq_count);
     
     handler->max_seq_length = 0;
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < seq_count; i++) {
         if (sequences[i].length > handler->max_seq_length) {
             handler->max_seq_length = sequences[i].length;
         }
@@ -458,7 +458,7 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         return false;
     }
     
-    size_t* lengths = (size_t*)malloc(count * sizeof(size_t));
+    size_t* lengths = (size_t*)malloc(seq_count * sizeof(size_t));
     if (!lengths) {
         print_error("Failed to allocate memory for sequence lengths");
         H5Sclose(seq_space);
@@ -468,7 +468,7 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         return false;
     }
     
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < seq_count; i++) {
         lengths[i] = sequences[i].length;
     }
     
@@ -493,10 +493,11 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
     }
     
     const size_t batch_size = H5_SEQUENCE_BATCH_SIZE;
+    size_t last_percentage = 0;
     
-    for (size_t batch_start = 0; batch_start < count; batch_start += batch_size) {
+    for (size_t batch_start = 0; batch_start < seq_count; batch_start += batch_size) {
         size_t batch_end = batch_start + batch_size;
-        if (batch_end > count) batch_end = count;
+        if (batch_end > seq_count) batch_end = seq_count;
         size_t current_batch_size = batch_end - batch_start;
         
         char** seq_data = (char**)malloc(current_batch_size * sizeof(char*));
@@ -562,10 +563,14 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
             return false;
         }
         
-        if (batch_start > 0 && batch_start % 10000 == 0) {
-            print_verbose("  Stored %zu/%zu sequences...", batch_start, handler->matrix_size);
+        size_t current_percentage = (batch_end * 100) / seq_count;
+        if (current_percentage > last_percentage) {
+            print_progress_bar((double)batch_end / seq_count, 40, "Storing sequences");
+            last_percentage = current_percentage;
         }
     }
+
+    print_progress_bar_end();
     
     H5Sclose(seq_space);
     H5Tclose(string_type);
@@ -576,7 +581,7 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
     
     handler->sequences_stored = true;
     
-    print_verbose("Successfully stored sequences in HDF5 file");
+    print_success("Successfully stored sequences in HDF5 file");
     return true;
 }
 
