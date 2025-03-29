@@ -174,8 +174,8 @@ mingw32-make help
     <th colspan="3">Test Environment</th>
   </tr>
   <tr>
-    <td>Dataset</td>
-    <td colspan="2">1042 sequences (lengths 6-49)</td>
+    <td><a href="/datasets/avppred.csv">Dataset</a></td>
+    <td colspan="2">1042 sequences (21.58 avg length)</td>
   </tr>
   <tr>
     <td>Alignments</td>
@@ -183,7 +183,7 @@ mingw32-make help
   </tr>
   <tr>
     <td>Algorithm</td>
-    <td colspan="2">Needleman-Wunsch (score only)</td>
+    <td colspan="2">Needleman-Wunsch</td>
   </tr>
   <tr>
     <th>System</th>
@@ -206,16 +206,16 @@ mingw32-make help
     <th colspan="4">Large Dataset Performance</th>
   </tr>
   <tr>
-    <td>Dataset</td>
-    <td colspan="3">33,344 sequences (16x enlarged dataset)</td>
+    <td><a href="/datasets/drosophila.csv">Dataset</a></td>
+    <td colspan="3">58,746 sequences (17.93 avg length)</td>
   </tr>
   <tr>
     <td>Alignments</td>
-    <td colspan="3">555,894,496 pairwise comparisons</td>
+    <td colspan="3">1,725,516,885 pairwise comparisons</td>
   </tr>
   <tr>
     <td>Algorithm</td>
-    <td colspan="3">Needleman-Wunsch (score only)</td>
+    <td colspan="3">Needleman-Wunsch</td>
   </tr>
   <tr>
     <th>System</th>
@@ -226,14 +226,16 @@ mingw32-make help
   <tr>
     <td>Linux (Arch)</td>
     <td>16</td>
-    <td><strong>28.197s</strong></td>
-    <td>5.85s</td>
+    <td><strong>70.165s (24.6 million/s)</strong></td>
+    <td>40.658s (hdf5 conversion)</td>
   </tr>
 </table>
 
 > [!NOTE]
 > - Processing speed: ~17-20 million alignments per second for my Ryzen 7 5700G
 > - Smith-Waterman and Gotoh algorithms are slower than Needleman-Wunsch
+> - Longer sequences require more time to align
+> - For very large datasets (exceeding available RAM), the final step of saving results to HDF5 format may become the most time-consuming part of the process
 
 ## Implementation Details
 
@@ -256,7 +258,7 @@ All implementations use dynamic programming with optimized matrix operations.
 - Thread work stealing for load balancing
 - Huge pages for large memory allocations
 - Efficient matrix allocation with stack fallback for small sequences
-- Memory mapped input file reading and output file for large matrices
+- Memory mapped input file reading and storage for large matrices
 </details>
 
 ## File Formats
