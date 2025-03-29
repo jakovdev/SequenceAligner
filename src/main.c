@@ -19,11 +19,11 @@ int main(int argc, char* argv[]) {
         PIN_THREAD(0);
     }
     
-    File file = get_input_file();
+    File input_file = get_file(get_input_file_path());
     print_success("Successfully opened input file: %s", get_file_name(get_input_file_path()));
     
-    char* current = file.file_data;
-    char* restrict end = file.file_data + file.data_size;
+    char* current = input_file.file_data;
+    char* restrict end = input_file.file_data + input_file.data_size;
     current = parse_header(current, end);
     
     print_verbose("Initializing scoring matrix and gap penalties");
@@ -46,7 +46,7 @@ int main(int argc, char* argv[]) {
     if (total_seqs_in_file == 0) {
         print_error("No sequences found in input file");
         free_csv_metadata();
-        free_input_file(&file);
+        free_file(&input_file);
         return 0;
     }
     
@@ -59,13 +59,13 @@ int main(int argc, char* argv[]) {
     if (!seqs) {
         print_error("Failed to allocate memory for sequence pointers");
         free_csv_metadata();
-        free_input_file(&file);
+        free_file(&input_file);
         return 1;
     }
 
     // Second pass: store all sequences
     size_t idx = 0;
-    current = file.file_data;
+    current = input_file.file_data;
     current = skip_header(current, end);
 
     size_t filtered_count = 0;
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
                 print_error("Failed to allocate memory for sequence");
                 free(temp_seq);
                 free_csv_metadata();
-                free_input_file(&file);
+                free_file(&input_file);
                 free_seq_pool();
                 free(seqs);
                 return 1;
@@ -303,7 +303,7 @@ int main(int argc, char* argv[]) {
     print_verbose("Freeing sequence pointers");
     free(seqs);
     print_verbose("Closing input file");
-    free_input_file(&file);
+    free_file(&input_file);
     
     print_success("All operations completed successfully!");
     print_step_header_end(0);

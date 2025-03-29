@@ -14,14 +14,13 @@ typedef struct {
     #endif
 } File;
 
-INLINE File get_input_file(void) {
+INLINE File get_file(const char* file_path) {
     File file = {0};
-    const char* file_path = get_input_file_path();
 
     #ifdef _WIN32
     file.hFile = CreateFileA(file_path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
     if (file.hFile == INVALID_HANDLE_VALUE) {
-        print_error("Could not open input file '%s'", file_path);
+        print_error("Could not open file '%s'", file_path);
         print_step_header_end(1);
         exit(1);
     }
@@ -70,7 +69,7 @@ INLINE File get_input_file(void) {
     return file;
 }
 
-INLINE void free_input_file(File* file) {
+INLINE void free_file(File* file) {
     #ifdef _WIN32
     UnmapViewOfFile(file->file_data);
     CloseHandle(file->hMapping);
