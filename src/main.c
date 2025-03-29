@@ -74,6 +74,7 @@ int main(int argc, char* argv[]) {
 
     char* temp_seq = NULL;
     size_t temp_seq_capacity = 0;
+    size_t total_sequence_length = 0;
     
     while (current < end && *current) {
         char* line_end = current;
@@ -120,6 +121,7 @@ int main(int argc, char* argv[]) {
         
         if (should_include) {
             init_sequence(&seqs[idx], temp_seq, seq_len);
+            total_sequence_length += seq_len;
             idx++;
         }
         
@@ -152,6 +154,8 @@ int main(int argc, char* argv[]) {
 
     size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
     print_info("Will perform %zu pairwise alignments", total_alignments);
+    double average_sequence_length = (double)total_sequence_length / seq_count;
+    print_info("Average sequence length: %.2f", average_sequence_length);
     bench_set_alignments(total_alignments);
     
     H5Handler h5_handler = init_h5_handler(seq_count);
