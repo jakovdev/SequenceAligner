@@ -60,4 +60,42 @@ INLINE const char* get_file_name(const char* path) {
     return name ? name + 1 : path;
 }
 
+INLINE size_t get_available_memory(void) {
+    size_t available_mem = 0;
+    
+    #ifdef _WIN32
+    MEMORYSTATUSEX status;
+    status.dwLength = sizeof(status);
+    GlobalMemoryStatusEx(&status);
+    available_mem = status.ullAvailPhys;
+    #else
+    FILE* fp = fopen("/proc/meminfo", "r");
+    if (fp) {
+        char line[256];
+        while (fgets(line, sizeof(line), fp)) {
+            if (strncmp(line, "MemAvailable:", 13) == 0) {
+                available_mem = strtoull(line + 13, NULL, 10) * KiB;
+                break;
+            }
+        }
+        fclose(fp);
+    }
+    
+    if (available_mem == 0) {
+        struct sysinfo info;
+        if (sysinfo(&info) == 0) {
+            available_mem = info.freeram * info.mem_unit;
+        }
+    }
+    #endif
+
+    return available_mem;
+}
+
+INLINE bool check_matrix_exceeds_memory(size_t matrix_size, double safety_margin) {
+    size_t bytes_needed = matrix_size * matrix_size * sizeof(int);
+    size_t safe_memory = (size_t)(get_available_memory() * safety_margin);
+    return bytes_needed > safe_memory;
+}
+
 #endif

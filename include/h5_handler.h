@@ -4,11 +4,13 @@
 #include "common.h"
 #include "benchmark.h"
 #include "sequence.h"
+#include "files.h"
 #include <hdf5.h>
 
 #define H5_MIN_CHUNK_SIZE 128
 #define H5_MAX_CHUNK_SIZE 1024
 #define H5_SEQUENCE_BATCH_SIZE 5000
+#define MMAP_MEMORY_USAGE_THRESHOLD 0.7
 
 typedef struct {
     int* data;
@@ -29,6 +31,10 @@ typedef struct {
     size_t max_seq_length;
 
     MatrixBuffer buffer;
+    MmapMatrix mmap_matrix;
+    bool use_mmap;
+    char mmap_filename[MAX_PATH];
+    
     int64_t* thread_checksums;
     int64_t matrix_checksum;
     
@@ -95,6 +101,7 @@ INLINE bool setup_hdf5_file(H5Handler* handler) {
     if (matrix_space < 0) {
         print_error("Failed to create matrix dataspace");
         H5Fclose(handler->file_id);
+        handler->file_id = -1;
         return false;
     }
     
@@ -122,6 +129,7 @@ INLINE bool setup_hdf5_file(H5Handler* handler) {
         print_error("Failed to create similarity matrix dataset");
         H5Pclose(plist_id);
         H5Fclose(handler->file_id);
+        handler->file_id = -1;
         return false;
     }
     
@@ -136,8 +144,10 @@ INLINE bool setup_hdf5_file(H5Handler* handler) {
     if (seq_group < 0) {
         print_error("Failed to create sequences group");
         H5Dclose(handler->matrix_dataset_id);
+        handler->matrix_dataset_id = -1;
         H5Pclose(plist_id);
         H5Fclose(handler->file_id);
+        handler->file_id = -1;
         return false;
     }
     
@@ -145,6 +155,16 @@ INLINE bool setup_hdf5_file(H5Handler* handler) {
     
     handler->seq_dims[0] = handler->matrix_size;
     hid_t seq_lengths_space = H5Screate_simple(1, handler->seq_dims, NULL);
+    
+    if (seq_lengths_space < 0) {
+        print_error("Failed to create sequence lengths dataspace");
+        H5Dclose(handler->matrix_dataset_id);
+        handler->matrix_dataset_id = -1;
+        H5Pclose(plist_id);
+        H5Fclose(handler->file_id);
+        handler->file_id = -1;
+        return false;
+    }
     
     handler->seq_lengths_dataset_id = H5Dcreate2(
         handler->file_id,
@@ -162,7 +182,9 @@ INLINE bool setup_hdf5_file(H5Handler* handler) {
     if (handler->seq_lengths_dataset_id < 0) {
         print_error("Failed to create sequence lengths dataset");
         H5Dclose(handler->matrix_dataset_id);
+        handler->matrix_dataset_id = -1;
         H5Fclose(handler->file_id);
+        handler->file_id = -1;
         return false;
     }
     
@@ -177,30 +199,65 @@ INLINE H5Handler init_h5_handler(size_t matrix_size) {
     handler.thread_checksums = NULL;
     handler.sequences_stored = false;
     handler.is_init = false;
+    handler.use_mmap = false;
+    handler.file_id = -1;
+    handler.matrix_dataset_id = -1;
+    handler.seq_dataset_id = -1;
+    handler.seq_lengths_dataset_id = -1;
     
     if (get_mode_write()) {
-        if (!init_matrix_buffer(&handler.buffer, matrix_size)) {
-            print_error("Failed to initialize matrix buffer");
+        handler.use_mmap = check_matrix_exceeds_memory(matrix_size, MMAP_MEMORY_USAGE_THRESHOLD);
+        
+        if (handler.use_mmap) {
+            get_mmap_matrix_filename(handler.mmap_filename, MAX_PATH, get_output_file_path());
+            print_info("Matrix size exceeds memory threshold, using memory-mapped file");
+            handler.mmap_matrix = create_mmap_matrix(handler.mmap_filename, matrix_size);
+            if (!handler.mmap_matrix.data) {
+                print_error("Failed to create memory-mapped matrix");
+                return handler;
+            }
+        } else {
+            if (!init_matrix_buffer(&handler.buffer, matrix_size)) {
+                print_error("Failed to initialize matrix buffer");
+                return handler;
+            }
+        }
+        
+        calculate_chunk_dimensions(&handler);
+        
+        if (!setup_hdf5_file(&handler)) {
+            if (!handler.use_mmap) {
+                free_matrix_buffer(&handler.buffer);
+            } else {
+                close_mmap_matrix(&handler.mmap_matrix);
+                remove(handler.mmap_filename);
+            }
             return handler;
         }
         
-        print_verbose("Initialized matrix buffer (%zu KB)", (matrix_size * matrix_size * sizeof(int)) / 1024);
-    }
-    
-    calculate_chunk_dimensions(&handler);
-    
-    if (!get_mode_write()) {
+        if (get_mode_multithread()) {
+            handler.thread_checksums = (int64_t*)aligned_alloc(CACHE_LINE, sizeof(int64_t) * get_num_threads());
+            if (!handler.thread_checksums) {
+                print_error("Failed to allocate memory for thread checksums");
+                if (!handler.use_mmap) {
+                    free_matrix_buffer(&handler.buffer);
+                } else {
+                    close_mmap_matrix(&handler.mmap_matrix);
+                    remove(handler.mmap_filename);
+                }
+                if (handler.matrix_dataset_id > 0) H5Dclose(handler.matrix_dataset_id);
+                if (handler.seq_lengths_dataset_id > 0) H5Dclose(handler.seq_lengths_dataset_id);
+                if (handler.file_id > 0) H5Fclose(handler.file_id);
+                return handler;
+            }
+            memset(handler.thread_checksums, 0, sizeof(int64_t) * get_num_threads());
+        }
+        
         handler.is_init = true;
-        return handler;
+        print_verbose("%s file created with matrix size: %zu x %zu", handler.use_mmap ? "Memory-mapped" : "HDF5", matrix_size, matrix_size);
+    } else {
+        handler.is_init = true;
     }
-    
-    if (!setup_hdf5_file(&handler)) {
-        free_matrix_buffer(&handler.buffer);
-        return handler;
-    }
-    
-    handler.is_init = true;
-    print_verbose("H5 handler initialized with matrix size: %zu x %zu", matrix_size, matrix_size);
     
     return handler;
 }
@@ -208,24 +265,126 @@ INLINE H5Handler init_h5_handler(size_t matrix_size) {
 INLINE bool flush_matrix_to_hdf5(H5Handler* handler) {
     if (!get_mode_write() || !handler->is_init) return true;
     
+    if (handler->matrix_dataset_id < 0 || (handler->use_mmap && !handler->mmap_matrix.data) || (!handler->use_mmap && !handler->buffer.data)) {
+        print_error("Cannot flush matrix: HDF5 resources not properly initialized");
+        return false;
+    }
+
     double write_start = get_time();
+    herr_t status = -1;
     
-    herr_t status = H5Dwrite(
-        handler->matrix_dataset_id, 
-        H5T_NATIVE_INT, 
-        H5S_ALL, 
-        H5S_ALL, 
-        H5P_DEFAULT, 
-        handler->buffer.data
-    );
+    if (handler->use_mmap) {
+        size_t matrix_size = handler->matrix_size;
+        
+        size_t available_mem = get_available_memory();
+        if (available_mem == 0) {
+            print_error("Failed to retrieve available memory");
+            return false;
+        }
+
+        size_t row_bytes = matrix_size * sizeof(int);
+        size_t max_rows = available_mem / (4 * row_bytes);
+        size_t chunk_size = (max_rows < 4) ? 4 : max_rows;
+        if (chunk_size > 1024) chunk_size = 1024;
+        
+        print_verbose("Converting matrix using %zu rows per chunk (%zu MiB buffer)", chunk_size, (chunk_size * row_bytes) / MiB);
+        
+        int* buffer = (int*)malloc(chunk_size * row_bytes);
+        if (!buffer) {
+            print_warning("Failed to allocate transfer buffer of %zu bytes", chunk_size * row_bytes);
+            chunk_size = 1;
+            buffer = (int*)malloc(chunk_size * row_bytes);
+            if (!buffer) {
+                print_error("Cannot allocate even minimal buffer, aborting");
+                return false;
+            }
+            print_warning("Using minimal buffer size of 1 row (%zu bytes)", row_bytes);
+        }
+        
+        hid_t file_space = H5Dget_space(handler->matrix_dataset_id);
+        if (file_space < 0) {
+            free(buffer);
+            return false;
+        }
+        
+        print_info("Converting memory-mapped matrix to HDF5 format");
+        
+        for (size_t start_row = 0; start_row < matrix_size; start_row += chunk_size) {
+            size_t end_row = start_row + chunk_size;
+            if (end_row > matrix_size) end_row = matrix_size;
+            size_t rows = end_row - start_row;
+            
+            memset(buffer, 0, rows * row_bytes);
+            
+            for (size_t i = start_row; i < end_row; i++) {
+                for (size_t j = i; j < matrix_size; j++) {
+                    size_t idx = mmap_triangle_index(i, j, matrix_size);
+                    int value = handler->mmap_matrix.data[idx];
+                    buffer[(i - start_row) * matrix_size + j] = value;
+                }
+                
+                for (size_t j = 0; j < i; j++) {
+                    if (j >= start_row) {
+                        buffer[(i - start_row) * matrix_size + j] = buffer[(j - start_row) * matrix_size + i];
+                    } else {
+                        size_t idx = mmap_triangle_index(j, i, matrix_size);
+                        int value = handler->mmap_matrix.data[idx];
+                        buffer[(i - start_row) * matrix_size + j] = value;
+                    }
+                }
+            }
+            
+            hsize_t start[2] = {start_row, 0};
+            hsize_t count[2] = {rows, matrix_size};
+            H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL, count, NULL);
+            
+            hsize_t mem_dims[2] = {rows, matrix_size};
+            hid_t mem_space = H5Screate_simple(2, mem_dims, NULL);
+            
+            if (mem_space < 0) {
+                print_error("Failed to create memory dataspace for matrix chunk");
+                H5Sclose(file_space);
+                free(buffer);
+                return false;
+            }
+            
+            status = H5Dwrite(handler->matrix_dataset_id, H5T_NATIVE_INT, mem_space, file_space, H5P_DEFAULT, buffer);
+            
+            H5Sclose(mem_space);
+            
+            if (status < 0) {
+                print_progress_bar_end();
+                print_error("Failed to write chunk to HDF5");
+                H5Sclose(file_space);
+                free(buffer);
+                return false;
+            }
+            
+            print_progress_bar((double)end_row / matrix_size, 40, "Converting to HDF5");
+        }
+        
+        print_progress_bar_end();
+        
+        H5Sclose(file_space);
+        free(buffer);
+    } else {
+        status = H5Dwrite(
+            handler->matrix_dataset_id, 
+            H5T_NATIVE_INT, 
+            H5S_ALL, 
+            H5S_ALL, 
+            H5P_DEFAULT, 
+            handler->buffer.data
+        );
+        
+        if (status < 0) {
+            print_error("Failed to write matrix data to HDF5");
+            return false;
+        }
+    }
     
     if (get_mode_benchmark()) {
         add_io_time(get_time() - write_start);
-    }
-    
-    if (status < 0) {
-        print_error("Failed to write matrix to HDF5 file");
-        return false;
     }
     
     return true;
@@ -234,17 +393,31 @@ INLINE bool flush_matrix_to_hdf5(H5Handler* handler) {
 INLINE void set_matrix_value(H5Handler* handler, size_t row, size_t col, int value) {
     if (!get_mode_write() || !handler->is_init || row >= handler->matrix_size || col >= handler->matrix_size) return;
     
-    size_t pos1 = row * handler->matrix_size + col;
-    handler->buffer.data[pos1] = value;
-    
-    if (row != col) {
-        size_t pos2 = col * handler->matrix_size + row;
-        handler->buffer.data[pos2] = value;
+    if (handler->use_mmap) {
+        if (row > col) return;
+        if (!handler->mmap_matrix.data) return;
+        
+        mmap_set_matrix_value(&handler->mmap_matrix, row, col, value);
+    } else {
+        if (!handler->buffer.data) return;
+        
+        size_t pos1 = row * handler->matrix_size + col;
+        handler->buffer.data[pos1] = value;
+        
+        if (row != col) {
+            size_t pos2 = col * handler->matrix_size + row;
+            handler->buffer.data[pos2] = value;
+        }
     }
 }
 
-INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_t count) {
-    if (!get_mode_write() || !handler->is_init || handler->sequences_stored) return;
+INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_t count) {
+    if (!get_mode_write() || !handler->is_init || handler->sequences_stored) return true;
+    
+    if (handler->file_id < 0) {
+        print_error("Cannot store sequences: HDF5 file not initialized");
+        return false;
+    }
 
     double write_start = get_time();
     
@@ -265,7 +438,7 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
     if (seq_space < 0) {
         print_error("Failed to create sequence dataspace");
         H5Tclose(string_type);
-        return;
+        return false;
     }
     
     handler->seq_dataset_id = H5Dcreate2(
@@ -282,7 +455,7 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         print_error("Failed to create sequences dataset");
         H5Sclose(seq_space);
         H5Tclose(string_type);
-        return;
+        return false;
     }
     
     size_t* lengths = (size_t*)malloc(count * sizeof(size_t));
@@ -291,7 +464,8 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         H5Sclose(seq_space);
         H5Tclose(string_type);
         H5Dclose(handler->seq_dataset_id);
-        return;
+        handler->seq_dataset_id = -1;
+        return false;
     }
     
     for (size_t i = 0; i < count; i++) {
@@ -314,7 +488,8 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         H5Sclose(seq_space);
         H5Tclose(string_type);
         H5Dclose(handler->seq_dataset_id);
-        return;
+        handler->seq_dataset_id = -1;
+        return false;
     }
     
     const size_t batch_size = H5_SEQUENCE_BATCH_SIZE;
@@ -330,7 +505,8 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
             H5Sclose(seq_space);
             H5Tclose(string_type);
             H5Dclose(handler->seq_dataset_id);
-            return;
+            handler->seq_dataset_id = -1;
+            return false;
         }
         
         for (size_t i = 0; i < current_batch_size; i++) {
@@ -346,7 +522,8 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
             H5Sclose(seq_space);
             H5Tclose(string_type);
             H5Dclose(handler->seq_dataset_id);
-            return;
+            handler->seq_dataset_id = -1;
+            return false;
         }
         
         hsize_t start[1] = {batch_start};
@@ -360,7 +537,8 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
             H5Sclose(seq_space);
             H5Tclose(string_type);
             H5Dclose(handler->seq_dataset_id);
-            return;
+            handler->seq_dataset_id = -1;
+            return false;
         }
         
         status = H5Dwrite(
@@ -380,7 +558,8 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
             H5Sclose(seq_space);
             H5Tclose(string_type);
             H5Dclose(handler->seq_dataset_id);
-            return;
+            handler->seq_dataset_id = -1;
+            return false;
         }
         
         if (batch_start > 0 && batch_start % 10000 == 0) {
@@ -398,6 +577,7 @@ INLINE void store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
     handler->sequences_stored = true;
     
     print_verbose("Successfully stored sequences in HDF5 file");
+    return true;
 }
 
 INLINE int64_t collect_thread_checksums(H5Handler* handler) {
@@ -414,21 +594,57 @@ INLINE void close_h5_handler(H5Handler* handler) {
     if (!handler->is_init) return;
     
     if (get_mode_write()) {
+        bool success = true;
+        
         print_step_header("Finalizing Results");
         print_info("Writing results to output file: %s", get_file_name(get_output_file_path()));
-        flush_matrix_to_hdf5(handler);
-        if (get_mode_multithread()) {
+        
+        if (!flush_matrix_to_hdf5(handler)) {
+            print_error("Failed to write matrix data to output file");
+            success = false;
+        }
+        
+        if (get_mode_multithread() && handler->thread_checksums) {
             handler->matrix_checksum = collect_thread_checksums(handler);
             aligned_free(handler->thread_checksums);
+            handler->thread_checksums = NULL;
         }
+        
         print_info("Matrix checksum: %lld", handler->matrix_checksum);
         bench_write_end();
 
-        if (handler->seq_dataset_id > 0) H5Dclose(handler->seq_dataset_id);
-        if (handler->seq_lengths_dataset_id > 0) H5Dclose(handler->seq_lengths_dataset_id);
-        if (handler->matrix_dataset_id > 0) H5Dclose(handler->matrix_dataset_id);
-        if (handler->file_id > 0) H5Fclose(handler->file_id);
-        free_matrix_buffer(&handler->buffer);
+        if (handler->seq_dataset_id > 0) {
+            H5Dclose(handler->seq_dataset_id);
+            handler->seq_dataset_id = -1;
+        }
+        
+        if (handler->seq_lengths_dataset_id > 0) {
+            H5Dclose(handler->seq_lengths_dataset_id);
+            handler->seq_lengths_dataset_id = -1;
+        }
+        
+        if (handler->matrix_dataset_id > 0) {
+            H5Dclose(handler->matrix_dataset_id);
+            handler->matrix_dataset_id = -1;
+        }
+        
+        if (handler->file_id > 0) {
+            H5Fclose(handler->file_id);
+            handler->file_id = -1;
+        }
+        
+        if (handler->use_mmap) {
+            close_mmap_matrix(&handler->mmap_matrix);
+            if (success) {
+                if (remove(handler->mmap_filename) != 0) {
+                    print_warning("Failed to remove temporary file: %s", handler->mmap_filename);
+                }
+            } else {
+                print_warning("Keeping temporary file for debugging: %s", handler->mmap_filename);
+            }
+        } else {
+            free_matrix_buffer(&handler->buffer);
+        }
     }
     
     handler->is_init = false;

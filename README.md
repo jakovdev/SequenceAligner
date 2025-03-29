@@ -256,20 +256,36 @@ All implementations use dynamic programming with optimized matrix operations.
 - Thread work stealing for load balancing
 - Huge pages for large memory allocations
 - Efficient matrix allocation with stack fallback for small sequences
+- Memory mapped input file reading and output file for large matrices
 </details>
 
 ## File Formats
 
-- **Input**: CSV file with sequences
-  - Automatically detects the column containing sequences
-  - Asks for your input if it can't find the sequence column
-  - Requires only one column with valid sequence data
-  - For large datasets (10k-50k+ sequences), ensure you have sufficient RAM since that will result in multi GB output
-  
-- **Output**: HDF5 file storing the similarity matrix
-  - Matrix dimensions match the number of input sequences or filtered sequences if enabled
-  - Compression level adjustable through command line options
-  - Memory usage increases with the square of sequence count
+### Input Format
+- **File Type**: Simple CSV (comma-separated values) text file
+- **Content Requirements**:
+  - Must contain one column with biological sequence data (amino acids or nucleotides)
+  - No specific header requirements - the program will scan and identify the sequence column
+  - The program will prompt you to select the correct one if it can't find one automatically
+- **Sequence Format**:
+  - For protein sequences: standard one-letter amino acid codes (ACDEFGHIKLMNPQRSTVWY)
+  - For nucleotide sequences: standard DNA/RNA bases (ACGT)
+- **Size Limitations**:
+  - The input file's sequences must be small enough to fit in your computer's RAM
+
+### Output Format
+- **File Type**: HDF5 (.h5) - a common scientific data format
+- **Content**:
+  - Contains a similarity matrix where each cell represents the alignment score between sequence pairs
+  - Also stores the original or filtered sequences and their lengths
+- **Size Considerations**:
+  - The matrix grows with the square of the sequence count (1,000 sequences = 1 million cells = 4 MB)
+    > Each score number (cell) is 4 bytes
+  - For very large datasets, the program will automatically use disk-based storage when needed, so check if you have enough free disk storage if aligning a dataset with hundreds of thousands of sequences (50 to 100+ GB)
+- **Viewing Results**:
+  - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
+  - Many programming languages have libraries to read HDF5 (Python: h5py, R: rhdf5)
+
 
 ## License
 
