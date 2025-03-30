@@ -92,8 +92,8 @@ typedef HANDLE sem_t;
 #include <stdlib.h>
 #include <string.h>
 
-#define max(a, b) ((a) + (((b) - (a)) & ((b) - (a)) >> 31))
-#define min(a, b) ((a) - (((a) - (b)) & ((a) - (b)) >> 31))
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
 
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
