@@ -1,7 +1,6 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include "user.h"
 #include "macros.h"
 
 INLINE int get_thread_count(void) {

@@ -63,7 +63,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Second pass: store all sequences
+    // Second pass: load all sequences
     size_t idx = 0;
     current = input_file.file_data;
     current = skip_header(current, end);

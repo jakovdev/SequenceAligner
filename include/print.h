@@ -1,7 +1,6 @@
 #ifndef PRINT_H
 #define PRINT_H
 
-#include "user.h"
 #include "common.h"
 #include "terminal.h"
 
