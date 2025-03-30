@@ -28,7 +28,6 @@ typedef struct {
     hsize_t seq_dims[1];
     
     size_t matrix_size;
-    size_t max_seq_length;
 
     MatrixBuffer buffer;
     MmapMatrix mmap_matrix;
@@ -44,11 +43,10 @@ typedef struct {
 
 INLINE bool init_matrix_buffer(MatrixBuffer* buffer, size_t matrix_size) {
     size_t bytes = matrix_size * matrix_size * sizeof(int);
-    buffer->data = (int*)huge_page_alloc(bytes);
+    buffer->data = huge_page_alloc(bytes);
     if (!buffer->data) return false;
     
     memset(buffer->data, 0, bytes);
-    
     buffer->size = matrix_size;
     
     return true;
@@ -195,69 +193,63 @@ INLINE H5Handler init_h5_handler(size_t matrix_size) {
     H5Handler handler = {0};
     
     handler.matrix_size = matrix_size;
-    handler.matrix_checksum = 0;
-    handler.thread_checksums = NULL;
-    handler.sequences_stored = false;
-    handler.is_init = false;
-    handler.use_mmap = false;
     handler.file_id = -1;
     handler.matrix_dataset_id = -1;
     handler.seq_dataset_id = -1;
     handler.seq_lengths_dataset_id = -1;
     
-    if (get_mode_write()) {
-        handler.use_mmap = check_matrix_exceeds_memory(matrix_size, MMAP_MEMORY_USAGE_THRESHOLD);
-        
-        if (handler.use_mmap) {
-            get_mmap_matrix_filename(handler.mmap_filename, MAX_PATH, get_output_file_path());
-            print_info("Matrix size exceeds memory threshold, using memory-mapped file");
-            handler.mmap_matrix = create_mmap_matrix(handler.mmap_filename, matrix_size);
-            if (!handler.mmap_matrix.data) {
-                print_error("Failed to create memory-mapped matrix");
-                return handler;
-            }
-        } else {
-            if (!init_matrix_buffer(&handler.buffer, matrix_size)) {
-                print_error("Failed to initialize matrix buffer");
-                return handler;
-            }
+    if (!get_mode_write()) {
+        handler.is_init = true;
+        return handler;
+    }
+    
+    handler.use_mmap = check_matrix_exceeds_memory(matrix_size, MMAP_MEMORY_USAGE_THRESHOLD);
+    
+    if (handler.use_mmap) {
+        get_mmap_matrix_filename(handler.mmap_filename, MAX_PATH, get_output_file_path());
+        print_info("Matrix size exceeds memory threshold, using memory-mapped file");
+        handler.mmap_matrix = create_mmap_matrix(handler.mmap_filename, matrix_size);
+        if (!handler.mmap_matrix.data) {
+            print_error("Failed to create memory-mapped matrix");
+            return handler;
         }
-        
-        calculate_chunk_dimensions(&handler);
-        
-        if (!setup_hdf5_file(&handler)) {
+    } else if (!init_matrix_buffer(&handler.buffer, matrix_size)) {
+        print_error("Failed to initialize matrix buffer");
+        return handler;
+    }
+    
+    calculate_chunk_dimensions(&handler);
+    
+    if (!setup_hdf5_file(&handler)) {
+        if (!handler.use_mmap) {
+            free_matrix_buffer(&handler.buffer);
+        } else {
+            close_mmap_matrix(&handler.mmap_matrix);
+            remove(handler.mmap_filename);
+        }
+        return handler;
+    }
+    
+    if (get_mode_multithread()) {
+        handler.thread_checksums = aligned_alloc(CACHE_LINE, sizeof(*handler.thread_checksums) * get_num_threads());
+        if (!handler.thread_checksums) {
+            print_error("Failed to allocate memory for thread checksums");
             if (!handler.use_mmap) {
                 free_matrix_buffer(&handler.buffer);
             } else {
                 close_mmap_matrix(&handler.mmap_matrix);
                 remove(handler.mmap_filename);
             }
+            if (handler.matrix_dataset_id > 0) H5Dclose(handler.matrix_dataset_id);
+            if (handler.seq_lengths_dataset_id > 0) H5Dclose(handler.seq_lengths_dataset_id);
+            if (handler.file_id > 0) H5Fclose(handler.file_id);
             return handler;
         }
-        
-        if (get_mode_multithread()) {
-            handler.thread_checksums = (int64_t*)aligned_alloc(CACHE_LINE, sizeof(int64_t) * get_num_threads());
-            if (!handler.thread_checksums) {
-                print_error("Failed to allocate memory for thread checksums");
-                if (!handler.use_mmap) {
-                    free_matrix_buffer(&handler.buffer);
-                } else {
-                    close_mmap_matrix(&handler.mmap_matrix);
-                    remove(handler.mmap_filename);
-                }
-                if (handler.matrix_dataset_id > 0) H5Dclose(handler.matrix_dataset_id);
-                if (handler.seq_lengths_dataset_id > 0) H5Dclose(handler.seq_lengths_dataset_id);
-                if (handler.file_id > 0) H5Fclose(handler.file_id);
-                return handler;
-            }
-            memset(handler.thread_checksums, 0, sizeof(int64_t) * get_num_threads());
-        }
-        
-        handler.is_init = true;
-        print_verbose("%s file created with matrix size: %zu x %zu", handler.use_mmap ? "Memory-mapped" : "HDF5", matrix_size, matrix_size);
-    } else {
-        handler.is_init = true;
+        memset(handler.thread_checksums, 0, sizeof(*handler.thread_checksums) * get_num_threads());
     }
+    
+    handler.is_init = true;
+    print_verbose("%s file created with matrix size: %zu x %zu", handler.use_mmap ? "Memory-mapped" : "HDF5", matrix_size, matrix_size);
     
     return handler;
 }
@@ -275,25 +267,24 @@ INLINE bool flush_matrix_to_hdf5(H5Handler* handler) {
     
     if (handler->use_mmap) {
         size_t matrix_size = handler->matrix_size;
-        
         size_t available_mem = get_available_memory();
-        if (available_mem == 0) {
+        if (!available_mem) {
             print_error("Failed to retrieve available memory");
             return false;
         }
 
         size_t row_bytes = matrix_size * sizeof(int);
         size_t max_rows = available_mem / (4 * row_bytes);
-        size_t chunk_size = (max_rows < 4) ? 4 : max_rows;
-        if (chunk_size > 1024) chunk_size = 1024;
+        size_t chunk_size = max_rows < 4 ? 4 : max_rows;
+        chunk_size = chunk_size > KiB ? KiB : chunk_size;
         
         print_verbose("Converting matrix using %zu rows per chunk (%zu MiB buffer)", chunk_size, (chunk_size * row_bytes) / MiB);
         
-        int* buffer = (int*)malloc(chunk_size * row_bytes);
+        int* buffer = malloc(chunk_size * row_bytes);
         if (!buffer) {
             print_warning("Failed to allocate transfer buffer of %zu bytes", chunk_size * row_bytes);
             chunk_size = 1;
-            buffer = (int*)malloc(chunk_size * row_bytes);
+            buffer = malloc(chunk_size * row_bytes);
             if (!buffer) {
                 print_error("Cannot allocate even minimal buffer, aborting");
                 return false;
@@ -364,7 +355,6 @@ INLINE bool flush_matrix_to_hdf5(H5Handler* handler) {
         }
         
         print_progress_bar_end();
-        
         H5Sclose(file_space);
         free(buffer);
     } else {
@@ -423,13 +413,6 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
     
     print_info("Storing %zu sequences in HDF5 file", seq_count);
     
-    handler->max_seq_length = 0;
-    for (size_t i = 0; i < seq_count; i++) {
-        if (sequences[i].length > handler->max_seq_length) {
-            handler->max_seq_length = sequences[i].length;
-        }
-    }
-    
     hid_t string_type = H5Tcopy(H5T_C_S1);
     H5Tset_size(string_type, H5T_VARIABLE);
     
@@ -458,7 +441,7 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         return false;
     }
     
-    size_t* lengths = (size_t*)malloc(seq_count * sizeof(size_t));
+    size_t* lengths = malloc(seq_count * sizeof(*lengths));
     if (!lengths) {
         print_error("Failed to allocate memory for sequence lengths");
         H5Sclose(seq_space);
@@ -500,7 +483,7 @@ INLINE bool store_sequences_in_h5(H5Handler* handler, Sequence* sequences, size_
         if (batch_end > seq_count) batch_end = seq_count;
         size_t current_batch_size = batch_end - batch_start;
         
-        char** seq_data = (char**)malloc(current_batch_size * sizeof(char*));
+        char** seq_data = malloc(current_batch_size * sizeof(*seq_data));
         if (!seq_data) {
             print_error("Failed to allocate memory for sequence batch");
             H5Sclose(seq_space);
