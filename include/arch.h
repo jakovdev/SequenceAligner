@@ -5,8 +5,8 @@
 
 // Helper constants, do not change //
 #define KiB (1ULL << 10)
-#define MiB (KiB  << 10)
-#define GiB (MiB  << 10)
+#define MiB (KiB << 10)
+#define GiB (MiB << 10)
 
 #define USE_HUGE_PAGES 1
 #define HUGE_PAGE_THRESHOLD (2 * MiB)
@@ -20,17 +20,17 @@
 
 // CPU architecture detection
 #if defined(__x86_64__) || defined(_M_X64)
-    #define ARCH_X86_64 1
+#define ARCH_X86_64 1
 #elif defined(__aarch64__) || defined(_M_ARM64)
-    #define ARCH_ARM64 1
+#define ARCH_ARM64 1
 #endif
 
 #if defined(ARCH_X86_64)
-    #define PREFETCH_DISTANCE 16
+#define PREFETCH_DISTANCE 16
 #elif defined(ARCH_ARM64)
-    #define PREFETCH_DISTANCE 8
+#define PREFETCH_DISTANCE 8
 #else
-    #define PREFETCH_DISTANCE 4
+#define PREFETCH_DISTANCE 4
 #endif
 
 #endif

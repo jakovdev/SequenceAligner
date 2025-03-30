@@ -5,12 +5,12 @@
 
 #ifdef _WIN32
 
-#include <windows.h>
-#include <io.h>
-#include <winioctl.h>
-#include <malloc.h>
 #include <conio.h>
+#include <io.h>
+#include <malloc.h>
 #include <synchapi.h>
+#include <windows.h>
+#include <winioctl.h>
 
 #ifdef CROSS_COMPILE
 #include <shlwapi.h>
@@ -24,7 +24,9 @@ typedef HANDLE sem_t;
 #define T_Func DWORD WINAPI
 #define T_Ret(x) return (DWORD)(size_t)(x)
 
-#define pthread_create(t, _, sr, a) (void)(*t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)sr, a, 0, NULL))
+#define pthread_create(t, _, sr, a)                                                                \
+    (void)(*t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)sr, a, 0, NULL))
+
 #define pthread_join(t, _) WaitForSingleObject(t, INFINITE)
 #define sem_init(sem, _, value) *sem = CreateSemaphore(NULL, value, LONG_MAX, NULL)
 #define sem_post(sem) ReleaseSemaphore(*sem, 1, NULL)
@@ -45,48 +47,50 @@ typedef HANDLE sem_t;
 #else
 
 #define _GNU_SOURCE
-#define MAX_PATH (260) 
+#define MAX_PATH (260)
 
-#include <time.h>
-#include <unistd.h>
+#include <pthread.h>
 #include <sched.h>
-#include <sys/types.h>
+#include <semaphore.h>
+#include <strings.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
-#include <sys/ioctl.h>
-#include <pthread.h>
-#include <strings.h>
+#include <sys/types.h>
 #include <termios.h>
-#include <semaphore.h>
+#include <time.h>
+#include <unistd.h>
 
 #define T_Func void*
 #define T_Ret(x) return (x)
 
-#define PIN_THREAD(t_id) do { \
-    cpu_set_t cpuset; \
-    CPU_ZERO(&cpuset); \
-    CPU_SET(t_id, &cpuset); \
-    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset); \
-} while(0)
+#define PIN_THREAD(t_id)                                                                           \
+    do                                                                                             \
+    {                                                                                              \
+        cpu_set_t cpuset;                                                                          \
+        CPU_ZERO(&cpuset);                                                                         \
+        CPU_SET(t_id, &cpuset);                                                                    \
+        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);                        \
+    } while (0)
 #define SET_HIGH_CLASS()
 
 #define aligned_free(ptr) free(ptr)
 
 #endif
 
-#include <fcntl.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
-#include <limits.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <getopt.h>
-#include <stdarg.h>
+#include <limits.h>
 #include <math.h>
+#include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define max(a, b) ((a) + (((b) - (a)) & ((b) - (a)) >> 31))
 #define min(a, b) ((a) - (((a) - (b)) & ((a) - (b)) >> 31))
@@ -104,97 +108,99 @@ typedef HANDLE sem_t;
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 #include <immintrin.h>
 #include <x86intrin.h>
-    #define USE_SIMD
-    typedef __m512i veci_t;
-    typedef __mmask64 num_t;
-    #define BYTES (64)
-    #define NUM_ELEMS (16)
-    #define ctz __builtin_ctzll
-    #define loadu _mm512_loadu_si512
-    #define storeu _mm512_storeu_si512
-    #define add_epi32 _mm512_add_epi32
-    #define sub_epi32 _mm512_sub_epi32
-    #define mullo_epi32 _mm512_mullo_epi32
-    #define set1_epi32 _mm512_set1_epi32
-    #define set1_epi8 _mm512_set1_epi8
-    #define cmpeq_epi8(a, b) _mm512_cmpeq_epi8_mask(a, b)
-    #define movemask_epi8(mask) (mask)
-    #define or_mask(a, b) ((a) | (b))
-    #define or_si _mm512_or_si512
-    #define setzero_si _mm512_setzero_si512
-    #define and_si _mm512_and_si512
-    #define setr_indicies _mm512_setr_epi32(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+#define USE_SIMD
+typedef __m512i veci_t;
+typedef __mmask64 num_t;
+#define BYTES (64)
+#define NUM_ELEMS (16)
+#define ctz __builtin_ctzll
+#define loadu _mm512_loadu_si512
+#define storeu _mm512_storeu_si512
+#define add_epi32 _mm512_add_epi32
+#define sub_epi32 _mm512_sub_epi32
+#define mullo_epi32 _mm512_mullo_epi32
+#define set1_epi32 _mm512_set1_epi32
+#define set1_epi8 _mm512_set1_epi8
+#define cmpeq_epi8(a, b) _mm512_cmpeq_epi8_mask(a, b)
+#define movemask_epi8(mask) (mask)
+#define or_mask(a, b) ((a) | (b))
+#define or_si _mm512_or_si512
+#define setzero_si _mm512_setzero_si512
+#define and_si _mm512_and_si512
+#define setr_indicies _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 #elif defined(__AVX2__)
 #include <immintrin.h>
-    #define USE_SIMD
-    typedef __m256i veci_t;
-    typedef uint32_t num_t;
-    #define BYTES (32)
-    #define NUM_ELEMS (8)
-    #define ctz __builtin_ctz
-    #define loadu _mm256_loadu_si256
-    #define storeu _mm256_storeu_si256
-    #define add_epi32 _mm256_add_epi32
-    #define sub_epi32 _mm256_sub_epi32
-    #define mullo_epi32 _mm256_mullo_epi32
-    #define set1_epi32 _mm256_set1_epi32
-    #define set1_epi8 _mm256_set1_epi8
-    #define cmpeq_epi8 _mm256_cmpeq_epi8
-    #define movemask_epi8 _mm256_movemask_epi8
-    #define or_si _mm256_or_si256
-    #define setzero_si _mm256_setzero_si256
-    #define and_si _mm256_and_si256
-    #define setr_indicies _mm256_setr_epi32(1,2,3,4,5,6,7,8)
+#define USE_SIMD
+typedef __m256i veci_t;
+typedef uint32_t num_t;
+#define BYTES (32)
+#define NUM_ELEMS (8)
+#define ctz __builtin_ctz
+#define loadu _mm256_loadu_si256
+#define storeu _mm256_storeu_si256
+#define add_epi32 _mm256_add_epi32
+#define sub_epi32 _mm256_sub_epi32
+#define mullo_epi32 _mm256_mullo_epi32
+#define set1_epi32 _mm256_set1_epi32
+#define set1_epi8 _mm256_set1_epi8
+#define cmpeq_epi8 _mm256_cmpeq_epi8
+#define movemask_epi8 _mm256_movemask_epi8
+#define or_si _mm256_or_si256
+#define setzero_si _mm256_setzero_si256
+#define and_si _mm256_and_si256
+#define setr_indicies _mm256_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8)
 #endif
 
 #ifndef USE_SIMD
 #if defined(__SSE4_2__)
-    #define USE_SSE
-    #include <nmmintrin.h>
+#define USE_SSE
+#include <nmmintrin.h>
 #elif defined(__SSE4_1__)
-    #define USE_SSE
-    #include <smmintrin.h>
+#define USE_SSE
+#include <smmintrin.h>
 #elif defined(__SSE2__)
-    #define USE_SSE
-    #include <emmintrin.h>
+#define USE_SSE
+#include <emmintrin.h>
 #elif defined(__SSE__)
-    #define USE_SSE
-    #include <xmmintrin.h>
+#define USE_SSE
+#include <xmmintrin.h>
 #endif
 
 #ifdef USE_SSE
-    #define USE_SIMD
-    typedef __m128i veci_t;
-    typedef uint16_t num_t;
-    #define BYTES (16)
-    #define NUM_ELEMS (4)
-    #define ctz __builtin_ctz
-    #define loadu _mm_loadu_si128
-    #define storeu _mm_storeu_si128
-    #define add_epi32 _mm_add_epi32
-    #define sub_epi32 _mm_sub_epi32
-    
-    #if defined(__SSE4_1__)
-        #define mullo_epi32 _mm_mullo_epi32
-    #else
-        // Fallback for SSE2
-        static inline __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b) {
-            __m128i tmp1 = _mm_mul_epu32(a, b);
-            __m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4));
-            return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0,0,2,0)),
-                                    _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0,0,2,0)));
-        }
-        #define mullo_epi32 _mm_mullo_epi32_fallback
-    #endif
+#define USE_SIMD
+typedef __m128i veci_t;
+typedef uint16_t num_t;
+#define BYTES (16)
+#define NUM_ELEMS (4)
+#define ctz __builtin_ctz
+#define loadu _mm_loadu_si128
+#define storeu _mm_storeu_si128
+#define add_epi32 _mm_add_epi32
+#define sub_epi32 _mm_sub_epi32
 
-    #define set1_epi32 _mm_set1_epi32
-    #define set1_epi8 _mm_set1_epi8
-    #define cmpeq_epi8 _mm_cmpeq_epi8
-    #define movemask_epi8 _mm_movemask_epi8
-    #define or_si _mm_or_si128
-    #define setzero_si _mm_setzero_si128
-    #define and_si _mm_and_si128
-    #define setr_indicies _mm_setr_epi32(1,2,3,4)
+#if defined(__SSE4_1__)
+#define mullo_epi32 _mm_mullo_epi32
+#else
+// Fallback for SSE2
+static inline __m128i
+_mm_mullo_epi32_fallback(__m128i a, __m128i b)
+{
+    __m128i tmp1 = _mm_mul_epu32(a, b);
+    __m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4));
+    return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0, 0, 2, 0)),
+                              _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0, 0, 2, 0)));
+}
+#define mullo_epi32 _mm_mullo_epi32_fallback
+#endif
+
+#define set1_epi32 _mm_set1_epi32
+#define set1_epi8 _mm_set1_epi8
+#define cmpeq_epi8 _mm_cmpeq_epi8
+#define movemask_epi8 _mm_movemask_epi8
+#define or_si _mm_or_si128
+#define setzero_si _mm_setzero_si128
+#define and_si _mm_and_si128
+#define setr_indicies _mm_setr_epi32(1, 2, 3, 4)
 #endif
 #endif
 

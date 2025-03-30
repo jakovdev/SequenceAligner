@@ -1,8 +1,8 @@
 #ifndef ALIGN_H
 #define ALIGN_H
 
-#include "scoring.h"
 #include "methods.h"
+#include "scoring.h"
 
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
 #define MATRIX_SIZE(len1, len2) ((len1 + 1) * (len2 + 1))
@@ -15,70 +15,97 @@
 #define UP 1
 #define LEFT 2
 
-static const int8_t next_i[] = {-1, -1, 0};    // DIAG, UP, LEFT
-static const int8_t next_j[] = {-1, 0, -1};
+static const int8_t next_i[] = { -1, -1, 0 }; // DIAG, UP, LEFT
+static const int8_t next_j[] = { -1, 0, -1 };
 
-typedef struct {
+typedef struct
+{
     int gap_penalty;
     int gap_open;
     int gap_extend;
 } GapPenalties;
 
-static GapPenalties g_gap_penalties = {0, 0, 0};
+static GapPenalties g_gap_penalties = { 0, 0, 0 };
 
-INLINE void init_gap_penalties(void) {
+INLINE void
+init_gap_penalties(void)
+{
     int method = get_alignment_method();
     GapPenaltyType gap_type = ALIGNMENT_METHODS[method].gap_type;
-    
-    if (gap_type == GAP_TYPE_LINEAR) {
+
+    if (gap_type == GAP_TYPE_LINEAR)
+    {
         g_gap_penalties.gap_penalty = get_gap_penalty();
-    } else if (gap_type == GAP_TYPE_AFFINE) {
+    }
+
+    else if (gap_type == GAP_TYPE_AFFINE)
+    {
         g_gap_penalties.gap_open = get_gap_start();
         g_gap_penalties.gap_extend = get_gap_extend();
     }
 }
 
-typedef struct {
+typedef struct
+{
     int* data;
     size_t size;
     bool is_stack;
 } SeqIndices;
 
-INLINE void precompute_seq_indices(SeqIndices* indices, const char* restrict seq, size_t len) {
+INLINE void
+precompute_seq_indices(SeqIndices* indices, const char* restrict seq, size_t len)
+{
     indices->size = len;
-    
-    if (len <= MAX_STACK_SEQUENCE_LENGTH) {
+
+    if (len <= MAX_STACK_SEQUENCE_LENGTH)
+    {
         int* stack_buffer = alloca(len * sizeof(int));
         indices->data = stack_buffer;
         indices->is_stack = true;
-    } else {
-        indices->data = (int*)malloc(len * sizeof(int));
+    }
+
+    else
+    {
+        indices->data = malloc(len * sizeof(*indices->data));
         indices->is_stack = false;
     }
-    
-    #pragma GCC unroll 8
-    for (size_t i = 0; i < len; ++i) {
+
+#pragma GCC unroll 8
+    for (size_t i = 0; i < len; ++i)
+    {
         indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
     }
 }
 
-INLINE void free_seq_indices(SeqIndices* indices) {
-    if (!indices->is_stack && indices->data) {
+INLINE void
+free_seq_indices(SeqIndices* indices)
+{
+    if (!indices->is_stack && indices->data)
+    {
         free(indices->data);
         indices->data = NULL;
     }
 }
 
-INLINE int* allocate_matrix(int* stack_matrix, size_t bytes) {
-    if (USE_STACK_MATRIX(bytes)) {
+INLINE int*
+allocate_matrix(int* stack_matrix, size_t bytes)
+{
+    if (USE_STACK_MATRIX(bytes))
+    {
         return stack_matrix;
-    } else {
+    }
+
+    else
+    {
         return (int*)huge_page_alloc(bytes);
     }
 }
 
-INLINE void free_matrix(int* matrix, int* stack_matrix) {
-    if (matrix != stack_matrix) {
+INLINE void
+free_matrix(int* matrix, int* stack_matrix)
+{
+    if (matrix != stack_matrix)
+    {
         aligned_free(matrix);
     }
 }
