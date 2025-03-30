@@ -34,12 +34,12 @@ typedef struct {
 static SeqMemPool g_seq_pool = {0};
 
 INLINE void init_seq_pool(void) {
-    if (g_seq_pool.head != NULL) return;
+    if (g_seq_pool.head) return;
     
-    g_seq_pool.head = (SeqMemBlock*)malloc(sizeof(SeqMemBlock));
+    g_seq_pool.head = malloc(sizeof(*g_seq_pool.head));
     if (!g_seq_pool.head) return;
     
-    g_seq_pool.head->data = (char*)huge_page_alloc(SEQ_POOL_BLOCK_SIZE);
+    g_seq_pool.head->data = huge_page_alloc(SEQ_POOL_BLOCK_SIZE);
     if (!g_seq_pool.head->data) {
         free(g_seq_pool.head);
         g_seq_pool.head = NULL;
@@ -56,9 +56,9 @@ INLINE void init_seq_pool(void) {
 }
 
 INLINE char* alloc_from_pool(size_t size) {
-    if (g_seq_pool.head == NULL) {
+    if (!g_seq_pool.head) {
         init_seq_pool();
-        if (g_seq_pool.head == NULL) return NULL;
+        if (!g_seq_pool.head) return NULL;
     }
     
     size = (size + 7) & ~7;
@@ -69,10 +69,10 @@ INLINE char* alloc_from_pool(size_t size) {
             new_block_size = size;
         }
         
-        SeqMemBlock* new_block = (SeqMemBlock*)malloc(sizeof(SeqMemBlock));
+        SeqMemBlock* new_block = malloc(sizeof(*new_block));
         if (!new_block) return NULL;
         
-        new_block->data = (char*)malloc(new_block_size);
+        new_block->data = malloc(new_block_size);
         if (!new_block->data) {
             free(new_block);
             return NULL;
@@ -96,7 +96,7 @@ INLINE char* alloc_from_pool(size_t size) {
 }
 
 INLINE void free_seq_pool(void) {
-    if (g_seq_pool.head == NULL) return;
+    if (!g_seq_pool.head) return;
     
     SeqMemBlock* block = g_seq_pool.head;
     while (block) {
@@ -123,7 +123,7 @@ INLINE void init_sequence(Sequence* seq, const char* data, size_t length) {
 }
 
 INLINE float calculate_similarity(const char* restrict seq1, size_t len1, const char* restrict seq2, size_t len2) {
-    if (UNLIKELY(len1 == 0 || len2 == 0)) return 0.0f;
+    if (UNLIKELY(!len1 || !len2)) return 0.0f;
     
     // Use the shorter length for comparison and percentage calculation
     size_t min_len = len1 < len2 ? len1 : len2;
@@ -170,7 +170,7 @@ INLINE SequenceData load_sequences_from_file(char* current, char* end, size_t to
     float filter_threshold = get_filter_threshold();
     bool apply_filtering = get_mode_filter();
     
-    Sequence* seqs = (Sequence*)malloc(total_seqs_in_file * sizeof(Sequence));
+    Sequence* seqs = malloc(total_seqs_in_file * sizeof(*seqs));
     if (!seqs) return seqdata;
     
     size_t idx = 0;
@@ -187,24 +187,21 @@ INLINE SequenceData load_sequences_from_file(char* current, char* end, size_t to
         
         if (max_line_len + 16 > temp_seq_capacity) {
             size_t new_capacity = max_line_len + 64;
-            char* new_buffer = (char*)malloc(new_capacity);
+            char* new_buffer = malloc(new_capacity);
             if (!new_buffer) {
                 free(temp_seq);
                 free(seqs);
                 return seqdata;
             }
             
-            if (temp_seq) {
-                free(temp_seq);
-            }
-            
+            free(temp_seq);
             temp_seq = new_buffer;
             temp_seq_capacity = new_capacity;
         }
         
         size_t seq_len = parse_csv_line(&current, temp_seq);
         
-        if (seq_len == 0) continue;
+        if (!seq_len) continue;
         
         bool should_include = true;
         
@@ -237,7 +234,7 @@ INLINE SequenceData load_sequences_from_file(char* current, char* end, size_t to
     
     if (apply_filtering && filtered_count > 0 && filtered_count >= total_seqs_in_file / 4) {
         print_verbose("Reallocating memory to save %zu sequence slots", filtered_count);
-        Sequence* new_seqs = (Sequence*)realloc(seqs, seq_count * sizeof(Sequence));
+        Sequence* new_seqs = realloc(seqs, seq_count * sizeof(*seqs));
         if (new_seqs) seqs = new_seqs;
     }
 

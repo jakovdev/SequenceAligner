@@ -15,7 +15,6 @@ typedef struct {
     size_t j;  // Index of second sequence
 } AlignTask;
 
-// Atomic task counter for work-stealing with block processing
 volatile size_t g_task_counter = 0;
 volatile int g_threads_waiting = 0;
 
@@ -33,7 +32,7 @@ static int* g_thread_ids;
 static int g_num_threads;
 static H5Handler* g_h5_handler;
 
-INLINE T_Func thread_pool_worker(void* restrict arg) {
+INLINE T_Func thread_pool_worker(void* arg) {
     int thread_id = *(int*)arg;
     PIN_THREAD(thread_id);
     int64_t local_checksum = 0;
@@ -41,20 +40,15 @@ INLINE T_Func thread_pool_worker(void* restrict arg) {
     while (1) {
         sem_wait(g_work_queue.work_ready);
         
-        if (!g_work_queue.active) {
-            break;
-        }
+        if (!g_work_queue.active) break;
         
         // Process tasks in blocks for better cache locality
         size_t task_block;
-        while ((task_block = __atomic_fetch_add(&g_task_counter, TASK_BLOCK_SIZE, __ATOMIC_RELAXED)) 
-               < g_work_queue.task_count) {
+        while ((task_block = __atomic_fetch_add(&g_task_counter, TASK_BLOCK_SIZE, __ATOMIC_RELAXED)) < g_work_queue.task_count) {
             
             // Calculate actual block size (handling the last block which might be smaller)
             size_t block_end = task_block + TASK_BLOCK_SIZE;
-            if (block_end > g_work_queue.task_count) {
-                block_end = g_work_queue.task_count;
-            }
+            if (block_end > g_work_queue.task_count) block_end = g_work_queue.task_count;
             
             // Process block of tasks
             #pragma GCC unroll 8
@@ -92,16 +86,15 @@ INLINE void init_thread_pool(H5Handler* h5_handler) {
     g_h5_handler = h5_handler;
     
     // Allocate aligned memory for thread resources
-    g_threads = (pthread_t*)aligned_alloc(CACHE_LINE, sizeof(pthread_t) * g_num_threads);
-    g_thread_ids = (int*)aligned_alloc(CACHE_LINE, sizeof(int) * g_num_threads);
+    g_threads = aligned_alloc(CACHE_LINE, sizeof(*g_threads) * g_num_threads);
+    g_thread_ids = aligned_alloc(CACHE_LINE, sizeof(*g_thread_ids) * g_num_threads);
 
-    g_h5_handler->thread_checksums = (int64_t*)aligned_alloc(CACHE_LINE, sizeof(int64_t) * g_num_threads);
-    for (int i = 0; i < g_num_threads; i++) {
-        g_h5_handler->thread_checksums[i] = 0;
-    }    
+    g_h5_handler->thread_checksums = aligned_alloc(CACHE_LINE, sizeof(*g_h5_handler->thread_checksums) * g_num_threads);
+    for (int i = 0; i < g_num_threads; i++) g_h5_handler->thread_checksums[i] = 0;
+    
     // Create semaphores for work coordination
-    g_work_queue.work_ready = (sem_t*)malloc(sizeof(sem_t));
-    g_work_queue.work_done = (sem_t*)malloc(sizeof(sem_t));
+    g_work_queue.work_ready = malloc(sizeof(*g_work_queue.work_ready));
+    g_work_queue.work_done = malloc(sizeof(*g_work_queue.work_done));
     sem_init(g_work_queue.work_ready, 0, 0);
     sem_init(g_work_queue.work_done, 0, 0);
     g_work_queue.active = 1;
@@ -113,18 +106,16 @@ INLINE void init_thread_pool(H5Handler* h5_handler) {
     }
 }
 
-INLINE void submit_tasks(AlignTask* restrict tasks, size_t task_count) {
+INLINE void submit_tasks(AlignTask* tasks, size_t task_count) {
     g_work_queue.tasks = tasks;
     g_work_queue.task_count = task_count;
     
-    // Reset counter for new batch
+    // Reset counters for new batch
     __atomic_store_n(&g_task_counter, 0, __ATOMIC_RELAXED);
     __atomic_store_n(&g_threads_waiting, 0, __ATOMIC_RELAXED);
     
     // Signal all threads to start working
-    for (int t = 0; t < g_num_threads; t++) {
-        sem_post(g_work_queue.work_ready);
-    }
+    for (int t = 0; t < g_num_threads; t++) sem_post(g_work_queue.work_ready);
     
     // Wait for completion
     sem_wait(g_work_queue.work_done);
@@ -133,14 +124,10 @@ INLINE void submit_tasks(AlignTask* restrict tasks, size_t task_count) {
 INLINE void destroy_thread_pool(void) {
     // Signal all threads to exit
     g_work_queue.active = 0;
-    for (int t = 0; t < g_num_threads; t++) {
-        sem_post(g_work_queue.work_ready);
-    }
+    for (int t = 0; t < g_num_threads; t++) sem_post(g_work_queue.work_ready);
     
     // Join all threads
-    for (int t = 0; t < g_num_threads; t++) {
-        pthread_join(g_threads[t], NULL);
-    }
+    for (int t = 0; t < g_num_threads; t++) pthread_join(g_threads[t], NULL);
     
     // Clean up resources
     sem_destroy(g_work_queue.work_ready);
@@ -175,7 +162,7 @@ INLINE void perform_alignments(H5Handler* h5_handler, Sequence* seqs, size_t seq
         
         size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
         print_verbose("Allocating %zu bytes for task memory", tasks_memory_size);
-        AlignTask* tasks = (AlignTask*)huge_page_alloc(tasks_memory_size);
+        AlignTask* tasks = huge_page_alloc(tasks_memory_size);
         
         // Process alignments in batches
         size_t processed = 0;
@@ -183,9 +170,8 @@ INLINE void perform_alignments(H5Handler* h5_handler, Sequence* seqs, size_t seq
         while (processed < total_alignments) {
             // Determine batch size for this iteration
             size_t batch_size = total_alignments - processed;
-            if (batch_size > optimal_batch_size) {
+            if (batch_size > optimal_batch_size)
                 batch_size = optimal_batch_size;
-            }
             
             // Fill the task queue
             for (size_t t = 0; t < batch_size; t++) {
