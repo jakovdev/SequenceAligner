@@ -149,7 +149,7 @@ int main(int argc, char* argv[]) {
             print_verbose("Using %zu of %zu sequence slots after filtering (%.2f%% eff)", seq_count, total_seqs_in_file, (seq_count * 100.0) / total_seqs_in_file);
         }
     } else {
-        print_success("Stored %zu sequences", seq_count);
+        print_success("Loaded %zu sequences", seq_count);
     }
 
     size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
