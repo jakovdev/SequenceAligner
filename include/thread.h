@@ -151,4 +151,125 @@ INLINE void destroy_thread_pool(void) {
     aligned_free(g_thread_ids);
 }
 
+INLINE void perform_alignments(H5Handler* h5_handler, Sequence* seqs, size_t seq_count, size_t total_alignments, const ScoringMatrix* scoring) {
+    if (get_mode_multithread()) {
+        print_config("Using multithreaded mode with %d threads", get_num_threads());
+        init_thread_pool(h5_handler);
+        
+        // Calculate optimal batch size based on testing data
+        size_t task_size = sizeof(AlignTask);
+        // Reference points for interpolation:
+        // - For 1024 sequences: use L2_CACHE_SIZE (256KiB)
+        // - For 32768 sequences: use 16MiB of tasks
+        const double ref_small_seqs = 1.0 * KiB;
+        const double ref_large_seqs = 32.0 * KiB;
+        const double ref_small_bytes = L2_CACHE_SIZE;
+        const double ref_large_bytes = 16.0 * MiB;
+        
+        double log_seq_ratio = log10(seq_count / ref_small_seqs) / log10(ref_large_seqs / ref_small_seqs);
+        double clamped_ratio = log_seq_ratio < 0.0 ? 0.0 : (log_seq_ratio > 1.0 ? 1.0 : log_seq_ratio);
+        double optimal_memory = ref_small_bytes + clamped_ratio * (ref_large_bytes - ref_small_bytes);
+        size_t optimal_batch_size = (size_t)(optimal_memory / task_size);
+        optimal_batch_size = optimal_batch_size < total_alignments ? optimal_batch_size : total_alignments;
+        print_verbose("Batch size: %zu tasks per batch", optimal_batch_size);
+        
+        size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
+        print_verbose("Allocating %zu bytes for task memory", tasks_memory_size);
+        AlignTask* tasks = (AlignTask*)huge_page_alloc(tasks_memory_size);
+        
+        // Process alignments in batches
+        size_t processed = 0;
+        size_t i = 0, j = 1;  // Start indices for pairwise comparisons
+        while (processed < total_alignments) {
+            // Determine batch size for this iteration
+            size_t batch_size = total_alignments - processed;
+            if (batch_size > optimal_batch_size) {
+                batch_size = optimal_batch_size;
+            }
+            
+            // Fill the task queue
+            for (size_t t = 0; t < batch_size; t++) {
+                // Prefetch sequences for next task to reduce cache misses
+                if (t + PREFETCH_DISTANCE < batch_size) {
+                    size_t prefetch_i = i;
+                    size_t prefetch_j = j + PREFETCH_DISTANCE;
+                    
+                    // Calculate next indices
+                    if (prefetch_j >= seq_count) {
+                        prefetch_i++;
+                        prefetch_j = prefetch_i + 1;
+                    }
+                    
+                    if (prefetch_i < seq_count && prefetch_j < seq_count) {
+                        PREFETCH(seqs[prefetch_i].data);
+                        PREFETCH(seqs[prefetch_j].data);
+                    }
+                }
+                
+                // Set up the current task
+                tasks[t].seq1 = seqs[i].data;
+                tasks[t].seq2 = seqs[j].data;
+                tasks[t].len1 = seqs[i].length;
+                tasks[t].len2 = seqs[j].length;
+                tasks[t].scoring = scoring;
+                tasks[t].i = i;
+                tasks[t].j = j;
+                
+                // Update indices for next task
+                if (++j >= seq_count) {
+                    i++;
+                    j = i + 1;
+                }
+            }
+            
+            submit_tasks(tasks, batch_size);
+            processed += batch_size;
+            print_progress_bar((double)processed / total_alignments, 40, "Aligning sequences");
+        }
+        print_progress_bar_end();
+        print_verbose("Destroying thread pool");
+        destroy_thread_pool();
+        print_verbose("Freeing task memory");
+        aligned_free(tasks);
+    } else {
+        print_config("Using single-threaded mode");
+        size_t progress_step = total_alignments / 100 + 1;
+        size_t progress_counter = 0;
+        int64_t local_checksum = 0;
+        
+        #pragma GCC unroll 8
+        for (size_t i = 0; i < seq_count; i++) {
+            for (size_t j = i + 1; j < seq_count; j++) {
+                // Prefetch next sequences to reduce cache misses
+                if (j + 1 < seq_count) {
+                    PREFETCH(seqs[i].data + seqs[i].length/2);  // Prefetch middle of current sequence
+                    PREFETCH(seqs[j+1].data);                   // Prefetch next sequence
+                } else if (i + 1 < seq_count) {
+                    PREFETCH(seqs[i+1].data);
+                    PREFETCH(seqs[i+2].data);
+                }
+                
+                int score = align_sequences(
+                    seqs[i].data, seqs[i].length,
+                    seqs[j].data, seqs[j].length,
+                    scoring
+                );
+                
+                local_checksum += score;
+                
+                // Write directly to the in-memory buffer
+                set_matrix_value(h5_handler, i, j, score);
+                set_matrix_value(h5_handler, j, i, score);
+                
+                progress_counter++;
+                if (progress_counter % progress_step == 0) {
+                    print_progress_bar((double)progress_counter / total_alignments, 40, "Aligning sequences");
+                }
+            }
+        }
+        h5_handler->matrix_checksum = local_checksum * 2;
+        print_progress_bar_end();
+    }
+}
+
 #endif

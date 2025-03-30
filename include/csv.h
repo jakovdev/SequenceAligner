@@ -272,6 +272,18 @@ INLINE size_t count_csv_line(char** current) {
     return 1;
 }
 
+INLINE size_t count_sequences_in_file(char* current, char* end) {
+    size_t total_seqs = 0;
+    
+    while (current < end && *current) {
+        if (count_csv_line(&current)) {
+            total_seqs++;
+        }
+    }
+    
+    return total_seqs;
+}
+
 INLINE size_t parse_csv_line(char** current, char* seq) {
     char* p = *current;
     char* write_pos = NULL;
