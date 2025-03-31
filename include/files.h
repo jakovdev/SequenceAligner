@@ -45,16 +45,16 @@ get_file(const char* file_path)
 
     if (file.hFile == INVALID_HANDLE_VALUE)
     {
-        print_error("Could not open file '%s'", file_name);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Could not open file '%s'", file_name);
+        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
     file.hMapping = CreateFileMapping(file.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if (file.hMapping == NULL)
     {
-        print_error("Could not create file mapping for '%s'", file_name);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
+        print(SECTION, MSG_NONE, NULL);
         CloseHandle(file.hFile);
         exit(1);
     }
@@ -62,8 +62,8 @@ get_file(const char* file_path)
     file.file_data = (char*)MapViewOfFile(file.hMapping, FILE_MAP_READ, 0, 0, 0);
     if (file.file_data == NULL)
     {
-        print_error("Could not map view of file '%s'", file_name);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
+        print(SECTION, MSG_NONE, NULL);
         CloseHandle(file.hMapping);
         CloseHandle(file.hFile);
         exit(1);
@@ -76,16 +76,16 @@ get_file(const char* file_path)
     file.fd = open(file_path, O_RDONLY);
     if (file.fd == -1)
     {
-        print_error("Could not open input file '%s'", file_name);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Could not open input file '%s'", file_name);
+        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
     struct stat sb;
     if (fstat(file.fd, &sb) == -1)
     {
-        print_error("Could not stat file '%s'", file_name);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Could not stat file '%s'", file_name);
+        print(SECTION, MSG_NONE, NULL);
         close(file.fd);
         exit(1);
     }
@@ -94,8 +94,8 @@ get_file(const char* file_path)
     file.file_data = mmap(NULL, file.data_size, PROT_READ, MAP_PRIVATE, file.fd, 0);
     if (file.file_data == MAP_FAILED)
     {
-        print_error("Could not memory map file '%s'", file_name);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Could not memory map file '%s'", file_name);
+        print(SECTION, MSG_NONE, NULL);
         close(file.fd);
         exit(1);
     }
@@ -130,9 +130,11 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
     matrix.file_size = bytes_needed;
     const char* file_name = get_file_name(file_path);
 
-    print_info("Creating memory-mapped matrix file: %s (%.2f GiB)",
-               file_name,
-               bytes_needed / (float)GiB);
+    print(INFO,
+          MSG_LOC(LAST),
+          "Creating memory-mapped matrix file: %s (%.2f GiB)",
+          file_name,
+          bytes_needed / (float)GiB);
 
 #ifdef _WIN32
     matrix.hFile = CreateFileA(file_path,
@@ -145,7 +147,7 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
 
     if (matrix.hFile == INVALID_HANDLE_VALUE)
     {
-        print_error("Could not create memory-mapped file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create memory-mapped file '%s'", file_name);
         return matrix;
     }
 
@@ -157,7 +159,7 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
     matrix.hMapping = CreateFileMapping(matrix.hFile, NULL, PAGE_READWRITE, 0, 0, NULL);
     if (matrix.hMapping == NULL)
     {
-        print_error("Could not create file mapping for '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
         CloseHandle(matrix.hFile);
         matrix.hFile = INVALID_HANDLE_VALUE;
         return matrix;
@@ -166,7 +168,7 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
     matrix.data = (int*)MapViewOfFile(matrix.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (matrix.data == NULL)
     {
-        print_error("Could not map view of file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
         CloseHandle(matrix.hMapping);
         CloseHandle(matrix.hFile);
         matrix.hMapping = NULL;
@@ -177,20 +179,23 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
     double pre_memset_time = get_time();
     memset(matrix.data, 0, bytes_needed);
     double post_memset_time = get_time();
-    print_verbose("Memory-mapped matrix initialized in %.2f seconds",
-                  post_memset_time - pre_memset_time);
+
+    print(VERBOSE,
+          MSG_NONE,
+          "Memory-mapped matrix initialized in %.2f seconds",
+          post_memset_time - pre_memset_time);
 
 #else
     matrix.fd = open(file_path, O_RDWR | O_CREAT | O_TRUNC, 0644);
     if (matrix.fd == -1)
     {
-        print_error("Could not create memory-mapped file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create memory-mapped file '%s'", file_name);
         return matrix;
     }
 
     if (ftruncate(matrix.fd, bytes_needed) == -1)
     {
-        print_error("Could not set size for file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not set size for file '%s'", file_name);
         close(matrix.fd);
         matrix.fd = -1;
         return matrix;
@@ -199,7 +204,7 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
     matrix.data = (int*)mmap(NULL, bytes_needed, PROT_READ | PROT_WRITE, MAP_SHARED, matrix.fd, 0);
     if (matrix.data == MAP_FAILED)
     {
-        print_error("Could not memory map file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not memory map file '%s'", file_name);
         close(matrix.fd);
         matrix.fd = -1;
         return matrix;
@@ -230,17 +235,23 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
 
     if (!is_zeroed)
     {
-        print_verbose("Memory not pre-zeroed by kernel, falling back to explicit initialization");
+        print(VERBOSE,
+              MSG_LOC(FIRST),
+              "Memory not pre-zeroed by kernel, falling back to explicit initialization");
+
         double pre_memset_time = get_time();
         memset(matrix.data, 0, bytes_needed);
         double post_memset_time = get_time();
-        print_verbose("Memory-mapped matrix initialized in %.2f seconds",
-                      post_memset_time - pre_memset_time);
+
+        print(VERBOSE,
+              MSG_LOC(LAST),
+              "Memory-mapped matrix initialized in %.2f seconds",
+              post_memset_time - pre_memset_time);
     }
 
 #endif
 
-    print_success("Memory-mapped matrix file '%s' created successfully", file_name);
+    print(SUCCESS, MSG_NONE, "Memory-mapped matrix file '%s' created successfully", file_name);
 
     return matrix;
 }

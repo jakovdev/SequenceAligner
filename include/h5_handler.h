@@ -93,11 +93,13 @@ h5_calculate_chunk_dimensions(H5Handler* handler)
     handler->chunk_dims[0] = optimal_chunk;
     handler->chunk_dims[1] = optimal_chunk;
 
-    print_verbose("HDF5 chunk size: %zu x %zu for %zu x %zu matrix",
-                  optimal_chunk,
-                  optimal_chunk,
-                  matrix_size,
-                  matrix_size);
+    print(VERBOSE,
+          MSG_LOC(FIRST),
+          "HDF5 chunk size: %zu x %zu for %zu x %zu matrix",
+          optimal_chunk,
+          optimal_chunk,
+          matrix_size,
+          matrix_size);
 }
 
 INLINE bool
@@ -116,7 +118,7 @@ h5_create_file(H5Handler* handler)
 
     if (handler->file_id < 0)
     {
-        print_error("Failed to create HDF5 file: %s", get_output_file_path());
+        print(ERROR, MSG_NONE, "Failed to create HDF5 file: %s", get_output_file_path());
         return false;
     }
 
@@ -132,7 +134,7 @@ h5_create_matrix_dataset(H5Handler* handler)
 
     if (matrix_space < 0)
     {
-        print_error("Failed to create matrix dataspace");
+        print(ERROR, MSG_NONE, "Failed to create matrix dataspace");
         H5Fclose(handler->file_id);
         handler->file_id = -1;
         return false;
@@ -159,7 +161,7 @@ h5_create_matrix_dataset(H5Handler* handler)
 
     if (handler->matrix_dataset_id < 0)
     {
-        print_error("Failed to create similarity matrix dataset");
+        print(ERROR, MSG_NONE, "Failed to create similarity matrix dataset");
         H5Pclose(plist_id);
         H5Fclose(handler->file_id);
         handler->file_id = -1;
@@ -181,7 +183,7 @@ h5_create_sequence_group(H5Handler* handler)
 
     if (seq_group < 0)
     {
-        print_error("Failed to create sequences group");
+        print(ERROR, MSG_NONE, "Failed to create sequences group");
         H5Dclose(handler->matrix_dataset_id);
         handler->matrix_dataset_id = -1;
         H5Fclose(handler->file_id);
@@ -201,7 +203,7 @@ h5_create_sequence_length_dataset(H5Handler* handler)
 
     if (seq_lengths_space < 0)
     {
-        print_error("Failed to create sequence lengths dataspace");
+        print(ERROR, MSG_NONE, "Failed to create sequence lengths dataspace");
         H5Dclose(handler->matrix_dataset_id);
         handler->matrix_dataset_id = -1;
         H5Fclose(handler->file_id);
@@ -221,7 +223,7 @@ h5_create_sequence_length_dataset(H5Handler* handler)
 
     if (handler->seq_lengths_dataset_id < 0)
     {
-        print_error("Failed to create sequence lengths dataset");
+        print(ERROR, MSG_NONE, "Failed to create sequence lengths dataset");
         H5Dclose(handler->matrix_dataset_id);
         handler->matrix_dataset_id = -1;
         H5Fclose(handler->file_id);
@@ -269,7 +271,11 @@ h5_initialize_memory(H5Handler* handler)
     if (handler->use_mmap)
     {
         get_mmap_matrix_filename(handler->mmap_filename, MAX_PATH, get_output_file_path());
-        print_info("Matrix size exceeds memory threshold, using memory-mapped file");
+
+        print(INFO,
+              MSG_LOC(FIRST),
+              "Matrix size exceeds memory threshold, using memory-mapped file");
+
         handler->mmap_matrix = create_mmap_matrix(handler->mmap_filename, handler->matrix_size);
         return handler->mmap_matrix.data != NULL;
     }
@@ -292,7 +298,7 @@ h5_initialize_thread_checksums(H5Handler* handler)
 
     if (!handler->checksums)
     {
-        print_error("Failed to allocate memory for thread checksums");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for thread checksums");
         return false;
     }
 
@@ -356,7 +362,7 @@ h5_initialize(size_t matrix_size)
 
     if (!h5_initialize_memory(&handler))
     {
-        print_error("Failed to initialize matrix memory");
+        print(ERROR, MSG_NONE, "Failed to initialize matrix memory");
         return handler;
     }
 
@@ -375,10 +381,13 @@ h5_initialize(size_t matrix_size)
     }
 
     handler.is_init = true;
-    print_verbose("%s file created with matrix size: %zu x %zu",
-                  handler.use_mmap ? "Memory-mapped" : "HDF5",
-                  matrix_size,
-                  matrix_size);
+
+    print(VERBOSE,
+          MSG_LOC(LAST),
+          "%s file created with matrix size: %zu x %zu",
+          handler.use_mmap ? "Memory-mapped" : "HDF5",
+          matrix_size,
+          matrix_size);
 
     return handler;
 }
@@ -390,7 +399,7 @@ h5_flush_mmap_to_hdf5(H5Handler* handler)
     size_t available_mem = get_available_memory();
     if (!available_mem)
     {
-        print_error("Failed to retrieve available memory");
+        print(ERROR, MSG_NONE, "Failed to retrieve available memory");
         return false;
     }
 
@@ -399,23 +408,29 @@ h5_flush_mmap_to_hdf5(H5Handler* handler)
     size_t chunk_size = max_rows < 4 ? 4 : max_rows;
     chunk_size = chunk_size > KiB ? KiB : chunk_size;
 
-    print_verbose("Converting matrix using %zu rows per chunk (%zu MiB buffer)",
-                  chunk_size,
-                  (chunk_size * row_bytes) / MiB);
+    print(VERBOSE,
+          MSG_NONE,
+          "Converting matrix using %zu rows per chunk (%zu MiB buffer)",
+          chunk_size,
+          (chunk_size * row_bytes) / MiB);
 
     int* buffer = calloc(chunk_size, row_bytes);
     if (!buffer)
     {
-        print_warning("Failed to allocate transfer buffer of %zu bytes", chunk_size * row_bytes);
+        print(WARNING,
+              MSG_NONE,
+              "Failed to allocate transfer buffer of %zu bytes",
+              chunk_size * row_bytes);
+
         chunk_size = 1;
         buffer = calloc(chunk_size, row_bytes);
         if (!buffer)
         {
-            print_error("Cannot allocate even minimal buffer, aborting");
+            print(ERROR, MSG_NONE, "Cannot allocate even minimal buffer, aborting");
             return false;
         }
 
-        print_warning("Using minimal buffer size of 1 row (%zu bytes)", row_bytes);
+        print(WARNING, MSG_NONE, "Using minimal buffer size of 1 row (%zu bytes)", row_bytes);
     }
 
     hid_t file_space = H5Dget_space(handler->matrix_dataset_id);
@@ -425,7 +440,7 @@ h5_flush_mmap_to_hdf5(H5Handler* handler)
         return false;
     }
 
-    print_info("Converting memory-mapped matrix to HDF5 format");
+    print(INFO, MSG_NONE, "Converting memory-mapped matrix to HDF5 format");
 
     for (size_t start_row = 0; start_row < matrix_size; start_row += chunk_size)
     {
@@ -472,7 +487,7 @@ h5_flush_mmap_to_hdf5(H5Handler* handler)
 
         if (mem_space < 0)
         {
-            print_error("Failed to create memory dataspace for matrix chunk");
+            print(ERROR, MSG_NONE, "Failed to create memory dataspace for matrix chunk");
             H5Sclose(file_space);
             free(buffer);
             return false;
@@ -489,17 +504,15 @@ h5_flush_mmap_to_hdf5(H5Handler* handler)
 
         if (status < 0)
         {
-            print_progress_bar_end();
-            print_error("Failed to write chunk to HDF5");
+            print(ERROR, MSG_NONE, "Failed to write chunk to HDF5");
             H5Sclose(file_space);
             free(buffer);
             return false;
         }
 
-        print_progress_bar((double)end_row / matrix_size, 40, "Converting to HDF5");
+        print(PROGRESS, MSG_PROPORTION((float)end_row / matrix_size), "Converting to HDF5");
     }
 
-    print_progress_bar_end();
     H5Sclose(file_space);
     free(buffer);
     return true;
@@ -517,7 +530,7 @@ h5_flush_buffer_to_hdf5(H5Handler* handler)
 
     if (status < 0)
     {
-        print_error("Failed to write matrix data to HDF5");
+        print(ERROR, MSG_NONE, "Failed to write matrix data to HDF5");
         return false;
     }
 
@@ -535,7 +548,7 @@ h5_flush_matrix(H5Handler* handler)
     if (handler->matrix_dataset_id < 0 || (handler->use_mmap && !handler->mmap_matrix.data) ||
         (!handler->use_mmap && !handler->buffer.data))
     {
-        print_error("Cannot flush matrix: HDF5 resources not properly initialized");
+        print(ERROR, MSG_NONE, "Cannot flush matrix: HDF5 resources not properly initialized");
         return false;
     }
 
@@ -607,7 +620,7 @@ h5_store_sequence_lengths(H5Handler* handler, Sequence* sequences, size_t seq_co
     size_t* lengths = malloc(seq_count * sizeof(*lengths));
     if (!lengths)
     {
-        print_error("Failed to allocate memory for sequence lengths");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for sequence lengths");
         return false;
     }
 
@@ -627,7 +640,7 @@ h5_store_sequence_lengths(H5Handler* handler, Sequence* sequences, size_t seq_co
 
     if (status < 0)
     {
-        print_error("Failed to write sequence lengths");
+        print(ERROR, MSG_NONE, "Failed to write sequence lengths");
         return false;
     }
 
@@ -647,7 +660,7 @@ h5_store_sequence_batch(H5Handler* handler,
     char** seq_data = malloc(current_batch_size * sizeof(*seq_data));
     if (!seq_data)
     {
-        print_error("Failed to allocate memory for sequence batch");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for sequence batch");
         return false;
     }
 
@@ -661,7 +674,7 @@ h5_store_sequence_batch(H5Handler* handler,
 
     if (batch_mem_space < 0)
     {
-        print_error("Failed to create memory dataspace for sequence batch");
+        print(ERROR, MSG_NONE, "Failed to create memory dataspace for sequence batch");
         free(seq_data);
         return false;
     }
@@ -672,7 +685,7 @@ h5_store_sequence_batch(H5Handler* handler,
 
     if (status < 0)
     {
-        print_error("Failed to select hyperslab for sequence batch");
+        print(ERROR, MSG_NONE, "Failed to select hyperslab for sequence batch");
         H5Sclose(batch_mem_space);
         free(seq_data);
         return false;
@@ -690,7 +703,7 @@ h5_store_sequence_batch(H5Handler* handler,
 
     if (status < 0)
     {
-        print_error("Failed to write sequence batch");
+        print(ERROR, MSG_NONE, "Failed to write sequence batch");
         return false;
     }
 
@@ -704,7 +717,7 @@ h5_create_sequence_dataset(H5Handler* handler, hid_t string_type)
 
     if (seq_space < 0)
     {
-        print_error("Failed to create sequence dataspace");
+        print(ERROR, MSG_NONE, "Failed to create sequence dataspace");
         H5Tclose(string_type);
         return -1;
     }
@@ -719,7 +732,7 @@ h5_create_sequence_dataset(H5Handler* handler, hid_t string_type)
 
     if (handler->seq_dataset_id < 0)
     {
-        print_error("Failed to create sequences dataset");
+        print(ERROR, MSG_NONE, "Failed to create sequences dataset");
         H5Sclose(seq_space);
         H5Tclose(string_type);
         return -1;
@@ -738,13 +751,13 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
 
     if (handler->file_id < 0)
     {
-        print_error("Cannot store sequences: HDF5 file not initialized");
+        print(ERROR, MSG_NONE, "Cannot store sequences: HDF5 file not initialized");
         return false;
     }
 
     double write_start = get_time();
 
-    print_info("Storing %zu sequences in HDF5 file", seq_count);
+    print(INFO, MSG_NONE, "Storing %zu sequences in HDF5 file", seq_count);
 
     hid_t string_type = H5Tcopy(H5T_C_S1);
     H5Tset_size(string_type, H5T_VARIABLE);
@@ -762,7 +775,6 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
     }
 
     const size_t batch_size = H5_SEQUENCE_BATCH_SIZE;
-    size_t last_percentage = 0;
 
     for (size_t batch_start = 0; batch_start < seq_count; batch_start += batch_size)
     {
@@ -786,15 +798,8 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
             return false;
         }
 
-        size_t current_percentage = (batch_end * 100) / seq_count;
-        if (current_percentage > last_percentage)
-        {
-            print_progress_bar((double)batch_end / seq_count, 40, "Storing sequences");
-            last_percentage = current_percentage;
-        }
+        print(PROGRESS, MSG_PROPORTION((float)batch_end / seq_count), "Storing sequences");
     }
-
-    print_progress_bar_end();
 
     H5Sclose(seq_space);
     H5Tclose(string_type);
@@ -806,7 +811,7 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
 
     handler->sequences_stored = true;
 
-    print_success("Successfully stored sequences in HDF5 file");
+    print(SUCCESS, MSG_NONE, "Successfully stored sequences in HDF5 file");
     return true;
 }
 
@@ -838,12 +843,15 @@ h5_close(H5Handler* handler)
     {
         bool success = true;
 
-        print_step_header("Finalizing Results");
-        print_info("Writing results to output file: %s", get_file_name(get_output_file_path()));
+        print(SECTION, MSG_NONE, "Finalizing Results");
+        print(INFO,
+              MSG_LOC(FIRST),
+              "Writing results to output file: %s",
+              get_file_name(get_output_file_path()));
 
         if (!h5_flush_matrix(handler))
         {
-            print_error("Failed to write matrix data to output file");
+            print(ERROR, MSG_NONE, "Failed to write matrix data to output file");
             success = false;
         }
 
@@ -854,7 +862,7 @@ h5_close(H5Handler* handler)
             handler->checksums = NULL;
         }
 
-        print_info("Matrix checksum: %lld", handler->checksum);
+        print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", handler->checksum);
         bench_write_end();
 
         if (handler->seq_dataset_id > 0)
@@ -888,13 +896,19 @@ h5_close(H5Handler* handler)
             {
                 if (remove(handler->mmap_filename) != 0)
                 {
-                    print_warning("Failed to remove temporary file: %s", handler->mmap_filename);
+                    print(WARNING,
+                          MSG_NONE,
+                          "Failed to remove temporary file: %s",
+                          handler->mmap_filename);
                 }
             }
 
             else
             {
-                print_warning("Keeping temporary file for debugging: %s", handler->mmap_filename);
+                print(WARNING,
+                      MSG_NONE,
+                      "Keeping temporary file for debugging: %s",
+                      handler->mmap_filename);
             }
         }
 

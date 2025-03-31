@@ -37,7 +37,7 @@ bench_init_end(void)
     if (get_mode_benchmark())
     {
         g_times.init = get_time() - g_times.init_start - g_times.elapsed_init_time;
-        print_timing("Initialization: %.3f sec", g_times.init);
+        print(TIMING, MSG_NONE, "Initialization: %.3f sec", g_times.init);
     }
 }
 
@@ -79,7 +79,7 @@ bench_align_end(void)
     if (get_mode_benchmark())
     {
         g_times.align = get_time() - g_times.align_start;
-        print_timing("Computation: %.3f sec", g_times.align);
+        print(TIMING, MSG_NONE, "Computation: %.3f sec", g_times.align);
     }
 }
 
@@ -108,7 +108,7 @@ bench_write_end(void)
     if (get_mode_benchmark() && get_mode_write())
     {
         g_times.write = g_times.accumulated_io_time;
-        print_timing("I/O operations: %.3f sec", g_times.write);
+        print(TIMING, MSG_NONE, "I/O operations: %.3f sec", g_times.write);
     }
 }
 
@@ -122,45 +122,48 @@ bench_set_alignments(size_t total_alignments)
 }
 
 INLINE void
-print_bench_item(const char* label, double time, double percentage)
-{
-    char value[32];
-    snprintf(value, sizeof(value), "%.3f sec (%.1f%%)", time, percentage);
-    print_indented_item(label[0] == 'T' ? BOX_BOTTOM_LEFT : BOX_TEE_RIGHT, label, value);
-}
-
-INLINE void
 bench_total(void)
 {
-    if (message_config.quiet)
-    {
-        return;
-    }
-
     if (get_mode_benchmark())
     {
         g_times.total = g_times.init + g_times.align + g_times.write * get_mode_write();
-        print_step_header_start("Performance Summary");
-        print_timing("Timing breakdown:");
+        print(SECTION, MSG_NONE, "Performance Summary");
+        print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
 
-        print_bench_item("Init", g_times.init, (g_times.init / g_times.total) * 100);
-        print_bench_item("Compute", g_times.align, (g_times.align / g_times.total) * 100);
+        print(TIMING,
+              MSG_LOC(MIDDLE),
+              "Init: %.3f",
+              g_times.init,
+              (g_times.init / g_times.total) * 100);
+
+        print(TIMING,
+              MSG_LOC(MIDDLE),
+              "Compute: %.3f",
+              g_times.align,
+              (g_times.align / g_times.total) * 100);
+
         if (get_mode_write())
         {
-            print_bench_item("I/O", g_times.write, (g_times.write / g_times.total) * 100);
+            print(TIMING,
+                  MSG_LOC(MIDDLE),
+                  "I/O: %.3f",
+                  g_times.write,
+                  (g_times.write / g_times.total) * 100);
         }
 
-        print_bench_item("Total", g_times.total, 100.0);
+        print(TIMING, MSG_LOC(LAST), "Total: %.3f", g_times.total, 100.0);
 
         double alignments_per_sec = g_times.total_alignments / g_times.align;
-        print_timing("Alignments per second: %.2f", alignments_per_sec);
+        print(TIMING, MSG_LOC(FIRST), "Alignments per second: %.2f", alignments_per_sec);
 
         if (get_num_threads() > 1)
         {
             double avg_alignment_time = g_times.align / get_num_threads();
-            print_timing("Average time per thread: %.3f sec", avg_alignment_time);
-            print_timing("Alignments per second per thread: %.2f",
-                         alignments_per_sec / get_num_threads());
+            print(TIMING, MSG_LOC(MIDDLE), "Average time per thread: %.3f sec", avg_alignment_time);
+            print(TIMING,
+                  MSG_LOC(LAST),
+                  "Alignments per second per thread: %.2f",
+                  alignments_per_sec / get_num_threads());
         }
     }
 }

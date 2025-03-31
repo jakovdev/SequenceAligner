@@ -1,7 +1,7 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
-#include "common.h"
+#include "macros.h"
 
 INLINE int
 is_terminal(void)
@@ -70,33 +70,29 @@ restore_terminal_mode(void)
 }
 
 INLINE void
-read_line_input(char* input_buffer, int buffer_size, int* choice, const char* prompt)
+read_line_input(char* input_buffer, int buffer_size, int* choice)
 {
     int idx = 0;
     int c;
 
-    printf("%s", prompt);
     fflush(stdout);
 
     set_terminal_raw_mode();
 
-    // Read input character by character
     while (1)
     {
         c = getchar();
 
-        // Exit on Enter key
         if (c == '\n' || c == '\r')
         {
             break;
         }
 
-        // Only accept digits and limit input length
         if (isdigit(c) && idx < buffer_size - 1)
         {
             input_buffer[idx++] = c;
             input_buffer[idx] = '\0';
-            printf("%c", c); // Echo the character
+            printf("%c", c);
             fflush(stdout);
         }
     }

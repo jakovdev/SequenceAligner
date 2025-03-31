@@ -7,12 +7,13 @@
 int
 main(int argc, char* argv[])
 {
-    init_colors();
-    print_header("SEQUENCE ALIGNER");
-
     init_args(argc, argv);
 
-    print_step_header("Setting Up Alignment");
+    print(HEADER, MSG_NONE, "SEQUENCE ALIGNER");
+
+    print_config_section();
+
+    print(SECTION, MSG_NONE, "Setting Up Alignment");
 
     bench_init_start();
 
@@ -23,40 +24,43 @@ main(int argc, char* argv[])
     }
 
     File input_file = get_file(get_input_file_path());
-    print_success("Successfully opened input file: %s", get_file_name(get_input_file_path()));
+    print(SUCCESS,
+          MSG_NONE,
+          "Successfully opened input file: %s",
+          get_file_name(get_input_file_path()));
 
     char* current = input_file.file_data;
     char* restrict end = input_file.file_data + input_file.data_size;
     current = parse_header(current, end);
 
-    print_verbose("Initializing scoring matrix and gap penalties");
+    print(VERBOSE, MSG_LOC(MIDDLE), "Initializing scoring matrix and gap penalties");
     ScoringMatrix scoring = { 0 };
     init_scoring_matrix(&scoring);
     init_gap_penalties();
 
-    print_verbose("Counting sequences in input file...");
+    print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file...");
     size_t total_seqs_in_file = count_sequences_in_file(current, end);
 
     if (total_seqs_in_file == 0)
     {
-        print_error("No sequences found in input file");
+        print(ERROR, MSG_NONE, "No sequences found in input file");
         free_csv_metadata();
         free_file(&input_file);
         return 0;
     }
 
-    print_dna("Found %zu sequences", total_seqs_in_file);
+    print(DNA, MSG_NONE, "Found %zu sequences", total_seqs_in_file);
 
     init_seq_pool();
 
     current = input_file.file_data;
     current = skip_header(current, end);
 
-    print_info("Loading sequences from file...");
+    print(INFO, MSG_NONE, "Loading sequences from file...");
     SequenceData seqdata = load_sequences_from_file(current, end, total_seqs_in_file);
     if (!seqdata.sequences)
     {
-        print_error("Failed to allocate memory for sequences");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
         free_csv_metadata();
         free_file(&input_file);
         return 1;
@@ -74,17 +78,20 @@ main(int argc, char* argv[])
 
     bench_init_end();
 
-    print_step_header("Performing Alignments");
+    print(SECTION, MSG_NONE, "Performing Alignments");
 
-    print_info("Will perform %zu pairwise alignments", total_alignments);
-    print_config("Using alignment method: %s", get_current_alignment_method_name());
+    print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
+    print(CONFIG,
+          MSG_LOC(FIRST),
+          "Using alignment method: %s",
+          get_current_alignment_method_name());
 
     bench_set_alignments(total_alignments);
 
     bench_align_start();
 
     perform_alignments(&h5_handler, seqs, seq_count, total_alignments, &scoring);
-    print_success("Alignment completed successfully!");
+    print(SUCCESS, MSG_NONE, "Alignment completed successfully!");
 
     bench_align_end();
 
@@ -92,17 +99,17 @@ main(int argc, char* argv[])
 
     bench_total();
 
-    print_step_header("Cleaning Up");
-    print_verbose("Freeing csv metadata");
+    print(SECTION, MSG_NONE, "Cleaning Up");
+    print(VERBOSE, MSG_LOC(FIRST), "Freeing csv metadata");
     free_csv_metadata();
-    print_verbose("Freeing sequence memory pool");
+    print(VERBOSE, MSG_LOC(MIDDLE), "Freeing sequence memory pool");
     free_seq_pool();
-    print_verbose("Freeing sequence pointers");
+    print(VERBOSE, MSG_LOC(MIDDLE), "Freeing sequence pointers");
     free(seqs);
-    print_verbose("Closing input file");
+    print(VERBOSE, MSG_LOC(LAST), "Closing input file");
     free_file(&input_file);
 
-    print_success("All operations completed successfully!");
-    print_step_header_end(0);
+    print(SUCCESS, MSG_NONE, "All operations completed successfully!");
+    print(SECTION, MSG_NONE, NULL);
     return 0;
 }

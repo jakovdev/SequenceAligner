@@ -132,103 +132,6 @@ detect_sequence_column(char** headers, int num_cols)
     return -1;
 }
 
-INLINE void
-prompt_for_sequence_column(void)
-{
-    // Pause the init timer before asking for user input
-    double saved_time = bench_pause_init();
-
-    print_info("Could not automatically detect the sequence column.");
-    print_info("Please select the column containing sequence data:");
-
-    for (int i = 0; i < g_csv_metadata.num_columns; i++)
-    {
-        size_t option_text_len = strlen(g_csv_metadata.column_headers[i]) + 3;
-        int padding = OUTPUT_WIDTH - 3 - option_text_len;
-        if (padding < 0)
-        {
-            padding = 0;
-        }
-
-        apply_box_color();
-        printf("%s", BOX_VERTICAL);
-        reset_color();
-
-        printf(" %s%d:%s %s",
-               ANSI_COLOR_CYAN,
-               i + 1,
-               ANSI_COLOR_RESET,
-               g_csv_metadata.column_headers[i]);
-
-        for (int j = 0; j < padding; j++)
-        {
-            printf(" ");
-        }
-
-        apply_box_color();
-        printf("%s\n", BOX_VERTICAL);
-        reset_color();
-    }
-
-    char prompt[128];
-    snprintf(prompt,
-             sizeof(prompt),
-             "%s%s %sEnter column number (1-%d): ",
-             ANSI_COLOR_BLUE,
-             ICON_INFO,
-             ANSI_COLOR_RESET,
-             g_csv_metadata.num_columns);
-
-    size_t prompt_len = strlen(prompt);
-
-    char input_buffer[32] = { 0 };
-    int choice = -1;
-
-    apply_box_color();
-    printf("%s ", BOX_VERTICAL);
-    reset_color();
-
-    // Display input prompt and get user input in the same line
-    read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt);
-
-    int padding = OUTPUT_WIDTH + 8 - prompt_len - strlen(input_buffer);
-    for (int i = 0; i < padding; i++)
-    {
-        printf(" ");
-    }
-
-    apply_box_color();
-    printf("%s\n", BOX_VERTICAL);
-    reset_color();
-
-    // Validate input
-    while (choice < 1 || choice > g_csv_metadata.num_columns)
-    {
-        print_warning("Invalid input! Please enter a number between 1 and %d.",
-                      g_csv_metadata.num_columns);
-
-        apply_box_color();
-        printf("%s ", BOX_VERTICAL);
-        reset_color();
-
-        read_line_input(input_buffer, sizeof(input_buffer), &choice, prompt);
-
-        padding = OUTPUT_WIDTH + 8 - prompt_len - strlen(input_buffer);
-        for (int i = 0; i < padding; i++)
-        {
-            printf(" ");
-        }
-
-        apply_box_color();
-        printf("%s\n", BOX_VERTICAL);
-        reset_color();
-    }
-
-    g_csv_metadata.seq_col_index = choice - 1;
-    print_success("Selected column %d: %s", choice, g_csv_metadata.column_headers[choice - 1]);
-    bench_resume_init(saved_time);
-}
-
 INLINE char*
 parse_header(char* restrict current, char* restrict end)
 {
@@ -238,8 +141,8 @@ parse_header(char* restrict current, char* restrict end)
 
     if (g_csv_metadata.num_columns <= 0)
     {
-        print_error("Invalid CSV header");
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Invalid CSV header");
+        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -248,8 +151,8 @@ parse_header(char* restrict current, char* restrict end)
 
     if (!g_csv_metadata.column_headers)
     {
-        print_error("Memory allocation failed for column headers");
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
+        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -298,13 +201,23 @@ parse_header(char* restrict current, char* restrict end)
     // If auto-detection failed
     if (g_csv_metadata.seq_col_index < 0)
     {
-        prompt_for_sequence_column();
+        double saved_time = bench_pause_init();
+
+        print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
+        print(INFO, MSG_LOC(LAST), "Please select the column containing sequence data:");
+        g_csv_metadata.seq_col_index = print(PROMPT,
+                                             MSG_PROMPT(g_csv_metadata.column_headers),
+                                             "Enter column number");
+
+        bench_resume_init(saved_time);
     }
 
-    print_verbose("Detected %d columns in CSV", g_csv_metadata.num_columns);
-    print_verbose("Using column %d ('%s') for sequences",
-                  g_csv_metadata.seq_col_index + 1,
-                  g_csv_metadata.column_headers[g_csv_metadata.seq_col_index]);
+    print(VERBOSE, MSG_LOC(FIRST), "Detected %d columns in CSV", g_csv_metadata.num_columns);
+    print(VERBOSE,
+          MSG_LOC(MIDDLE),
+          "Using column %d ('%s') for sequences",
+          g_csv_metadata.seq_col_index + 1,
+          g_csv_metadata.column_headers[g_csv_metadata.seq_col_index]);
 
     return current;
 }

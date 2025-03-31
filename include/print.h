@@ -1,584 +1,578 @@
 #ifndef PRINT_H
 #define PRINT_H
 
-#include "common.h"
+#include "macros.h"
 #include "terminal.h"
 
-#define ANSI_COLOR_RESET "\x1b[0m"
-#define ANSI_COLOR_BOLD "\x1b[1m"
-#define ANSI_COLOR_RED "\x1b[31m"
-#define ANSI_COLOR_GREEN "\x1b[32m"
-#define ANSI_COLOR_YELLOW "\x1b[33m"
-#define ANSI_COLOR_BLUE "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN "\x1b[36m"
-#define ANSI_BRIGHT_CYAN "\x1b[96m"
-#define ANSI_COLOR_GRAY "\x1b[90m"
+typedef enum
+{
+    HEADER,
+    SECTION,
+    SUCCESS,
+    INFO,
+    VERBOSE,
+    CONFIG,
+    TIMING,
+    DNA,
+    PROGRESS,
+    PROMPT,
+    WARNING,
+    ERROR,
+} MsgType;
 
-#define ICON_INFO "•"
-#define ICON_SUCCESS "✓"
-#define ICON_WARNING "!"
-#define ICON_ERROR "✗"
-#define ICON_CLOCK "⧗"
-#define ICON_DNA "◇"
-#define ICON_GEAR "⚙"
-#define ICON_ARROW "▶"
-#define ICON_DOT "·"
+typedef enum
+{
+    FIRST,
+    MIDDLE,
+    LAST,
+} MessageLocation;
 
-#define BOX_TOP_LEFT "┌"
-#define BOX_TOP_RIGHT "┐"
-#define BOX_BOTTOM_LEFT "└"
-#define BOX_BOTTOM_RIGHT "┘"
-#define BOX_HORIZONTAL "─"
-#define BOX_VERTICAL "│"
-#define BOX_TEE_RIGHT "├"
-#define BOX_TEE_LEFT "┤"
-#define BOX_TEE_DOWN "┬"
-#define BOX_TEE_UP "┴"
-#define BOX_CROSS "┼"
+typedef union
+{
+    MessageLocation location;
+    int percent;
+    char** choices;
+} MsgArgs;
 
-#define FANCY_TOP_LEFT "╔"
-#define FANCY_TOP_RIGHT "╗"
-#define FANCY_BOTTOM_LEFT "╚"
-#define FANCY_BOTTOM_RIGHT "╝"
-#define FANCY_HORIZONTAL "═"
-#define FANCY_VERTICAL "║"
+#define MSG_LOC(loc) ((MsgArgs){ .location = (loc) })
+#define MSG_PROPORTION(proportion) ((MsgArgs){ .percent = ((int)(proportion * 100)) })
+#define MSG_PERCENT(percentage) ((MsgArgs){ .percent = ((int)(percentage)) })
+#define MSG_PROMPT(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
+#define MSG_NONE MSG_LOC(FIRST)
 
-#define PROGRESS_STEP_ICON "■"
-#define PROGRESS_EMPTY_ICON ICON_DOT //"·"
+typedef enum
+{
+    COLOR_RESET,
+    COLOR_RED,
+    COLOR_GREEN,
+    COLOR_YELLOW,
+    COLOR_BLUE,
+    COLOR_MAGENTA,
+    COLOR_CYAN,
+    COLOR_GRAY,
+    COLOR_BRIGHT_CYAN,
+} ColorType;
 
-#define OUTPUT_WIDTH 70
+typedef enum
+{
+    ICON_NONE,
+    ICON_INFO,
+    ICON_SUCCESS,
+    ICON_WARNING,
+    ICON_ERROR,
+    ICON_CLOCK,
+    ICON_DNA,
+    ICON_GEAR,
+    ICON_ARROW,
+    ICON_DOT,
+} IconType;
+
+typedef enum
+{
+    BOX_TOP_LEFT,
+    BOX_TOP_RIGHT,
+    BOX_BOTTOM_LEFT,
+    BOX_BOTTOM_RIGHT,
+    BOX_HORIZONTAL,
+    BOX_VERTICAL,
+    BOX_LEFT_TEE,
+    BOX_RIGHT_TEE,
+} BoxCharIndex;
+
+typedef enum
+{
+    BOX_NORMAL,
+    BOX_FANCY,
+} BoxType;
 
 typedef struct
 {
-    int verbose;
-    int quiet;
-    int section_open;
-    int content_printed;
-    const char* box_color;
-} MessageConfig;
+    struct
+    {
+        const char* codes[9];
+        const char* icons[10];
+        const char* boxes[2][8];
+        const char* progress_filled_char;
+        const char* progress_empty_char;
+        const char* ansi_escape_start;
+        const char* ansi_carriage_return;
+    } chars;
 
-static MessageConfig message_config = { 0, 0, 0, 0, ANSI_COLOR_BLUE };
+    struct
+    {
+        ColorType color;
+        IconType icon;
+        bool required;
+    } map[12];
+
+    size_t total_width;
+
+    struct
+    {
+        bool verbose;
+        bool quiet;
+        bool section_open;
+        bool content_printed;
+    } flags;
+} PrintStyle;
+
+static PrintStyle style = {
+    .chars = {
+        .codes = {
+            [COLOR_RESET]       = "\x1b[0m",
+            [COLOR_RED]         = "\x1b[31m",
+            [COLOR_GREEN]       = "\x1b[32m",
+            [COLOR_YELLOW]      = "\x1b[33m",
+            [COLOR_BLUE]        = "\x1b[34m",
+            [COLOR_MAGENTA]     = "\x1b[35m",
+            [COLOR_CYAN]        = "\x1b[36m",
+            [COLOR_GRAY]        = "\x1b[90m",
+            [COLOR_BRIGHT_CYAN] = "\x1b[96m",
+        },
+        .icons = {
+            [ICON_NONE]    = "",
+            [ICON_INFO]    = "•",
+            [ICON_SUCCESS] = "✓",
+            [ICON_WARNING] = "!",
+            [ICON_ERROR]   = "✗",
+            [ICON_CLOCK]   = "⧗",
+            [ICON_DNA]     = "◇",
+            [ICON_GEAR]    = "⚙",
+            [ICON_ARROW]   = "▶",
+            [ICON_DOT]     = "·",
+        },
+        .boxes = {
+            {
+                "┌", "┐", "└", "┘", "─", "│", "├", "┤"
+            },
+            {
+                "╔", "╗", "╚", "╝", "═", "║", "╠", "╣"
+            },
+        },
+        .progress_filled_char = "■",
+        .progress_empty_char = "·",
+        .ansi_escape_start = "\x1b",
+        .ansi_carriage_return = "\r",
+    },
+    
+    .map = {
+        [HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    0 },
+        [SECTION]  = { COLOR_BLUE,        ICON_NONE,    0 },
+        [SUCCESS]  = { COLOR_GREEN,       ICON_SUCCESS, 0 },
+        [INFO]     = { COLOR_BLUE,        ICON_INFO,    0 },
+        [VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     0 },
+        [CONFIG]   = { COLOR_YELLOW,      ICON_GEAR,    0 },
+        [TIMING]   = { COLOR_CYAN,        ICON_CLOCK,   0 },
+        [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
+        [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
+        [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    1 },
+        [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, 1 },
+        [ERROR]    = { COLOR_RED,         ICON_ERROR,   1 },
+    },
+    
+    .total_width = 80,
+    
+    .flags = {0},
+};
 
 INLINE void
-init_colors(void)
+print_set_verbose()
+{
+    style.flags.verbose = !style.flags.verbose;
+}
+
+INLINE void
+print_set_quiet()
+{
+    style.flags.quiet = !style.flags.quiet;
+}
+
+INLINE void
+init_print_context()
 {
     init_terminal();
-    message_config.box_color = ANSI_COLOR_BLUE;
-}
-
-INLINE void
-init_print_messages(int verbose, int quiet)
-{
-    message_config.verbose = verbose;
-    message_config.quiet = quiet;
-    message_config.section_open = 0;
-    message_config.content_printed = 0;
-}
-
-INLINE void
-print_progress_bar_end(void)
-{
-    if (!message_config.quiet && is_terminal())
-    {
-        printf("\n");
-    }
-}
-
-INLINE void
-apply_box_color(void)
-{
-    printf("%s%s", ANSI_COLOR_BOLD, message_config.box_color);
-}
-
-INLINE void
-reset_color(void)
-{
-    printf("%s", ANSI_COLOR_RESET);
-}
-
-INLINE int
-calculate_padding(int content_len)
-{
-    if (content_len < 0)
-    {
-        content_len = 0;
-    }
-
-    int used_width = 1 + 1 + content_len + 1;
-    int padding = OUTPUT_WIDTH - used_width;
-    return padding > 0 ? padding : 0;
-}
-
-INLINE void
-print_box_line(const char* left, const char* mid, const char* right, int width, const char* title)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    apply_box_color();
-    printf("%s", left);
-
-    if (title && strlen(title) > 0)
-    {
-        int title_len = strlen(title);
-        int remaining_width = width - 2;
-        int padding_left = (remaining_width - title_len - 2) / 2;
-        int padding_right = remaining_width - title_len - 2 - padding_left;
-        for (int i = 0; i < padding_left; i++)
-        {
-            printf("%s", mid);
-        }
-
-        printf(" %s ", title);
-        for (int i = 0; i < padding_right; i++)
-        {
-            printf("%s", mid);
-        }
-    }
-    else
-    {
-        for (int i = 0; i < width - 2; i++)
-        {
-            printf("%s", mid);
-        }
-    }
-
-    printf("%s", right);
-
-    reset_color();
-    printf("\n");
-}
-
-INLINE void
-print_step_header_start(const char* title)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    if (message_config.section_open)
-    {
-        if (message_config.content_printed)
-        {
-            print_box_line(BOX_BOTTOM_LEFT, BOX_HORIZONTAL, BOX_BOTTOM_RIGHT, OUTPUT_WIDTH, NULL);
-        }
-
-        else
-        {
-            // If no content was printed, just overwrite the header
-            printf("\r");
-        }
-    }
-
-    print_box_line(BOX_TOP_LEFT, BOX_HORIZONTAL, BOX_TOP_RIGHT, OUTPUT_WIDTH, title);
-    message_config.section_open = 1;
-    message_config.content_printed = 0;
-}
-
-INLINE void
-print_step_header_end(bool is_error)
-{
-    if (!is_error && (message_config.quiet || !message_config.section_open))
-    {
-        return;
-    }
-
-    print_box_line(BOX_BOTTOM_LEFT, BOX_HORIZONTAL, BOX_BOTTOM_RIGHT, OUTPUT_WIDTH, NULL);
-    message_config.section_open = 0;
-    message_config.content_printed = 0;
-}
-
-INLINE void
-sanitize_message(char* buffer, size_t buffer_size, const char* format, va_list args)
-{
-    vsnprintf(buffer, buffer_size, format, args);
-
-    for (size_t i = 0; i < strlen(buffer); i++)
-    {
-        if (buffer[i] < 32 || buffer[i] > 126)
-        {
-            buffer[i] = ' ';
-        }
-    }
-
-    size_t len = strlen(buffer);
-    while (len > 0 && isspace(buffer[len - 1]))
-    {
-        buffer[--len] = '\0';
-    }
-}
-
-INLINE void
-print_formatted_line(const char* content, int content_len)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    int padding = calculate_padding(content_len);
-
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-
-    printf(" %s", content);
-
-    for (int i = 0; i < padding; i++)
-    {
-        printf(" ");
-    }
-
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-
-    printf("\n");
-    message_config.content_printed = 1;
-}
-
-INLINE void
-print_formatted_message(const char* icon, const char* color, const char* format, va_list args)
-{
-    if (message_config.quiet)
-    {
-        if (icon[0] == ICON_ERROR[0])
-        {
-            printf("%s%s ", color, icon);
-            vprintf(format, args);
-            printf("%s\n", ANSI_COLOR_RESET);
-        }
-
-        return;
-    }
-
-    if (!message_config.section_open)
-    {
-        if (icon[0] == ICON_ERROR[0])
-        {
-            print_step_header_start("Error");
-        }
-
-        else
-        {
-            print_step_header_start("Information");
-        }
-    }
-
-    char buffer[OUTPUT_WIDTH * 2];
-    sanitize_message(buffer, sizeof(buffer), format, args);
-
-    char formatted[OUTPUT_WIDTH * 3];
-    int content_len;
-
-    content_len = snprintf(formatted,
-                           sizeof(formatted),
-                           "%s%s %s%s",
-                           color,
-                           icon,
-                           buffer,
-                           ANSI_COLOR_RESET);
-
-    content_len = strlen(buffer) + 2;
-
-    print_formatted_line(formatted, content_len);
-}
-
-INLINE void
-print_info(const char* format, ...)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_INFO, ANSI_COLOR_BLUE, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_success(const char* format, ...)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_SUCCESS, ANSI_COLOR_GREEN, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_warning(const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_WARNING, ANSI_COLOR_YELLOW, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_error(const char* format, ...)
-{
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_ERROR, ANSI_COLOR_RED ANSI_COLOR_BOLD, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_timing(const char* format, ...)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_CLOCK, ANSI_COLOR_CYAN, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_dna(const char* format, ...)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_DNA, ANSI_COLOR_MAGENTA, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_config(const char* format, ...)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_GEAR, ANSI_COLOR_YELLOW, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_verbose(const char* format, ...)
-{
-    if (message_config.quiet || !message_config.verbose)
-    {
-        return;
-    }
-
-    va_list args;
-    va_start(args, format);
-    print_formatted_message(ICON_DOT, ANSI_COLOR_GRAY, format, args);
-    va_end(args);
-}
-
-INLINE void
-print_progress_bar(double percentage, size_t width, const char* prefix)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    if (!message_config.section_open)
-    {
-        print_step_header_start("Progress");
-    }
-
-    size_t prefix_len = strlen(prefix);
-    size_t reserved_space = 1 + 1 + 1 + 2 + 6;
-    int max_bar_width = (int)(OUTPUT_WIDTH - prefix_len - reserved_space - 3);
-    if ((int)width > max_bar_width)
-    {
-        width = max_bar_width;
-    }
-
-    size_t filled_width = (size_t)(percentage * width);
-    if (filled_width > width)
-    {
-        filled_width = width;
-    }
-
-    apply_box_color();
-
-    if (is_terminal())
-    {
-        printf("\r%s", BOX_VERTICAL);
-    }
-
-    else
-    {
-        printf("%s", BOX_VERTICAL);
-    }
-
-    reset_color();
-
-    printf(" %s%s %s [%s", ANSI_BRIGHT_CYAN, ICON_ARROW, prefix, ANSI_COLOR_RESET);
-
-    printf("%s", ANSI_COLOR_GREEN);
-    for (size_t i = 0; i < filled_width; ++i)
-    {
-        printf(PROGRESS_STEP_ICON);
-    }
-
-    printf("%s", ANSI_COLOR_RESET);
-
-    for (size_t i = filled_width; i < width; ++i)
-    {
-        printf(PROGRESS_EMPTY_ICON);
-    }
-
-    printf("%s] %3d%%", ANSI_BRIGHT_CYAN, (int)(percentage * 100));
-
-    int content_len = 1 + 1 + prefix_len + 1 + 2 + width + 2 + 4;
-    int padding = OUTPUT_WIDTH - 2 - content_len;
-
-    for (int i = 0; i < padding; i++)
-    {
-        printf(" ");
-    }
-
-    apply_box_color();
-    printf("%s", BOX_VERTICAL);
-    reset_color();
-
     if (!is_terminal())
     {
-        printf("\n");
+        style.chars.ansi_carriage_return = "";
     }
-
-    fflush(stdout);
-    message_config.content_printed = 1;
 }
 
-INLINE void
-print_header(const char* title)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
+/*
+BASIC USAGE:
 
-    printf("%s%s", ANSI_COLOR_BOLD, ANSI_COLOR_BLUE);
+print(HEADER, MSG_NONE, "Header text");
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                               Header text                                    ║
+╚══════════════════════════════════════════════════════════════════════════════╝
 
-    printf("%s", FANCY_TOP_LEFT);
-    for (int i = 0; i < OUTPUT_WIDTH - 2; i++)
-    {
-        printf("%s", FANCY_HORIZONTAL);
-    }
+print(SECTION, MSG_NONE, "Setup");
+┌────────────────────────────────── Setup ───────────────────────────────────┐
 
-    printf("%s\n", FANCY_TOP_RIGHT);
-    printf("%s%s%s", ANSI_COLOR_RESET, ANSI_COLOR_BOLD, ANSI_COLOR_BLUE);
-    printf("%s", FANCY_VERTICAL);
+print(SUCCESS, MSG_NONE, "Success text");
+│ ✓ Success text                                                               │
 
-    size_t title_len = strlen(title);
-    size_t padding = (OUTPUT_WIDTH - 2 - title_len) / 2;
+const char* input_file = "input.csv";
+print(INFO, MSG_NONE, "Reading input file: %s", input_file);
+│ • Reading input file: input.csv                                              │
 
-    for (size_t i = 0; i < padding; i++)
-    {
-        printf(" ");
-    }
+print(VERBOSE, MSG_NONE, "Batch size: %zu tasks per batch", optimal_batch_size);
+│ · Batch size: 6163 tasks per batch                                           │
 
-    printf("%s", title);
+// Multiple related items with indentation hierarchy
+print(CONFIG, MSG_LOC(FIRST), "Input: %s", input_file);
+print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", output_file);
+print(CONFIG, MSG_LOC(LAST), "Compression: %d", compression_level);
+│ ⚙ Input: in.csv                                                              │
+│ ├ Output: out.h5                                                             │
+│ └ Compression: 0                                                             │
 
-    for (size_t i = 0; i < OUTPUT_WIDTH - 2 - title_len - padding; i++)
-    {
-        printf(" ");
-    }
+// Timing breakdown with hierarchy
+print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
+print(TIMING, MSG_LOC(MIDDLE), "Init: %.3f sec (%.1f%%)", init_time, init_percent);
+print(TIMING, MSG_LOC(MIDDLE), "Compute: %.3f sec (%.1f%%)", compute_time, compute_percent);
+print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", io_time, io_percent);
+print(TIMING, MSG_LOC(LAST), "Total: %.3f sec (%.1f%%)", total_time, total_percent);
+│ ⧗ Timing breakdown:                                                          │
+│ ├ Init: 0.005 sec (7.5%)                                                     │
+│ ├ Compute: 0.044 sec (73.0%)                                                 │
+│ ├ I/O: 0.012 sec (19.4%)                                                     │
+│ └ Total: 0.060 sec (100.0%)                                                  │
 
-    printf("%s\n", FANCY_VERTICAL);
-    printf("%s%s%s", ANSI_COLOR_RESET, ANSI_COLOR_BOLD, ANSI_COLOR_BLUE);
+print(DNA, MSG_NONE, "Found %d sequences", seq_number);
+│ ◇ Found 1042 sequences                                                       │
 
-    printf("%s", FANCY_BOTTOM_LEFT);
-    for (int i = 0; i < OUTPUT_WIDTH - 2; i++)
-    {
-        printf("%s", FANCY_HORIZONTAL);
-    }
-
-    printf("%s", FANCY_BOTTOM_RIGHT);
-
-    printf("%s\n", ANSI_COLOR_RESET);
+// Progress bar display
+for (int i = 0; i < seq_number; i++) {
+    int percentage = (i + 1) * 100 / seq_number;
+    print(PROGRESS, MSG_PERCENT(percentage), "Storing sequences");
 }
+│ ▶ Storing sequences [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■] 100% │
 
-INLINE void
-print_step_header(const char* title)
+// Interactive prompt with choices
+char* choices[] = {"hello", "second", NULL};
+int selected = print(PROMPT, MSG_PROMPT(choices), "Enter column number");
+// This will display:
+│ 1: hello                                                                     │
+│ 2: second                                                                    │
+│ • Enter column number (1-2): 4                                               │
+│ ! Invalid input! Please enter a number between 1 and 2.                      │
+// On valid input, returns the zero-based index of the selected choice
+
+print(WARNING, MSG_NONE, "Warning text");
+│ ! Warning text                                                               │
+
+print(ERROR, MSG_NONE, "Error: File not found");
+│ ✗ Error: File not found                                                      │
+
+// Close section (useful for program exit, otherwise it will be closed automatically)
+print(SECTION, MSG_NONE, NULL);
+└──────────────────────────────────────────────────────────────────────────────┘
+*/
+
+INLINE int
+print(MsgType type, MsgArgs margs, const char* format, ...)
 {
-    print_step_header_start(title);
-}
+    // TODO: ERROR, WARNING and PROMPT need special case in quiet mode:
+    // Remove vertical box lines, colors and icons
 
-INLINE void
-print_indented_item(const char* prefix, const char* item, const char* value)
-{
-    char buffer[OUTPUT_WIDTH * 2];
-    int content_len;
-
-    if (prefix)
+    if ((style.flags.quiet && !style.map[type].required) ||
+        (type == VERBOSE && !style.flags.verbose))
     {
-        content_len = snprintf(buffer,
-                               sizeof(buffer),
-                               "%s%s %s: %s",
-                               ANSI_COLOR_YELLOW,
-                               prefix,
-                               item,
-                               value);
-
-        content_len = strlen(prefix) + 1 + strlen(item) + strlen(value);
+        return 0;
     }
 
-    else
+    if (type == PROGRESS)
     {
-        content_len = snprintf(buffer, sizeof(buffer), "%s%s: %s", ANSI_COLOR_YELLOW, item, value);
-        content_len = strlen(item) + strlen(value);
-    }
-
-    print_formatted_line(buffer, content_len);
-}
-
-INLINE void
-print_config_item(const char* item, const char* value, const char* prefix)
-{
-    if (message_config.quiet)
-    {
-        return;
-    }
-
-    static int first_config_item = 1;
-
-    if (first_config_item)
-    {
-        char format[OUTPUT_WIDTH];
-        snprintf(format, sizeof(format), "%s:  %s", item, value);
-        print_config("%s", format);
-        first_config_item = 0;
-    }
-
-    else
-    {
-        if (!message_config.section_open)
+        static int last_percentage = -1;
+        if (margs.percent == last_percentage)
         {
-            print_step_header_start("Configuration");
+            return 0;
+        }
+        last_percentage = margs.percent;
+    }
+
+    const ColorType color = style.map[type].color;
+    const IconType icon_type = style.map[type].icon;
+    const char* icon_display = style.chars.icons[icon_type];
+    const char* color_code = style.flags.quiet ? "" : style.chars.codes[color];
+    const char* section_color = style.flags.quiet ? ""
+                                                  : style.chars.codes[style.map[SECTION].color];
+    const char* reset_code = style.flags.quiet ? "" : style.chars.codes[COLOR_RESET];
+
+    const size_t box_char_width = 1;
+    const size_t icon_width = icon_type == ICON_NONE ? 0 : 2;
+    const size_t available = style.total_width - 2 * box_char_width - icon_width - 1;
+
+    char buffer[BUFSIZ] = { 0 };
+    int buflen = 0;
+
+    va_list args;
+    va_start(args, format);
+
+    if (format != NULL)
+    {
+        buflen = vsnprintf(buffer, sizeof(buffer), format, args);
+        if (buflen < 0)
+        {
+            va_end(args);
+            return -1;
+        }
+    }
+
+    if (type == HEADER)
+    {
+        if (format == NULL)
+        {
+            goto cleanup;
         }
 
-        print_indented_item(prefix, item, value);
+        // Top border
+        printf("%s%s", color_code, style.chars.boxes[BOX_FANCY][BOX_TOP_LEFT]);
+        for (size_t i = 0; i < style.total_width - 2; i++)
+        {
+            printf("%s", style.chars.boxes[BOX_FANCY][BOX_HORIZONTAL]);
+        }
+        printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_TOP_RIGHT], reset_code);
+
+        // Content with centering
+        const size_t left_padding = (style.total_width - 2 - buflen) / 2;
+        const size_t right_padding = style.total_width - 2 - buflen - left_padding;
+
+        printf("%s%s", color_code, style.chars.boxes[BOX_FANCY][BOX_VERTICAL]);
+        printf("%*s%s%*s", (int)left_padding, "", buffer, (int)right_padding, "");
+        printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_VERTICAL], reset_code);
+
+        // Bottom border
+        printf("%s%s", color_code, style.chars.boxes[BOX_FANCY][BOX_BOTTOM_LEFT]);
+        for (size_t i = 0; i < style.total_width - 2; i++)
+        {
+            printf("%s", style.chars.boxes[BOX_FANCY][BOX_HORIZONTAL]);
+        }
+        printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_BOTTOM_RIGHT], reset_code);
+
+        goto cleanup;
     }
+
+    else if (type == SECTION)
+    {
+        // Close previous section if open
+        if (style.flags.section_open && (format == NULL || style.flags.content_printed))
+        {
+            printf("%s%s", section_color, style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_LEFT]);
+            for (size_t i = 0; i < style.total_width - 2; i++)
+            {
+                printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
+            }
+            printf("%s%s\n", style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_RIGHT], reset_code);
+
+            style.flags.section_open = false;
+            style.flags.content_printed = false;
+
+            if (format == NULL)
+            {
+                goto cleanup;
+            }
+        }
+
+        // Open new section
+        if (format)
+        {
+            const size_t dash_count = (style.total_width - 2 - buflen - 2) / 2;
+            const size_t remaining = style.total_width - 2 - dash_count - buflen - 2;
+
+            printf("%s%s", color_code, style.chars.boxes[BOX_NORMAL][BOX_TOP_LEFT]);
+
+            for (size_t i = 0; i < dash_count; i++)
+            {
+                printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
+            }
+
+            printf(" %s ", buffer);
+
+            for (size_t i = 0; i < remaining; i++)
+            {
+                printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
+            }
+
+            printf("%s%s\n", style.chars.boxes[BOX_NORMAL][BOX_TOP_RIGHT], reset_code);
+
+            style.flags.section_open = true;
+            style.flags.content_printed = false;
+        }
+
+        goto cleanup;
+    }
+
+    else if (type == PROGRESS)
+    {
+        const int percent = margs.percent < 0 ? 0 : (margs.percent > 100 ? 100 : margs.percent);
+        const int percentage_width = percent < 10 ? 1 : (percent < 100 ? 2 : 3);
+        const int metadata_width = 2 + 1 + percentage_width + 1 + 1;
+        const size_t bar_width = available - buflen - metadata_width - 1;
+        const size_t filled_width = bar_width * percent / 100;
+        const size_t empty_width = bar_width - filled_width;
+
+        if (style.flags.section_open)
+        {
+            printf("%s%s", style.chars.ansi_escape_start, style.chars.ansi_carriage_return);
+        }
+
+        printf("%s%s%s ", section_color, style.chars.boxes[BOX_NORMAL][BOX_VERTICAL], color_code);
+
+        printf("%s %s [", style.chars.icons[icon_type], buffer);
+
+        for (size_t i = 0; i < filled_width; i++)
+        {
+            printf("%s", style.chars.progress_filled_char);
+        }
+
+        for (size_t i = 0; i < empty_width; i++)
+        {
+            printf("%s", style.chars.progress_empty_char);
+        }
+
+        printf("] %*d%%%s %s%s",
+               percentage_width,
+               percent,
+               section_color,
+               style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+               reset_code);
+
+        if (percent == 100)
+        {
+            printf("\n");
+        }
+
+        fflush(stdout);
+        style.flags.content_printed = true;
+
+        goto cleanup;
+    }
+
+    else if (type == PROMPT)
+    {
+        char** choices = margs.choices;
+        int choice_count = 0;
+        int selected = 0;
+
+        while (choices[++choice_count])
+            ;
+
+        for (int i = 0; i < choice_count; i++)
+        {
+            const size_t label_len = snprintf(NULL, 0, "%d: %s", i + 1, choices[i]);
+            const size_t padding = label_len < available ? available - label_len + 2 : 0;
+
+            printf("%s%s%s %d: %s%*s%s%s%s\n",
+                   section_color,
+                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                   color_code,
+                   i + 1,
+                   choices[i],
+                   (int)padding,
+                   "",
+                   section_color,
+                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                   reset_code);
+        }
+
+        char input_buffer[16] = { 0 };
+        const char* error_msg = "Invalid input! Please enter a number between";
+
+        do
+        {
+            const size_t prompt_len = snprintf(NULL, 0, "%s (%d-%d): ", buffer, 1, choice_count);
+            const size_t prompt_padding = prompt_len < available ? available - prompt_len - 1 : 0;
+
+            printf("%s%s%s %s %s (%d-%d): ",
+                   section_color,
+                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                   color_code,
+                   style.chars.icons[icon_type],
+                   buffer,
+                   1,
+                   choice_count);
+
+            fflush(stdout);
+            read_line_input(input_buffer, sizeof(input_buffer), &selected);
+
+            printf("%*s%s%s%s\n",
+                   (int)prompt_padding,
+                   "",
+                   section_color,
+                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                   reset_code);
+
+            if (selected >= 1 && selected <= choice_count)
+            {
+                style.flags.content_printed = true;
+                va_end(args);
+                return selected - 1;
+            }
+
+            const int re_len = snprintf(NULL,
+                                        0,
+                                        "%s %s %d and %d.",
+                                        style.chars.icons[ICON_WARNING],
+                                        error_msg,
+                                        1,
+                                        choice_count);
+
+            const size_t error_padding = available > (size_t)re_len ? available - re_len + 2 : 0;
+
+            printf("%s%s%s %s %s %d and %d.%*s%s%s%s\n",
+                   section_color,
+                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                   style.chars.codes[style.map[WARNING].color],
+                   style.chars.icons[ICON_WARNING],
+                   error_msg,
+                   1,
+                   choice_count,
+                   (int)error_padding,
+                   "",
+                   section_color,
+                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                   reset_code);
+
+        } while (1);
+    }
+
+    else
+    {
+        const size_t padding = available > (size_t)buflen ? available - buflen : 0;
+
+        if (margs.location == MIDDLE)
+        {
+            icon_display = style.chars.boxes[BOX_NORMAL][BOX_LEFT_TEE];
+        }
+
+        else if (margs.location == LAST)
+        {
+            icon_display = style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_LEFT];
+        }
+
+        printf("%s%s%s ", section_color, style.chars.boxes[BOX_NORMAL][BOX_VERTICAL], color_code);
+
+        if (icon_type != ICON_NONE)
+        {
+            printf("%s ", icon_display);
+        }
+
+        printf("%s", buffer);
+
+        for (size_t i = 0; i < padding; i++)
+        {
+            printf(" ");
+        }
+
+        printf("%s%s%s\n", section_color, style.chars.boxes[BOX_NORMAL][BOX_VERTICAL], reset_code);
+
+        style.flags.content_printed = true;
+    }
+
+cleanup:
+    va_end(args);
+    return 0;
 }
 
 #endif // PRINT_H

@@ -213,12 +213,11 @@ perform_alignments_multithreaded(H5Handler* h5_handler,
     init_thread_pool(h5_handler);
 
     size_t optimal_batch_size = calculate_optimal_batch_size(seq_count, total_alignments);
-    print_verbose("Batch size: %zu tasks per batch", optimal_batch_size);
+    print(VERBOSE, MSG_LOC(FIRST), "Batch size: %zu tasks per batch", optimal_batch_size);
 
     size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
-    print_verbose("Allocating %zu bytes for task memory", tasks_memory_size);
+    print(VERBOSE, MSG_LOC(LAST), "Allocating %zu bytes for task memory", tasks_memory_size);
     AlignTask* tasks = huge_page_alloc(tasks_memory_size);
-
     size_t processed = 0;
     size_t i = 0, j = 1;
 
@@ -263,10 +262,9 @@ perform_alignments_multithreaded(H5Handler* h5_handler,
 
         submit_tasks(tasks, batch_size);
         processed += batch_size;
-        print_progress_bar((double)processed / total_alignments, 40, "Aligning sequences");
+        print(PROGRESS, MSG_PROPORTION((float)processed / total_alignments), "Aligning sequences");
     }
 
-    print_progress_bar_end();
     destroy_thread_pool();
     aligned_free(tasks);
 }
@@ -278,7 +276,6 @@ perform_alignments_singlethreaded(H5Handler* h5_handler,
                                   const ScoringMatrix* scoring)
 {
     size_t total_alignments = seq_count * (seq_count - 1) / 2;
-    size_t progress_step = total_alignments / 100 + 1;
     size_t progress_counter = 0;
     int64_t local_checksum = 0;
 
@@ -311,17 +308,13 @@ perform_alignments_singlethreaded(H5Handler* h5_handler,
             h5_set_matrix_value(h5_handler, j, i, score);
 
             progress_counter++;
-            if (progress_counter % progress_step == 0)
-            {
-                print_progress_bar((double)progress_counter / total_alignments,
-                                   40,
-                                   "Aligning sequences");
-            }
+            print(PROGRESS,
+                  MSG_PROPORTION((float)progress_counter / total_alignments),
+                  "Aligning sequences");
         }
     }
 
     h5_handler->checksum = local_checksum * 2;
-    print_progress_bar_end();
 }
 
 INLINE void
@@ -333,13 +326,13 @@ perform_alignments(H5Handler* h5_handler,
 {
     if (get_mode_multithread())
     {
-        print_config("Using multithreaded mode with %d threads", get_num_threads());
+        print(CONFIG, MSG_LOC(LAST), "Using multithreaded mode with %d threads", get_num_threads());
         perform_alignments_multithreaded(h5_handler, seqs, seq_count, total_alignments, scoring);
     }
 
     else
     {
-        print_config("Using single-threaded mode");
+        print(CONFIG, MSG_LOC(LAST), "Using single-threaded mode");
         perform_alignments_singlethreaded(h5_handler, seqs, seq_count, scoring);
     }
 }

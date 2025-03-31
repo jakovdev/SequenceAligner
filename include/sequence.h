@@ -289,22 +289,18 @@ load_sequences_from_file(char* current, char* end, size_t total_seqs_in_file)
             idx++;
         }
 
-        if ((idx + filtered_count) % 1000 == 0 || current >= end)
-        {
-            print_progress_bar((double)(idx + filtered_count) / total_seqs_in_file,
-                               40,
-                               apply_filtering ? "Filtering sequences" : "Loading sequences");
-        }
+        print(PROGRESS,
+              MSG_PROPORTION((float)(idx + filtered_count) / total_seqs_in_file),
+              apply_filtering ? "Filtering sequences" : "Loading sequences");
     }
 
     free(temp_seq);
 
     size_t seq_count = idx;
-    print_progress_bar_end();
 
     if (apply_filtering && filtered_count > 0 && filtered_count >= total_seqs_in_file / 4)
     {
-        print_verbose("Reallocating memory to save %zu sequence slots", filtered_count);
+        print(VERBOSE, MSG_NONE, "Reallocating memory to save %zu sequence slots", filtered_count);
         Sequence* new_seqs = realloc(seqs, seq_count * sizeof(*seqs));
         if (new_seqs)
         {
@@ -312,12 +308,16 @@ load_sequences_from_file(char* current, char* end, size_t total_seqs_in_file)
         }
     }
 
-    print_success(apply_filtering ? "Loaded %zu sequences (filtered out %zu)"
-                                  : "Loaded %zu sequences",
-                  seq_count,
-                  apply_filtering ? filtered_count : 0);
+    print(SUCCESS,
+          MSG_NONE,
+          apply_filtering ? "Loaded %zu sequences (filtered out %zu)" : "Loaded %zu sequences",
+          seq_count,
+          apply_filtering ? filtered_count : 0);
 
-    print_info("Average sequence length: %.2f", (float)total_sequence_length / seq_count);
+    print(INFO,
+          MSG_NONE,
+          "Average sequence length: %.2f",
+          (float)total_sequence_length / seq_count);
 
     size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
 

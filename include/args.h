@@ -39,7 +39,6 @@ typedef struct
     unsigned no_write_flag_set : 1;
 } Args;
 
-// Long options for getopt
 static struct option long_options[] = {
     { "input", required_argument, 0, 'i' },     { "output", required_argument, 0, 'o' },
     { "align", required_argument, 0, 'a' },     { "type", required_argument, 0, 't' },
@@ -54,7 +53,6 @@ static struct option long_options[] = {
 
 static Args g_args = { 0 };
 
-// Accessor functions for configuration values
 INLINE const char*
 get_input_file_path(void)
 {
@@ -250,29 +248,28 @@ print_config_section(void)
         return;
     }
 
-    print_step_header_start("Configuration");
-    char buffer[256];
+    print(SECTION, MSG_NONE, "Configuration");
 
-    print_config_item("Input", get_file_name(g_args.input_file_path), NULL);
+    print(CONFIG, MSG_LOC(FIRST), "Input: %s", get_file_name(g_args.input_file_path));
 
     if (g_args.output_file_set)
     {
-        print_config_item("Output", get_file_name(g_args.output_file_path), BOX_TEE_RIGHT);
+        print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", get_file_name(g_args.output_file_path));
     }
 
     else if (g_args.no_write_flag_set)
     {
-        print_config_item("Output", "Disabled (--no-write)", BOX_TEE_RIGHT);
+        print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (--no-write)");
     }
 
     else
     {
-        print_config_item("Output", "Disabled (no output file specified)", BOX_TEE_RIGHT);
+        print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (no output file specified)");
     }
 
-    print_config_item("Method", get_current_alignment_method_name(), BOX_TEE_RIGHT);
-    print_config_item("Sequence type", get_sequence_type_name(), BOX_TEE_RIGHT);
-    print_config_item("Matrix", get_scoring_matrix_name(), BOX_TEE_RIGHT);
+    print(CONFIG, MSG_LOC(MIDDLE), "Method: %s", get_current_alignment_method_name());
+    print(CONFIG, MSG_LOC(MIDDLE), "Sequence type: %s", get_sequence_type_name());
+    print(CONFIG, MSG_LOC(MIDDLE), "Matrix: %s", get_scoring_matrix_name());
 
     if (g_args.align_method_set && g_args.align_method >= 0 && g_args.align_method < ALIGN_COUNT)
     {
@@ -280,54 +277,53 @@ print_config_section(void)
 
         if (gap_type == GAP_TYPE_LINEAR && g_args.gap_penalty_set)
         {
-            snprintf(buffer, sizeof(buffer), "%d", g_args.gap_penalty);
-            print_config_item("Gap", buffer, BOX_TEE_RIGHT);
+            print(CONFIG, MSG_LOC(MIDDLE), "Gap: %d", g_args.gap_penalty);
         }
 
         else if (gap_type == GAP_TYPE_AFFINE && (g_args.gap_start_set && g_args.gap_extend_set))
         {
-            snprintf(buffer, sizeof(buffer), "%d, extend: %d", g_args.gap_start, g_args.gap_extend);
-            print_config_item("Gap open", buffer, BOX_TEE_RIGHT);
+            print(CONFIG,
+                  MSG_LOC(MIDDLE),
+                  "Gap open: %d, extend: %d",
+                  g_args.gap_start,
+                  g_args.gap_extend);
         }
     }
 
-    snprintf(buffer, sizeof(buffer), "%d", g_args.num_threads);
-    print_config_item("Threads", buffer, BOX_TEE_RIGHT);
-
     if (g_args.mode_filter)
     {
-        snprintf(buffer, sizeof(buffer), "%.1f%%", g_args.filter_threshold * 100.0f);
-        print_config_item("Filter threshold", buffer, BOX_TEE_RIGHT);
+        print(CONFIG,
+              MSG_LOC(MIDDLE),
+              "Filter threshold: %.1f%%",
+              g_args.filter_threshold * 100.0f);
     }
 
     if (g_args.mode_write)
     {
-        snprintf(buffer, sizeof(buffer), "%d", g_args.compression_level);
-        print_config_item("Compression", buffer, BOX_BOTTOM_LEFT);
+        print(CONFIG, MSG_LOC(MIDDLE), "Compression: %d", g_args.compression_level);
     }
+
+    print(CONFIG, MSG_LOC(LAST), "Threads: %d", g_args.num_threads);
 
     if (g_args.mode_benchmark)
     {
-        print_timing("Benchmarking mode enabled");
+        print(TIMING, MSG_NONE, "Benchmarking mode enabled");
     }
-
-    print_step_header_end(0);
 }
 
-// Validation functions
 INLINE bool
 validate_input_file(void)
 {
     if (!g_args.input_file_set)
     {
-        print_error("Missing required parameter: input file (-i, --input)\n");
+        print(ERROR, MSG_NONE, "Missing required parameter: input file (-i, --input)\n");
         return false;
     }
 
     FILE* test = fopen(g_args.input_file_path, "r");
     if (!test)
     {
-        print_error("Cannot open input file: %s\n", g_args.input_file_path);
+        print(ERROR, MSG_NONE, "Cannot open input file: %s\n", g_args.input_file_path);
         return false;
     }
 
@@ -340,7 +336,7 @@ validate_sequence_type(void)
 {
     if (!g_args.seq_type_set)
     {
-        print_error("Missing required parameter: sequence type (-t, --type)\n");
+        print(ERROR, MSG_NONE, "Missing required parameter: sequence type (-t, --type)\n");
         return false;
     }
 
@@ -352,7 +348,7 @@ validate_alignment_method(void)
 {
     if (!g_args.align_method_set)
     {
-        print_error("Missing required parameter: alignment method (-a, --align)\n");
+        print(ERROR, MSG_NONE, "Missing required parameter: alignment method (-a, --align)\n");
         return false;
     }
 
@@ -364,7 +360,7 @@ validate_scoring_matrix(void)
 {
     if (!g_args.matrix_set)
     {
-        print_error("Missing required parameter: scoring matrix (-m, --matrix)\n");
+        print(ERROR, MSG_NONE, "Missing required parameter: scoring matrix (-m, --matrix)\n");
         return false;
     }
 
@@ -383,8 +379,10 @@ validate_gap_penalties(void)
 
     if (gap_type == GAP_TYPE_LINEAR && !g_args.gap_penalty_set)
     {
-        print_error("Missing required parameter: gap penalty (-p, --gap-penalty) for %s\n",
-                    get_alignment_method_name(g_args.align_method));
+        print(ERROR,
+              MSG_NONE,
+              "Missing required parameter: gap penalty (-p, --gap-penalty) for %s\n",
+              get_alignment_method_name(g_args.align_method));
 
         return false;
     }
@@ -393,16 +391,20 @@ validate_gap_penalties(void)
     {
         if (!g_args.gap_start_set)
         {
-            print_error("Missing required parameter: gap start (-s, --gap-start) for %s\n",
-                        get_alignment_method_name(g_args.align_method));
+            print(ERROR,
+                  MSG_NONE,
+                  "Missing required parameter: gap start (-s, --gap-start) for %s\n",
+                  get_alignment_method_name(g_args.align_method));
 
             return false;
         }
 
         if (!g_args.gap_extend_set)
         {
-            print_error("Missing required parameter: gap extend (-e, --gap-extend) for %s\n",
-                        get_alignment_method_name(g_args.align_method));
+            print(ERROR,
+                  MSG_NONE,
+                  "Missing required parameter: gap extend (-e, --gap-extend) for %s\n",
+                  get_alignment_method_name(g_args.align_method));
 
             return false;
         }
@@ -425,7 +427,6 @@ validate_required_arguments(void)
     return valid;
 }
 
-// Parsing functions
 INLINE int
 parse_sequence_type(const char* arg)
 {
@@ -442,9 +443,11 @@ parse_sequence_type(const char* arg)
             return type;
         }
 
-        print_error("Invalid sequence type index %d, valid range is 0-%d",
-                    type,
-                    SEQ_TYPE_COUNT - 1);
+        print(ERROR,
+              MSG_NONE,
+              "Invalid sequence type index %d, valid range is 0-%d",
+              type,
+              SEQ_TYPE_COUNT - 1);
 
         return PARAM_UNSET;
     }
@@ -460,7 +463,7 @@ parse_sequence_type(const char* arg)
         }
     }
 
-    print_error("Unknown sequence type '%s'", arg);
+    print(ERROR, MSG_NONE, "Unknown sequence type '%s'", arg);
     return PARAM_UNSET;
 }
 
@@ -474,7 +477,10 @@ parse_scoring_matrix(const char* arg, int seq_type)
 
     if (seq_type < 0 || seq_type >= SEQ_TYPE_COUNT)
     {
-        print_error("Cannot select scoring matrix without specifying sequence type first");
+        print(ERROR,
+              MSG_NONE,
+              "Cannot select scoring matrix without specifying sequence type first");
+
         return PARAM_UNSET;
     }
 
@@ -491,7 +497,12 @@ parse_scoring_matrix(const char* arg, int seq_type)
 
         else
         {
-            print_error("Invalid matrix index %d, valid range is 0-%d", matrix_id, max_matrix);
+            print(ERROR,
+                  MSG_NONE,
+                  "Invalid matrix index %d, valid range is 0-%d",
+                  matrix_id,
+                  max_matrix);
+
             return PARAM_UNSET;
         }
     }
@@ -499,9 +510,11 @@ parse_scoring_matrix(const char* arg, int seq_type)
     int matrix_id = find_matrix_by_name(seq_type, arg);
     if (matrix_id < 0)
     {
-        print_error("Unknown scoring matrix '%s' for %s sequences",
-                    arg,
-                    seq_type == SEQ_TYPE_AMINO ? "amino acid" : "nucleotide");
+        print(ERROR,
+              MSG_NONE,
+              "Unknown scoring matrix '%s' for %s sequences",
+              arg,
+              seq_type == SEQ_TYPE_AMINO ? "amino acid" : "nucleotide");
 
         return PARAM_UNSET;
     }
@@ -516,11 +529,13 @@ parse_filter_threshold(const char* arg)
 
     if (value < 0.0f || value > 100.0f)
     {
-        print_error("Invalid filter threshold %.2f, it must be a percentage between 0 and 100 or a "
-                    "decimal between 0 and 1\n",
-                    value);
+        print(ERROR,
+              MSG_NONE,
+              "Invalid filter threshold %.2f, it must be a percentage between 0 and 100 or a "
+              "decimal between 0 and 1\n",
+              value);
 
-        print_step_header_end(1);
+        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -544,13 +559,13 @@ parse_thread_count(const char* arg)
 
     else if (num_threads > MAX_THREADS)
     {
-        print_warning("Exceeded maximum thread count, using %d", MAX_THREADS);
+        print(WARNING, MSG_NONE, "Exceeded maximum thread count, using %d", MAX_THREADS);
         num_threads = MAX_THREADS;
     }
 
     else if (num_threads == get_thread_count())
     {
-        print_warning("Invalid thread count, using auto-detected value");
+        print(WARNING, MSG_NONE, "Invalid thread count, using auto-detected value");
         num_threads = 0;
     }
 
@@ -564,8 +579,8 @@ parse_compression_level(const char* arg)
 
     if (level < 0 || level > 9)
     {
-        print_error("Invalid compression level %d, valid range is 0-9\n", level);
-        print_step_header_end(1);
+        print(ERROR, MSG_NONE, "Invalid compression level %d, valid range is 0-9\n", level);
+        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -583,7 +598,7 @@ handle_alignment_method_arg(const char* arg)
     }
     else
     {
-        print_error("Unknown alignment method '%s'", arg);
+        print(ERROR, MSG_NONE, "Unknown alignment method '%s'", arg);
     }
 }
 
@@ -603,7 +618,7 @@ handle_matrix_arg(const char* arg)
 {
     if (!g_args.seq_type_set)
     {
-        print_error("Must specify sequence type (-t) before specifying matrix\n");
+        print(ERROR, MSG_NONE, "Must specify sequence type (-t) before specifying matrix\n");
     }
 
     else
@@ -692,10 +707,12 @@ parse_args(int argc, char* argv[])
 
             case 'v':
                 g_args.verbose = 1;
+                print_set_verbose();
                 break;
 
             case 'q':
                 g_args.quiet = 1;
+                print_set_quiet();
                 break;
 
             case 'l':
@@ -707,8 +724,8 @@ parse_args(int argc, char* argv[])
                 exit(0);
 
             default:
-                print_error("Unknown option: %c\n", opt);
-                print_step_header_end(1);
+                print(ERROR, MSG_NONE, "Unknown option: %c\n", opt);
+                print(SECTION, MSG_NONE, NULL);
                 print_usage(argv[0]);
                 exit(1);
         }
@@ -721,25 +738,23 @@ parse_args(int argc, char* argv[])
 }
 
 INLINE void
-finalize_args_initialization(int argc, char* argv[])
+finalize_args_initialization(char* argv[])
 {
     if (!validate_required_arguments())
     {
-        print_step_header_end(1);
+        print(SECTION, MSG_NONE, NULL);
         printf("\nPlease check the usage below to properly start the program\n\n");
         print_usage(argv[0]);
         exit(1);
     }
-
-    print_config_section();
 }
 
 INLINE void
 init_args(int argc, char* argv[])
 {
     parse_args(argc, argv);
-    init_print_messages(g_args.verbose, g_args.quiet);
-    finalize_args_initialization(argc, argv);
+    init_print_context();
+    finalize_args_initialization(argv);
 }
 
 #endif // ARGS_H
