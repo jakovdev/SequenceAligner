@@ -84,7 +84,7 @@ h5_calculate_chunk_dimensions(H5Handler* handler)
 
     else
     {
-        double scale_factor = 1.0 - fmin(0.9, log10(matrix_size / 1000) * 0.3);
+        double scale_factor = 1.0 - fmin(0.9, log10((double)matrix_size / 1000) * 0.3);
         optimal_chunk = (size_t)(1000 * scale_factor);
     }
 

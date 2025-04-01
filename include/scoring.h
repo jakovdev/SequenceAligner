@@ -2,7 +2,6 @@
 #define SCORING_H
 
 #include "args.h"
-#include "fstring.h"
 #include "matrices.h"
 
 #ifdef USE_SIMD

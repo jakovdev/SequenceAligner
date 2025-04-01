@@ -1,7 +1,9 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+#include "h5_handler.h"
 #include "seqalign.h"
+
 
 typedef struct
 {

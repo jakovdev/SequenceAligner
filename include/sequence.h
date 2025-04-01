@@ -1,7 +1,10 @@
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
+#include "args.h"
 #include "common.h"
+#include "csv.h"
+#include "print.h"
 
 typedef struct
 {
