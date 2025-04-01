@@ -340,7 +340,7 @@ args_parse(int argc, char* argv[])
 
             case 'a':
                 g_args.method_id = methods_alignment_arg(optarg);
-                if (g_args.method_id != -1)
+                if (g_args.method_id != PARAM_UNSET)
                 {
                     g_args.method_id_set = 1;
                 }
@@ -352,7 +352,7 @@ args_parse(int argc, char* argv[])
 
             case 't':
                 g_args.seq_type = sequence_type_arg(optarg);
-                if (g_args.seq_type != -1)
+                if (g_args.seq_type != PARAM_UNSET)
                 {
                     g_args.seq_type_set = 1;
                 }
@@ -459,9 +459,6 @@ args_init(int argc, char* argv[])
     g_args.method_id = PARAM_UNSET;
     g_args.seq_type = PARAM_UNSET;
     g_args.matrix_id = PARAM_UNSET;
-    g_args.gap_penalty = PARAM_UNSET;
-    g_args.gap_start = PARAM_UNSET;
-    g_args.gap_extend = PARAM_UNSET;
 
     args_parse(argc, argv);
     print_context_init();

@@ -6,12 +6,6 @@
 
 typedef struct
 {
-    const char* seq;
-    size_t len;
-} Data;
-
-typedef struct
-{
     int seq_col_index;
     int num_columns;
     char** column_headers;
