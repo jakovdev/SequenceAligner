@@ -1,12 +1,12 @@
 #ifndef FSTRING_H
 #define FSTRING_H
 
-#include "macros.h"
+#include "arch.h"
 
 /*
 Potential usages that need exploring:
-sequence.h: init_sequence (memcpy)
-csv.h: parse_csv_line (string copying)
+sequence.h: sequence_init (memcpy)
+csv.h: csv_line_parse (string copying)
 */
 
 INLINE char*

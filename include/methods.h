@@ -1,7 +1,8 @@
 #ifndef METHODS_H
 #define METHODS_H
 
-#include "macros.h"
+#include "arch.h"
+#include <ctype.h>
 
 typedef enum
 {
@@ -48,25 +49,25 @@ static const AlignmentMethodInfo ALIGNMENT_METHODS[] = {
 };
 
 INLINE const char*
-get_alignment_method_name(int method)
+methods_alignment_name(int method)
 {
     return ALIGNMENT_METHODS[method].name;
 }
 
-INLINE int
-requires_linear_gap(int method)
+INLINE bool
+methods_alignment_linear(int method)
 {
     return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
 }
 
-INLINE int
-requires_affine_gap(int method)
+INLINE bool
+methods_alignment_affine(int method)
 {
     return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
 }
 
 INLINE const char*
-get_gap_type_name(int method)
+methods_gap_type_name(int method)
 {
     switch (ALIGNMENT_METHODS[method].gap_type)
     {
@@ -75,12 +76,12 @@ get_gap_type_name(int method)
         case GAP_TYPE_AFFINE:
             return "Affine";
         default:
-            unreachable();
+            UNREACHABLE();
     }
 }
 
 INLINE int
-find_alignment_method_by_name(const char* arg)
+methods_alignment_arg(const char* arg)
 {
     if (!arg)
     {
@@ -114,15 +115,15 @@ find_alignment_method_by_name(const char* arg)
 }
 
 INLINE void
-list_alignment_methods(void)
+methods_alignment_list(void)
 {
     for (int i = 0; i < ALIGN_COUNT; i++)
     {
-        printf("  %s: %s (%s, %s gap)\n",
+        printf("                           %s: %s (%s, %s gap)\n",
                ALIGNMENT_METHODS[i].aliases[0],
                ALIGNMENT_METHODS[i].name,
                ALIGNMENT_METHODS[i].description,
-               get_gap_type_name(i));
+               methods_gap_type_name(i));
     }
 }
 

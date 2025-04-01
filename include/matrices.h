@@ -1,7 +1,9 @@
 #ifndef MATRICES_H
 #define MATRICES_H
+// clang-format off
 
-#include "macros.h"
+#include "arch.h"
+#include "ctype.h"
 
 typedef enum {
     SEQ_TYPE_AMINO = 0,
@@ -1712,7 +1714,7 @@ static const NucleotideMatrix ALL_NUCLEOTIDE_MATRICES[NUM_NUCLEOTIDE_MATRICES] =
     {"NUC44", NUC44},
 };
 
-INLINE const char* get_matrix_name_by_id(int seq_type, int matrix_id) {
+INLINE const char* matrix_id_name(int seq_type, int matrix_id) {
     if (seq_type < 0 || matrix_id < 0) {
         return "Unknown";
     }
@@ -1725,7 +1727,7 @@ INLINE const char* get_matrix_name_by_id(int seq_type, int matrix_id) {
     return "Unknown";
 }
 
-INLINE int find_matrix_by_name(int seq_type, const char* name) {
+INLINE int matrix_name_id(int seq_type, const char* name) {
     if (!name) return -1;
 
     int num_matrices = 0;
@@ -1757,7 +1759,7 @@ INLINE int find_matrix_by_name(int seq_type, const char* name) {
     return -1;
 }
 
-INLINE void list_matrices_for_seq_type(int seq_type) {
+INLINE void matrix_seq_type_list(int seq_type) {
     if (seq_type == SEQ_TYPE_AMINO) {
         for (int i = 0; i < NUM_AMINO_MATRICES; i++) {
             printf("  %s%s", ALL_AMINO_MATRICES[i].name,
@@ -1771,4 +1773,42 @@ INLINE void list_matrices_for_seq_type(int seq_type) {
     }
 }
 
+INLINE const char* sequence_type_name(int type) {
+    return SEQUENCE_TYPES[type].name;
+}
+
+INLINE int sequence_type_arg(const char* arg) {
+    if (!arg) {
+        return -1;
+    }
+
+    if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1]))) {
+        int type = atoi(arg);
+        if (type >= 0 && type < SEQ_TYPE_COUNT) {
+            return type;
+        }
+        return -1;
+    }
+
+    for (int i = 0; i < SEQ_TYPE_COUNT; i++) {
+        for (const char** alias = SEQUENCE_TYPES[i].aliases; *alias != NULL; alias++) {
+            if (strcasecmp(arg, *alias) == 0) {
+                return SEQUENCE_TYPES[i].type;
+            }
+        }
+    }
+
+    return -1;
+}
+
+INLINE void sequence_types_list(void) {
+    for (int i = 0; i < SEQ_TYPE_COUNT; i++) {
+        printf("                           %s: %s (%s)\n",
+               SEQUENCE_TYPES[i].aliases[0],
+               SEQUENCE_TYPES[i].name,
+               SEQUENCE_TYPES[i].description);
+    }
+}
+
+// clang-format on
 #endif // MATRICES_H

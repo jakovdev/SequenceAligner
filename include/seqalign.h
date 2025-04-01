@@ -2,7 +2,6 @@
 #define SEQALIGN_H
 
 #include "args.h"
-#include "macros.h"
 #include "methods.h"
 #include "scoring.h"
 
@@ -20,7 +19,7 @@ typedef struct
 } SeqIndices;
 
 INLINE void
-precompute_seq_indices(SeqIndices* indices, const char* restrict seq, size_t len)
+seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len)
 {
     indices->size = len;
 
@@ -44,7 +43,7 @@ precompute_seq_indices(SeqIndices* indices, const char* restrict seq, size_t len
 }
 
 INLINE void
-free_seq_indices(SeqIndices* indices)
+seq_indices_free(SeqIndices* indices)
 {
     if (!indices->is_stack && indices->data)
     {
@@ -54,7 +53,7 @@ free_seq_indices(SeqIndices* indices)
 }
 
 INLINE int*
-allocate_matrix(int* stack_matrix, size_t bytes)
+matrix_alloc(int* stack_matrix, size_t bytes)
 {
     if (USE_STACK_MATRIX(bytes))
     {
@@ -62,12 +61,12 @@ allocate_matrix(int* stack_matrix, size_t bytes)
     }
     else
     {
-        return (int*)huge_page_alloc(bytes);
+        return (int*)alloc_huge_page(bytes);
     }
 }
 
 INLINE void
-free_matrix(int* matrix, int* stack_matrix)
+matrix_free(int* matrix, int* stack_matrix)
 {
     if (matrix != stack_matrix)
     {
@@ -254,7 +253,7 @@ free_matrix(int* matrix, int* stack_matrix)
     } while (0)
 
 INLINE int
-nw_align(const char* seq1,
+align_nw(const char* seq1,
          const size_t len1,
          const char* seq2,
          const size_t len2,
@@ -262,27 +261,27 @@ nw_align(const char* seq1,
 {
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
-    int* restrict matrix = allocate_matrix(stack_matrix, matrix_bytes);
+    int* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
     const int cols = len1 + 1;
-    const int gap_penalty = get_gap_penalty();
+    const int gap_penalty = args_gap_penalty();
 
     INIT_LINEAR_GLOBAL(matrix, cols, gap_penalty);
 
     SeqIndices seq1_indices = { 0 };
-    precompute_seq_indices(&seq1_indices, seq1, len1);
+    seq_indices_precompute(&seq1_indices, seq1, len1);
 
     FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty, similarity);
 
     int score = matrix[len2 * cols + len1];
 
-    free_seq_indices(&seq1_indices);
-    free_matrix(matrix, stack_matrix);
+    seq_indices_free(&seq1_indices);
+    matrix_free(matrix, stack_matrix);
 
     return score;
 }
 
 INLINE int
-ga_align(const char* seq1,
+align_ga(const char* seq1,
          const size_t len1,
          const char* seq2,
          const size_t len2,
@@ -290,32 +289,32 @@ ga_align(const char* seq1,
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
-    int* restrict matrix = allocate_matrix(stack_matrix, matrices_bytes);
+    int* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
 
     int* restrict match = matrix;
     int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
     int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
     const int cols = len1 + 1;
-    const int gap_start = get_gap_start();
-    const int gap_extend = get_gap_extend();
+    const int gap_start = args_gap_start();
+    const int gap_extend = args_gap_extend();
 
     INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
 
     SeqIndices seq1_indices = { 0 };
-    precompute_seq_indices(&seq1_indices, seq1, len1);
+    seq_indices_precompute(&seq1_indices, seq1, len1);
 
     FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
 
     int score = match[len2 * cols + len1];
 
-    free_seq_indices(&seq1_indices);
-    free_matrix(matrix, stack_matrix);
+    seq_indices_free(&seq1_indices);
+    matrix_free(matrix, stack_matrix);
 
     return score;
 }
 
 INLINE int
-sw_align(const char* seq1,
+align_sw(const char* seq1,
          const size_t len1,
          const char* seq2,
          const size_t len2,
@@ -323,33 +322,33 @@ sw_align(const char* seq1,
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
-    int* restrict matrix = allocate_matrix(stack_matrix, matrices_bytes);
+    int* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
 
     int* restrict match = matrix;
     int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
     int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
     const int cols = len1 + 1;
-    const int gap_start = get_gap_start();
-    const int gap_extend = get_gap_extend();
+    const int gap_start = args_gap_start();
+    const int gap_extend = args_gap_extend();
 
     INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols);
 
     SeqIndices seq1_indices = { 0 };
-    precompute_seq_indices(&seq1_indices, seq1, len1);
+    seq_indices_precompute(&seq1_indices, seq1, len1);
 
     int final_score = 0;
     int max_i = 0, max_j = 0;
     FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, final_score, max_i, max_j);
 
-    free_seq_indices(&seq1_indices);
-    free_matrix(matrix, stack_matrix);
+    seq_indices_free(&seq1_indices);
+    matrix_free(matrix, stack_matrix);
 
     return final_score;
 }
 
 #ifdef USE_SIMD
 INLINE void
-simd_init_linear_row(int* matrix, int len1, int gap_penalty)
+simd_linear_row_init(int* matrix, int len1, int gap_penalty)
 {
     veci_t indices = FIRST_ROW_INDICES;
     veci_t gap_penalty_vec = set1_epi32(gap_penalty);
@@ -374,7 +373,7 @@ simd_init_linear_row(int* matrix, int len1, int gap_penalty)
 }
 
 INLINE void
-simd_init_affine_global_row(int* match,
+simd_affine_global_row_init(int* match,
                             int* gap_x,
                             int* gap_y,
                             int len1,
@@ -413,7 +412,7 @@ simd_init_affine_global_row(int* match,
 }
 
 INLINE void
-simd_init_affine_local_row(int* match, int* gap_x, int* gap_y, int len1)
+simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1)
 {
     veci_t zero_vec = setzero_si();
     veci_t int_min_half = set1_epi32(INT_MIN / 2);
@@ -440,25 +439,25 @@ simd_init_affine_local_row(int* match, int* gap_x, int* gap_y, int len1)
 #endif
 
 INLINE int
-align_sequences(const char* seq1,
-                const size_t len1,
-                const char* seq2,
-                const size_t len2,
-                const ScoringMatrix* restrict scoring)
+align_pairwise(const char* seq1,
+               const size_t len1,
+               const char* seq2,
+               const size_t len2,
+               const ScoringMatrix* restrict scoring)
 {
-    switch (get_alignment_method())
+    switch (args_align_method())
     {
         case ALIGN_GOTOH_AFFINE:
-            return ga_align(seq1, len1, seq2, len2, scoring);
+            return align_ga(seq1, len1, seq2, len2, scoring);
 
         case ALIGN_SMITH_WATERMAN:
-            return sw_align(seq1, len1, seq2, len2, scoring);
+            return align_sw(seq1, len1, seq2, len2, scoring);
 
         case ALIGN_NEEDLEMAN_WUNSCH:
-            return nw_align(seq1, len1, seq2, len2, scoring);
+            return align_nw(seq1, len1, seq2, len2, scoring);
 
         default:
-            unreachable();
+            UNREACHABLE();
     }
 }
 

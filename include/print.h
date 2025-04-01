@@ -1,8 +1,9 @@
 #ifndef PRINT_H
 #define PRINT_H
 
-#include "macros.h"
+#include "arch.h"
 #include "terminal.h"
+#include <stdarg.h>
 
 typedef enum
 {
@@ -109,10 +110,10 @@ typedef struct
 
     struct
     {
-        bool verbose;
-        bool quiet;
-        bool section_open;
-        bool content_printed;
+        unsigned verbose : 1;
+        unsigned quiet : 1;
+        unsigned section_open : 1;
+        unsigned content_printed : 1;
     } flags;
 } PrintStyle;
 
@@ -176,22 +177,22 @@ static PrintStyle style = {
 };
 
 INLINE void
-print_set_verbose()
+print_verbose_flip()
 {
     style.flags.verbose = !style.flags.verbose;
 }
 
 INLINE void
-print_set_quiet()
+print_quiet_flip()
 {
     style.flags.quiet = !style.flags.quiet;
 }
 
 INLINE void
-init_print_context()
+print_context_init()
 {
-    init_terminal();
-    if (!is_terminal())
+    terminal_init();
+    if (!terminal_environment())
     {
         style.chars.ansi_carriage_return = "";
     }
@@ -508,7 +509,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             }
 
             fflush(stdout);
-            read_line_input(input_buffer, sizeof(input_buffer), &selected);
+            terminal_read_input(input_buffer, sizeof(input_buffer), &selected);
 
             if (!simple_format)
             {

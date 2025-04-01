@@ -1,8 +1,10 @@
 #ifndef THREAD_H
 #define THREAD_H
 
+#include "arch.h"
 #include "h5_handler.h"
 #include "seqalign.h"
+
 
 typedef struct
 {
@@ -70,11 +72,11 @@ thread_pool_worker(void* arg)
             {
                 AlignTask* task = &queue->tasks[task_idx];
 
-                int score = align_sequences(task->seq1,
-                                            task->len1,
-                                            task->seq2,
-                                            task->len2,
-                                            task->scoring);
+                int score = align_pairwise(task->seq1,
+                                           task->len1,
+                                           task->seq2,
+                                           task->len2,
+                                           task->scoring);
 
                 local_checksum += score;
 
@@ -96,9 +98,9 @@ thread_pool_worker(void* arg)
 }
 
 INLINE void
-init_thread_pool(H5Handler* h5_handler)
+thread_pool_init(H5Handler* h5_handler)
 {
-    g_thread_pool.num_threads = get_num_threads();
+    g_thread_pool.num_threads = args_thread_num();
     g_thread_pool.h5_handler = h5_handler;
 
     g_thread_pool.threads = aligned_alloc(CACHE_LINE,
@@ -138,7 +140,7 @@ init_thread_pool(H5Handler* h5_handler)
 }
 
 INLINE void
-submit_tasks(AlignTask* tasks, size_t task_count)
+tasks_submit(AlignTask* tasks, size_t task_count)
 {
     WorkQueue* queue = &g_thread_pool.queue;
     queue->tasks = tasks;
@@ -156,7 +158,7 @@ submit_tasks(AlignTask* tasks, size_t task_count)
 }
 
 INLINE void
-destroy_thread_pool(void)
+thread_pool_free(void)
 {
     WorkQueue* queue = &g_thread_pool.queue;
 
@@ -179,9 +181,15 @@ destroy_thread_pool(void)
     aligned_free(g_thread_pool.thread_ids);
 }
 
-INLINE size_t
-calculate_optimal_batch_size(size_t seq_count, size_t total_alignments)
+INLINE void
+align_multithreaded(H5Handler* h5_handler,
+                    Sequence* seqs,
+                    size_t seq_count,
+                    size_t total_alignments,
+                    const ScoringMatrix* scoring)
 {
+    thread_pool_init(h5_handler);
+
     const double ref_small_seqs = 1.0 * KiB;
     const double ref_large_seqs = 32.0 * KiB;
     const double ref_small_bytes = L2_CACHE_SIZE;
@@ -195,25 +203,13 @@ calculate_optimal_batch_size(size_t seq_count, size_t total_alignments)
 
     size_t task_size = sizeof(AlignTask);
     size_t optimal_batch_size = (size_t)(optimal_memory / task_size);
+    optimal_batch_size = min(optimal_batch_size, total_alignments);
 
-    return min(optimal_batch_size, total_alignments);
-}
-
-INLINE void
-perform_alignments_multithreaded(H5Handler* h5_handler,
-                                 Sequence* seqs,
-                                 size_t seq_count,
-                                 size_t total_alignments,
-                                 const ScoringMatrix* scoring)
-{
-    init_thread_pool(h5_handler);
-
-    size_t optimal_batch_size = calculate_optimal_batch_size(seq_count, total_alignments);
     print(VERBOSE, MSG_LOC(FIRST), "Batch size: %zu tasks per batch", optimal_batch_size);
 
     size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
     print(VERBOSE, MSG_LOC(LAST), "Allocating %zu bytes for task memory", tasks_memory_size);
-    AlignTask* tasks = huge_page_alloc(tasks_memory_size);
+    AlignTask* tasks = alloc_huge_page(tasks_memory_size);
     size_t processed = 0;
     size_t i = 0, j = 1;
 
@@ -256,20 +252,20 @@ perform_alignments_multithreaded(H5Handler* h5_handler,
             }
         }
 
-        submit_tasks(tasks, batch_size);
+        tasks_submit(tasks, batch_size);
         processed += batch_size;
         print(PROGRESS, MSG_PROPORTION((float)processed / total_alignments), "Aligning sequences");
     }
 
-    destroy_thread_pool();
+    thread_pool_free();
     aligned_free(tasks);
 }
 
 INLINE void
-perform_alignments_singlethreaded(H5Handler* h5_handler,
-                                  Sequence* seqs,
-                                  size_t seq_count,
-                                  const ScoringMatrix* scoring)
+align_signlethreaded(H5Handler* h5_handler,
+                     Sequence* seqs,
+                     size_t seq_count,
+                     const ScoringMatrix* scoring)
 {
     size_t total_alignments = seq_count * (seq_count - 1) / 2;
     size_t progress_counter = 0;
@@ -292,11 +288,11 @@ perform_alignments_singlethreaded(H5Handler* h5_handler,
                 PREFETCH(seqs[i + 2].data);
             }
 
-            int score = align_sequences(seqs[i].data,
-                                        seqs[i].length,
-                                        seqs[j].data,
-                                        seqs[j].length,
-                                        scoring);
+            int score = align_pairwise(seqs[i].data,
+                                       seqs[i].length,
+                                       seqs[j].data,
+                                       seqs[j].length,
+                                       scoring);
 
             local_checksum += score;
 
@@ -314,22 +310,22 @@ perform_alignments_singlethreaded(H5Handler* h5_handler,
 }
 
 INLINE void
-perform_alignments(H5Handler* h5_handler,
-                   Sequence* seqs,
-                   size_t seq_count,
-                   size_t total_alignments,
-                   const ScoringMatrix* scoring)
+align(H5Handler* h5_handler,
+      Sequence* seqs,
+      size_t seq_count,
+      size_t total_alignments,
+      const ScoringMatrix* scoring)
 {
-    if (get_mode_multithread())
+    if (args_mode_multithread())
     {
-        print(CONFIG, MSG_LOC(LAST), "Using multithreaded mode with %d threads", get_num_threads());
-        perform_alignments_multithreaded(h5_handler, seqs, seq_count, total_alignments, scoring);
+        print(CONFIG, MSG_NONE, "Using multithreaded mode with %d threads", args_thread_num());
+        align_multithreaded(h5_handler, seqs, seq_count, total_alignments, scoring);
     }
 
     else
     {
-        print(CONFIG, MSG_LOC(LAST), "Using single-threaded mode");
-        perform_alignments_singlethreaded(h5_handler, seqs, seq_count, scoring);
+        print(CONFIG, MSG_NONE, "Using single-threaded mode");
+        align_signlethreaded(h5_handler, seqs, seq_count, scoring);
     }
 }
 

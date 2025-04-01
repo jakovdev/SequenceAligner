@@ -1,7 +1,7 @@
 #ifndef FILES_H
 #define FILES_H
 
-#include "common.h"
+#include "arch.h"
 #include "print.h"
 
 typedef struct
@@ -29,11 +29,22 @@ typedef struct
 #endif
 } MmapMatrix;
 
+INLINE const char*
+file_name_path(const char* path)
+{
+#ifdef _WIN32
+    const char* name = strrchr(path, '\\');
+#else
+    const char* name = strrchr(path, '/');
+#endif
+    return name ? name + 1 : path;
+}
+
 INLINE File
-get_file(const char* file_path)
+file_get(const char* file_path)
 {
     File file = { 0 };
-    const char* file_name = get_file_name(file_path);
+    const char* file_name = file_name_path(file_path);
 
 #ifdef _WIN32
     file.hFile = CreateFileA(file_path,
@@ -108,7 +119,7 @@ get_file(const char* file_path)
 }
 
 INLINE void
-free_file(File* file)
+file_free(File* file)
 {
 #ifdef _WIN32
     UnmapViewOfFile(file->file_data);
@@ -121,7 +132,7 @@ free_file(File* file)
 }
 
 INLINE MmapMatrix
-create_mmap_matrix(const char* file_path, size_t matrix_size)
+mmap_matrix_create(const char* file_path, size_t matrix_size)
 {
     MmapMatrix matrix = { 0 };
     matrix.matrix_size = matrix_size;
@@ -129,7 +140,7 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
     size_t triangle_elements = (matrix_size * (matrix_size + 1)) / 2;
     size_t bytes_needed = triangle_elements * sizeof(int);
     matrix.file_size = bytes_needed;
-    const char* file_name = get_file_name(file_path);
+    const char* file_name = file_name_path(file_path);
 
     print(INFO,
           MSG_LOC(LAST),
@@ -240,9 +251,9 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
               MSG_LOC(FIRST),
               "Memory not pre-zeroed by kernel, falling back to explicit initialization");
 
-        double pre_memset_time = get_time();
+        double pre_memset_time = time_current();
         memset(matrix.data, 0, bytes_needed);
-        double post_memset_time = get_time();
+        double post_memset_time = time_current();
 
         print(VERBOSE,
               MSG_LOC(LAST),
@@ -258,7 +269,7 @@ create_mmap_matrix(const char* file_path, size_t matrix_size)
 }
 
 INLINE void
-close_mmap_matrix(MmapMatrix* matrix)
+mmap_matrix_close(MmapMatrix* matrix)
 {
     if (!matrix->data)
     {
@@ -285,7 +296,7 @@ mmap_triangle_index(size_t row, size_t col, size_t matrix_size)
 }
 
 INLINE void
-mmap_set_matrix_value(MmapMatrix* matrix, size_t row, size_t col, int value)
+mmap_matrix_set_value(MmapMatrix* matrix, size_t row, size_t col, int value)
 {
     if (!matrix->data || row >= matrix->matrix_size || col >= matrix->matrix_size)
     {
@@ -297,7 +308,7 @@ mmap_set_matrix_value(MmapMatrix* matrix, size_t row, size_t col, int value)
 }
 
 INLINE void
-get_mmap_matrix_filename(char* buffer, size_t buffer_size, const char* output_path)
+mmap_matrix_file_name(char* buffer, size_t buffer_size, const char* output_path)
 {
     if (output_path && output_path[0] != '\0')
     {

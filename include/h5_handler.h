@@ -2,10 +2,10 @@
 #define H5_HANDLER_H
 
 #include "benchmark.h"
-#include "common.h"
 #include "files.h"
 #include "sequence.h"
 #include <hdf5.h>
+#include <math.h>
 
 #define H5_MIN_CHUNK_SIZE 128
 #define H5_MAX_CHUNK_SIZE 1024
@@ -47,7 +47,7 @@ INLINE bool
 matrix_buffer_allocate(MatrixBuffer* buffer, size_t matrix_size)
 {
     size_t bytes = matrix_size * matrix_size * sizeof(int);
-    buffer->data = huge_page_alloc(bytes);
+    buffer->data = alloc_huge_page(bytes);
     if (!buffer->data)
     {
         return false;
@@ -105,7 +105,7 @@ h5_calculate_chunk_dimensions(H5Handler* handler)
 INLINE bool
 h5_create_file(H5Handler* handler)
 {
-    if (!get_mode_write())
+    if (!args_mode_write())
     {
         return true;
     }
@@ -113,12 +113,12 @@ h5_create_file(H5Handler* handler)
     hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
 
-    handler->file_id = H5Fcreate(get_output_file_path(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    handler->file_id = H5Fcreate(args_path_output(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
     H5Pclose(fapl);
 
     if (handler->file_id < 0)
     {
-        print(ERROR, MSG_NONE, "Failed to create HDF5 file: %s", get_output_file_path());
+        print(ERROR, MSG_NONE, "Failed to create HDF5 file: %s", args_path_output());
         return false;
     }
 
@@ -143,7 +143,7 @@ h5_create_matrix_dataset(H5Handler* handler)
     hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
     H5Pset_chunk(plist_id, 2, handler->chunk_dims);
 
-    int compression_level = get_compression_level();
+    int compression_level = args_compression_level();
     if (compression_level > 0)
     {
         H5Pset_deflate(plist_id, compression_level);
@@ -237,7 +237,7 @@ h5_create_sequence_length_dataset(H5Handler* handler)
 INLINE bool
 h5_setup_file(H5Handler* handler)
 {
-    if (!get_mode_write())
+    if (!args_mode_write())
     {
         return true;
     }
@@ -270,13 +270,13 @@ h5_initialize_memory(H5Handler* handler)
 {
     if (handler->use_mmap)
     {
-        get_mmap_matrix_filename(handler->mmap_filename, MAX_PATH, get_output_file_path());
+        mmap_matrix_file_name(handler->mmap_filename, MAX_PATH, args_path_output());
 
         print(INFO,
               MSG_LOC(FIRST),
               "Matrix size exceeds memory threshold, using memory-mapped file");
 
-        handler->mmap_matrix = create_mmap_matrix(handler->mmap_filename, handler->matrix_size);
+        handler->mmap_matrix = mmap_matrix_create(handler->mmap_filename, handler->matrix_size);
         return handler->mmap_matrix.data != NULL;
     }
 
@@ -289,12 +289,12 @@ h5_initialize_memory(H5Handler* handler)
 INLINE bool
 h5_initialize_thread_checksums(H5Handler* handler)
 {
-    if (!get_mode_multithread())
+    if (!args_mode_multithread())
     {
         return true;
     }
 
-    handler->checksums = aligned_alloc(CACHE_LINE, sizeof(*handler->checksums) * get_num_threads());
+    handler->checksums = aligned_alloc(CACHE_LINE, sizeof(*handler->checksums) * args_thread_num());
 
     if (!handler->checksums)
     {
@@ -302,7 +302,7 @@ h5_initialize_thread_checksums(H5Handler* handler)
         return false;
     }
 
-    memset(handler->checksums, 0, sizeof(*handler->checksums) * get_num_threads());
+    memset(handler->checksums, 0, sizeof(*handler->checksums) * args_thread_num());
     return true;
 }
 
@@ -311,7 +311,7 @@ h5_cleanup_on_init_failure(H5Handler* handler)
 {
     if (handler->use_mmap)
     {
-        close_mmap_matrix(&handler->mmap_matrix);
+        mmap_matrix_close(&handler->mmap_matrix);
         remove(handler->mmap_filename);
     }
 
@@ -352,13 +352,16 @@ h5_initialize(size_t matrix_size)
     handler.seq_dataset_id = -1;
     handler.seq_lengths_dataset_id = -1;
 
-    if (!get_mode_write())
+    if (!args_mode_write())
     {
         handler.is_init = true;
         return handler;
     }
 
-    handler.use_mmap = check_matrix_exceeds_memory(matrix_size, MMAP_MEMORY_USAGE_THRESHOLD);
+    const size_t bytes_needed = matrix_size * matrix_size * sizeof(int);
+    const size_t safe_memory = available_memory() * MMAP_MEMORY_USAGE_THRESHOLD;
+
+    handler.use_mmap = bytes_needed > safe_memory;
 
     if (!h5_initialize_memory(&handler))
     {
@@ -396,7 +399,7 @@ INLINE bool
 h5_flush_mmap_to_hdf5(H5Handler* handler)
 {
     size_t matrix_size = handler->matrix_size;
-    size_t available_mem = get_available_memory();
+    size_t available_mem = available_memory();
     if (!available_mem)
     {
         print(ERROR, MSG_NONE, "Failed to retrieve available memory");
@@ -540,7 +543,7 @@ h5_flush_buffer_to_hdf5(H5Handler* handler)
 INLINE bool
 h5_flush_matrix(H5Handler* handler)
 {
-    if (!get_mode_write() || !handler->is_init)
+    if (!args_mode_write() || !handler->is_init)
     {
         return true;
     }
@@ -552,7 +555,7 @@ h5_flush_matrix(H5Handler* handler)
         return false;
     }
 
-    double write_start = get_time();
+    double write_start = time_current();
     bool result;
 
     if (handler->use_mmap)
@@ -565,9 +568,9 @@ h5_flush_matrix(H5Handler* handler)
         result = h5_flush_buffer_to_hdf5(handler);
     }
 
-    if (get_mode_benchmark())
+    if (args_mode_benchmark())
     {
-        add_io_time(get_time() - write_start);
+        add_io_time(time_current() - write_start);
     }
 
     return result;
@@ -576,7 +579,7 @@ h5_flush_matrix(H5Handler* handler)
 INLINE void
 h5_set_matrix_value(H5Handler* handler, size_t row, size_t col, int value)
 {
-    if (!get_mode_write() || !handler->is_init || row >= handler->matrix_size ||
+    if (!args_mode_write() || !handler->is_init || row >= handler->matrix_size ||
         col >= handler->matrix_size)
     {
         return;
@@ -594,7 +597,7 @@ h5_set_matrix_value(H5Handler* handler, size_t row, size_t col, int value)
             return;
         }
 
-        mmap_set_matrix_value(&handler->mmap_matrix, row, col, value);
+        mmap_matrix_set_value(&handler->mmap_matrix, row, col, value);
     }
     else
     {
@@ -744,7 +747,7 @@ h5_create_sequence_dataset(H5Handler* handler, hid_t string_type)
 INLINE bool
 h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
 {
-    if (!get_mode_write() || !handler->is_init || handler->sequences_stored)
+    if (!args_mode_write() || !handler->is_init || handler->sequences_stored)
     {
         return true;
     }
@@ -755,7 +758,7 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
         return false;
     }
 
-    double write_start = get_time();
+    double write_start = time_current();
 
     print(INFO, MSG_NONE, "Storing %zu sequences in HDF5 file", seq_count);
 
@@ -804,9 +807,9 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
     H5Sclose(seq_space);
     H5Tclose(string_type);
 
-    if (get_mode_benchmark())
+    if (args_mode_benchmark())
     {
-        add_io_time(get_time() - write_start);
+        add_io_time(time_current() - write_start);
     }
 
     handler->sequences_stored = true;
@@ -818,7 +821,7 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
 INLINE bool
 h5_store_checksum(H5Handler* handler)
 {
-    if (!get_mode_write() || handler->matrix_dataset_id < 0 || handler->file_id < 0)
+    if (!args_mode_write() || handler->matrix_dataset_id < 0 || handler->file_id < 0)
     {
         return false;
     }
@@ -873,7 +876,7 @@ h5_collect_thread_checksums(H5Handler* handler)
     }
 
     int64_t total_checksum = 0;
-    for (int t = 0; t < get_num_threads(); t++)
+    for (int t = 0; t < args_thread_num(); t++)
     {
         total_checksum += handler->checksums[t];
     }
@@ -888,7 +891,7 @@ h5_close(H5Handler* handler)
         return;
     }
 
-    if (get_mode_write())
+    if (args_mode_write())
     {
         bool success = true;
 
@@ -896,7 +899,7 @@ h5_close(H5Handler* handler)
         print(INFO,
               MSG_LOC(FIRST),
               "Writing results to output file: %s",
-              get_file_name(get_output_file_path()));
+              file_name_path(args_path_output()));
 
         if (!h5_flush_matrix(handler))
         {
@@ -904,7 +907,7 @@ h5_close(H5Handler* handler)
             success = false;
         }
 
-        if (get_mode_multithread() && handler->checksums)
+        if (args_mode_multithread() && handler->checksums)
         {
             handler->checksum = h5_collect_thread_checksums(handler);
             aligned_free(handler->checksums);
@@ -946,7 +949,7 @@ h5_close(H5Handler* handler)
 
         if (handler->use_mmap)
         {
-            close_mmap_matrix(&handler->mmap_matrix);
+            mmap_matrix_close(&handler->mmap_matrix);
             if (success)
             {
                 if (remove(handler->mmap_filename) != 0)

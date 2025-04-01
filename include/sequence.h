@@ -2,7 +2,6 @@
 #define SEQUENCE_H
 
 #include "args.h"
-#include "common.h"
 #include "csv.h"
 #include "print.h"
 
@@ -41,7 +40,7 @@ typedef struct
 static SeqMemPool g_seq_pool = { 0 };
 
 INLINE void
-init_seq_pool(void)
+seq_pool_init(void)
 {
     if (g_seq_pool.head)
     {
@@ -54,7 +53,7 @@ init_seq_pool(void)
         return;
     }
 
-    g_seq_pool.head->data = huge_page_alloc(SEQ_POOL_BLOCK_SIZE);
+    g_seq_pool.head->data = alloc_huge_page(SEQ_POOL_BLOCK_SIZE);
     if (!g_seq_pool.head->data)
     {
         free(g_seq_pool.head);
@@ -72,11 +71,11 @@ init_seq_pool(void)
 }
 
 INLINE char*
-alloc_from_pool(size_t size)
+pool_alloc(size_t size)
 {
     if (!g_seq_pool.head)
     {
-        init_seq_pool();
+        seq_pool_init();
         if (!g_seq_pool.head)
         {
             return NULL;
@@ -124,7 +123,7 @@ alloc_from_pool(size_t size)
 }
 
 INLINE void
-free_seq_pool(void)
+seq_pool_free(void)
 {
     if (!g_seq_pool.head)
     {
@@ -148,11 +147,11 @@ free_seq_pool(void)
 }
 
 INLINE void
-init_sequence(Sequence* seq, const char* data, size_t length)
+sequence_init(Sequence* seq, const char* data, size_t length)
 {
     seq->length = length;
 
-    seq->data = alloc_from_pool(length + 1);
+    seq->data = pool_alloc(length + 1);
     if (seq->data)
     {
         memcpy(seq->data, data, length);
@@ -161,7 +160,7 @@ init_sequence(Sequence* seq, const char* data, size_t length)
 }
 
 INLINE float
-calculate_similarity(const char* restrict seq1, size_t len1, const char* restrict seq2, size_t len2)
+similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict seq2, size_t len2)
 {
     if (UNLIKELY(!len1 || !len2))
     {
@@ -213,11 +212,11 @@ calculate_similarity(const char* restrict seq1, size_t len1, const char* restric
 }
 
 INLINE SequenceData
-load_sequences_from_file(char* current, char* end, size_t total_seqs_in_file)
+sequences_load_from_file(char* current, char* end, size_t total_seqs_in_file)
 {
     SequenceData seqdata = { 0 };
-    float filter_threshold = get_filter_threshold();
-    bool apply_filtering = get_mode_filter();
+    float filter_threshold = args_filter_threshold();
+    bool apply_filtering = args_mode_filter();
 
     Sequence* seqs = malloc(total_seqs_in_file * sizeof(*seqs));
     if (!seqs)
@@ -258,7 +257,7 @@ load_sequences_from_file(char* current, char* end, size_t total_seqs_in_file)
             temp_seq_capacity = new_capacity;
         }
 
-        size_t seq_len = parse_csv_line(&current, temp_seq);
+        size_t seq_len = csv_line_parse(&current, temp_seq);
 
         if (!seq_len)
         {
@@ -271,10 +270,10 @@ load_sequences_from_file(char* current, char* end, size_t total_seqs_in_file)
         {
             for (size_t j = 0; j < idx; j++)
             {
-                float similarity = calculate_similarity(temp_seq,
-                                                        seq_len,
-                                                        seqs[j].data,
-                                                        seqs[j].length);
+                float similarity = similarity_pairwise(temp_seq,
+                                                       seq_len,
+                                                       seqs[j].data,
+                                                       seqs[j].length);
 
                 if (similarity >= filter_threshold)
                 {
@@ -287,7 +286,7 @@ load_sequences_from_file(char* current, char* end, size_t total_seqs_in_file)
 
         if (should_include)
         {
-            init_sequence(&seqs[idx], temp_seq, seq_len);
+            sequence_init(&seqs[idx], temp_seq, seq_len);
             total_sequence_length += seq_len;
             idx++;
         }

@@ -3,6 +3,7 @@
 
 #include "args.h"
 #include "matrices.h"
+#include <limits.h>
 
 #ifdef USE_SIMD
 static veci_t FIRST_ROW_INDICES;
@@ -19,10 +20,10 @@ typedef struct
 } ScoringMatrix;
 
 INLINE void
-init_scoring_matrix(ScoringMatrix* restrict matrix)
+scoring_matrix_init(ScoringMatrix* restrict matrix)
 {
-    int matrix_id = get_scoring_matrix();
-    int seq_type = get_sequence_type();
+    int matrix_id = args_scoring_matrix();
+    int seq_type = args_sequence_type();
 
     switch (seq_type)
     {
@@ -81,9 +82,9 @@ init_scoring_matrix(ScoringMatrix* restrict matrix)
         }
 #ifdef USE_SIMD
         FIRST_ROW_INDICES = setr_indicies;
-        GAP_PENALTY_VEC = set1_epi32(get_gap_penalty());
-        GAP_START_VEC = set1_epi32(get_gap_start());
-        GAP_EXTEND_VEC = set1_epi32(get_gap_extend());
+        GAP_PENALTY_VEC = set1_epi32(args_gap_penalty());
+        GAP_START_VEC = set1_epi32(args_gap_start());
+        GAP_EXTEND_VEC = set1_epi32(args_gap_extend());
         initialized = true;
 #endif
     }

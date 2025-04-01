@@ -20,7 +20,7 @@ typedef struct
 static CsvMetadata g_csv_metadata = { -1, 0, NULL };
 
 INLINE char*
-skip_header(char* restrict current, char* restrict end)
+csv_header_skip(char* restrict current, char* restrict end)
 {
     while (current < end)
     {
@@ -36,7 +36,7 @@ skip_header(char* restrict current, char* restrict end)
 }
 
 INLINE void
-free_csv_metadata(void)
+csv_metadata_free(void)
 {
     if (g_csv_metadata.column_headers)
     {
@@ -53,7 +53,7 @@ free_csv_metadata(void)
 }
 
 INLINE int
-count_columns(const char* line)
+csv_column_count(const char* line)
 {
     if (!line || !*line || *line == '\n' || *line == '\r')
     {
@@ -81,7 +81,7 @@ count_columns(const char* line)
 }
 
 INLINE char*
-copy_column_name(const char* start, const char* end)
+csv_column_copy(const char* start, const char* end)
 {
     size_t len = end - start;
     char* name = malloc(len + 1);
@@ -95,7 +95,7 @@ copy_column_name(const char* start, const char* end)
 }
 
 INLINE int
-detect_sequence_column(char** headers, int num_cols)
+csv_column_sequence(char** headers, int num_cols)
 {
     const char* seq_keywords[] = { "sequence", "seq",   "protein", "dna",
                                    "rna",      "amino", "peptide", "chain" };
@@ -131,11 +131,11 @@ detect_sequence_column(char** headers, int num_cols)
 }
 
 INLINE char*
-parse_header(char* restrict current, char* restrict end)
+csv_header_parse(char* restrict current, char* restrict end)
 {
     char* header_start = current;
 
-    g_csv_metadata.num_columns = count_columns(header_start);
+    g_csv_metadata.num_columns = csv_column_count(header_start);
 
     if (g_csv_metadata.num_columns <= 0)
     {
@@ -163,7 +163,7 @@ parse_header(char* restrict current, char* restrict end)
         {
             if (col_idx < g_csv_metadata.num_columns)
             {
-                g_csv_metadata.column_headers[col_idx] = copy_column_name(col_start, current);
+                g_csv_metadata.column_headers[col_idx] = csv_column_copy(col_start, current);
                 col_idx++;
             }
 
@@ -193,8 +193,8 @@ parse_header(char* restrict current, char* restrict end)
         current++;
     }
 
-    g_csv_metadata.seq_col_index = detect_sequence_column(g_csv_metadata.column_headers,
-                                                          g_csv_metadata.num_columns);
+    g_csv_metadata.seq_col_index = csv_column_sequence(g_csv_metadata.column_headers,
+                                                       g_csv_metadata.num_columns);
 
     // If auto-detection failed
     if (g_csv_metadata.seq_col_index < 0)
@@ -221,7 +221,7 @@ parse_header(char* restrict current, char* restrict end)
 }
 
 INLINE size_t
-count_csv_line(char** current)
+csv_line_count(char** current)
 {
     char* p = *current;
 
@@ -279,13 +279,13 @@ count_csv_line(char** current)
 }
 
 INLINE size_t
-count_sequences_in_file(char* current, char* end)
+csv_sequence_lines(char* current, char* end)
 {
     size_t total_seqs = 0;
 
     while (current < end && *current)
     {
-        if (count_csv_line(&current))
+        if (csv_line_count(&current))
         {
             total_seqs++;
         }
@@ -295,7 +295,7 @@ count_sequences_in_file(char* current, char* end)
 }
 
 INLINE size_t
-parse_csv_line(char** current, char* seq)
+csv_line_parse(char** current, char* seq)
 {
     char* p = *current;
     char* write_pos = NULL;

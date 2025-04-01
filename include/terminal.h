@@ -1,10 +1,11 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
-#include "macros.h"
+#include "arch.h"
+#include <ctype.h>
 
 INLINE int
-is_terminal(void)
+terminal_environment(void)
 {
     static int is_terminal = -1;
     if (is_terminal == -1)
@@ -21,7 +22,7 @@ is_terminal(void)
 }
 
 INLINE void
-init_terminal(void)
+terminal_init(void)
 {
 #ifdef _WIN32
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -38,7 +39,7 @@ init_terminal(void)
 }
 
 INLINE void
-set_terminal_raw_mode(void)
+terminal_mode_raw(void)
 {
 #ifdef _WIN32
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -54,7 +55,7 @@ set_terminal_raw_mode(void)
 }
 
 INLINE void
-restore_terminal_mode(void)
+terminal_mode_restore(void)
 {
 #ifdef _WIN32
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -70,14 +71,14 @@ restore_terminal_mode(void)
 }
 
 INLINE void
-read_line_input(char* input_buffer, int buffer_size, int* choice)
+terminal_read_input(char* input_buffer, int buffer_size, int* choice)
 {
     int idx = 0;
     int c;
 
     fflush(stdout);
 
-    set_terminal_raw_mode();
+    terminal_mode_raw();
 
     while (1)
     {
@@ -97,7 +98,7 @@ read_line_input(char* input_buffer, int buffer_size, int* choice)
         }
     }
 
-    restore_terminal_mode();
+    terminal_mode_restore();
     *choice = atoi(input_buffer);
 }
 
