@@ -4,7 +4,6 @@
 #include "h5_handler.h"
 #include "seqalign.h"
 
-
 typedef struct
 {
     const char* seq1;
@@ -45,7 +44,7 @@ thread_pool_worker(void* arg)
 {
     int thread_id = *(int*)arg;
     PIN_THREAD(thread_id);
-    int64_t local_checksum = 0;
+    int64_t local_checksum = 0; // This will accumulate across all batches
     WorkQueue* queue = &g_thread_pool.queue;
 
     while (1)
@@ -54,6 +53,7 @@ thread_pool_worker(void* arg)
 
         if (!queue->active)
         {
+            g_thread_pool.h5_handler->checksums[thread_id] = local_checksum;
             break;
         }
 
@@ -83,12 +83,6 @@ thread_pool_worker(void* arg)
                 h5_set_matrix_value(h5_handler, task->j, task->i, score);
             }
         }
-
-        __atomic_fetch_add(&g_thread_pool.h5_handler->checksums[thread_id],
-                           local_checksum,
-                           __ATOMIC_RELAXED);
-
-        local_checksum = 0;
 
         if (__atomic_add_fetch(&queue->threads_waiting, 1, __ATOMIC_SEQ_CST) ==
             g_thread_pool.num_threads)

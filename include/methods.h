@@ -5,9 +5,9 @@
 
 typedef enum
 {
-    ALIGN_NEEDLEMAN_WUNSCH = 0,
-    ALIGN_GOTOH_AFFINE = 1,
-    ALIGN_SMITH_WATERMAN = 2,
+    ALIGN_NEEDLEMAN_WUNSCH,
+    ALIGN_GOTOH_AFFINE,
+    ALIGN_SMITH_WATERMAN,
     // NOTE: Additional alignment methods can be added here if needed.
     //       However, this requires implementing the corresponding algorithm.
     // Expandable
@@ -16,9 +16,8 @@ typedef enum
 
 typedef enum
 {
-    GAP_TYPE_NONE = 0,
-    GAP_TYPE_LINEAR = 1,
-    GAP_TYPE_AFFINE = 2
+    GAP_TYPE_LINEAR,
+    GAP_TYPE_AFFINE,
 } GapPenaltyType;
 
 typedef struct
@@ -51,55 +50,33 @@ static const AlignmentMethodInfo ALIGNMENT_METHODS[] = {
 INLINE const char*
 get_alignment_method_name(int method)
 {
-    if (method >= 0 && method < ALIGN_COUNT)
-    {
-        return ALIGNMENT_METHODS[method].name;
-    }
-
-    return "Unknown";
+    return ALIGNMENT_METHODS[method].name;
 }
 
 INLINE int
 requires_linear_gap(int method)
 {
-    if (method >= 0 && method < ALIGN_COUNT)
-    {
-        return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
-    }
-
-    return 0;
+    return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
 }
 
 INLINE int
 requires_affine_gap(int method)
 {
-    if (method >= 0 && method < ALIGN_COUNT)
-    {
-        return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
-    }
-
-    return 0;
+    return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
 }
 
 INLINE const char*
 get_gap_type_name(int method)
 {
-    if (method >= 0 && method < ALIGN_COUNT)
+    switch (ALIGNMENT_METHODS[method].gap_type)
     {
-        switch (ALIGNMENT_METHODS[method].gap_type)
-        {
-            case GAP_TYPE_LINEAR:
-                return "Linear";
-            case GAP_TYPE_AFFINE:
-                return "Affine";
-            case GAP_TYPE_NONE:
-                return "None";
-            default:
-                return "Unknown";
-        }
+        case GAP_TYPE_LINEAR:
+            return "Linear";
+        case GAP_TYPE_AFFINE:
+            return "Affine";
+        default:
+            unreachable();
     }
-
-    return "Unknown";
 }
 
 INLINE int

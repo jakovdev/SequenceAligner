@@ -815,6 +815,55 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
     return true;
 }
 
+INLINE bool
+h5_store_checksum(H5Handler* handler)
+{
+    if (!get_mode_write() || handler->matrix_dataset_id < 0 || handler->file_id < 0)
+    {
+        return false;
+    }
+
+    htri_t attr_exists = H5Aexists(handler->matrix_dataset_id, "checksum");
+    if (attr_exists > 0)
+    {
+        H5Adelete(handler->matrix_dataset_id, "checksum");
+    }
+
+    hid_t attr_space = H5Screate(H5S_SCALAR);
+    if (attr_space < 0)
+    {
+        print(ERROR, MSG_NONE, "Failed to create dataspace for checksum attribute");
+        return false;
+    }
+
+    hid_t attr_id = H5Acreate2(handler->matrix_dataset_id,
+                               "checksum",
+                               H5T_STD_I64LE,
+                               attr_space,
+                               H5P_DEFAULT,
+                               H5P_DEFAULT);
+
+    if (attr_id < 0)
+    {
+        print(ERROR, MSG_NONE, "Failed to create checksum attribute");
+        H5Sclose(attr_space);
+        return false;
+    }
+
+    herr_t status = H5Awrite(attr_id, H5T_NATIVE_INT64, &handler->checksum);
+
+    H5Aclose(attr_id);
+    H5Sclose(attr_space);
+
+    if (status < 0)
+    {
+        print(ERROR, MSG_NONE, "Failed to write checksum attribute");
+        return false;
+    }
+
+    return true;
+}
+
 INLINE int64_t
 h5_collect_thread_checksums(H5Handler* handler)
 {
@@ -863,6 +912,12 @@ h5_close(H5Handler* handler)
         }
 
         print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", handler->checksum);
+        if (!h5_store_checksum(handler))
+        {
+            print(ERROR, MSG_NONE, "Failed to store checksum in output file");
+            success = false;
+        }
+
         bench_write_end();
 
         if (handler->seq_dataset_id > 0)

@@ -591,7 +591,7 @@ INLINE void
 handle_alignment_method_arg(const char* arg)
 {
     int method = find_alignment_method_by_name(arg);
-    if (method != -1)
+    if (method != PARAM_UNSET)
     {
         g_args.align_method = method;
         g_args.align_method_set = 1;

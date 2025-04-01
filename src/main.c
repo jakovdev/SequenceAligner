@@ -36,7 +36,6 @@ main(int argc, char* argv[])
     print(VERBOSE, MSG_LOC(MIDDLE), "Initializing scoring matrix and gap penalties");
     ScoringMatrix scoring = { 0 };
     init_scoring_matrix(&scoring);
-    init_gap_penalties();
 
     print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file...");
     size_t total_seqs_in_file = count_sequences_in_file(current, end);
