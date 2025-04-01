@@ -6,10 +6,10 @@
 #include <limits.h>
 
 #ifdef USE_SIMD
-static veci_t FIRST_ROW_INDICES;
-static veci_t GAP_PENALTY_VEC;
-static veci_t GAP_START_VEC;
-static veci_t GAP_EXTEND_VEC;
+static veci_t g_first_row_indices;
+static veci_t g_gap_penalty_vec;
+static veci_t g_gap_start_vec;
+static veci_t g_gap_extend_vec;
 #endif
 
 static int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
@@ -81,10 +81,10 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
             }
         }
 #ifdef USE_SIMD
-        FIRST_ROW_INDICES = setr_indicies;
-        GAP_PENALTY_VEC = set1_epi32(args_gap_penalty());
-        GAP_START_VEC = set1_epi32(args_gap_start());
-        GAP_EXTEND_VEC = set1_epi32(args_gap_extend());
+        g_first_row_indices = set_row_indices();
+        g_gap_penalty_vec = set1_epi32(args_gap_penalty());
+        g_gap_start_vec = set1_epi32(args_gap_start());
+        g_gap_extend_vec = set1_epi32(args_gap_extend());
         initialized = true;
 #endif
     }

@@ -35,11 +35,31 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
         indices->is_stack = false;
     }
 
+#ifdef USE_SIMD
+    size_t vector_len = (len / BYTES) * BYTES;
+    size_t i = 0;
+
+    for (; i < vector_len; i += BYTES)
+    {
+        prefetch(seq + i + BYTES * 2);
+
+        for (size_t j = 0; j < BYTES; j++)
+        {
+            indices->data[i + j] = SEQUENCE_LOOKUP[(unsigned char)seq[i + j]];
+        }
+    }
+
+    for (; i < len; i++)
+    {
+        indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
+    }
+#else
 #pragma GCC unroll 8
     for (size_t i = 0; i < len; ++i)
     {
         indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
     }
+#endif
 }
 
 INLINE void
@@ -141,7 +161,7 @@ matrix_free(int* matrix, int* stack_matrix)
             int prev_row_offset = (i - 1) * cols;                                                  \
             int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2[i - 1]];                              \
                                                                                                    \
-            PREFETCH(&matrix[row_offset + PREFETCH_DISTANCE]);                                     \
+            prefetch(&matrix[row_offset + PREFETCH_DISTANCE]);                                     \
                                                                                                    \
             _Pragma("GCC unroll 4") for (int j = 1; j <= (int)len1; j++)                           \
             {                                                                                      \
@@ -164,9 +184,9 @@ matrix_free(int* matrix, int* stack_matrix)
             int prev_row_offset = (i - 1) * cols;                                                  \
             int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2[i - 1]];                              \
                                                                                                    \
-            PREFETCH(&match[row_offset + PREFETCH_DISTANCE]);                                      \
-            PREFETCH(&gap_x[row_offset + PREFETCH_DISTANCE]);                                      \
-            PREFETCH(&gap_y[row_offset + PREFETCH_DISTANCE]);                                      \
+            prefetch(&match[row_offset + PREFETCH_DISTANCE]);                                      \
+            prefetch(&gap_x[row_offset + PREFETCH_DISTANCE]);                                      \
+            prefetch(&gap_y[row_offset + PREFETCH_DISTANCE]);                                      \
                                                                                                    \
             for (int j = 1; j <= (int)len1; j++)                                                   \
             {                                                                                      \
@@ -212,9 +232,9 @@ matrix_free(int* matrix, int* stack_matrix)
             int prev_row_offset = (i - 1) * cols;                                                  \
             int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2[i - 1]];                              \
                                                                                                    \
-            PREFETCH(&match[row_offset + PREFETCH_DISTANCE]);                                      \
-            PREFETCH(&gap_x[row_offset + PREFETCH_DISTANCE]);                                      \
-            PREFETCH(&gap_y[row_offset + PREFETCH_DISTANCE]);                                      \
+            prefetch(&match[row_offset + PREFETCH_DISTANCE]);                                      \
+            prefetch(&gap_x[row_offset + PREFETCH_DISTANCE]);                                      \
+            prefetch(&gap_y[row_offset + PREFETCH_DISTANCE]);                                      \
                                                                                                    \
             for (int j = 1; j <= (int)len1; j++)                                                   \
             {                                                                                      \
@@ -252,105 +272,12 @@ matrix_free(int* matrix, int* stack_matrix)
         }                                                                                          \
     } while (0)
 
-INLINE int
-align_nw(const char* seq1,
-         const size_t len1,
-         const char* seq2,
-         const size_t len2,
-         const ScoringMatrix* restrict scoring)
-{
-    size_t matrix_bytes = MATRIX_BYTES(len1, len2);
-    int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
-    int* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
-    const int cols = len1 + 1;
-    const int gap_penalty = args_gap_penalty();
-
-    INIT_LINEAR_GLOBAL(matrix, cols, gap_penalty);
-
-    SeqIndices seq1_indices = { 0 };
-    seq_indices_precompute(&seq1_indices, seq1, len1);
-
-    FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty, similarity);
-
-    int score = matrix[len2 * cols + len1];
-
-    seq_indices_free(&seq1_indices);
-    matrix_free(matrix, stack_matrix);
-
-    return score;
-}
-
-INLINE int
-align_ga(const char* seq1,
-         const size_t len1,
-         const char* seq2,
-         const size_t len2,
-         const ScoringMatrix* restrict scoring)
-{
-    size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
-    int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
-    int* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
-
-    int* restrict match = matrix;
-    int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
-    int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
-    const int cols = len1 + 1;
-    const int gap_start = args_gap_start();
-    const int gap_extend = args_gap_extend();
-
-    INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
-
-    SeqIndices seq1_indices = { 0 };
-    seq_indices_precompute(&seq1_indices, seq1, len1);
-
-    FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
-
-    int score = match[len2 * cols + len1];
-
-    seq_indices_free(&seq1_indices);
-    matrix_free(matrix, stack_matrix);
-
-    return score;
-}
-
-INLINE int
-align_sw(const char* seq1,
-         const size_t len1,
-         const char* seq2,
-         const size_t len2,
-         const ScoringMatrix* restrict scoring)
-{
-    size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
-    int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
-    int* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
-
-    int* restrict match = matrix;
-    int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
-    int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
-    const int cols = len1 + 1;
-    const int gap_start = args_gap_start();
-    const int gap_extend = args_gap_extend();
-
-    INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols);
-
-    SeqIndices seq1_indices = { 0 };
-    seq_indices_precompute(&seq1_indices, seq1, len1);
-
-    int final_score = 0;
-    int max_i = 0, max_j = 0;
-    FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, final_score, max_i, max_j);
-
-    seq_indices_free(&seq1_indices);
-    matrix_free(matrix, stack_matrix);
-
-    return final_score;
-}
-
 #ifdef USE_SIMD
+
 INLINE void
 simd_linear_row_init(int* matrix, int len1, int gap_penalty)
 {
-    veci_t indices = FIRST_ROW_INDICES;
+    veci_t indices = g_first_row_indices;
     veci_t gap_penalty_vec = set1_epi32(gap_penalty);
 
     for (int j = 1; j <= len1; j += NUM_ELEMS)
@@ -380,7 +307,7 @@ simd_affine_global_row_init(int* match,
                             int gap_start,
                             int gap_extend)
 {
-    veci_t indices = FIRST_ROW_INDICES;
+    veci_t indices = g_first_row_indices;
     veci_t gap_start_vec = set1_epi32(gap_start);
     veci_t gap_extend_vec = set1_epi32(gap_extend);
     veci_t int_min_half = set1_epi32(INT_MIN / 2);
@@ -437,6 +364,159 @@ simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1)
     }
 }
 #endif
+
+INLINE int
+align_nw(const char* seq1,
+         const size_t len1,
+         const char* seq2,
+         const size_t len2,
+         const ScoringMatrix* restrict scoring)
+{
+    size_t matrix_bytes = MATRIX_BYTES(len1, len2);
+    int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
+    int* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
+    const int cols = len1 + 1;
+    const int gap_penalty = args_gap_penalty();
+
+#ifdef USE_SIMD
+    matrix[0] = 0;
+
+    if (len1 >= NUM_ELEMS)
+    {
+        simd_linear_row_init(matrix, len1, gap_penalty);
+    }
+    else
+    {
+        for (int j = 1; j <= (int)len1; j++)
+        {
+            matrix[j] = j * gap_penalty;
+        }
+    }
+
+    for (int i = 1; i <= (int)len2; i++)
+    {
+        matrix[i * cols] = i * gap_penalty;
+    }
+#else
+    INIT_LINEAR_GLOBAL(matrix, cols, gap_penalty);
+#endif
+
+    SeqIndices seq1_indices = { 0 };
+    seq_indices_precompute(&seq1_indices, seq1, len1);
+
+    FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty, similarity);
+
+    int score = matrix[len2 * cols + len1];
+
+    seq_indices_free(&seq1_indices);
+    matrix_free(matrix, stack_matrix);
+
+    return score;
+}
+
+INLINE int
+align_ga(const char* seq1,
+         const size_t len1,
+         const char* seq2,
+         const size_t len2,
+         const ScoringMatrix* restrict scoring)
+{
+    size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
+    int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
+    int* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
+
+    int* restrict match = matrix;
+    int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
+    int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
+    const int cols = len1 + 1;
+    const int gap_start = args_gap_start();
+    const int gap_extend = args_gap_extend();
+
+#ifdef USE_SIMD
+    match[0] = 0;
+    gap_x[0] = gap_y[0] = INT_MIN / 2;
+
+    if (len1 >= NUM_ELEMS)
+    {
+        simd_affine_global_row_init(match, gap_x, gap_y, len1, gap_start, gap_extend);
+    }
+    else
+    {
+        for (int j = 1; j <= (int)len1; j++)
+        {
+            match[j] = -(gap_start + (j - 1) * gap_extend);
+            gap_x[j] = match[j];
+            gap_y[j] = INT_MIN / 2;
+        }
+    }
+
+    for (int i = 1; i <= (int)len2; i++)
+    {
+        int idx = i * cols;
+        match[idx] = -(gap_start + (i - 1) * gap_extend);
+        gap_y[idx] = match[idx];
+        gap_x[idx] = INT_MIN / 2;
+    }
+#else
+    INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
+#endif
+
+    SeqIndices seq1_indices = { 0 };
+    seq_indices_precompute(&seq1_indices, seq1, len1);
+
+    FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
+
+    int score = match[len2 * cols + len1];
+
+    seq_indices_free(&seq1_indices);
+    matrix_free(matrix, stack_matrix);
+
+    return score;
+}
+
+INLINE int
+align_sw(const char* seq1,
+         const size_t len1,
+         const char* seq2,
+         const size_t len2,
+         const ScoringMatrix* restrict scoring)
+{
+    size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
+    int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
+    int* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
+
+    int* restrict match = matrix;
+    int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
+    int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
+    const int cols = len1 + 1;
+    const int gap_start = args_gap_start();
+    const int gap_extend = args_gap_extend();
+
+#ifdef USE_SIMD
+    if (len1 >= NUM_ELEMS)
+    {
+        simd_affine_local_row_init(match, gap_x, gap_y, len1);
+    }
+    else
+    {
+        INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols);
+    }
+#else
+    INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols);
+#endif
+
+    SeqIndices seq1_indices = { 0 };
+    seq_indices_precompute(&seq1_indices, seq1, len1);
+
+    int final_score = 0;
+    int max_i = 0, max_j = 0;
+    FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, final_score, max_i, max_j);
+
+    seq_indices_free(&seq1_indices);
+    matrix_free(matrix, stack_matrix);
+
+    return final_score;
+}
 
 INLINE int
 align_pairwise(const char* seq1,

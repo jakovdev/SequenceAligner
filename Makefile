@@ -38,23 +38,35 @@ else
 endif
 
 # Compiler flags
-BASE_FLAGS := -march=native -pthread -I$(INCLUDE_DIR) $(HDF5_CFLAGS)
+BASE_FLAGS := -pthread -I$(INCLUDE_DIR) $(HDF5_CFLAGS)
 OPT_FLAGS := -O3 -ffast-math -funroll-loops -fno-strict-aliasing -flto \
              -fprefetch-loop-arrays "-Wl,--gc-sections" -DNDEBUG
 DBG_FLAGS := -g -O0 -Wall -Wextra -Wpedantic -Werror -fstack-protector-strong
 
-CFLAGS := $(BASE_FLAGS) $(if $(filter debug,$(MAKECMDGOALS)),$(DBG_FLAGS),$(OPT_FLAGS))
+CFLAGS := $(BASE_FLAGS) -march=native $(OPT_FLAGS)
 
 LIBS := -lm $(HDF5_LIBS) $(if $(IS_WINDOWS),-lShlwapi,)
 
-.PHONY: all debug clean help setup update
+.PHONY: all debug clean help setup update _x86-64 _avx2 _avx512
 
 all: check-setup $(BIN_DIR) $(RESULTS_DIR) $(MAIN_BIN) $(if $(IS_WINDOWS),check-libraries,)
 	@if [ -n "$$BUILD_OCCURRED" ]; then echo "Build complete! Run the program with: $(MAIN_BIN)"; fi
 
-debug: CFLAGS := $(BASE_FLAGS) $(DBG_FLAGS)
+debug: CFLAGS := $(BASE_FLAGS) -march=native $(DBG_FLAGS)
 debug: check-setup $(BIN_DIR) $(RESULTS_DIR) $(MAIN_BIN) $(if $(IS_WINDOWS),check-libraries,)
 	@if [ -n "$$BUILD_OCCURRED" ]; then echo "Debug build complete! Run the program with: $(MAIN_BIN)"; fi
+
+_x86-64: CFLAGS := $(BASE_FLAGS) -march=x86-64 $(OPT_FLAGS)
+_x86-64: check-setup $(BIN_DIR) $(RESULTS_DIR) $(BIN_DIR)/seqalign-x86-64$(BIN_EXT) $(if $(IS_WINDOWS),check-libraries,)
+	@if [ -n "$$BUILD_OCCURRED" ]; then echo "x86-64 build complete!"; fi
+
+_avx2: CFLAGS := $(BASE_FLAGS) -march=x86-64 -mavx2 $(OPT_FLAGS)
+_avx2: check-setup $(BIN_DIR) $(RESULTS_DIR) $(BIN_DIR)/seqalign-avx2$(BIN_EXT) $(if $(IS_WINDOWS),check-libraries,)
+	@if [ -n "$$BUILD_OCCURRED" ]; then echo "AVX2 build complete!"; fi
+
+_avx512: CFLAGS := $(BASE_FLAGS) -march=x86-64 -mavx512f -mavx512bw $(OPT_FLAGS)
+_avx512: check-setup $(BIN_DIR) $(RESULTS_DIR) $(BIN_DIR)/seqalign-avx512$(BIN_EXT) $(if $(IS_WINDOWS),check-libraries,)
+	@if [ -n "$$BUILD_OCCURRED" ]; then echo "AVX512 build complete!"; fi
 
 $(BIN_DIR):
 	@$(MKDIR) $(BIN_DIR)
@@ -70,9 +82,27 @@ $(MAIN_BIN): $(MAIN_SRC) $(HEADERS) | check-setup
 	@export BUILD_OCCURRED=true; \
 	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
 
+$(BIN_DIR)/seqalign-x86-64$(BIN_EXT): $(MAIN_SRC) $(HEADERS) | check-setup
+	@echo "Compiling x86-64 Sequence Aligner..."
+	@export BUILD_OCCURRED=true; \
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+
+$(BIN_DIR)/seqalign-avx2$(BIN_EXT): $(MAIN_SRC) $(HEADERS) | check-setup
+	@echo "Compiling AVX2 Sequence Aligner..."
+	@export BUILD_OCCURRED=true; \
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+
+$(BIN_DIR)/seqalign-avx512$(BIN_EXT): $(MAIN_SRC) $(HEADERS) | check-setup
+	@echo "Compiling AVX512 Sequence Aligner..."
+	@export BUILD_OCCURRED=true; \
+	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+
 clean:
 	@echo "Cleaning previous build..."
 	@$(RM) $(MAIN_BIN)
+	@$(RM) $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
+	@$(RM) $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
+	@$(RM) $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
 	@$(if $(IS_WINDOWS),, $(RM) $(patsubst %,%.exe,$(MAIN_BIN)))
 
 $(SETUP_COMPLETE): | $(META_DIR)

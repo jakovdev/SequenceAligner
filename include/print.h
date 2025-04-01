@@ -495,9 +495,6 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
             else
             {
-                const size_t p_len = snprintf(NULL, 0, "%s (%d-%d): ", buffer, 1, choice_count);
-                const size_t p_padding = p_len < available ? available - p_len - 1 : 0;
-
                 printf("%s%s%s %s %s (%d-%d): ",
                        section_color,
                        style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],

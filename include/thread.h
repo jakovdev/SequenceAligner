@@ -5,7 +5,6 @@
 #include "h5_handler.h"
 #include "seqalign.h"
 
-
 typedef struct
 {
     const char* seq1;
@@ -192,7 +191,7 @@ align_multithreaded(H5Handler* h5_handler,
 
     const double ref_small_seqs = 1.0 * KiB;
     const double ref_large_seqs = 32.0 * KiB;
-    const double ref_small_bytes = L2_CACHE_SIZE;
+    const double ref_small_bytes = 256 * KiB;
     const double ref_large_bytes = 16.0 * MiB;
 
     double log_seq_ratio = log10(seq_count / ref_small_seqs) /
@@ -219,6 +218,7 @@ align_multithreaded(H5Handler* h5_handler,
 
         for (size_t t = 0; t < batch_size; t++)
         {
+#ifdef USE_SIMD
             if (t + PREFETCH_DISTANCE < batch_size)
             {
                 size_t prefetch_i = i;
@@ -232,10 +232,11 @@ align_multithreaded(H5Handler* h5_handler,
 
                 if (prefetch_i < seq_count && prefetch_j < seq_count)
                 {
-                    PREFETCH(seqs[prefetch_i].data);
-                    PREFETCH(seqs[prefetch_j].data);
+                    prefetch(seqs[prefetch_i].data);
+                    prefetch(seqs[prefetch_j].data);
                 }
             }
+#endif
 
             tasks[t].seq1 = seqs[i].data;
             tasks[t].seq2 = seqs[j].data;
@@ -276,17 +277,19 @@ align_signlethreaded(H5Handler* h5_handler,
     {
         for (size_t j = i + 1; j < seq_count; j++)
         {
+#ifdef USE_SIMD
             if (j + 1 < seq_count)
             {
-                PREFETCH(seqs[i].data + seqs[i].length / 2);
-                PREFETCH(seqs[j + 1].data);
+                prefetch(seqs[i].data + seqs[i].length / 2);
+                prefetch(seqs[j + 1].data);
             }
 
             else if (i + 1 < seq_count)
             {
-                PREFETCH(seqs[i + 1].data);
-                PREFETCH(seqs[i + 2].data);
+                prefetch(seqs[i + 1].data);
+                prefetch(seqs[i + 2].data);
             }
+#endif
 
             int score = align_pairwise(seqs[i].data,
                                        seqs[i].length,

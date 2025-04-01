@@ -1,7 +1,7 @@
 #ifndef ARCH_H
 #define ARCH_H
 
-// GCC specific macros
+// GCC/Clang specific macros
 #define INLINE static inline //__attribute__((always_inline))
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
@@ -14,30 +14,11 @@
 #define MiB (KiB << 10)
 #define GiB (MiB << 10)
 
-#define USE_HUGE_PAGES 1
 #define HUGE_PAGE_THRESHOLD (2 * MiB)
 
 #define CACHE_LINE 64
-#define L1_CACHE_SIZE (32 * KiB)  // Typical L1 cache size
-#define L2_CACHE_SIZE (256 * KiB) // Typical L2 cache size
-#define MAX_THREADS (32)
 
 #define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
-
-// CPU architecture detection
-#if defined(__x86_64__) || defined(_M_X64)
-#define ARCH_X86_64 1
-#elif defined(__aarch64__) || defined(_M_ARM64)
-#define ARCH_ARM64 1
-#endif
-
-#if defined(ARCH_X86_64)
-#define PREFETCH_DISTANCE 16
-#elif defined(ARCH_ARM64)
-#define PREFETCH_DISTANCE 8
-#else
-#define PREFETCH_DISTANCE 4
-#endif
 
 #ifdef __cplusplus
 #define restrict __restrict
@@ -126,6 +107,7 @@ typedef HANDLE sem_t;
 #include <immintrin.h>
 #include <x86intrin.h>
 #define USE_SIMD
+#define USE_AVX512
 typedef __m512i veci_t;
 typedef __mmask64 num_t;
 #define BYTES (64)
@@ -144,10 +126,15 @@ typedef __mmask64 num_t;
 #define or_si _mm512_or_si512
 #define setzero_si _mm512_setzero_si512
 #define and_si _mm512_and_si512
-#define setr_indicies _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+#define setr_epi32 _mm512_setr_epi32
+#define set_row_indices() _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
+#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
+
 #elif defined(__AVX2__)
 #include <immintrin.h>
 #define USE_SIMD
+#define USE_AVX2
 typedef __m256i veci_t;
 typedef uint32_t num_t;
 #define BYTES (32)
@@ -165,26 +152,15 @@ typedef uint32_t num_t;
 #define or_si _mm256_or_si256
 #define setzero_si _mm256_setzero_si256
 #define and_si _mm256_and_si256
-#define setr_indicies _mm256_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8)
-#endif
+#define setr_epi32 _mm256_setr_epi32
+#define set_row_indices() _mm256_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8)
+#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
+#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 
-#ifndef USE_SIMD
-#if defined(__SSE4_2__)
-#define USE_SSE
-#include <nmmintrin.h>
-#elif defined(__SSE4_1__)
-#define USE_SSE
-#include <smmintrin.h>
 #elif defined(__SSE2__)
-#define USE_SSE
 #include <emmintrin.h>
-#elif defined(__SSE__)
-#define USE_SSE
-#include <xmmintrin.h>
-#endif
-
-#ifdef USE_SSE
 #define USE_SIMD
+#define USE_SSE
 typedef __m128i veci_t;
 typedef uint16_t num_t;
 #define BYTES (16)
@@ -194,22 +170,7 @@ typedef uint16_t num_t;
 #define storeu _mm_storeu_si128
 #define add_epi32 _mm_add_epi32
 #define sub_epi32 _mm_sub_epi32
-
-#if defined(__SSE4_1__)
-#define mullo_epi32 _mm_mullo_epi32
-#else
-// Fallback for SSE2
-static inline __m128i
-_mm_mullo_epi32_fallback(__m128i a, __m128i b)
-{
-    __m128i tmp1 = _mm_mul_epu32(a, b);
-    __m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4));
-    return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0, 0, 2, 0)),
-                              _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0, 0, 2, 0)));
-}
 #define mullo_epi32 _mm_mullo_epi32_fallback
-#endif
-
 #define set1_epi32 _mm_set1_epi32
 #define set1_epi8 _mm_set1_epi8
 #define cmpeq_epi8 _mm_cmpeq_epi8
@@ -217,16 +178,26 @@ _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 #define or_si _mm_or_si128
 #define setzero_si _mm_setzero_si128
 #define and_si _mm_and_si128
-#define setr_indicies _mm_setr_epi32(1, 2, 3, 4)
-#endif
+#define setr_epi32 _mm_setr_epi32
+#define set_row_indices() _mm_setr_epi32(1, 2, 3, 4)
+#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
+#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
+
+INLINE __m128i
+_mm_mullo_epi32_fallback(__m128i a, __m128i b)
+{
+    __m128i tmp1 = _mm_mul_epu32(a, b);
+    __m128i tmp2 = _mm_mul_epu32(_mm_srli_si128(a, 4), _mm_srli_si128(b, 4));
+    return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0, 0, 2, 0)),
+                              _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0, 0, 2, 0)));
+}
+#else
+#define prefetch(x)
+#define prefetch_write(x)
 #endif
 
 #ifdef USE_SIMD
-#define PREFETCH(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
-#define PREFETCH_WRITE(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
-#else
-#define PREFETCH(x)
-#define PREFETCH_WRITE(x)
+#define PREFETCH_DISTANCE (BYTES << 4)
 #endif
 
 INLINE int
@@ -235,10 +206,10 @@ thread_count(void)
 #ifdef _WIN32
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
-    return sysinfo.dwNumberOfProcessors > MAX_THREADS ? MAX_THREADS : sysinfo.dwNumberOfProcessors;
+    return sysinfo.dwNumberOfProcessors;
 #else
     long nprocs = sysconf(_SC_NPROCESSORS_ONLN);
-    return nprocs > MAX_THREADS ? MAX_THREADS : nprocs;
+    return nprocs;
 #endif
 }
 
@@ -268,7 +239,7 @@ ALLOC INLINE void*
 alloc_huge_page(size_t size)
 {
     void* ptr = NULL;
-#if USE_HUGE_PAGES && defined(__linux__)
+#ifdef __linux__
     if (size >= HUGE_PAGE_THRESHOLD)
     {
         ptr = aligned_alloc(HUGE_PAGE_THRESHOLD, size);

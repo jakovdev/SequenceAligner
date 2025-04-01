@@ -125,10 +125,7 @@ args_parse_thread_num(const char* arg)
     {
         return 0;
     }
-    if (threads > MAX_THREADS)
-    {
-        return MAX_THREADS;
-    }
+
     return threads;
 }
 

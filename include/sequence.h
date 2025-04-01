@@ -176,8 +176,8 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 
     for (size_t i = 0; i < vec_limit; i += BYTES * 2)
     {
-        PREFETCH(seq1 + i + BYTES);
-        PREFETCH(seq2 + i + BYTES);
+        prefetch(seq1 + i + BYTES);
+        prefetch(seq2 + i + BYTES);
     }
 
     // Process in vector chunks
