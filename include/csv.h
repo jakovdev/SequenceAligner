@@ -2,9 +2,7 @@
 #define CSV_H
 
 #include "benchmark.h"
-#include "files.h"
 #include "print.h"
-#include "terminal.h"
 
 typedef struct
 {
