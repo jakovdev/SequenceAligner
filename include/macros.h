@@ -100,6 +100,7 @@ typedef HANDLE sem_t;
 
 #define INLINE static inline //__attribute__((always_inline))
 #define ALIGN __attribute__((aligned(CACHE_LINE)))
+#define ALLOC __attribute__((malloc, alloc_size(1)))
 
 #ifdef __cplusplus
 #define restrict __restrict

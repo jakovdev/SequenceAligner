@@ -38,7 +38,7 @@ get_time(void)
 #endif
 }
 
-INLINE void*
+ALLOC INLINE void*
 huge_page_alloc(size_t size)
 {
     void* ptr = NULL;
