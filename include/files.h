@@ -1,7 +1,8 @@
 #ifndef FILES_H
 #define FILES_H
 
-#include "args.h"
+#include "common.h"
+#include "print.h"
 
 typedef struct
 {
