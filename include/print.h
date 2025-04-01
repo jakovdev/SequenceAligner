@@ -194,7 +194,7 @@ print_context_init()
     terminal_init();
     if (!terminal_environment())
     {
-        style.chars.ansi_carriage_return = "";
+        style.chars.ansi_carriage_return = "\n";
     }
 }
 
