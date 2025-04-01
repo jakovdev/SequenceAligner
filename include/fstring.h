@@ -3,6 +3,12 @@
 
 #include "macros.h"
 
+/*
+Potential usages that need exploring:
+sequence.h: init_sequence (memcpy)
+csv.h: parse_csv_line (string copying)
+*/
+
 INLINE char*
 fast_strcpy(char* restrict dst, const char* restrict src, size_t len)
 {
@@ -34,7 +40,9 @@ fast_strcpy(char* restrict dst, const char* restrict src, size_t len)
     return dst + len;
 }
 
-/*INLINE char* int_to_str(char* restrict str, int num) {
+INLINE char*
+int_to_str(char* restrict str, int num)
+{
     char* restrict ptr = str;
     uint32_t n = (num ^ (num >> 31)) - (num >> 31); // Convert to unsigned with abs
     uint32_t neg = (num >> 31) & 1;
@@ -45,13 +53,15 @@ fast_strcpy(char* restrict dst, const char* restrict src, size_t len)
     char digits[12];
     char* restrict digit_ptr = digits;
 
-    if (n == 0) {
+    if (n == 0)
+    {
         *ptr++ = '0';
         return ptr;
     }
 
     // Store digits in forward order
-    do {
+    do
+    {
         uint32_t q = n / 10;
         uint32_t r = n - (q * 10); // mod
         *digit_ptr++ = (char)('0' + r);
@@ -59,11 +69,12 @@ fast_strcpy(char* restrict dst, const char* restrict src, size_t len)
     } while (n);
 
     // Copy digits in reverse order
-    while (digit_ptr > digits) {
+    while (digit_ptr > digits)
+    {
         *ptr++ = *--digit_ptr;
     }
 
     return ptr;
-}*/
+}
 
 #endif
