@@ -71,7 +71,7 @@ seq_pool_init(void)
 }
 
 INLINE char*
-pool_alloc(size_t size)
+seq_pool_alloc(size_t size)
 {
     if (!g_seq_pool.head)
     {
@@ -151,7 +151,7 @@ sequence_init(Sequence* seq, const char* data, size_t length)
 {
     seq->length = length;
 
-    seq->data = pool_alloc(length + 1);
+    seq->data = seq_pool_alloc(length + 1);
     if (seq->data)
     {
         memcpy(seq->data, data, length);
@@ -211,17 +211,19 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
     return (float)matches / min_len;
 }
 
-INLINE SequenceData
-sequences_load_from_file(char* current, char* end, size_t total_seqs_in_file)
+INLINE void
+sequences_alloc_from_file(SequenceData* seqdata,
+                          char* current,
+                          char* end,
+                          size_t total_seqs_in_file)
 {
-    SequenceData seqdata = { 0 };
     float filter_threshold = args_filter_threshold();
     bool apply_filtering = args_mode_filter();
 
     Sequence* seqs = malloc(total_seqs_in_file * sizeof(*seqs));
     if (!seqs)
     {
-        return seqdata;
+        return;
     }
 
     size_t idx = 0;
@@ -249,7 +251,7 @@ sequences_load_from_file(char* current, char* end, size_t total_seqs_in_file)
             {
                 free(temp_seq);
                 free(seqs);
-                return seqdata;
+                return;
             }
 
             free(temp_seq);
@@ -310,11 +312,10 @@ sequences_load_from_file(char* current, char* end, size_t total_seqs_in_file)
         }
     }
 
-    print(SUCCESS,
-          MSG_NONE,
-          apply_filtering ? "Loaded %zu sequences (filtered out %zu)" : "Loaded %zu sequences",
-          seq_count,
-          apply_filtering ? filtered_count : 0);
+    if (apply_filtering)
+    {
+        print(DNA, MSG_NONE, "Loaded %zu sequences (filtered out %zu)", seq_count, filtered_count);
+    }
 
     print(INFO,
           MSG_NONE,
@@ -323,10 +324,10 @@ sequences_load_from_file(char* current, char* end, size_t total_seqs_in_file)
 
     size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
 
-    seqdata.sequences = seqs;
-    seqdata.count = seq_count;
-    seqdata.total_alignments = total_alignments;
-    return seqdata;
+    seqdata->sequences = seqs;
+    seqdata->count = seq_count;
+    seqdata->total_alignments = total_alignments;
+    return;
 }
 
 #endif // SEQUENCE_H

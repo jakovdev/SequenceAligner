@@ -163,7 +163,7 @@ static PrintStyle style = {
         [INFO]     = { COLOR_BLUE,        ICON_INFO,    0 },
         [VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     0 },
         [CONFIG]   = { COLOR_YELLOW,      ICON_GEAR,    0 },
-        [TIMING]   = { COLOR_CYAN,        ICON_CLOCK,   0 },
+        [TIMING]   = { COLOR_CYAN,        ICON_CLOCK,   1 },
         [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
         [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    1 },
@@ -293,8 +293,8 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
     const ColorType color = style.map[type].color;
     const IconType icon_type = style.map[type].icon;
-    const char* icon_display = style.chars.icons[icon_type];
-    // const char* icon_display = simple_format ? "" : style.chars.icons[icon_type];
+    // const char* icon_display = style.chars.icons[icon_type];
+    const char* icon_display = simple_format ? "" : style.chars.icons[icon_type];
     const char* color_code = simple_format ? "" : style.chars.codes[color];
     const char* section_color = simple_format ? "" : style.chars.codes[style.map[SECTION].color];
     const char* reset_code = simple_format ? "" : style.chars.codes[COLOR_RESET];

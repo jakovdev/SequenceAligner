@@ -1,17 +1,15 @@
 #ifndef CSV_H
 #define CSV_H
 
-#include "benchmark.h"
 #include "print.h"
 
 typedef struct
 {
-    int seq_col_index;
     int num_columns;
     char** column_headers;
 } CsvMetadata;
 
-static CsvMetadata g_csv_metadata = { -1, 0, NULL };
+static int g_seq_col_index = -1;
 
 INLINE char*
 csv_header_skip(char* restrict current, char* restrict end)
@@ -30,19 +28,19 @@ csv_header_skip(char* restrict current, char* restrict end)
 }
 
 INLINE void
-csv_metadata_free(void)
+csv_metadata_free(CsvMetadata* csv_metadata)
 {
-    if (g_csv_metadata.column_headers)
+    if (csv_metadata->column_headers)
     {
-        for (int i = 0; i < g_csv_metadata.num_columns; i++)
+        for (int i = 0; i < csv_metadata->num_columns; i++)
         {
-            if (g_csv_metadata.column_headers[i])
+            if (csv_metadata->column_headers[i])
             {
-                free(g_csv_metadata.column_headers[i]);
+                free(csv_metadata->column_headers[i]);
             }
         }
-        free(g_csv_metadata.column_headers);
-        g_csv_metadata.column_headers = NULL;
+        free(csv_metadata->column_headers);
+        csv_metadata->column_headers = NULL;
     }
 }
 
@@ -129,19 +127,21 @@ csv_header_parse(char* restrict current, char* restrict end)
 {
     char* header_start = current;
 
-    g_csv_metadata.num_columns = csv_column_count(header_start);
+    __attribute__((cleanup(csv_metadata_free))) CsvMetadata csv_metadata = { 0, NULL };
 
-    if (g_csv_metadata.num_columns <= 0)
+    csv_metadata.num_columns = csv_column_count(header_start);
+
+    if (csv_metadata.num_columns <= 0)
     {
         print(ERROR, MSG_NONE, "Invalid CSV header");
         print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
-    g_csv_metadata.column_headers = malloc(g_csv_metadata.num_columns *
-                                           sizeof(*g_csv_metadata.column_headers));
+    csv_metadata.column_headers = malloc(csv_metadata.num_columns *
+                                         sizeof(*csv_metadata.column_headers));
 
-    if (!g_csv_metadata.column_headers)
+    if (!csv_metadata.column_headers)
     {
         print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
         print(SECTION, MSG_NONE, NULL);
@@ -155,13 +155,13 @@ csv_header_parse(char* restrict current, char* restrict end)
     {
         if (*current == ',' || *current == '\n' || *current == '\r')
         {
-            if (col_idx < g_csv_metadata.num_columns)
+            if (col_idx < csv_metadata.num_columns)
             {
-                g_csv_metadata.column_headers[col_idx] = csv_column_copy(col_start, current);
+                csv_metadata.column_headers[col_idx] = csv_column_copy(col_start, current);
                 col_idx++;
             }
 
-            if (*current == ',' && col_idx < g_csv_metadata.num_columns)
+            if (*current == ',' && col_idx < csv_metadata.num_columns)
             {
                 col_start = current + 1;
             }
@@ -187,29 +187,25 @@ csv_header_parse(char* restrict current, char* restrict end)
         current++;
     }
 
-    g_csv_metadata.seq_col_index = csv_column_sequence(g_csv_metadata.column_headers,
-                                                       g_csv_metadata.num_columns);
+    g_seq_col_index = csv_column_sequence(csv_metadata.column_headers, csv_metadata.num_columns);
 
     // If auto-detection failed
-    if (g_csv_metadata.seq_col_index < 0)
+    if (g_seq_col_index < 0)
     {
-        double saved_time = bench_pause_init();
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(LAST), "Please select the column containing sequence data:");
-        g_csv_metadata.seq_col_index = print(PROMPT,
-                                             MSG_PROMPT(g_csv_metadata.column_headers),
-                                             "Enter column number");
-
-        bench_resume_init(saved_time);
+        g_seq_col_index = print(PROMPT,
+                                MSG_PROMPT(csv_metadata.column_headers),
+                                "Enter column number");
     }
 
-    print(VERBOSE, MSG_LOC(FIRST), "Detected %d columns in CSV", g_csv_metadata.num_columns);
+    print(VERBOSE, MSG_LOC(FIRST), "Detected %d columns in CSV", csv_metadata.num_columns);
     print(VERBOSE,
           MSG_LOC(MIDDLE),
           "Using column %d ('%s') for sequences",
-          g_csv_metadata.seq_col_index + 1,
-          g_csv_metadata.column_headers[g_csv_metadata.seq_col_index]);
+          g_seq_col_index + 1,
+          csv_metadata.column_headers[g_seq_col_index]);
 
     return current;
 }
@@ -308,7 +304,7 @@ csv_line_parse(char** current, char* seq)
 
     while (*p && *p != '\n' && *p != '\r')
     {
-        if ((int)col == g_csv_metadata.seq_col_index)
+        if ((int)col == g_seq_col_index)
         {
             write_pos = seq;
             while (*p && *p != ',' && *p != '\n' && *p != '\r')
@@ -363,7 +359,7 @@ csv_line_parse(char** current, char* seq)
 #else
     while (*p && *p != '\n' && *p != '\r')
     {
-        if ((int)col == g_csv_metadata.seq_col_index)
+        if ((int)col == g_seq_col_index)
         {
             write_pos = seq;
 

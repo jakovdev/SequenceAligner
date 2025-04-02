@@ -313,22 +313,19 @@ align_signlethreaded(H5Handler* h5_handler,
 }
 
 INLINE void
-align(H5Handler* h5_handler,
-      Sequence* seqs,
-      size_t seq_count,
-      size_t total_alignments,
-      const ScoringMatrix* scoring)
+align(H5Handler* h5_handler, Sequence* seqs, size_t seq_count, size_t total_alignments)
 {
+    print(VERBOSE, MSG_NONE, "Initializing scoring matrix");
+    ScoringMatrix scoring = { 0 };
+    scoring_matrix_init(&scoring);
     if (args_mode_multithread())
     {
-        print(CONFIG, MSG_NONE, "Using multithreaded mode with %d threads", args_thread_num());
-        align_multithreaded(h5_handler, seqs, seq_count, total_alignments, scoring);
+        align_multithreaded(h5_handler, seqs, seq_count, total_alignments, &scoring);
     }
 
     else
     {
-        print(CONFIG, MSG_NONE, "Using single-threaded mode");
-        align_signlethreaded(h5_handler, seqs, seq_count, scoring);
+        align_signlethreaded(h5_handler, seqs, seq_count, &scoring);
     }
 }
 
