@@ -207,7 +207,6 @@ align_multithreaded(H5Handler* h5_handler,
     print(VERBOSE, MSG_LOC(FIRST), "Batch size: %zu tasks per batch", optimal_batch_size);
 
     size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
-    print(VERBOSE, MSG_LOC(LAST), "Allocating %zu bytes for task memory", tasks_memory_size);
     AlignTask* tasks = alloc_huge_page(tasks_memory_size);
     size_t processed = 0;
     size_t i = 0, j = 1;
