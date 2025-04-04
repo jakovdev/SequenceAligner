@@ -56,10 +56,10 @@ def get_available_memory():
 
 
 def check_memory_requirements(
-    file_size, multiply_factor, reverse=True, skip_confirm=False
+    file_size, multiply_factor, mirror=True, skip_confirm=False
 ):
     available_memory = get_available_memory()
-    data_multiplier = 2 if reverse else 1
+    data_multiplier = 2 if mirror else 1
     required_memory = (
         file_size * data_multiplier * multiply_factor * MEMORY_SAFETY_FACTOR
     )
@@ -81,7 +81,7 @@ def enlarge_csv(
     multiply_factor=DEFAULT_MULTIPLIER,
     input_path=None,
     output_path=None,
-    reverse=True,
+    mirror=True,
     skip_header=True,
     skip_confirm=False,
 ) -> None:
@@ -92,9 +92,25 @@ def enlarge_csv(
         multiply_factor: Number of times to multiply the data (default: 16)
         input_path: Path to input CSV file
         output_path: Path to output CSV file
-        reverse: If True, the reversed data will be appended to the original data
+        mirror: If True, the mirrored data will be appended to the original data
         skip_header: Set to true if CSV has a header that should be skipped
         skip_confirm: Skip confirmation prompt and remove info messages
+    """
+
+    """
+    Mirroring example:
+    Input:
+    A,
+    AA,
+    AAA,
+
+    Output with mirroring:
+    A,
+    AA,
+    AAA,
+    AAA,
+    AA,
+    A
     """
 
     if multiply_factor < 1:
@@ -112,7 +128,7 @@ def enlarge_csv(
         raise ValueError("Output path was not sent properly (None)")
 
     file_size = input_file.stat().st_size
-    check_memory_requirements(file_size, multiply_factor, reverse, skip_confirm)
+    check_memory_requirements(file_size, multiply_factor, mirror, skip_confirm)
 
     if not skip_confirm:
         input("Press Enter to continue or Ctrl+C to cancel...")
@@ -134,7 +150,7 @@ def enlarge_csv(
     output_buffer[0 : len(header)] = header
     current_pos = len(header)
 
-    if reverse:
+    if mirror:
         doubled_data = data + b"".join(data.splitlines(True)[::-1])
         doubled_size = len(doubled_data)
     else:
@@ -204,11 +220,11 @@ if __name__ == "__main__":
         help="Path to output CSV file (default: avppred_enlarged.csv)",
     )
     parser.add_argument(
-        "--no-reverse",
-        "-nr",
+        "--no-mirror",
+        "-nm",
         action="store_false",
-        dest="reverse",
-        help="If set, the reversed data will not be appended to the original data",
+        dest="mirror",
+        help="If set, the mirrored data will not be appended to the original data",
     )
     parser.add_argument(
         "--no-header",
@@ -237,7 +253,7 @@ if __name__ == "__main__":
         print(f"Info: Using input path: {args.input_path}")
         print(f"Info: Using output path: {args.output_path}")
         print(f"Info: Using multiplier: {args.multiplier}")
-        print(f"Info: Using reverse: {args.reverse}")
+        print(f"Info: Using mirroring: {args.mirror}")
         print(f"Info: Skip header: {args.skip_header}")
 
     try:
@@ -245,7 +261,7 @@ if __name__ == "__main__":
             args.multiplier,
             args.input_path,
             args.output_path,
-            args.reverse,
+            args.mirror,
             args.skip_header,
             args.skip_confirm,
         )
