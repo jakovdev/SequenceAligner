@@ -1724,6 +1724,7 @@ INLINE const char* matrix_id_name(int seq_type, int matrix_id) {
     } else if (seq_type == SEQ_TYPE_NUCLEOTIDE && matrix_id < NUM_NUCLEOTIDE_MATRICES) {
         return ALL_NUCLEOTIDE_MATRICES[matrix_id].name;
     }
+
     return "Unknown";
 }
 
@@ -1787,6 +1788,7 @@ INLINE int sequence_type_arg(const char* arg) {
         if (type >= 0 && type < SEQ_TYPE_COUNT) {
             return type;
         }
+
         return -1;
     }
 

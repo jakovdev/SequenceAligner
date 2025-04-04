@@ -18,6 +18,7 @@ terminal_environment(void)
         is_terminal = isatty(STDOUT_FILENO);
 #endif
     }
+
     return is_terminal;
 }
 
@@ -35,6 +36,7 @@ terminal_init(void)
             SetConsoleMode(hOut, dwMode);
         }
     }
+
 #endif
 }
 

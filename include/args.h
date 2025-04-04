@@ -35,6 +35,7 @@ typedef struct
         unsigned gap_penalty_set : 1;
         unsigned gap_start_set : 1;
         unsigned gap_extend_set : 1;
+        unsigned mode_multithread : 1;
         unsigned mode_write : 1;
         unsigned mode_benchmark : 1;
         unsigned mode_filter : 1;
@@ -76,7 +77,7 @@ GETTER(int, sequence_type, g_args.seq_type)
 GETTER(int, scoring_matrix, g_args.matrix_id)
 GETTER(int, compression_level, g_args.compression_level)
 GETTER(float, filter_threshold, g_args.filter_threshold)
-GETTER(bool, mode_multithread, g_args.thread_num > 1)
+GETTER(bool, mode_multithread, g_args.mode_multithread)
 GETTER(bool, mode_benchmark, g_args.mode_benchmark)
 GETTER(bool, mode_filter, g_args.mode_filter)
 GETTER(bool, mode_write, g_args.mode_write)
@@ -100,6 +101,7 @@ args_parse_scoring_matrix(const char* arg, int seq_type)
         {
             return matrix;
         }
+
         return PARAM_UNSET;
     }
 
@@ -114,6 +116,7 @@ args_parse_filter_threshold(const char* arg)
     {
         return -1.0f;
     }
+
     return threshold > 1.0f ? threshold / 100.0f : threshold;
 }
 
@@ -151,6 +154,7 @@ args_validate_file_input(void)
         print(ERROR, MSG_NONE, "Cannot open input file: %s", g_args.path_input);
         return false;
     }
+
     fclose(test);
     return true;
 }
@@ -187,6 +191,7 @@ args_validate_required(void)
             print(ERROR, MSG_NONE, "Missing required parameter: gap penalty (-p, --gap-penalty)");
             valid = false;
         }
+
         else if (methods_alignment_affine(g_args.method_id))
         {
             if (!g_args.gap_start_set)
@@ -194,6 +199,7 @@ args_validate_required(void)
                 print(ERROR, MSG_NONE, "Missing required parameter: gap start (-s, --gap-start)");
                 valid = false;
             }
+
             if (!g_args.gap_extend_set)
             {
                 print(ERROR, MSG_NONE, "Missing required parameter: gap extend (-e, --gap-extend)");
@@ -270,6 +276,7 @@ args_print_config(void)
     {
         print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", file_name_path(g_args.path_output));
     }
+
     else
     {
         print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (no output file specified)");
@@ -283,6 +290,7 @@ args_print_config(void)
     {
         print(CONFIG, MSG_LOC(MIDDLE), "Gap: %d", g_args.gap_penalty);
     }
+
     else if (methods_alignment_affine(g_args.method_id) &&
              (g_args.gap_start_set && g_args.gap_extend_set))
     {
@@ -341,10 +349,12 @@ args_parse(int argc, char* argv[])
                 {
                     g_args.method_id_set = 1;
                 }
+
                 else
                 {
                     print(ERROR, MSG_NONE, "Unknown alignment method: %s", optarg);
                 }
+
                 break;
 
             case 't':
@@ -353,10 +363,12 @@ args_parse(int argc, char* argv[])
                 {
                     g_args.seq_type_set = 1;
                 }
+
                 else
                 {
                     print(ERROR, MSG_NONE, "Unknown sequence type: %s", optarg);
                 }
+
                 break;
 
             case 'm':
@@ -365,15 +377,18 @@ args_parse(int argc, char* argv[])
                     print(ERROR, MSG_NONE, "Must specify sequence type (-t) before matrix");
                     break;
                 }
+
                 g_args.matrix_id = args_parse_scoring_matrix(optarg, g_args.seq_type);
                 if (g_args.matrix_id != PARAM_UNSET)
                 {
                     g_args.matrix_set = 1;
                 }
+
                 else
                 {
                     print(ERROR, MSG_NONE, "Unknown scoring matrix: %s", optarg);
                 }
+
                 break;
 
             case 'p':
@@ -405,10 +420,12 @@ args_parse(int argc, char* argv[])
                 {
                     g_args.mode_filter = 1;
                 }
+
                 else
                 {
                     print(ERROR, MSG_NONE, "Invalid filter threshold: %s", optarg);
                 }
+
                 break;
 
             case 'B':
@@ -448,6 +465,8 @@ args_parse(int argc, char* argv[])
     {
         g_args.thread_num = thread_count();
     }
+
+    g_args.mode_multithread = (g_args.thread_num > 1);
 }
 
 INLINE void

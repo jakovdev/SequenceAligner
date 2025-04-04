@@ -191,6 +191,7 @@ _mm_mullo_epi32_fallback(__m128i a, __m128i b)
     return _mm_unpacklo_epi32(_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0, 0, 2, 0)),
                               _mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0, 0, 2, 0)));
 }
+
 #else
 #define prefetch(x)
 #define prefetch_write(x)
@@ -248,11 +249,13 @@ alloc_huge_page(size_t size)
             madvise(ptr, size, MADV_HUGEPAGE);
         }
     }
+
 #endif
     if (!ptr)
     {
         ptr = aligned_alloc(CACHE_LINE, size);
     }
+
     return ptr;
 }
 
@@ -279,6 +282,7 @@ available_memory(void)
                 break;
             }
         }
+
         fclose(fp);
     }
 
@@ -290,6 +294,7 @@ available_memory(void)
             available_mem = info.freeram * info.mem_unit;
         }
     }
+
 #endif
 
     return available_mem;

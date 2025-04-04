@@ -37,8 +37,10 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
                     matrix->matrix[i][j] = src_matrix[i][j];
                 }
             }
+
             break;
         }
+
         // Expandable
         case SEQ_TYPE_AMINO:
         default:
@@ -51,6 +53,7 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
                     matrix->matrix[i][j] = src_matrix[i][j];
                 }
             }
+
             break;
         }
     }
@@ -67,8 +70,10 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
                 {
                     SEQUENCE_LOOKUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
                 }
+
                 break;
             }
+
             // Expandable
             case SEQ_TYPE_AMINO:
             default:
@@ -77,9 +82,11 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
                 {
                     SEQUENCE_LOOKUP[(int)AMINO_ALPHABET[i]] = i;
                 }
+
                 break;
             }
         }
+
 #ifdef USE_SIMD
         g_first_row_indices = set_row_indices();
         g_gap_penalty_vec = set1_epi32(args_gap_penalty());

@@ -247,6 +247,7 @@ for (int i = 0; i < seq_number; i++) {
     int percentage = (i + 1) * 100 / seq_number;
     print(PROGRESS, MSG_PERCENT(percentage), "Storing sequences");
 }
+
 │ ▶ Storing sequences [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■] 100% │
 
 // Interactive prompt with choices
@@ -286,6 +287,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         {
             return 0;
         }
+
         last_percentage = margs.percent;
     }
 
@@ -332,6 +334,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         {
             printf("%s", style.chars.boxes[BOX_FANCY][BOX_HORIZONTAL]);
         }
+
         printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_TOP_RIGHT], reset_code);
 
         // Content with centering
@@ -348,6 +351,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         {
             printf("%s", style.chars.boxes[BOX_FANCY][BOX_HORIZONTAL]);
         }
+
         printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_BOTTOM_RIGHT], reset_code);
 
         goto cleanup;
@@ -363,6 +367,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             {
                 printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
             }
+
             printf("%s%s\n", style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_RIGHT], reset_code);
 
             style.flags.section_open = false;
@@ -464,6 +469,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             {
                 printf("%d: %s\n", i + 1, choices[i]);
             }
+
             else
             {
                 const size_t label_len = snprintf(NULL, 0, "%d: %s", i + 1, choices[i]);
@@ -520,6 +526,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
                        style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
                        reset_code);
             }
+
             else
             {
                 printf("\n");
@@ -536,6 +543,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             {
                 printf("%s %d and %d.\n", error_msg, 1, choice_count);
             }
+
             else
             {
                 const int e_len = snprintf(NULL,
@@ -575,8 +583,10 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             {
                 printf("%s ", icon_display);
             }
+
             printf("%s\n", buffer);
         }
+
         else
         {
             if (margs.location != FIRST && icon_type != ICON_NONE)

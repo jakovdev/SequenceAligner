@@ -63,7 +63,6 @@ thread_pool_worker(void* arg)
                                                 TASK_BLOCK_SIZE,
                                                 __ATOMIC_RELAXED)) < queue->task_count)
         {
-
             size_t block_end = min(task_block + TASK_BLOCK_SIZE, queue->task_count);
 
 #pragma GCC unroll 8
@@ -235,6 +234,7 @@ align_multithreaded(H5Handler* h5_handler,
                     prefetch(seqs[prefetch_j].data);
                 }
             }
+
 #endif
 
             tasks[t].seq1 = seqs[i].data;
@@ -288,6 +288,7 @@ align_signlethreaded(H5Handler* h5_handler,
                 prefetch(seqs[i + 1].data);
                 prefetch(seqs[i + 2].data);
             }
+
 #endif
 
             int score = align_pairwise(seqs[i].data,

@@ -343,7 +343,6 @@ h5_cleanup_on_init_failure(H5Handler* handler)
 INLINE void
 h5_initialize(H5Handler* handler, size_t matrix_size)
 {
-
     handler->matrix_size = matrix_size;
     handler->file_id = -1;
     handler->matrix_dataset_id = -1;
@@ -591,6 +590,7 @@ h5_set_matrix_value(H5Handler* handler, size_t row, size_t col, int value)
 
         mmap_matrix_set_value(&handler->mmap_matrix, row, col, value);
     }
+
     else
     {
         if (!handler->buffer.data)
@@ -865,6 +865,7 @@ h5_collect_thread_checksums(H5Handler* handler)
     {
         total_checksum += handler->checksums[t];
     }
+
     return total_checksum * 2;
 }
 

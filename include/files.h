@@ -337,6 +337,7 @@ mmap_matrix_file_name(char* buffer, size_t buffer_size, const char* output_path)
 
         snprintf(buffer, buffer_size, "%s%s.mmap", dir, base);
     }
+
     else
     {
         snprintf(buffer, buffer_size, "./seqalign_matrix.mmap");

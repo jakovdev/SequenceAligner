@@ -96,6 +96,7 @@ methods_alignment_arg(const char* arg)
         {
             return method;
         }
+
         return -1;
     }
 

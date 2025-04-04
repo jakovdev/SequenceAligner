@@ -29,6 +29,7 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
         indices->data = stack_buffer;
         indices->is_stack = true;
     }
+
     else
     {
         indices->data = malloc(len * sizeof(*indices->data));
@@ -53,12 +54,14 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
     {
         indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
     }
+
 #else
 #pragma GCC unroll 8
     for (size_t i = 0; i < len; ++i)
     {
         indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
     }
+
 #endif
 }
 
@@ -79,6 +82,7 @@ matrix_alloc(int* stack_matrix, size_t bytes)
     {
         return stack_matrix;
     }
+
     else
     {
         return (int*)alloc_huge_page(bytes);
@@ -288,6 +292,7 @@ simd_linear_row_init(int* matrix, int len1, int gap_penalty)
             veci_t values = mullo_epi32(indices, gap_penalty_vec);
             storeu((veci_t*)&matrix[j], values);
         }
+
         else
         {
             for (int k = 0; k < remaining; k++)
@@ -295,6 +300,7 @@ simd_linear_row_init(int* matrix, int len1, int gap_penalty)
                 matrix[j + k] = (j + k) * gap_penalty;
             }
         }
+
         indices = add_epi32(indices, set1_epi32(NUM_ELEMS));
     }
 }
@@ -325,6 +331,7 @@ simd_affine_global_row_init(int* match,
             storeu((veci_t*)&gap_x[j], values);
             storeu((veci_t*)&gap_y[j], int_min_half);
         }
+
         else
         {
             for (int k = 0; k < remaining; k++)
@@ -334,6 +341,7 @@ simd_affine_global_row_init(int* match,
                 gap_y[j + k] = INT_MIN / 2;
             }
         }
+
         indices = add_epi32(indices, set1_epi32(NUM_ELEMS));
     }
 }
@@ -353,6 +361,7 @@ simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1)
             storeu((veci_t*)&gap_x[j], int_min_half);
             storeu((veci_t*)&gap_y[j], int_min_half);
         }
+
         else
         {
             for (int k = 0; k < remaining; k++)
@@ -363,6 +372,7 @@ simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1)
         }
     }
 }
+
 #endif
 
 INLINE int
@@ -385,6 +395,7 @@ align_nw(const char* seq1,
     {
         simd_linear_row_init(matrix, len1, gap_penalty);
     }
+
     else
     {
         for (int j = 1; j <= (int)len1; j++)
@@ -397,6 +408,7 @@ align_nw(const char* seq1,
     {
         matrix[i * cols] = i * gap_penalty;
     }
+
 #else
     INIT_LINEAR_GLOBAL(matrix, cols, gap_penalty);
 #endif
@@ -440,6 +452,7 @@ align_ga(const char* seq1,
     {
         simd_affine_global_row_init(match, gap_x, gap_y, len1, gap_start, gap_extend);
     }
+
     else
     {
         for (int j = 1; j <= (int)len1; j++)
@@ -457,6 +470,7 @@ align_ga(const char* seq1,
         gap_y[idx] = match[idx];
         gap_x[idx] = INT_MIN / 2;
     }
+
 #else
     INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
 #endif
@@ -497,10 +511,12 @@ align_sw(const char* seq1,
     {
         simd_affine_local_row_init(match, gap_x, gap_y, len1);
     }
+
     else
     {
         INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols);
     }
+
 #else
     INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols);
 #endif

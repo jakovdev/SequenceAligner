@@ -200,12 +200,14 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
     {
         matches += (seq1[i] == seq2[i]);
     }
+
 #else
     // Basic character-by-character comparison
     for (size_t i = 0; i < min_len; i++)
     {
         matches += (seq1[i] == seq2[i]);
     }
+
 #endif
 
     return (float)matches / min_len;

@@ -39,6 +39,7 @@ csv_metadata_free(CsvMetadata* csv_metadata)
                 free(csv_metadata->column_headers[i]);
             }
         }
+
         free(csv_metadata->column_headers);
         csv_metadata->column_headers = NULL;
     }
@@ -192,7 +193,6 @@ csv_header_parse(char* restrict current, char* restrict end)
     // If auto-detection failed
     if (g_seq_col_index < 0)
     {
-
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(LAST), "Please select the column containing sequence data:");
         g_seq_col_index = print(PROMPT,
@@ -252,11 +252,13 @@ csv_line_count(char** current)
 
         p += BYTES;
     }
+
 #else
     while (*p && *p != '\n' && *p != '\r')
     {
         p++;
     }
+
 #endif
 
     while (*p && (*p == '\n' || *p == '\r'))
@@ -341,6 +343,7 @@ csv_line_parse(char** current, char* seq)
             *write_pos = '\0';
             seq_len = write_pos - seq;
         }
+
         else
         {
             // Skip other columns
@@ -356,6 +359,7 @@ csv_line_parse(char** current, char* seq)
             col++;
         }
     }
+
 #else
     while (*p && *p != '\n' && *p != '\r')
     {
@@ -387,6 +391,7 @@ csv_line_parse(char** current, char* seq)
             col++;
         }
     }
+
 #endif
 
     while (*p && (*p == '\n' || *p == '\r'))

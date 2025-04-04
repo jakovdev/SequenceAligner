@@ -18,3 +18,6 @@ BreakAfterReturnType: None
 AllowShortBlocksOnASingleLine: Never
 ExperimentalAutoDetectBinPacking: false
 PenaltyBreakAssignment: 20000
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+SeparateDefinitionBlocks: Always
