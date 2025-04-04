@@ -1,15 +1,7 @@
 import os
-import re
 import sys
-import subprocess
 
 def add_newlines_after_braces(file_path):
-    try:
-        subprocess.run(['clang-format', '-i', file_path], check=True)
-        print(f"Applied clang-format to {file_path}")
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        print("Warning: clang-format not found or failed, continuing without it")
-
     with open(file_path, 'r') as f:
         lines = f.readlines()
 
