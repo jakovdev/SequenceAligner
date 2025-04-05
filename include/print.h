@@ -274,6 +274,11 @@ print(SECTION, MSG_NONE, NULL);
 INLINE int
 print(MsgType type, MsgArgs margs, const char* format, ...)
 {
+    if (!style.flags.section_open && type != HEADER && type != SECTION)
+    {
+        print(SECTION, MSG_NONE, "Error");
+    }
+
     const bool is_required = style.map[type].required;
     if ((style.flags.quiet && !is_required) || (type == VERBOSE && !style.flags.verbose))
     {
@@ -283,6 +288,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
     if (type == PROGRESS)
     {
         static int last_percentage = -1;
+        last_percentage = last_percentage == 100 ? -1 : last_percentage;
         if (margs.percent == last_percentage)
         {
             return 0;
