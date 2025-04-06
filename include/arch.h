@@ -2,7 +2,7 @@
 #define ARCH_H
 
 // GCC/Clang specific macros
-#define INLINE static inline //__attribute__((always_inline))
+#define INLINE static inline
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #define UNREACHABLE() __builtin_unreachable()

@@ -271,7 +271,7 @@ print(SECTION, MSG_NONE, NULL);
 └──────────────────────────────────────────────────────────────────────────────┘
 */
 
-INLINE int
+static int
 print(MsgType type, MsgArgs margs, const char* format, ...)
 {
     if (!style.flags.section_open && type != HEADER && type != SECTION)
