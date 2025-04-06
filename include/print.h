@@ -16,7 +16,7 @@ typedef enum
     TIMING,
     DNA,
     PROGRESS,
-    PROMPT,
+    CHOICE,
     WARNING,
     ERROR,
 } MsgType;
@@ -166,7 +166,7 @@ static PrintStyle style = {
         [TIMING]   = { COLOR_CYAN,        ICON_CLOCK,   1 },
         [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
-        [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    1 },
+        [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    1 },
         [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, 1 },
         [ERROR]    = { COLOR_RED,         ICON_ERROR,   1 },
     },
@@ -460,7 +460,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         goto cleanup;
     }
 
-    else if (type == PROMPT)
+    else if (type == CHOICE)
     {
         char** choices = margs.choices;
         int choice_count = 0;
