@@ -39,8 +39,7 @@ endif
 
 # Compiler flags
 BASE_FLAGS := -pthread -I$(INCLUDE_DIR) $(HDF5_CFLAGS)
-OPT_FLAGS := -O3 -ffast-math -funroll-loops -fno-strict-aliasing -flto \
-             -fprefetch-loop-arrays "-Wl,--gc-sections" -DNDEBUG
+OPT_FLAGS := -O3 -ffast-math -flto -fomit-frame-pointer "-Wl,--gc-sections" -DNDEBUG
 DBG_FLAGS := -g -O0 -Wall -Wextra -Wpedantic -Werror -fstack-protector-strong
 
 CFLAGS := $(BASE_FLAGS) -march=native $(OPT_FLAGS)
