@@ -288,13 +288,18 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
     if (type == PROGRESS)
     {
         static int last_percentage = -1;
-        last_percentage = last_percentage == 100 ? -1 : last_percentage;
+
         if (margs.percent == last_percentage)
         {
             return 0;
         }
 
         last_percentage = margs.percent;
+
+        if (last_percentage == 100)
+        {
+            last_percentage = -1;
+        }
     }
 
     const bool simple_format = style.flags.quiet && is_required;
