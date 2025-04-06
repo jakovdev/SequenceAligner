@@ -2,272 +2,206 @@
 #define THREAD_H
 
 #include "arch.h"
+#include "args.h"
 #include "h5_handler.h"
+#include "print.h"
 #include "seqalign.h"
+#include <stdatomic.h>
 
 typedef struct
 {
-    const char* seq1;
-    const char* seq2;
-    size_t len1;
-    size_t len2;
-    const ScoringMatrix* scoring;
-    size_t i; // First sequence index
-    size_t j; // Second sequence index
-} AlignTask;
-
-typedef struct
-{
-    AlignTask* tasks;
-    size_t task_count;
-    sem_t* work_ready;
-    sem_t* work_done;
-    int active;
-    volatile size_t task_counter;
-    volatile int threads_waiting;
-} WorkQueue;
-
-typedef struct
-{
-    pthread_t* threads;
-    int* thread_ids;
-    int num_threads;
+    int thread_id;
     H5Handler* h5_handler;
-    WorkQueue queue;
-} ThreadPool;
-
-#define TASK_BLOCK_SIZE (64)
-
-static ThreadPool g_thread_pool;
+    SequenceData* seq_data;
+    const ScoringMatrix* scoring;
+    int64_t local_checksum;
+    volatile size_t* current_row;
+    pthread_mutex_t* row_mutex;
+    atomic_size_t* shared_progress;
+} ThreadStorage;
 
 INLINE T_Func
-thread_pool_worker(void* arg)
+thread_worker(void* arg)
 {
-    int thread_id = *(int*)arg;
-    PIN_THREAD(thread_id);
-    int64_t local_checksum = 0; // This will accumulate across all batches
-    WorkQueue* queue = &g_thread_pool.queue;
+    ThreadStorage* storage = arg;
+    PIN_THREAD(storage->thread_id);
+
+    SequenceData* seq_data = storage->seq_data;
+    const size_t seq_count = seq_data->count;
+    H5Handler* h5_handler = storage->h5_handler;
+    const ScoringMatrix* scoring = storage->scoring;
+
+    size_t local_progress = 0;
+
+    const int num_threads = args_thread_num();
+    const size_t progress_update_interval = seq_data->total_alignments * 0.01 / num_threads;
+
+    const size_t batch_size = num_threads;
+
+    const size_t batch_transition_tail = seq_count * 9 / 10;
+
+    const size_t batch_size_tail = batch_size / 2;
 
     while (1)
     {
-        sem_wait(queue->work_ready);
+        size_t current_batch_size;
+        size_t row;
 
-        if (!queue->active)
+        pthread_mutex_lock(storage->row_mutex);
+        row = *storage->current_row;
+
+        current_batch_size = (row < batch_transition_tail) ? batch_size : batch_size_tail;
+
+        size_t remaining_rows = seq_count - row;
+        if (remaining_rows < current_batch_size * num_threads / 2)
         {
-            g_thread_pool.h5_handler->checksums[thread_id] = local_checksum;
-            break;
-        }
-
-        size_t task_block;
-        while ((task_block = __atomic_fetch_add(&queue->task_counter,
-                                                TASK_BLOCK_SIZE,
-                                                __ATOMIC_RELAXED)) < queue->task_count)
-        {
-            size_t block_end = min(task_block + TASK_BLOCK_SIZE, queue->task_count);
-
-        UNROLL(8)
-            for (size_t task_idx = task_block; task_idx < block_end; task_idx++)
+            current_batch_size = (remaining_rows + num_threads - 1) / num_threads;
+            if (current_batch_size == 0)
             {
-                AlignTask* task = &queue->tasks[task_idx];
-
-                int score = align_pairwise(task->seq1,
-                                           task->len1,
-                                           task->seq2,
-                                           task->len2,
-                                           task->scoring);
-
-                local_checksum += score;
-
-                H5Handler* h5_handler = g_thread_pool.h5_handler;
-                h5_set_matrix_value(h5_handler, task->i, task->j, score);
-                h5_set_matrix_value(h5_handler, task->j, task->i, score);
+                current_batch_size = 1;
             }
         }
 
-        if (__atomic_add_fetch(&queue->threads_waiting, 1, __ATOMIC_SEQ_CST) ==
-            g_thread_pool.num_threads)
+        *storage->current_row += current_batch_size;
+        pthread_mutex_unlock(storage->row_mutex);
+
+        if (row >= seq_count)
         {
-            sem_post(queue->work_done);
-            __atomic_store_n(&queue->threads_waiting, 0, __ATOMIC_RELAXED);
+            break;
         }
+
+        size_t end_row = row + current_batch_size;
+        if (end_row > seq_count)
+        {
+            end_row = seq_count;
+        }
+
+        for (size_t i = row; i < end_row; i++)
+        {
+            char* seq1;
+            size_t len1;
+
+            for (size_t j = i + 1; j < seq_count; j++)
+            {
+                char* seq2;
+                size_t len2;
+
+                seq_get_pair(seq_data, i, j, &seq1, &len1, &seq2, &len2);
+
+                if (UNLIKELY(!seq1 || !seq2 || !len1 || !len2))
+                {
+                    continue;
+                }
+
+                int score = align_pairwise(seq1, len1, seq2, len2, scoring);
+
+                storage->local_checksum += score;
+
+                h5_set_matrix_value(h5_handler, i, j, score);
+                h5_set_matrix_value(h5_handler, j, i, score);
+
+                local_progress++;
+
+                if (local_progress >= progress_update_interval)
+                {
+                    atomic_fetch_add(storage->shared_progress, local_progress);
+                    local_progress = 0;
+                }
+            }
+        }
+    }
+
+    if (local_progress > 0)
+    {
+        atomic_fetch_add(storage->shared_progress, local_progress);
     }
 
     T_Ret(NULL);
 }
 
 INLINE void
-thread_pool_init(H5Handler* h5_handler)
+align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const ScoringMatrix* scoring)
 {
-    g_thread_pool.num_threads = args_thread_num();
-    g_thread_pool.h5_handler = h5_handler;
+    const int num_threads = args_thread_num();
+    const size_t seq_count = seq_data->count;
+    const size_t total_alignments = seq_data->total_alignments;
 
-    g_thread_pool.threads = aligned_alloc(CACHE_LINE,
-                                          sizeof(*g_thread_pool.threads) *
-                                              g_thread_pool.num_threads);
+    volatile size_t current_row = 0;
+    pthread_mutex_t row_mutex = PTHREAD_MUTEX_INITIALIZER;
+    atomic_size_t shared_progress = 0;
 
-    g_thread_pool.thread_ids = aligned_alloc(CACHE_LINE,
-                                             sizeof(*g_thread_pool.thread_ids) *
-                                                 g_thread_pool.num_threads);
+    pthread_t* threads = malloc(num_threads * sizeof(*threads));
+    ThreadStorage* thread_storages = calloc(num_threads, sizeof(*thread_storages));
 
-    h5_handler->checksums = aligned_alloc(CACHE_LINE,
-                                          sizeof(*h5_handler->checksums) *
-                                              g_thread_pool.num_threads);
-
-    for (int i = 0; i < g_thread_pool.num_threads; i++)
+    for (int t = 0; t < num_threads; t++)
     {
-        h5_handler->checksums[i] = 0;
+        ThreadStorage* storage = &thread_storages[t];
+        storage->thread_id = t;
+        storage->h5_handler = h5_handler;
+        storage->seq_data = seq_data;
+        storage->scoring = scoring;
+        storage->local_checksum = 0;
+        storage->current_row = &current_row;
+        storage->row_mutex = &row_mutex;
+        storage->shared_progress = &shared_progress;
+
+        pthread_create(&threads[t], NULL, thread_worker, storage);
     }
 
-    WorkQueue* queue = &g_thread_pool.queue;
-    queue->work_ready = malloc(sizeof(*queue->work_ready));
-    queue->work_done = malloc(sizeof(*queue->work_done));
-    sem_init(queue->work_ready, 0, 0);
-    sem_init(queue->work_done, 0, 0);
-    queue->active = 1;
-    queue->task_counter = 0;
-    queue->threads_waiting = 0;
+    double last_update = time_current();
+    int progress_percent = 0;
 
-    for (int t = 0; t < g_thread_pool.num_threads; t++)
+    print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+
+    while (atomic_load(&shared_progress) < total_alignments)
     {
-        g_thread_pool.thread_ids[t] = t;
-        pthread_create(&g_thread_pool.threads[t],
-                       NULL,
-                       thread_pool_worker,
-                       &g_thread_pool.thread_ids[t]);
-    }
-}
-
-INLINE void
-tasks_submit(AlignTask* tasks, size_t task_count)
-{
-    WorkQueue* queue = &g_thread_pool.queue;
-    queue->tasks = tasks;
-    queue->task_count = task_count;
-
-    __atomic_store_n(&queue->task_counter, 0, __ATOMIC_RELAXED);
-    __atomic_store_n(&queue->threads_waiting, 0, __ATOMIC_RELAXED);
-
-    for (int t = 0; t < g_thread_pool.num_threads; t++)
-    {
-        sem_post(queue->work_ready);
-    }
-
-    sem_wait(queue->work_done);
-}
-
-INLINE void
-thread_pool_free(void)
-{
-    WorkQueue* queue = &g_thread_pool.queue;
-
-    queue->active = 0;
-    for (int t = 0; t < g_thread_pool.num_threads; t++)
-    {
-        sem_post(queue->work_ready);
-    }
-
-    for (int t = 0; t < g_thread_pool.num_threads; t++)
-    {
-        pthread_join(g_thread_pool.threads[t], NULL);
-    }
-
-    sem_destroy(queue->work_ready);
-    sem_destroy(queue->work_done);
-    free(queue->work_ready);
-    free(queue->work_done);
-    aligned_free(g_thread_pool.threads);
-    aligned_free(g_thread_pool.thread_ids);
-}
-
-INLINE void
-align_multithreaded(H5Handler* h5_handler,
-                    Sequence* seqs,
-                    size_t seq_count,
-                    size_t total_alignments,
-                    const ScoringMatrix* scoring)
-{
-    thread_pool_init(h5_handler);
-
-    const double ref_small_seqs = 1.0 * KiB;
-    const double ref_large_seqs = 32.0 * KiB;
-    const double ref_small_bytes = 256 * KiB;
-    const double ref_large_bytes = 16.0 * MiB;
-
-    double log_seq_ratio = log10(seq_count / ref_small_seqs) /
-                           log10(ref_large_seqs / ref_small_seqs);
-
-    double clamped_ratio = fmax(0.0, fmin(1.0, log_seq_ratio));
-    double optimal_memory = ref_small_bytes + clamped_ratio * (ref_large_bytes - ref_small_bytes);
-
-    size_t task_size = sizeof(AlignTask);
-    size_t optimal_batch_size = (size_t)(optimal_memory / task_size);
-    optimal_batch_size = min(optimal_batch_size, total_alignments);
-
-    print(VERBOSE, MSG_LOC(FIRST), "Batch size: %zu tasks per batch", optimal_batch_size);
-
-    size_t tasks_memory_size = sizeof(AlignTask) * optimal_batch_size;
-    AlignTask* tasks = alloc_huge_page(tasks_memory_size);
-    size_t processed = 0;
-    size_t i = 0, j = 1;
-
-    while (processed < total_alignments)
-    {
-        size_t batch_size = min(total_alignments - processed, optimal_batch_size);
-
-        for (size_t t = 0; t < batch_size; t++)
-        {
-#ifdef USE_SIMD
-            if (t + PREFETCH_DISTANCE < batch_size)
-            {
-                size_t prefetch_i = i;
-                size_t prefetch_j = j + PREFETCH_DISTANCE;
-
-                if (prefetch_j >= seq_count)
-                {
-                    prefetch_i++;
-                    prefetch_j = prefetch_i + 1;
-                }
-
-                if (prefetch_i < seq_count && prefetch_j < seq_count)
-                {
-                    prefetch(seqs[prefetch_i].data);
-                    prefetch(seqs[prefetch_j].data);
-                }
-            }
-
+#ifdef _WIN32
+        Sleep(10);
+#else
+        usleep(10000);
 #endif
 
-            tasks[t].seq1 = seqs[i].data;
-            tasks[t].seq2 = seqs[j].data;
-            tasks[t].len1 = seqs[i].length;
-            tasks[t].len2 = seqs[j].length;
-            tasks[t].scoring = scoring;
-            tasks[t].i = i;
-            tasks[t].j = j;
+        double now = time_current();
+        if (now - last_update > 0.1)
+        {
+            size_t progress = atomic_load(&shared_progress);
+            progress_percent = progress * 100 / total_alignments;
 
-            if (++j >= seq_count)
-            {
-                i++;
-                j = i + 1;
-            }
+            print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+
+            last_update = now;
         }
-
-        tasks_submit(tasks, batch_size);
-        processed += batch_size;
-        print(PROGRESS, MSG_PROPORTION((float)processed / total_alignments), "Aligning sequences");
     }
 
-    thread_pool_free();
-    aligned_free(tasks);
+    for (int t = 0; t < num_threads; t++)
+    {
+        pthread_join(threads[t], NULL);
+    }
+
+    int64_t total_checksum = 0;
+    for (int t = 0; t < num_threads; t++)
+    {
+        total_checksum += thread_storages[t].local_checksum;
+    }
+
+    h5_handler->checksum = total_checksum * 2;
+
+    pthread_mutex_destroy(&row_mutex);
+    free(threads);
+    free(thread_storages);
+
+    if (progress_percent < 100)
+    {
+        progress_percent = 100;
+        print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+    }
 }
 
 INLINE void
-align_signlethreaded(H5Handler* h5_handler,
-                     Sequence* seqs,
-                     size_t seq_count,
-                     const ScoringMatrix* scoring)
+align_singlethreaded(H5Handler* h5_handler, SequenceData* seq_data, const ScoringMatrix* scoring)
 {
-    size_t total_alignments = seq_count * (seq_count - 1) / 2;
+    size_t seq_count = seq_data->count;
+    size_t total_alignments = seq_data->total_alignments;
     size_t progress_counter = 0;
     int64_t local_checksum = 0;
 
@@ -275,26 +209,13 @@ align_signlethreaded(H5Handler* h5_handler,
     {
         for (size_t j = i + 1; j < seq_count; j++)
         {
-#ifdef USE_SIMD
-            if (j + 1 < seq_count)
-            {
-                prefetch(seqs[i].data + seqs[i].length / 2);
-                prefetch(seqs[j + 1].data);
-            }
+            char* seq1;
+            char* seq2;
+            size_t len1, len2;
 
-            else if (i + 1 < seq_count)
-            {
-                prefetch(seqs[i + 1].data);
-                prefetch(seqs[i + 2].data);
-            }
+            seq_get_pair(seq_data, i, j, &seq1, &len1, &seq2, &len2);
 
-#endif
-
-            int score = align_pairwise(seqs[i].data,
-                                       seqs[i].length,
-                                       seqs[j].data,
-                                       seqs[j].length,
-                                       scoring);
+            int score = align_pairwise(seq1, len1, seq2, len2, scoring);
 
             local_checksum += score;
 
@@ -312,20 +233,21 @@ align_signlethreaded(H5Handler* h5_handler,
 }
 
 INLINE void
-align(H5Handler* h5_handler, Sequence* seqs, size_t seq_count, size_t total_alignments)
+align(H5Handler* h5_handler, SequenceData* seq_data)
 {
-    print(VERBOSE, MSG_NONE, "Initializing scoring matrix");
+    print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
     ScoringMatrix scoring = { 0 };
     scoring_matrix_init(&scoring);
+
     if (args_mode_multithread())
     {
-        align_multithreaded(h5_handler, seqs, seq_count, total_alignments, &scoring);
+        align_multithreaded(h5_handler, seq_data, &scoring);
     }
 
     else
     {
-        align_signlethreaded(h5_handler, seqs, seq_count, &scoring);
+        align_singlethreaded(h5_handler, seq_data, &scoring);
     }
 }
 
-#endif
+#endif // THREAD_H

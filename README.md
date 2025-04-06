@@ -226,7 +226,7 @@ mingw32-make help
   <tr>
     <td>Linux (Arch)</td>
     <td>16</td>
-    <td><strong>70.165s (24.6 million/s)</strong></td>
+    <td><strong>55.662s (31 million/s)</strong></td>
     <td>40.658s (hdf5 conversion)</td>
   </tr>
 </table>

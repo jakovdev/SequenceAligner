@@ -35,7 +35,6 @@ typedef struct
     bool use_mmap;
     char mmap_filename[MAX_PATH];
 
-    int64_t* checksums;
     int64_t checksum;
 
     bool sequences_stored;
@@ -285,26 +284,6 @@ h5_initialize_memory(H5Handler* handler)
     }
 }
 
-INLINE bool
-h5_initialize_thread_checksums(H5Handler* handler)
-{
-    if (!args_mode_multithread())
-    {
-        return true;
-    }
-
-    handler->checksums = aligned_alloc(CACHE_LINE, sizeof(*handler->checksums) * args_thread_num());
-
-    if (!handler->checksums)
-    {
-        print(ERROR, MSG_NONE, "Failed to allocate memory for thread checksums");
-        return false;
-    }
-
-    memset(handler->checksums, 0, sizeof(*handler->checksums) * args_thread_num());
-    return true;
-}
-
 INLINE void
 h5_cleanup_on_init_failure(H5Handler* handler)
 {
@@ -317,11 +296,6 @@ h5_cleanup_on_init_failure(H5Handler* handler)
     else
     {
         matrix_buffer_free(&handler->buffer);
-    }
-
-    if (handler->checksums)
-    {
-        aligned_free(handler->checksums);
     }
 
     if (handler->matrix_dataset_id > 0)
@@ -369,12 +343,6 @@ h5_initialize(H5Handler* handler, size_t matrix_size)
     h5_calculate_chunk_dimensions(handler);
 
     if (!h5_setup_file(handler))
-    {
-        h5_cleanup_on_init_failure(handler);
-        return;
-    }
-
-    if (!h5_initialize_thread_checksums(handler))
     {
         h5_cleanup_on_init_failure(handler);
         return;
@@ -851,23 +819,6 @@ h5_store_checksum(H5Handler* handler)
     return true;
 }
 
-INLINE int64_t
-h5_collect_thread_checksums(H5Handler* handler)
-{
-    if (!handler->checksums)
-    {
-        return 0;
-    }
-
-    int64_t total_checksum = 0;
-    for (int t = 0; t < args_thread_num(); t++)
-    {
-        total_checksum += handler->checksums[t];
-    }
-
-    return total_checksum * 2;
-}
-
 INLINE void
 h5_close(H5Handler* handler)
 {
@@ -890,13 +841,6 @@ h5_close(H5Handler* handler)
         {
             print(ERROR, MSG_NONE, "Failed to write matrix data to output file");
             success = false;
-        }
-
-        if (args_mode_multithread() && handler->checksums)
-        {
-            handler->checksum = h5_collect_thread_checksums(handler);
-            aligned_free(handler->checksums);
-            handler->checksums = NULL;
         }
 
         print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", handler->checksum);

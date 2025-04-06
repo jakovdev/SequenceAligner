@@ -1,4 +1,5 @@
 #include "arch.h"
+#include "args.h"
 #include "benchmark.h"
 #include "csv.h"
 #include "files.h"
@@ -24,7 +25,7 @@ main(int argc, char* argv[])
     }
 
     seq_pool_init();
-    SequenceData seqdata = { 0 };
+    SequenceData seq_data = { 0 };
 
     {
         CREATE_FILE input_file = { 0 };
@@ -49,29 +50,32 @@ main(int argc, char* argv[])
         current = input_file.file_data;
         current = csv_header_skip(current, end);
 
-        bench_io_add(sequences_alloc_from_file(&seqdata, current, end, total_seqs_in_file));
-        if (!seqdata.sequences)
+        bench_io_add(sequences_alloc_from_file(&seq_data, current, end, total_seqs_in_file));
+        if (!seq_data.sequences)
         {
             print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
             return 1;
         }
     }
 
-    Sequence* seqs = seqdata.sequences;
-    size_t seq_count = seqdata.count;
-    size_t total_alignments = seqdata.total_alignments;
+    size_t seq_count = seq_data.count;
+    size_t total_alignments = seq_data.total_alignments;
 
     H5Handler h5_handler = { 0 };
     bench_io_add(h5_initialize(&h5_handler, seq_count));
 
-    bench_io_add(h5_store_sequences(&h5_handler, seqs, seq_count));
+    bench_io_add(h5_store_sequences(&h5_handler, seq_data.sequences, seq_count));
 
     print(SECTION, MSG_NONE, "Performing Alignments");
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
 
-    bench_align_add(align(&h5_handler, seqs, seq_count, total_alignments));
-    print(SUCCESS, MSG_NONE, "Alignment completed successfully!");
+    bench_align_add(align(&h5_handler, &seq_data));
+
+    if (!args_mode_write())
+    {
+        print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_handler.checksum);
+    }
 
     bench_align_end();
 
@@ -82,7 +86,7 @@ main(int argc, char* argv[])
     bench_total(total_alignments);
 
     seq_pool_free();
-    free(seqs);
+    free(seq_data.sequences);
 
     print(SECTION, MSG_NONE, NULL);
     return 0;

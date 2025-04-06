@@ -167,7 +167,6 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
         return 0.0f;
     }
 
-    // Use the shorter length for comparison and percentage calculation
     size_t min_len = len1 < len2 ? len1 : len2;
     size_t matches = 0;
 
@@ -180,7 +179,6 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
         prefetch(seq2 + i + BYTES);
     }
 
-    // Process in vector chunks
     for (size_t i = 0; i < vec_limit; i += BYTES)
     {
         veci_t v1 = loadu((const veci_t*)(seq1 + i));
@@ -195,14 +193,12 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 #endif
     }
 
-    // Process remaining characters
     for (size_t i = vec_limit; i < min_len; i++)
     {
         matches += (seq1[i] == seq2[i]);
     }
 
 #else
-    // Basic character-by-character comparison
     for (size_t i = 0; i < min_len; i++)
     {
         matches += (seq1[i] == seq2[i]);
@@ -214,7 +210,7 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 }
 
 INLINE void
-sequences_alloc_from_file(SequenceData* seqdata,
+sequences_alloc_from_file(SequenceData* seq_data,
                           char* current,
                           char* end,
                           size_t total_seqs_in_file)
@@ -326,10 +322,29 @@ sequences_alloc_from_file(SequenceData* seqdata,
 
     size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
 
-    seqdata->sequences = seqs;
-    seqdata->count = seq_count;
-    seqdata->total_alignments = total_alignments;
+    seq_data->sequences = seqs;
+    seq_data->count = seq_count;
+    seq_data->total_alignments = total_alignments;
+
     return;
+}
+
+INLINE void
+seq_get_pair(SequenceData* seq_data,
+             size_t first,
+             size_t second,
+             char** seq1,
+             size_t* len1,
+             char** seq2,
+             size_t* len2)
+{
+    *seq1 = seq_data->sequences[first].data;
+    *len1 = seq_data->sequences[first].length;
+    *seq2 = seq_data->sequences[second].data;
+    *len2 = seq_data->sequences[second].length;
+
+    prefetch(*seq1);
+    prefetch(*seq2);
 }
 
 #endif // SEQUENCE_H
