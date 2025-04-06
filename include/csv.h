@@ -6,42 +6,27 @@
 typedef struct
 {
     int num_columns;
-    char** column_headers;
+    char** headers;
 } CsvMetadata;
 
 static int g_seq_col_index = -1;
-
-INLINE char*
-csv_header_skip(char* restrict current, char* restrict end)
-{
-    while (current < end)
-    {
-        if (*current == '\n')
-        {
-            return current + 1;
-        }
-
-        current++;
-    }
-
-    return current;
-}
+static bool g_csv_has_no_header = false;
 
 INLINE void
 csv_metadata_free(CsvMetadata* csv_metadata)
 {
-    if (csv_metadata->column_headers)
+    if (csv_metadata->headers)
     {
         for (int i = 0; i < csv_metadata->num_columns; i++)
         {
-            if (csv_metadata->column_headers[i])
+            if (csv_metadata->headers[i])
             {
-                free(csv_metadata->column_headers[i]);
+                free(csv_metadata->headers[i]);
             }
         }
 
-        free(csv_metadata->column_headers);
-        csv_metadata->column_headers = NULL;
+        free(csv_metadata->headers);
+        csv_metadata->headers = NULL;
     }
 }
 
@@ -139,10 +124,9 @@ csv_header_parse(char* restrict current, char* restrict end)
         exit(1);
     }
 
-    csv_metadata.column_headers = malloc(csv_metadata.num_columns *
-                                         sizeof(*csv_metadata.column_headers));
+    csv_metadata.headers = malloc(csv_metadata.num_columns * sizeof(*csv_metadata.headers));
 
-    if (!csv_metadata.column_headers)
+    if (!csv_metadata.headers)
     {
         print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
         print(SECTION, MSG_NONE, NULL);
@@ -158,7 +142,7 @@ csv_header_parse(char* restrict current, char* restrict end)
         {
             if (col_idx < csv_metadata.num_columns)
             {
-                csv_metadata.column_headers[col_idx] = csv_column_copy(col_start, current);
+                csv_metadata.headers[col_idx] = csv_column_copy(col_start, current);
                 col_idx++;
             }
 
@@ -188,16 +172,30 @@ csv_header_parse(char* restrict current, char* restrict end)
         current++;
     }
 
-    g_seq_col_index = csv_column_sequence(csv_metadata.column_headers, csv_metadata.num_columns);
+    g_seq_col_index = csv_column_sequence(csv_metadata.headers, csv_metadata.num_columns);
 
     // If auto-detection failed
     if (g_seq_col_index < 0)
     {
+        char** choices = malloc((csv_metadata.num_columns + 2) * sizeof(*choices));
+        for (int i = 0; i < csv_metadata.num_columns; i++)
+        {
+            choices[i] = csv_metadata.headers[i];
+        }
+
+        choices[csv_metadata.num_columns] = "My csv file does not have a header! Do not skip it!";
+        choices[csv_metadata.num_columns + 1] = NULL;
+
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
-        print(INFO, MSG_LOC(LAST), "Please select the column containing sequence data:");
-        g_seq_col_index = print(CHOICE,
-                                MSG_CHOICE(csv_metadata.column_headers),
-                                "Enter column number");
+        print(INFO, MSG_LOC(LAST), "Please select the header column containing sequence data:");
+        g_seq_col_index = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
+    }
+
+    if (g_seq_col_index == csv_metadata.num_columns)
+    {
+        print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
+        g_seq_col_index = print(CHOICE, MSG_CHOICE(csv_metadata.headers), "Enter column number");
+        g_csv_has_no_header = true;
     }
 
     print(VERBOSE, MSG_LOC(FIRST), "Detected %d columns in CSV", csv_metadata.num_columns);
@@ -205,7 +203,7 @@ csv_header_parse(char* restrict current, char* restrict end)
           MSG_LOC(MIDDLE),
           "Using column %d ('%s') for sequences",
           g_seq_col_index + 1,
-          csv_metadata.column_headers[g_seq_col_index]);
+          csv_metadata.headers[g_seq_col_index]);
 
     return current;
 }

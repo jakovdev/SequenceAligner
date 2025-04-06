@@ -2,7 +2,6 @@
 #define TERMINAL_H
 
 #include "arch.h"
-#include <ctype.h>
 
 INLINE int
 terminal_environment(void)
@@ -73,7 +72,7 @@ terminal_mode_restore(void)
 }
 
 INLINE void
-terminal_read_input(char* input_buffer, int buffer_size, int* choice)
+terminal_read_input(char* input_buffer, int buffer_size)
 {
     int idx = 0;
     int c;
@@ -91,7 +90,7 @@ terminal_read_input(char* input_buffer, int buffer_size, int* choice)
             break;
         }
 
-        if (isdigit(c) && idx < buffer_size - 1)
+        if (idx < buffer_size - 1)
         {
             input_buffer[idx++] = c;
             input_buffer[idx] = '\0';
@@ -101,7 +100,6 @@ terminal_read_input(char* input_buffer, int buffer_size, int* choice)
     }
 
     terminal_mode_restore();
-    *choice = atoi(input_buffer);
 }
 
 #endif // TERMINAL_H

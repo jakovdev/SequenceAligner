@@ -17,6 +17,7 @@ typedef enum
     DNA,
     PROGRESS,
     CHOICE,
+    PROMPT,
     WARNING,
     ERROR,
     MSG_TYPE_COUNT
@@ -34,12 +35,14 @@ typedef union
     MessageLocation location;
     int percent;
     char** choices;
+    const char*** aliases;
 } MsgArgs;
 
 #define MSG_LOC(loc) ((MsgArgs){ .location = (loc) })
 #define MSG_PROPORTION(proportion) ((MsgArgs){ .percent = ((int)(proportion * 100)) })
 #define MSG_PERCENT(percentage) ((MsgArgs){ .percent = ((int)(percentage)) })
 #define MSG_CHOICE(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
+#define MSG_PROMPT(alias_collection) ((MsgArgs){ .aliases = (alias_collection) })
 #define MSG_NONE MSG_LOC(FIRST)
 
 typedef enum
@@ -172,6 +175,7 @@ static PrintStyle style = {
         [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
         [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    1 },
+        [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    1 },
         [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, 1 },
         [ERROR]    = { COLOR_RED,         ICON_ERROR,   1 },
     },
@@ -274,6 +278,9 @@ print(ERROR, MSG_NONE, "Error: File not found");
 // Close section (useful for program exit, otherwise it will be closed automatically)
 print(SECTION, MSG_NONE, NULL);
 └──────────────────────────────────────────────────────────────────────────────┘
+// For starting section with no text
+print(SECTION, MSG_NONE, "");
+┌──────────────────────────────────────────────────────────────────────────────┐
 */
 
 static int
@@ -308,14 +315,14 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
     }
 
     const bool simple_format = style.flags.quiet && is_required;
-
-    const ColorType color = style.map[type].color;
     const IconType icon_type = style.map[type].icon;
-    // const char* icon_display = style.chars.icons[icon_type];
-    const char* icon_display = simple_format ? "" : style.chars.icons[icon_type];
-    const char* color_code = simple_format ? "" : style.chars.codes[color];
-    const char* section_color = simple_format ? "" : style.chars.codes[style.map[SECTION].color];
-    const char* reset_code = simple_format ? "" : style.chars.codes[COLOR_RESET];
+
+    const char* c_icon = style.chars.icons[icon_type];
+    const char* c_color = style.chars.codes[style.map[type].color];
+
+    const char* section_color = style.chars.codes[style.map[SECTION].color];
+    const char* reset_code = style.chars.codes[COLOR_RESET];
+    const char* box_vertical = style.chars.boxes[BOX_NORMAL][BOX_VERTICAL];
 
     const size_t box_char_width = simple_format ? 0 : 1;
     const size_t icon_width = (simple_format || icon_type == ICON_NONE) ? 0 : 2;
@@ -345,7 +352,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         }
 
         // Top border
-        printf("%s%s", color_code, style.chars.boxes[BOX_FANCY][BOX_TOP_LEFT]);
+        printf("%s%s", c_color, style.chars.boxes[BOX_FANCY][BOX_TOP_LEFT]);
         for (size_t i = 0; i < style.total_width - 2; i++)
         {
             printf("%s", style.chars.boxes[BOX_FANCY][BOX_HORIZONTAL]);
@@ -357,12 +364,12 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         const size_t left_padding = (style.total_width - 2 - buflen) / 2;
         const size_t right_padding = style.total_width - 2 - buflen - left_padding;
 
-        printf("%s%s", color_code, style.chars.boxes[BOX_FANCY][BOX_VERTICAL]);
+        printf("%s%s", c_color, style.chars.boxes[BOX_FANCY][BOX_VERTICAL]);
         printf("%*s%s%*s", (int)left_padding, "", buffer, (int)right_padding, "");
         printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_VERTICAL], reset_code);
 
         // Bottom border
-        printf("%s%s", color_code, style.chars.boxes[BOX_FANCY][BOX_BOTTOM_LEFT]);
+        printf("%s%s", c_color, style.chars.boxes[BOX_FANCY][BOX_BOTTOM_LEFT]);
         for (size_t i = 0; i < style.total_width - 2; i++)
         {
             printf("%s", style.chars.boxes[BOX_FANCY][BOX_HORIZONTAL]);
@@ -398,17 +405,25 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         // Open new section
         if (format)
         {
-            const size_t dash_count = (style.total_width - 2 - buflen - 2) / 2;
+            size_t dash_count = (style.total_width - 2 - buflen - 2) / 2;
             const size_t remaining = style.total_width - 2 - dash_count - buflen - 2;
 
-            printf("%s%s", color_code, style.chars.boxes[BOX_NORMAL][BOX_TOP_LEFT]);
+            printf("%s%s", c_color, style.chars.boxes[BOX_NORMAL][BOX_TOP_LEFT]);
+
+            if (!buffer[0])
+            {
+                dash_count += 2;
+            }
 
             for (size_t i = 0; i < dash_count; i++)
             {
                 printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
             }
 
-            printf(" %s ", buffer);
+            if (buffer[0])
+            {
+                printf(" %s ", buffer);
+            }
 
             for (size_t i = 0; i < remaining; i++)
             {
@@ -427,8 +442,8 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
     else if (type == PROGRESS)
     {
         const int percent = margs.percent < 0 ? 0 : (margs.percent > 100 ? 100 : margs.percent);
-        const int percentage_width = percent < 10 ? 1 : (percent < 100 ? 2 : 3);
-        const int metadata_width = 2 + 1 + percentage_width + 1 + 1;
+        const int percent_width = percent < 10 ? 1 : (percent < 100 ? 2 : 3);
+        const int metadata_width = 2 + 1 + percent_width + 1 + 1;
         const size_t bar_width = available - buflen - metadata_width - 1;
         const size_t filled_width = bar_width * percent / 100;
         const size_t empty_width = bar_width - filled_width;
@@ -438,9 +453,9 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             printf("%s%s", style.chars.ansi_escape_start, style.chars.ansi_carriage_return);
         }
 
-        printf("%s%s%s ", section_color, style.chars.boxes[BOX_NORMAL][BOX_VERTICAL], color_code);
+        printf("%s%s%s ", section_color, box_vertical, c_color);
 
-        printf("%s %s [", style.chars.icons[icon_type], buffer);
+        printf("%s %s [", c_icon, buffer);
 
         for (size_t i = 0; i < filled_width; i++)
         {
@@ -452,12 +467,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             printf("%s", style.chars.progress_empty_char);
         }
 
-        printf("] %*d%%%s %s%s",
-               percentage_width,
-               percent,
-               section_color,
-               style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-               reset_code);
+        printf("] %*d%%%s %s%s", percent_width, percent, section_color, box_vertical, reset_code);
 
         if (percent == 100)
         {
@@ -493,20 +503,22 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
                 printf("%s%s%s %d: %s%*s%s%s%s\n",
                        section_color,
-                       style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-                       color_code,
+                       box_vertical,
+                       c_color,
                        i + 1,
                        choices[i],
                        (int)padding,
                        "",
                        section_color,
-                       style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                       box_vertical,
                        reset_code);
             }
         }
 
         char input_buffer[16] = { 0 };
-        const char* error_msg = "Invalid input! Please enter a number between";
+        const char* w_msg = "Invalid input! Please enter a number between";
+        const char* w_color = style.chars.codes[style.map[WARNING].color];
+        const char* w_icon = style.chars.icons[ICON_WARNING];
 
         do
         {
@@ -517,30 +529,31 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
             else
             {
-                printf("%s%s%s %s %s (%d-%d): ",
+                printf("%s%s%s %s %s (1-%d): ",
                        section_color,
-                       style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-                       color_code,
-                       style.chars.icons[icon_type],
+                       box_vertical,
+                       c_color,
+                       c_icon,
                        buffer,
-                       1,
                        choice_count);
             }
 
             fflush(stdout);
-            terminal_read_input(input_buffer, sizeof(input_buffer), &selected);
+            terminal_read_input(input_buffer, sizeof(input_buffer));
+            selected = atoi(input_buffer);
 
             if (!simple_format)
             {
-                const size_t p_len = snprintf(NULL, 0, "%s (%d-%d): ", buffer, 1, choice_count);
-                const size_t p_padding = p_len < available ? available - p_len - 1 : 0;
+                const size_t p_len = snprintf(NULL,
+                                              0,
+                                              "%s (1-%d): %s",
+                                              buffer,
+                                              choice_count,
+                                              input_buffer);
 
-                printf("%*s%s%s%s\n",
-                       (int)p_padding,
-                       "",
-                       section_color,
-                       style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-                       reset_code);
+                const size_t p_padding = p_len < available ? available - p_len : 0;
+
+                printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
             }
 
             else
@@ -557,33 +570,117 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
             if (simple_format)
             {
-                printf("%s %d and %d.\n", error_msg, 1, choice_count);
+                printf("%s %d and %d.\n", w_msg, 1, choice_count);
             }
 
             else
             {
-                const int e_len = snprintf(NULL,
-                                           0,
-                                           "%s %s %d and %d.",
-                                           style.chars.icons[ICON_WARNING],
-                                           error_msg,
-                                           1,
-                                           choice_count);
+                const int w_len = snprintf(NULL, 0, "%s %s 1 and %d.", w_icon, w_msg, choice_count);
 
-                const size_t e_padding = available > (size_t)e_len ? available - e_len + 2 : 0;
+                const size_t w_padding = available > (size_t)w_len ? available - w_len + 2 : 0;
 
                 printf("%s%s%s %s %s %d and %d.%*s%s%s%s\n",
                        section_color,
-                       style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-                       style.chars.codes[style.map[WARNING].color],
-                       style.chars.icons[ICON_WARNING],
-                       error_msg,
+                       box_vertical,
+                       w_color,
+                       w_icon,
+                       w_msg,
                        1,
                        choice_count,
+                       (int)w_padding,
+                       "",
+                       section_color,
+                       box_vertical,
+                       reset_code);
+            }
+        } while (1);
+    }
+
+    else if (type == PROMPT)
+    {
+        const char*** alias_collections = margs.aliases;
+        int collection_count = 0;
+        int selected = -1;
+
+        while (alias_collections[++collection_count])
+            ;
+
+        char input_buffer[64] = { 0 };
+        const char* w_msg = "Invalid input! Please enter a valid option.";
+        const char* w_color = style.chars.codes[style.map[WARNING].color];
+        const char* w_icon = style.chars.icons[ICON_WARNING];
+
+        do
+        {
+            if (simple_format)
+            {
+                printf("%s: ", buffer);
+            }
+
+            else
+            {
+                printf("%s%s%s %s %s: ", section_color, box_vertical, c_color, c_icon, buffer);
+            }
+
+            fflush(stdout);
+            terminal_read_input(input_buffer, sizeof(input_buffer));
+
+            if (!simple_format)
+            {
+                const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, input_buffer);
+                const size_t p_padding = p_len < available ? available - p_len : 0;
+
+                printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
+            }
+
+            else
+            {
+                printf("\n");
+            }
+
+            bool found = false;
+            for (int i = 0; i < collection_count && !found; i++)
+            {
+                const char** aliases = alias_collections[i];
+                for (int j = 0; aliases[j] != NULL; j++)
+                {
+                    if (strcasecmp(input_buffer, aliases[j]) == 0)
+                    {
+                        selected = i;
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            if (found)
+            {
+                style.flags.content_printed = true;
+                va_end(args);
+                return selected;
+            }
+
+            if (simple_format)
+            {
+                printf("%s\n", w_msg);
+            }
+
+            else
+            {
+                const int e_len = snprintf(NULL, 0, "%s %s", w_icon, w_msg);
+
+                const size_t e_padding = available > (size_t)e_len ? available - e_len + 2 : 0;
+
+                printf("%s%s%s %s %s.%*s%s%s%s\n",
+                       section_color,
+                       box_vertical,
+                       w_color,
+                       w_icon,
+                       w_msg,
                        (int)e_padding,
                        "",
                        section_color,
-                       style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
+                       box_vertical,
                        reset_code);
             }
         } while (1);
@@ -595,11 +692,6 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
         if (simple_format)
         {
-            if (icon_type != ICON_NONE)
-            {
-                printf("%s ", icon_display);
-            }
-
             printf("%s\n", buffer);
         }
 
@@ -607,17 +699,14 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
         {
             if (margs.location != FIRST && icon_type != ICON_NONE)
             {
-                icon_display = style.chars.boxes[BOX_NORMAL][margs.location];
+                c_icon = style.chars.boxes[BOX_NORMAL][margs.location];
             }
 
-            printf("%s%s%s ",
-                   section_color,
-                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-                   color_code);
+            printf("%s%s%s ", section_color, box_vertical, c_color);
 
             if (icon_type != ICON_NONE)
             {
-                printf("%s ", icon_display);
+                printf("%s ", c_icon);
             }
 
             printf("%s", buffer);
@@ -627,10 +716,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
                 printf(" ");
             }
 
-            printf("%s%s%s\n",
-                   section_color,
-                   style.chars.boxes[BOX_NORMAL][BOX_VERTICAL],
-                   reset_code);
+            printf("%s%s%s\n", section_color, box_vertical, reset_code);
         }
 
         style.flags.content_printed = true;
