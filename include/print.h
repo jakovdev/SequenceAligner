@@ -38,7 +38,7 @@ typedef union
 #define MSG_LOC(loc) ((MsgArgs){ .location = (loc) })
 #define MSG_PROPORTION(proportion) ((MsgArgs){ .percent = ((int)(proportion * 100)) })
 #define MSG_PERCENT(percentage) ((MsgArgs){ .percent = ((int)(percentage)) })
-#define MSG_PROMPT(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
+#define MSG_CHOICE(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
 #define MSG_NONE MSG_LOC(FIRST)
 
 typedef enum
@@ -252,7 +252,7 @@ for (int i = 0; i < seq_number; i++) {
 
 // Interactive prompt with choices
 char* choices[] = {"hello", "second", NULL};
-int selected = print(PROMPT, MSG_PROMPT(choices), "Enter column number");
+int selected = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
 // This will display:
 │ 1: hello                                                                     │
 │ 2: second                                                                    │

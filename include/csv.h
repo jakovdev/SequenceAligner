@@ -196,7 +196,7 @@ csv_header_parse(char* restrict current, char* restrict end)
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(LAST), "Please select the column containing sequence data:");
         g_seq_col_index = print(CHOICE,
-                                MSG_PROMPT(csv_metadata.column_headers),
+                                MSG_CHOICE(csv_metadata.column_headers),
                                 "Enter column number");
     }
 
