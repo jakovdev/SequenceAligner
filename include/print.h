@@ -19,6 +19,7 @@ typedef enum
     CHOICE,
     WARNING,
     ERROR,
+    MSG_TYPE_COUNT
 } MsgType;
 
 typedef enum
@@ -52,6 +53,7 @@ typedef enum
     COLOR_CYAN,
     COLOR_GRAY,
     COLOR_BRIGHT_CYAN,
+    COLOR_TYPE_COUNT
 } ColorType;
 
 typedef enum
@@ -66,6 +68,7 @@ typedef enum
     ICON_GEAR,
     ICON_ARROW,
     ICON_DOT,
+    ICON_TYPE_COUNT
 } IconType;
 
 typedef enum
@@ -78,21 +81,23 @@ typedef enum
     BOX_VERTICAL,
     BOX_RIGHT_TEE,
     BOX_BOTTOM_RIGHT,
+    BOX_CHAR_COUNT
 } BoxCharIndex;
 
 typedef enum
 {
     BOX_NORMAL,
     BOX_FANCY,
+    BOX_TYPE_COUNT
 } BoxType;
 
 typedef struct
 {
     struct
     {
-        const char* codes[9];
-        const char* icons[10];
-        const char* boxes[2][8];
+        const char* codes[COLOR_TYPE_COUNT];
+        const char* icons[ICON_TYPE_COUNT];
+        const char* boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT];
         const char* progress_filled_char;
         const char* progress_empty_char;
         const char* ansi_escape_start;
@@ -104,7 +109,7 @@ typedef struct
         ColorType color;
         IconType icon;
         bool required;
-    } map[12];
+    } map[MSG_TYPE_COUNT];
 
     size_t total_width;
 
