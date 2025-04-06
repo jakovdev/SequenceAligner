@@ -33,8 +33,6 @@ main(int argc, char* argv[])
         char* current = input_file.file_data;
         char* end = input_file.file_data + input_file.data_size;
 
-        print(SUCCESS, MSG_NONE, "Successfully opened input file: %s", args_path_input());
-
         current = csv_header_parse(current, end);
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
@@ -86,7 +84,6 @@ main(int argc, char* argv[])
     seq_pool_free();
     free(seqs);
 
-    print(SUCCESS, MSG_NONE, "All operations completed successfully!");
     print(SECTION, MSG_NONE, NULL);
     return 0;
 }

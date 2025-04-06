@@ -262,8 +262,6 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
 
 #endif
 
-    print(SUCCESS, MSG_NONE, "Memory-mapped matrix file '%s' created successfully", file_name);
-
     return matrix;
 }
 

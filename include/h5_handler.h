@@ -799,7 +799,6 @@ h5_store_sequences(H5Handler* handler, Sequence* sequences, size_t seq_count)
 
     handler->sequences_stored = true;
 
-    print(SUCCESS, MSG_NONE, "Successfully stored sequences in HDF5 file");
     return true;
 }
 
