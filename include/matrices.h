@@ -3,7 +3,7 @@
 // clang-format off
 
 #include "arch.h"
-#include "ctype.h"
+#include <ctype.h>
 
 typedef enum {
     SEQ_TYPE_AMINO = 0,
