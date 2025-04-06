@@ -232,7 +232,6 @@ mingw32-make help
 </table>
 
 > [!NOTE]
-> - Processing speed: ~17-20 million alignments per second for my Ryzen 7 5700G
 > - Smith-Waterman and Gotoh algorithms are slower than Needleman-Wunsch
 > - Longer sequences require more time to align
 > - For very large datasets (exceeding available RAM), the final step of saving results to HDF5 format may become the most time-consuming part of the process
