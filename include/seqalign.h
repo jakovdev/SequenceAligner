@@ -56,8 +56,7 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
     }
 
 #else
-#pragma GCC unroll 8
-    for (size_t i = 0; i < len; ++i)
+    UNROLL(8) for (size_t i = 0; i < len; ++i)
     {
         indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq[i]];
     }
@@ -103,12 +102,12 @@ matrix_free(int* matrix, int* stack_matrix)
     {                                                                                              \
         matrix[0] = 0;                                                                             \
                                                                                                    \
-        _Pragma("GCC unroll 8") for (int j = 1; j <= (int)len1; j++)                               \
+        UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                             \
         {                                                                                          \
             matrix[j] = j * (gap_penalty);                                                         \
         }                                                                                          \
                                                                                                    \
-        _Pragma("GCC unroll 8") for (int i = 1; i <= (int)len2; i++)                               \
+        UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                             \
         {                                                                                          \
             matrix[i * cols] = i * (gap_penalty);                                                  \
         }                                                                                          \
@@ -120,14 +119,14 @@ matrix_free(int* matrix, int* stack_matrix)
         match[0] = 0;                                                                              \
         gap_x[0] = gap_y[0] = INT_MIN / 2;                                                         \
                                                                                                    \
-        _Pragma("GCC unroll 8") for (int j = 1; j <= (int)len1; j++)                               \
+        UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                             \
         {                                                                                          \
             match[j] = -(gap_start + (j - 1) * gap_extend);                                        \
             gap_x[j] = match[j];                                                                   \
             gap_y[j] = INT_MIN / 2;                                                                \
         }                                                                                          \
                                                                                                    \
-        _Pragma("GCC unroll 8") for (int i = 1; i <= (int)len2; i++)                               \
+        UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                             \
         {                                                                                          \
             int idx = i * cols;                                                                    \
             match[idx] = -(gap_start + (i - 1) * gap_extend);                                      \
@@ -142,13 +141,13 @@ matrix_free(int* matrix, int* stack_matrix)
         match[0] = 0;                                                                              \
         gap_x[0] = gap_y[0] = INT_MIN / 2;                                                         \
                                                                                                    \
-        _Pragma("GCC unroll 8") for (int j = 1; j <= (int)len1; j++)                               \
+        UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                             \
         {                                                                                          \
             match[j] = 0;                                                                          \
             gap_x[j] = gap_y[j] = INT_MIN / 2;                                                     \
         }                                                                                          \
                                                                                                    \
-        _Pragma("GCC unroll 8") for (int i = 1; i <= (int)len2; i++)                               \
+        UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                             \
         {                                                                                          \
             int idx = i * cols;                                                                    \
             match[idx] = 0;                                                                        \
@@ -167,7 +166,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
             prefetch(&matrix[row_offset + PREFETCH_DISTANCE]);                                     \
                                                                                                    \
-            _Pragma("GCC unroll 4") for (int j = 1; j <= (int)len1; j++)                           \
+            UNROLL(4) for (int j = 1; j <= (int)len1; j++)                                         \
             {                                                                                      \
                 int match = matrix[prev_row_offset + j - 1] +                                      \
                             scoring->matrix[seq1_indices.data[j - 1]][c2_idx];                     \

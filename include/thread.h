@@ -65,7 +65,7 @@ thread_pool_worker(void* arg)
         {
             size_t block_end = min(task_block + TASK_BLOCK_SIZE, queue->task_count);
 
-#pragma GCC unroll 8
+        UNROLL(8)
             for (size_t task_idx = task_block; task_idx < block_end; task_idx++)
             {
                 AlignTask* task = &queue->tasks[task_idx];
@@ -271,8 +271,7 @@ align_signlethreaded(H5Handler* h5_handler,
     size_t progress_counter = 0;
     int64_t local_checksum = 0;
 
-#pragma GCC unroll 8
-    for (size_t i = 0; i < seq_count; i++)
+    UNROLL(8) for (size_t i = 0; i < seq_count; i++)
     {
         for (size_t j = i + 1; j < seq_count; j++)
         {

@@ -8,6 +8,12 @@
 #define UNREACHABLE() __builtin_unreachable()
 #define ALIGN __attribute__((aligned(CACHE_LINE)))
 #define ALLOC __attribute__((malloc, alloc_size(1)))
+#define PRAGMA(n) _Pragma(#n)
+#if defined(__clang__)
+#define UNROLL(n) PRAGMA(unroll n)
+#else
+#define UNROLL(n) PRAGMA(GCC unroll n)
+#endif
 
 // System and memory-related constants
 #define KiB (1ULL << 10)
