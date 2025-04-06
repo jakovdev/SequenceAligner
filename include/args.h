@@ -4,8 +4,8 @@
 #include "arch.h"
 #include "files.h"
 #include "matrices.h"
-#include "methods.h"
 #include "print.h"
+#include "types.h"
 #include <ctype.h>
 #include <getopt.h>
 
@@ -186,13 +186,13 @@ args_validate_required(void)
 
     if (g_args.method_id_set && g_args.method_id >= 0 && g_args.method_id < ALIGN_COUNT)
     {
-        if (methods_alignment_linear(g_args.method_id) && !g_args.gap_penalty_set)
+        if (alignment_linear(g_args.method_id) && !g_args.gap_penalty_set)
         {
             print(ERROR, MSG_NONE, "Missing required parameter: gap penalty (-p, --gap-penalty)");
             valid = false;
         }
 
-        else if (methods_alignment_affine(g_args.method_id))
+        else if (alignment_affine(g_args.method_id))
         {
             if (!g_args.gap_start_set)
             {
@@ -239,7 +239,7 @@ args_print_usage(const char* program_name)
 
     printf("  -a, --align METHOD     Alignment method\n");
 
-    methods_alignment_list();
+    alignment_list();
 
     printf("  -m, --matrix MATRIX    Scoring matrix\n");
     printf("                           Use --list-matrices or -l to see all available matrices\n");
@@ -282,17 +282,16 @@ args_print_config(void)
         print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (no output file specified)");
     }
 
-    print(CONFIG, MSG_LOC(MIDDLE), "Method: %s", methods_alignment_name(g_args.method_id));
+    print(CONFIG, MSG_LOC(MIDDLE), "Method: %s", alignment_name(g_args.method_id));
     print(CONFIG, MSG_LOC(MIDDLE), "Sequence type: %s", sequence_type_name(g_args.seq_type));
     print(CONFIG, MSG_LOC(MIDDLE), "Matrix: %s", matrix_id_name(g_args.seq_type, g_args.matrix_id));
 
-    if (methods_alignment_linear(g_args.method_id) && g_args.gap_penalty_set)
+    if (alignment_linear(g_args.method_id) && g_args.gap_penalty_set)
     {
         print(CONFIG, MSG_LOC(MIDDLE), "Gap: %d", g_args.gap_penalty);
     }
 
-    else if (methods_alignment_affine(g_args.method_id) &&
-             (g_args.gap_start_set && g_args.gap_extend_set))
+    else if (alignment_affine(g_args.method_id) && (g_args.gap_start_set && g_args.gap_extend_set))
     {
         print(CONFIG,
               MSG_LOC(MIDDLE),
@@ -344,7 +343,7 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 'a':
-                g_args.method_id = methods_alignment_arg(optarg);
+                g_args.method_id = alignment_arg(optarg);
                 if (g_args.method_id != PARAM_UNSET)
                 {
                     g_args.method_id_set = 1;

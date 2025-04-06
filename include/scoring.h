@@ -16,7 +16,7 @@ static int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
 
 typedef struct
 {
-    int matrix[AMINO_SIZE][AMINO_SIZE];
+    int matrix[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
 } ScoringMatrix;
 
 INLINE void

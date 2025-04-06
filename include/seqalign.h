@@ -2,8 +2,8 @@
 #define SEQALIGN_H
 
 #include "args.h"
-#include "methods.h"
 #include "scoring.h"
+#include "types.h"
 
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
 #define MATRIX_SIZE(len1, len2) ((len1 + 1) * (len2 + 1))
