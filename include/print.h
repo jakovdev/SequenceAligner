@@ -274,15 +274,15 @@ print(SECTION, MSG_NONE, NULL);
 static int
 print(MsgType type, MsgArgs margs, const char* format, ...)
 {
-    if (!style.flags.section_open && type != HEADER && type != SECTION)
-    {
-        print(SECTION, MSG_NONE, "Error");
-    }
-
     const bool is_required = style.map[type].required;
     if ((style.flags.quiet && !is_required) || (type == VERBOSE && !style.flags.verbose))
     {
         return 0;
+    }
+
+    if (!style.flags.section_open && type != HEADER && type != SECTION)
+    {
+        print(SECTION, MSG_NONE, "Error");
     }
 
     if (type == PROGRESS)
