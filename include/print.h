@@ -4,6 +4,7 @@
 #include "arch.h"
 #include "terminal.h"
 #include <stdarg.h>
+#include <stdbool.h>
 
 typedef enum
 {
@@ -18,6 +19,7 @@ typedef enum
     PROGRESS,
     CHOICE,
     ALIAS,
+    INPUT,
     WARNING,
     ERROR,
     MSG_TYPE_COUNT
@@ -30,12 +32,19 @@ typedef enum
     LAST,
 } MessageLocation;
 
+typedef struct
+{
+    char* result;
+    const size_t buffer_size;
+} Input;
+
 typedef union
 {
     const MessageLocation location;
     const int percent;
     char* const* choices;
     char** const* aliases;
+    const Input input;
 } MsgArgs;
 
 #define MSG_LOC(loc) ((MsgArgs){ .location = (loc) })
@@ -43,6 +52,7 @@ typedef union
 #define MSG_PERCENT(percentage) ((MsgArgs){ .percent = ((int)(percentage)) })
 #define MSG_CHOICE(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
 #define MSG_ALIAS(alias_collection) ((MsgArgs){ .aliases = (alias_collection) })
+#define MSG_INPUT(res, bufsiz) ((MsgArgs){ .input = { .result = res, .buffer_size = bufsiz } })
 #define MSG_NONE MSG_LOC(FIRST)
 
 typedef enum
@@ -175,7 +185,8 @@ static PrintStyle style = {
         [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
         [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    1 },
-        [ALIAS]   = { COLOR_BLUE,        ICON_INFO,    1 },
+        [ALIAS]    = { COLOR_BLUE,        ICON_INFO,    1 },
+        [INPUT]    = { COLOR_BLUE,        ICON_INFO,    1 },
         [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, 1 },
         [ERROR]    = { COLOR_RED,         ICON_ERROR,   1 },
     },
@@ -684,6 +695,41 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
                        reset_code);
             }
         } while (1);
+    }
+
+    else if (type == INPUT)
+    {
+        Input input = margs.input;
+
+        if (simple_format)
+        {
+            printf("%s: ", buffer);
+        }
+
+        else
+        {
+            printf("%s%s%s %s %s: ", section_color, box_vertical, c_color, c_icon, buffer);
+        }
+
+        fflush(stdout);
+        terminal_read_input(input.result, input.buffer_size);
+
+        if (!simple_format)
+        {
+            const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, input.result);
+            const size_t p_padding = p_len < available ? available - p_len : 0;
+
+            printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
+        }
+
+        else
+        {
+            printf("\n");
+        }
+
+        style.flags.content_printed = true;
+
+        goto cleanup;
     }
 
     else
