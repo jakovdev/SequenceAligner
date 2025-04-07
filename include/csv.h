@@ -120,7 +120,6 @@ csv_header_parse(char* restrict current, char* restrict end)
     if (csv_metadata.num_columns <= 0)
     {
         print(ERROR, MSG_NONE, "Invalid CSV header");
-        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -129,7 +128,6 @@ csv_header_parse(char* restrict current, char* restrict end)
     if (!csv_metadata.headers)
     {
         print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
-        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 

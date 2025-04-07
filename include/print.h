@@ -780,4 +780,13 @@ cleanup:
     return 0;
 }
 
+__attribute__((destructor)) void
+print_end_section()
+{
+    if (style.flags.section_open)
+    {
+        print(SECTION, MSG_NONE, NULL);
+    }
+}
+
 #endif // PRINT_H

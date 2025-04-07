@@ -85,9 +85,6 @@ main(int argc, char* argv[])
 
     bench_total(total_alignments);
 
-    seq_pool_free();
     free(seq_data.sequences);
-
-    print(SECTION, MSG_NONE, NULL);
     return 0;
 }

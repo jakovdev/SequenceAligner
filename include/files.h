@@ -59,7 +59,6 @@ file_read(File* file, const char* file_path)
     if (file->hFile == INVALID_HANDLE_VALUE)
     {
         print(ERROR, MSG_NONE, "Could not open file '%s'", file_name);
-        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -67,7 +66,6 @@ file_read(File* file, const char* file_path)
     if (file->hMapping == NULL)
     {
         print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
-        print(SECTION, MSG_NONE, NULL);
         CloseHandle(file->hFile);
         exit(1);
     }
@@ -76,7 +74,6 @@ file_read(File* file, const char* file_path)
     if (file->file_data == NULL)
     {
         print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
-        print(SECTION, MSG_NONE, NULL);
         CloseHandle(file->hMapping);
         CloseHandle(file->hFile);
         exit(1);
@@ -90,7 +87,6 @@ file_read(File* file, const char* file_path)
     if (file->fd == -1)
     {
         print(ERROR, MSG_NONE, "Could not open input file '%s'", file_name);
-        print(SECTION, MSG_NONE, NULL);
         exit(1);
     }
 
@@ -98,7 +94,6 @@ file_read(File* file, const char* file_path)
     if (fstat(file->fd, &sb) == -1)
     {
         print(ERROR, MSG_NONE, "Could not stat file '%s'", file_name);
-        print(SECTION, MSG_NONE, NULL);
         close(file->fd);
         exit(1);
     }
@@ -108,7 +103,6 @@ file_read(File* file, const char* file_path)
     if (file->file_data == MAP_FAILED)
     {
         print(ERROR, MSG_NONE, "Could not memory map file '%s'", file_name);
-        print(SECTION, MSG_NONE, NULL);
         close(file->fd);
         exit(1);
     }

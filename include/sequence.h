@@ -122,7 +122,7 @@ seq_pool_alloc(size_t size)
     return result;
 }
 
-INLINE void
+INLINE __attribute__((destructor)) void
 seq_pool_free(void)
 {
     if (!g_seq_pool.head)
