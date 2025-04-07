@@ -305,7 +305,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
 
     if (!style.flags.section_open && type != HEADER && type != SECTION)
     {
-        print(SECTION, MSG_NONE, "Error");
+        print(SECTION, MSG_NONE, "");
     }
 
     if (type == PROGRESS)
@@ -362,6 +362,11 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
             goto cleanup;
         }
 
+        if (style.flags.section_open)
+        {
+            print(SECTION, MSG_NONE, NULL);
+        }
+
         // Top border
         printf("%s%s", c_color, style.chars.boxes[BOX_FANCY][BOX_TOP_LEFT]);
         for (size_t i = 0; i < style.total_width - 2; i++)
@@ -387,6 +392,8 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
         }
 
         printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_BOTTOM_RIGHT], reset_code);
+
+        style.flags.section_open = false;
 
         goto cleanup;
     }
