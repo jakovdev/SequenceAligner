@@ -671,7 +671,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
 
                 const size_t e_padding = available > (size_t)e_len ? available - e_len + 2 : 0;
 
-                printf("%s%s%s %s %s.%*s%s%s%s\n",
+                printf("%s%s%s %s %s%*s%s%s%s\n",
                        section_color,
                        box_vertical,
                        w_color,
