@@ -90,6 +90,18 @@ terminal_read_input(char* input_buffer, int buffer_size)
             break;
         }
 
+        if (c == 127 || c == '\b')
+        {
+            if (idx > 0)
+            {
+                input_buffer[--idx] = '\0';
+                printf("\b \b");
+                fflush(stdout);
+            }
+
+            continue;
+        }
+
         if (idx < buffer_size - 1)
         {
             input_buffer[idx++] = c;
