@@ -17,7 +17,7 @@ typedef enum
     DNA,
     PROGRESS,
     CHOICE,
-    PROMPT,
+    ALIAS,
     WARNING,
     ERROR,
     MSG_TYPE_COUNT
@@ -42,7 +42,7 @@ typedef union
 #define MSG_PROPORTION(proportion) ((MsgArgs){ .percent = ((int)(proportion * 100)) })
 #define MSG_PERCENT(percentage) ((MsgArgs){ .percent = ((int)(percentage)) })
 #define MSG_CHOICE(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
-#define MSG_PROMPT(alias_collection) ((MsgArgs){ .aliases = (alias_collection) })
+#define MSG_ALIAS(alias_collection) ((MsgArgs){ .aliases = (alias_collection) })
 #define MSG_NONE MSG_LOC(FIRST)
 
 typedef enum
@@ -175,7 +175,7 @@ static PrintStyle style = {
         [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
         [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    1 },
-        [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    1 },
+        [ALIAS]   = { COLOR_BLUE,        ICON_INFO,    1 },
         [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, 1 },
         [ERROR]    = { COLOR_RED,         ICON_ERROR,   1 },
     },
@@ -596,7 +596,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
         } while (1);
     }
 
-    else if (type == PROMPT)
+    else if (type == ALIAS)
     {
         char** const* alias_collections = margs.aliases;
         int collection_count = 0;
