@@ -32,10 +32,10 @@ typedef enum
 
 typedef union
 {
-    MessageLocation location;
-    int percent;
-    char** choices;
-    const char*** aliases;
+    const MessageLocation location;
+    const int percent;
+    char* const* choices;
+    char** const* aliases;
 } MsgArgs;
 
 #define MSG_LOC(loc) ((MsgArgs){ .location = (loc) })
@@ -284,7 +284,7 @@ print(SECTION, MSG_NONE, "");
 */
 
 static int
-print(MsgType type, MsgArgs margs, const char* format, ...)
+print(const MsgType type, const MsgArgs margs, const char* format, ...)
 {
     const bool is_required = style.map[type].required;
     if ((style.flags.quiet && !is_required) || (type == VERBOSE && !style.flags.verbose))
@@ -482,7 +482,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
     else if (type == CHOICE)
     {
-        char** choices = margs.choices;
+        char* const* choices = margs.choices;
         int choice_count = 0;
         int selected = 0;
 
@@ -598,7 +598,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
 
     else if (type == PROMPT)
     {
-        const char*** alias_collections = margs.aliases;
+        char** const* alias_collections = margs.aliases;
         int collection_count = 0;
         int selected = -1;
 
@@ -641,7 +641,7 @@ print(MsgType type, MsgArgs margs, const char* format, ...)
             bool found = false;
             for (int i = 0; i < collection_count && !found; i++)
             {
-                const char** aliases = alias_collections[i];
+                char* const* aliases = alias_collections[i];
                 for (int j = 0; aliases[j] != NULL; j++)
                 {
                     if (strcasecmp(input_buffer, aliases[j]) == 0)
