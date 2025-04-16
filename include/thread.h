@@ -3,6 +3,7 @@
 
 #include "arch.h"
 #include "args.h"
+#include "benchmark.h"
 #include "h5_handler.h"
 #include "print.h"
 #include "seqalign.h"
@@ -18,6 +19,8 @@ typedef struct
     volatile size_t* current_row;
     pthread_mutex_t* row_mutex;
     atomic_size_t* shared_progress;
+    volatile int* threads_completed;
+    pthread_mutex_t* completion_mutex;
 } ThreadStorage;
 
 INLINE T_Func
@@ -116,6 +119,19 @@ thread_worker(void* arg)
         atomic_fetch_add(storage->shared_progress, local_progress);
     }
 
+    if (args_mode_benchmark())
+    {
+        pthread_mutex_lock(storage->completion_mutex);
+        (*storage->threads_completed)++;
+
+        if (*storage->threads_completed == num_threads)
+        {
+            g_times.align = -(g_times.align - time_current());
+        }
+
+        pthread_mutex_unlock(storage->completion_mutex);
+    }
+
     T_Ret(NULL);
 }
 
@@ -130,8 +146,16 @@ align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scoring
     pthread_mutex_t row_mutex = PTHREAD_MUTEX_INITIALIZER;
     atomic_size_t shared_progress = 0;
 
+    volatile int threads_completed = 0;
+    pthread_mutex_t completion_mutex = PTHREAD_MUTEX_INITIALIZER;
+
     pthread_t* threads = malloc(num_threads * sizeof(*threads));
     ThreadStorage* thread_storages = calloc(num_threads, sizeof(*thread_storages));
+
+    if (args_mode_benchmark())
+    {
+        g_times.align = time_current();
+    }
 
     for (int t = 0; t < num_threads; t++)
     {
@@ -144,33 +168,21 @@ align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scoring
         storage->current_row = &current_row;
         storage->row_mutex = &row_mutex;
         storage->shared_progress = &shared_progress;
+        storage->threads_completed = &threads_completed;
+        storage->completion_mutex = &completion_mutex;
 
         pthread_create(&threads[t], NULL, thread_worker, storage);
     }
 
-    double last_update = time_current();
     int progress_percent = 0;
-
     print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
 
-    while (atomic_load(&shared_progress) < total_alignments)
+    for (size_t progress = atomic_load(&shared_progress); progress < total_alignments;
+         progress = atomic_load(&shared_progress))
     {
-#ifdef _WIN32
-        Sleep(10);
-#else
-        usleep(10000);
-#endif
-
-        double now = time_current();
-        if (now - last_update > 0.1)
-        {
-            size_t progress = atomic_load(&shared_progress);
-            progress_percent = progress * 100 / total_alignments;
-
-            print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
-
-            last_update = now;
-        }
+        usleep(100000);
+        progress_percent = progress * 100 / total_alignments;
+        print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
     }
 
     for (int t = 0; t < num_threads; t++)
@@ -187,6 +199,7 @@ align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scoring
     h5_handler->checksum = total_checksum * 2;
 
     pthread_mutex_destroy(&row_mutex);
+    pthread_mutex_destroy(&completion_mutex);
     free(threads);
     free(thread_storages);
 
@@ -246,7 +259,18 @@ align(H5Handler* h5_handler, SequenceData* seq_data)
 
     else
     {
+        double start_time = 0.0;
+        if (args_mode_benchmark())
+        {
+            start_time = time_current();
+        }
+
         align_singlethreaded(h5_handler, seq_data, &scoring);
+
+        if (args_mode_benchmark())
+        {
+            g_times.align += (time_current() - start_time);
+        }
     }
 }
 

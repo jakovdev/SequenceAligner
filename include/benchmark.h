@@ -28,21 +28,6 @@ static BenchmarkTimes g_times = { 0 };
         }                                                                                          \
     } while (0)
 
-#define bench_align_add(expr)                                                                      \
-    do                                                                                             \
-    {                                                                                              \
-        double _time_start = 0.0;                                                                  \
-        if (args_mode_benchmark())                                                                 \
-        {                                                                                          \
-            _time_start = time_current();                                                          \
-        }                                                                                          \
-        expr;                                                                                      \
-        if (args_mode_benchmark())                                                                 \
-        {                                                                                          \
-            g_times.align += (time_current() - _time_start);                                       \
-        }                                                                                          \
-    } while (0)
-
 INLINE void
 bench_align_end(void)
 {

@@ -67,6 +67,7 @@ typedef HANDLE sem_t;
 #define aligned_free(ptr) _aligned_free(ptr)
 
 #define strcasestr(haystack, needle) StrStrIA(haystack, needle)
+#define usleep(microseconds) Sleep((microseconds) / 1000)
 
 #else // POSIX/Linux
 

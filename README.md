@@ -193,7 +193,7 @@ mingw32-make help
   <tr>
     <td rowspan="2">Linux (Arch)</td>
     <td>16</td>
-    <td><strong>0.032s</strong></td>
+    <td><strong>0.027s</strong></td>
   </tr>
   <tr>
     <td>1</td>

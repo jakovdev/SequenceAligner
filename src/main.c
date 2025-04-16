@@ -70,7 +70,7 @@ main(int argc, char* argv[])
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
 
-    bench_align_add(align(&h5_handler, &seq_data));
+    align(&h5_handler, &seq_data);
 
     if (!args_mode_write())
     {
