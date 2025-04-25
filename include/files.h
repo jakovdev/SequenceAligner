@@ -179,15 +179,6 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
         return matrix;
     }
 
-    double pre_memset_time = get_time();
-    memset(matrix.data, 0, bytes_needed);
-    double post_memset_time = get_time();
-
-    print(VERBOSE,
-          MSG_NONE,
-          "Memory-mapped matrix initialized in %.2f seconds",
-          post_memset_time - pre_memset_time);
-
 #else
     matrix.fd = open(file_path, O_RDWR | O_CREAT | O_TRUNC, 0644);
     if (matrix.fd == -1)
@@ -217,13 +208,16 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     madvise(matrix.data, bytes_needed, MADV_HUGEPAGE);
     madvise(matrix.data, bytes_needed, MADV_DONTFORK);
 
+#endif
+
     size_t check_count = 5;
+    size_t total_elements = bytes_needed / sizeof(int);
     size_t check_indices[5] = {
-        0,                                  // First element
-        bytes_needed / sizeof(int) / 4,     // 25% in
-        bytes_needed / sizeof(int) / 2,     // Middle
-        bytes_needed / sizeof(int) * 3 / 4, // 75% in
-        bytes_needed / sizeof(int) - 1      // Last element
+        0,                      // First element
+        total_elements / 4,     // 25% in
+        total_elements / 2,     // Middle
+        total_elements * 3 / 4, // 75% in
+        total_elements - 1      // Last element
     };
 
     bool is_zeroed = true;
@@ -238,21 +232,14 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
 
     if (!is_zeroed)
     {
-        print(VERBOSE,
-              MSG_LOC(FIRST),
-              "Memory not pre-zeroed by kernel, falling back to explicit initialization");
+        print(VERBOSE, MSG_LOC(FIRST), "Memory not pre-zeroed, performing explicit initialization");
 
         double pre_memset_time = time_current();
         memset(matrix.data, 0, bytes_needed);
-        double post_memset_time = time_current();
+        double memset_time = pre_memset_time - time_current();
 
-        print(VERBOSE,
-              MSG_LOC(LAST),
-              "Memory-mapped matrix initialized in %.2f seconds",
-              post_memset_time - pre_memset_time);
+        print(VERBOSE, MSG_LOC(LAST), "Matrix data memset performed in %.2f seconds", memset_time);
     }
-
-#endif
 
     return matrix;
 }
