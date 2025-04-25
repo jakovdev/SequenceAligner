@@ -101,7 +101,8 @@ typedef HANDLE sem_t;
         CPU_ZERO(&cpuset);                                                                         \
         CPU_SET(t_id, &cpuset);                                                                    \
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);                        \
-    } while (0)
+    } while (false)
+
 #define SET_HIGH_CLASS()
 
 #define aligned_free(ptr) free(ptr)

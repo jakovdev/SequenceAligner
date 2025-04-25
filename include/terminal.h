@@ -81,7 +81,7 @@ terminal_read_input(char* input_buffer, int buffer_size)
 
     terminal_mode_raw();
 
-    while (1)
+    while (true)
     {
         c = getchar();
 

@@ -26,7 +26,7 @@ static BenchmarkTimes g_times = { 0 };
         {                                                                                          \
             g_times.write += (time_current() - _time_start);                                       \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 INLINE void
 bench_align_end(void)

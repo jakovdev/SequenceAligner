@@ -111,7 +111,7 @@ matrix_free(int* matrix, int* stack_matrix)
         {                                                                                          \
             matrix[i * cols] = i * (gap_penalty);                                                  \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 #define INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend)                       \
     do                                                                                             \
@@ -133,7 +133,7 @@ matrix_free(int* matrix, int* stack_matrix)
             gap_y[idx] = match[idx];                                                               \
             gap_x[idx] = INT_MIN / 2;                                                              \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 #define INIT_AFFINE_LOCAL(match, gap_x, gap_y, cols)                                               \
     do                                                                                             \
@@ -153,7 +153,7 @@ matrix_free(int* matrix, int* stack_matrix)
             match[idx] = 0;                                                                        \
             gap_x[idx] = gap_y[idx] = INT_MIN / 2;                                                 \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 #define FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty, similarity)                                  \
     do                                                                                             \
@@ -176,7 +176,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                      : (del > insert ? del : insert);              \
             }                                                                                      \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 #define FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend)                       \
     do                                                                                             \
@@ -213,7 +213,7 @@ matrix_free(int* matrix, int* stack_matrix)
                 match[row_offset + j] = best;                                                      \
             }                                                                                      \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 #define FILL_AFFINE_LOCAL(match,                                                                   \
                           gap_x,                                                                   \
@@ -275,7 +275,7 @@ matrix_free(int* matrix, int* stack_matrix)
                 }                                                                                  \
             }                                                                                      \
         }                                                                                          \
-    } while (0)
+    } while (false)
 
 #ifdef USE_SIMD
 
