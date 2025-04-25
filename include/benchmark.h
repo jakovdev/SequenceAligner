@@ -5,13 +5,11 @@
 #include "args.h"
 #include "print.h"
 
-typedef struct
+static struct
 {
     double write;
     double align;
-} BenchmarkTimes;
-
-static BenchmarkTimes g_times = { 0 };
+} g_times = { 0 };
 
 #define bench_io_add(expr)                                                                         \
     do                                                                                             \
