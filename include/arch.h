@@ -283,8 +283,13 @@ available_memory(void)
         {
             if (strncmp(line, "MemAvailable:", 13) == 0)
             {
-                available_mem = strtoull(line + 13, NULL, 10) * KiB;
-                break;
+                char* endptr;
+                unsigned long long val = strtoull(line + 13, &endptr, 10);
+                if (endptr != line + 13)
+                {
+                    available_mem = val * KiB;
+                    break;
+                }
             }
         }
 
