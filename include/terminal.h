@@ -72,10 +72,10 @@ terminal_mode_restore(void)
 }
 
 INLINE void
-terminal_read_input(char* input_buffer, int buffer_size)
+terminal_read_input(char* input_buffer, int input_buffer_size)
 {
-    int idx = 0;
-    int c;
+    int input_character_index = 0;
+    int input_character;
 
     fflush(stdout);
 
@@ -83,18 +83,18 @@ terminal_read_input(char* input_buffer, int buffer_size)
 
     while (true)
     {
-        c = getchar();
+        input_character = getchar();
 
-        if (c == '\n' || c == '\r')
+        if (input_character == '\n' || input_character == '\r')
         {
             break;
         }
 
-        if (c == 127 || c == '\b')
+        if (input_character == '\x7F' || input_character == '\b')
         {
-            if (idx > 0)
+            if (input_character_index > 0)
             {
-                input_buffer[--idx] = '\0';
+                input_buffer[--input_character_index] = '\0';
                 printf("\b \b");
                 fflush(stdout);
             }
@@ -102,11 +102,11 @@ terminal_read_input(char* input_buffer, int buffer_size)
             continue;
         }
 
-        if (idx < buffer_size - 1)
+        if (input_character_index < input_buffer_size - 1)
         {
-            input_buffer[idx++] = c;
-            input_buffer[idx] = '\0';
-            printf("%c", c);
+            input_buffer[input_character_index++] = input_character;
+            input_buffer[input_character_index] = '\0';
+            printf("%c", input_character);
             fflush(stdout);
         }
     }
