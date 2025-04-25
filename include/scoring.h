@@ -19,9 +19,9 @@ INLINE void
 scoring_matrix_init()
 {
     int matrix_id = args_scoring_matrix();
-    int seq_type = args_sequence_type();
+    int sequence_type = args_sequence_type();
 
-    switch (seq_type)
+    switch (sequence_type)
     {
         case SEQ_TYPE_NUCLEOTIDE:
         {
@@ -54,43 +54,38 @@ scoring_matrix_init()
         }
     }
 
-    static bool initialized = false;
-    if (UNLIKELY(!initialized))
+    memset(SEQUENCE_LOOKUP, -1, sizeof(SEQUENCE_LOOKUP));
+    switch (sequence_type)
     {
-        memset(SEQUENCE_LOOKUP, -1, sizeof(SEQUENCE_LOOKUP));
-        switch (seq_type)
+        case SEQ_TYPE_NUCLEOTIDE:
         {
-            case SEQ_TYPE_NUCLEOTIDE:
+            for (int i = 0; i < (int)strlen(NUCLEOTIDE_ALPHABET); i++)
             {
-                for (int i = 0; i < (int)strlen(NUCLEOTIDE_ALPHABET); i++)
-                {
-                    SEQUENCE_LOOKUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
-                }
-
-                break;
+                SEQUENCE_LOOKUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
             }
 
-            // Expandable
-            case SEQ_TYPE_AMINO:
-            default:
-            {
-                for (int i = 0; i < (int)strlen(AMINO_ALPHABET); i++)
-                {
-                    SEQUENCE_LOOKUP[(int)AMINO_ALPHABET[i]] = i;
-                }
-
-                break;
-            }
+            break;
         }
 
-#ifdef USE_SIMD
-        g_first_row_indices = set_row_indices();
-        g_gap_penalty_vec = set1_epi32(args_gap_penalty());
-        g_gap_start_vec = set1_epi32(args_gap_start());
-        g_gap_extend_vec = set1_epi32(args_gap_extend());
-        initialized = true;
-#endif
+        // Expandable
+        case SEQ_TYPE_AMINO:
+        default:
+        {
+            for (int i = 0; i < (int)strlen(AMINO_ALPHABET); i++)
+            {
+                SEQUENCE_LOOKUP[(int)AMINO_ALPHABET[i]] = i;
+            }
+
+            break;
+        }
     }
+
+#ifdef USE_SIMD
+    g_first_row_indices = set_row_indices();
+    g_gap_penalty_vec = set1_epi32(args_gap_penalty());
+    g_gap_start_vec = set1_epi32(args_gap_start());
+    g_gap_extend_vec = set1_epi32(args_gap_extend());
+#endif
 }
 
 #endif

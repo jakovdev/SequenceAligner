@@ -25,7 +25,8 @@ main(int argc, char* argv[])
     }
 
     seq_pool_init();
-    SequenceData seq_data = { 0 };
+
+    size_t sequence_count = 0;
 
     {
         CREATE_FILE input_file = { 0 };
@@ -39,32 +40,32 @@ main(int argc, char* argv[])
         file_cursor = g_csv_has_no_header ? input_file.file_data : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
-        size_t total_seqs_in_file = csv_sequence_lines(file_cursor, file_end);
+        sequence_count = csv_sequence_lines(file_cursor, file_end);
 
-        if (total_seqs_in_file == 0)
+        if (!sequence_count)
         {
             print(ERROR, MSG_NONE, "No sequences found in input file");
             return 0;
         }
 
-        print(DNA, MSG_NONE, "Found %zu sequences", total_seqs_in_file);
+        print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
 
         file_cursor = g_csv_has_no_header ? input_file.file_data : file_header_start;
-        bench_io_add(sequences_alloc_from_file(&seq_data, file_cursor, file_end, total_seqs_in_file));
-
-        if (!seq_data.sequences)
-        {
-            print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
-            return 1;
-        }
+        bench_io_add(sequences_alloc_from_file(file_cursor, file_end, sequence_count));
     }
 
-    size_t seq_count = seq_data.count;
-    size_t total_alignments = seq_data.total_alignments;
+    if (!g_sequence_dataset.sequences)
+    {
+        print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
+        return 1;
+    }
 
-    bench_io_add(h5_initialize(seq_count));
+    sequence_count = g_sequence_dataset.sequence_count;
+    size_t total_alignments = g_sequence_dataset.alignment_count;
 
-    bench_io_add(h5_store_sequences(seq_data.sequences, seq_count));
+    bench_io_add(h5_initialize(sequence_count));
+
+    bench_io_add(h5_store_sequences(g_sequence_dataset.sequences, sequence_count));
 
     print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
     scoring_matrix_init();
@@ -73,11 +74,11 @@ main(int argc, char* argv[])
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
 
-    align(&seq_data);
+    align();
 
     if (!args_mode_write())
     {
-        print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_handler.checksum);
+        print(INFO, MSG_NONE, "Matrix checksum: %lld", g_hdf5_context.checksum);
     }
 
     bench_align_end();
@@ -88,6 +89,6 @@ main(int argc, char* argv[])
 
     bench_total(total_alignments);
 
-    free(seq_data.sequences);
+    free(g_sequence_dataset.sequences);
     return 0;
 }

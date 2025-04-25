@@ -7,76 +7,74 @@
 
 typedef struct
 {
-    char* data;
+    char* letters;
     size_t length;
-} Sequence;
+} sequence_t;
 
 #define SEQ_POOL_BLOCK_SIZE (4 * MiB)
 
 typedef struct SeqMemBlock
 {
-    char* data;
+    char* sequence_block;
     size_t used;
     size_t capacity;
     struct SeqMemBlock* next;
 } SeqMemBlock;
 
-typedef struct
+static struct
 {
     SeqMemBlock* head;
     SeqMemBlock* current;
     size_t total_bytes;
     size_t total_allocated;
     size_t block_count;
-} SeqMemPool;
+} g_sequence_pool = { 0 };
 
-typedef struct
+static struct
 {
-    Sequence* sequences;
-    size_t count;
-    size_t total_alignments;
-} SequenceData;
-
-static SeqMemPool g_seq_pool = { 0 };
+    sequence_t* sequences;
+    size_t sequence_count;
+    size_t alignment_count;
+} g_sequence_dataset = { 0 };
 
 INLINE void
 seq_pool_init(void)
 {
-    if (g_seq_pool.head)
+    if (g_sequence_pool.head)
     {
         return;
     }
 
-    g_seq_pool.head = malloc(sizeof(*g_seq_pool.head));
-    if (!g_seq_pool.head)
+    g_sequence_pool.head = malloc(sizeof(*g_sequence_pool.head));
+    if (!g_sequence_pool.head)
     {
         return;
     }
 
-    g_seq_pool.head->data = alloc_huge_page(SEQ_POOL_BLOCK_SIZE);
-    if (!g_seq_pool.head->data)
+    g_sequence_pool.head->sequence_block = alloc_huge_page(SEQ_POOL_BLOCK_SIZE);
+    if (!g_sequence_pool.head->sequence_block)
     {
-        free(g_seq_pool.head);
-        g_seq_pool.head = NULL;
+        free(g_sequence_pool.head);
+        g_sequence_pool.head = NULL;
         return;
     }
 
-    g_seq_pool.head->used = 0;
-    g_seq_pool.head->capacity = SEQ_POOL_BLOCK_SIZE;
-    g_seq_pool.head->next = NULL;
-    g_seq_pool.current = g_seq_pool.head;
-    g_seq_pool.total_bytes = SEQ_POOL_BLOCK_SIZE;
-    g_seq_pool.total_allocated = 0;
-    g_seq_pool.block_count = 1;
+    g_sequence_pool.head->used = 0;
+    g_sequence_pool.head->capacity = SEQ_POOL_BLOCK_SIZE;
+    g_sequence_pool.head->next = NULL;
+    g_sequence_pool.current = g_sequence_pool.head;
+    g_sequence_pool.total_bytes = SEQ_POOL_BLOCK_SIZE;
+    g_sequence_pool.total_allocated = 0;
+    g_sequence_pool.block_count = 1;
 }
 
 INLINE char*
 seq_pool_alloc(size_t size)
 {
-    if (!g_seq_pool.head)
+    if (!g_sequence_pool.head)
     {
         seq_pool_init();
-        if (!g_seq_pool.head)
+        if (!g_sequence_pool.head)
         {
             return NULL;
         }
@@ -84,7 +82,7 @@ seq_pool_alloc(size_t size)
 
     size = (size + 7) & ~7;
 
-    if (g_seq_pool.current->used + size > g_seq_pool.current->capacity)
+    if (g_sequence_pool.current->used + size > g_sequence_pool.current->capacity)
     {
         size_t new_block_size = SEQ_POOL_BLOCK_SIZE;
         if (size > new_block_size)
@@ -98,8 +96,8 @@ seq_pool_alloc(size_t size)
             return NULL;
         }
 
-        new_block->data = malloc(new_block_size);
-        if (!new_block->data)
+        new_block->sequence_block = malloc(new_block_size);
+        if (!new_block->sequence_block)
         {
             free(new_block);
             return NULL;
@@ -109,15 +107,15 @@ seq_pool_alloc(size_t size)
         new_block->capacity = new_block_size;
         new_block->next = NULL;
 
-        g_seq_pool.current->next = new_block;
-        g_seq_pool.current = new_block;
-        g_seq_pool.total_bytes += new_block_size;
-        g_seq_pool.block_count++;
+        g_sequence_pool.current->next = new_block;
+        g_sequence_pool.current = new_block;
+        g_sequence_pool.total_bytes += new_block_size;
+        g_sequence_pool.block_count++;
     }
 
-    char* result = g_seq_pool.current->data + g_seq_pool.current->used;
-    g_seq_pool.current->used += size;
-    g_seq_pool.total_allocated += size;
+    char* result = g_sequence_pool.current->sequence_block + g_sequence_pool.current->used;
+    g_sequence_pool.current->used += size;
+    g_sequence_pool.total_allocated += size;
 
     return result;
 }
@@ -125,37 +123,37 @@ seq_pool_alloc(size_t size)
 INLINE __attribute__((destructor)) void
 seq_pool_free(void)
 {
-    if (!g_seq_pool.head)
+    if (!g_sequence_pool.head)
     {
         return;
     }
 
-    SeqMemBlock* block = g_seq_pool.head;
+    SeqMemBlock* block = g_sequence_pool.head;
     while (block)
     {
         SeqMemBlock* next = block->next;
-        aligned_free(block->data);
+        aligned_free(block->sequence_block);
         free(block);
         block = next;
     }
 
-    g_seq_pool.head = NULL;
-    g_seq_pool.current = NULL;
-    g_seq_pool.total_bytes = 0;
-    g_seq_pool.total_allocated = 0;
-    g_seq_pool.block_count = 0;
+    g_sequence_pool.head = NULL;
+    g_sequence_pool.current = NULL;
+    g_sequence_pool.total_bytes = 0;
+    g_sequence_pool.total_allocated = 0;
+    g_sequence_pool.block_count = 0;
 }
 
 INLINE void
-sequence_init(Sequence* seq, const char* data, size_t length)
+sequence_init(sequence_t* sequence, const char* data, size_t sequence_length)
 {
-    seq->length = length;
+    sequence->length = sequence_length;
 
-    seq->data = seq_pool_alloc(length + 1);
-    if (seq->data)
+    sequence->letters = seq_pool_alloc(sequence_length + 1);
+    if (sequence->letters)
     {
-        memcpy(seq->data, data, length);
-        seq->data[length] = '\0';
+        memcpy(sequence->letters, data, sequence_length);
+        sequence->letters[sequence_length] = '\0';
     }
 }
 
@@ -210,45 +208,45 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 }
 
 INLINE void
-sequences_alloc_from_file(SequenceData* seq_data,
-                          char* current,
-                          char* end,
-                          size_t total_seqs_in_file)
+sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_total)
 {
     float filter_threshold = args_filter_threshold();
     bool apply_filtering = args_mode_filter();
 
-    Sequence* seqs = malloc(total_seqs_in_file * sizeof(*seqs));
-    if (!seqs)
+    sequence_t* sequences = malloc(sequences_total * sizeof(*sequences));
+    if (!sequences)
     {
         return;
     }
 
-    size_t idx = 0;
+    const size_t buffer_margin = 16;
+    const size_t buffer_padding = 64;
+
+    size_t sequence_count_current = 0;
     size_t filtered_count = 0;
     size_t total_sequence_length = 0;
 
     char* temp_seq = NULL;
     size_t temp_seq_capacity = 0;
 
-    while (current < end && *current)
+    while (file_cursor < file_end && *file_cursor)
     {
-        char* line_end = current;
+        char* line_end = file_cursor;
         while (*line_end && *line_end != '\n' && *line_end != '\r')
         {
             line_end++;
         }
 
-        size_t max_line_len = line_end - current;
+        size_t max_line_len = line_end - file_cursor;
 
-        if (max_line_len + 16 > temp_seq_capacity)
+        if (max_line_len + buffer_margin > temp_seq_capacity)
         {
-            size_t new_capacity = max_line_len + 64;
+            size_t new_capacity = max_line_len + buffer_padding;
             char* new_buffer = malloc(new_capacity);
             if (!new_buffer)
             {
                 free(temp_seq);
-                free(seqs);
+                free(sequences);
                 return;
             }
 
@@ -257,23 +255,23 @@ sequences_alloc_from_file(SequenceData* seq_data,
             temp_seq_capacity = new_capacity;
         }
 
-        size_t seq_len = csv_line_parse(&current, temp_seq);
+        size_t sequence_length = csv_line_parse(&file_cursor, temp_seq);
 
-        if (!seq_len)
+        if (!sequence_length)
         {
             continue;
         }
 
         bool should_include = true;
 
-        if (apply_filtering && idx > 0)
+        if (apply_filtering && sequence_count_current > 0)
         {
-            for (size_t j = 0; j < idx; j++)
+            for (size_t j = 0; j < sequence_count_current; j++)
             {
                 float similarity = similarity_pairwise(temp_seq,
-                                                       seq_len,
-                                                       seqs[j].data,
-                                                       seqs[j].length);
+                                                       sequence_length,
+                                                       sequences[j].letters,
+                                                       sequences[j].length);
 
                 if (similarity >= filter_threshold)
                 {
@@ -286,65 +284,63 @@ sequences_alloc_from_file(SequenceData* seq_data,
 
         if (should_include)
         {
-            sequence_init(&seqs[idx], temp_seq, seq_len);
-            total_sequence_length += seq_len;
-            idx++;
+            sequence_init(&sequences[sequence_count_current], temp_seq, sequence_length);
+            total_sequence_length += sequence_length;
+            sequence_count_current++;
         }
 
         print(PROGRESS,
-              MSG_PROPORTION((float)(idx + filtered_count) / total_seqs_in_file),
+              MSG_PROPORTION((float)(sequence_count_current + filtered_count) / sequences_total),
               apply_filtering ? "Filtering sequences" : "Loading sequences");
     }
 
     free(temp_seq);
 
-    size_t seq_count = idx;
+    size_t sequence_count = sequence_count_current;
 
-    if (apply_filtering && filtered_count > 0 && filtered_count >= total_seqs_in_file / 4)
+    if (apply_filtering && filtered_count > 0 && filtered_count >= sequences_total / 4)
     {
         print(VERBOSE, MSG_NONE, "Reallocating memory to save %zu sequence slots", filtered_count);
-        Sequence* new_seqs = realloc(seqs, seq_count * sizeof(*seqs));
-        if (new_seqs)
+        sequence_t* _sequences_new = realloc(sequences, sequence_count * sizeof(*sequences));
+        if (_sequences_new)
         {
-            seqs = new_seqs;
+            sequences = _sequences_new;
         }
     }
 
     if (apply_filtering)
     {
-        print(DNA, MSG_NONE, "Loaded %zu sequences (filtered out %zu)", seq_count, filtered_count);
+        print(DNA, MSG_NONE, "Loaded %zu sequences (filtered %zu)", sequence_count, filtered_count);
     }
 
-    print(INFO,
-          MSG_NONE,
-          "Average sequence length: %.2f",
-          (float)total_sequence_length / seq_count);
+    float sequence_average_length = (float)total_sequence_length / sequence_count;
 
-    size_t total_alignments = (seq_count * (seq_count - 1)) / 2;
+    print(INFO, MSG_NONE, "Average sequence length: %.2f", sequence_average_length);
 
-    seq_data->sequences = seqs;
-    seq_data->count = seq_count;
-    seq_data->total_alignments = total_alignments;
+    size_t alignment_count = (sequence_count * (sequence_count - 1)) / 2;
+
+    g_sequence_dataset.sequences = sequences;
+    g_sequence_dataset.sequence_count = sequence_count;
+    g_sequence_dataset.alignment_count = alignment_count;
 
     return;
 }
 
 INLINE void
-seq_get_pair(SequenceData* seq_data,
-             size_t first,
-             size_t second,
-             char** seq1,
-             size_t* len1,
-             char** seq2,
-             size_t* len2)
+seq_get_pair(size_t first_index,
+             char** first_sequence_out,
+             size_t* first_length_out,
+             size_t second_index,
+             char** second_sequence_out,
+             size_t* second_length_out)
 {
-    *seq1 = seq_data->sequences[first].data;
-    *len1 = seq_data->sequences[first].length;
-    *seq2 = seq_data->sequences[second].data;
-    *len2 = seq_data->sequences[second].length;
+    *first_sequence_out = g_sequence_dataset.sequences[first_index].letters;
+    *first_length_out = g_sequence_dataset.sequences[first_index].length;
+    *second_sequence_out = g_sequence_dataset.sequences[second_index].letters;
+    *second_length_out = g_sequence_dataset.sequences[second_index].length;
 
-    prefetch(*seq1);
-    prefetch(*seq2);
+    prefetch(*first_sequence_out);
+    prefetch(*second_sequence_out);
 }
 
 #endif // SEQUENCE_H

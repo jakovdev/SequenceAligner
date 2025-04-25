@@ -12,7 +12,6 @@
 typedef struct
 {
     int thread_id;
-    SequenceData* seq_data;
     int64_t local_checksum;
     volatile size_t* current_row;
     pthread_mutex_t* row_mutex;
@@ -22,23 +21,22 @@ typedef struct
 } ThreadStorage;
 
 INLINE T_Func
-thread_worker(void* arg)
+thread_worker(void* thread_arg)
 {
-    ThreadStorage* storage = arg;
+    ThreadStorage* storage = thread_arg;
     PIN_THREAD(storage->thread_id);
 
-    SequenceData* seq_data = storage->seq_data;
-    const size_t seq_count = seq_data->count;
-    
+    const size_t sequence_count = g_sequence_dataset.sequence_count;
+    const size_t alignment_count = g_sequence_dataset.alignment_count;
 
     size_t local_progress = 0;
 
     const int num_threads = args_thread_num();
-    const size_t progress_update_interval = seq_data->total_alignments * 0.01 / num_threads;
+    const size_t progress_update_interval = alignment_count * 0.01 / num_threads;
 
     const size_t batch_size = num_threads;
 
-    const size_t batch_transition_tail = seq_count * 9 / 10;
+    const size_t batch_transition_tail = sequence_count * 9 / 10;
 
     const size_t batch_size_tail = batch_size / 2;
 
@@ -52,7 +50,7 @@ thread_worker(void* arg)
 
         current_batch_size = (row < batch_transition_tail) ? batch_size : batch_size_tail;
 
-        size_t remaining_rows = seq_count - row;
+        size_t remaining_rows = sequence_count - row;
         if (remaining_rows < current_batch_size * num_threads / 2)
         {
             current_batch_size = (remaining_rows + num_threads - 1) / num_threads;
@@ -65,15 +63,15 @@ thread_worker(void* arg)
         *storage->current_row += current_batch_size;
         pthread_mutex_unlock(storage->row_mutex);
 
-        if (row >= seq_count)
+        if (row >= sequence_count)
         {
             break;
         }
 
         size_t end_row = row + current_batch_size;
-        if (end_row > seq_count)
+        if (end_row > sequence_count)
         {
-            end_row = seq_count;
+            end_row = sequence_count;
         }
 
         for (size_t i = row; i < end_row; i++)
@@ -81,12 +79,12 @@ thread_worker(void* arg)
             char* seq1;
             size_t len1;
 
-            for (size_t j = i + 1; j < seq_count; j++)
+            for (size_t j = i + 1; j < sequence_count; j++)
             {
                 char* seq2;
                 size_t len2;
 
-                seq_get_pair(seq_data, i, j, &seq1, &len1, &seq2, &len2);
+                seq_get_pair(i, &seq1, &len1, j, &seq2, &len2);
 
                 if (UNLIKELY(!seq1 || !seq2 || !len1 || !len2))
                 {
@@ -133,10 +131,9 @@ thread_worker(void* arg)
 }
 
 INLINE void
-align_multithreaded(SequenceData* seq_data)
+align_multithreaded(void)
 {
     const int num_threads = args_thread_num();
-    const size_t total_alignments = seq_data->total_alignments;
 
     volatile size_t current_row = 0;
     pthread_mutex_t row_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -157,7 +154,6 @@ align_multithreaded(SequenceData* seq_data)
     {
         ThreadStorage* storage = &thread_storages[t];
         storage->thread_id = t;
-        storage->seq_data = seq_data;
         storage->local_checksum = 0;
         storage->current_row = &current_row;
         storage->row_mutex = &row_mutex;
@@ -171,11 +167,13 @@ align_multithreaded(SequenceData* seq_data)
     int progress_percent = 0;
     print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
 
-    for (size_t progress = atomic_load(&shared_progress); progress < total_alignments;
+    const size_t alignment_count = g_sequence_dataset.alignment_count;
+
+    for (size_t progress = atomic_load(&shared_progress); progress < alignment_count;
          progress = atomic_load(&shared_progress))
     {
         usleep(100000);
-        progress_percent = progress * 100 / total_alignments;
+        progress_percent = progress * 100 / alignment_count;
         print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
     }
 
@@ -205,22 +203,22 @@ align_multithreaded(SequenceData* seq_data)
 }
 
 INLINE void
-align_singlethreaded(SequenceData* seq_data)
+align_singlethreaded(void)
 {
-    size_t seq_count = seq_data->count;
-    size_t total_alignments = seq_data->total_alignments;
-    size_t progress_counter = 0;
+    const size_t sequence_count = g_sequence_dataset.sequence_count;
+    const size_t alignment_count = g_sequence_dataset.alignment_count;
     int64_t local_checksum = 0;
+    size_t progress = 0;
 
-    UNROLL(8) for (size_t i = 0; i < seq_count; i++)
+    UNROLL(8) for (size_t i = 0; i < sequence_count; i++)
     {
-        for (size_t j = i + 1; j < seq_count; j++)
+        for (size_t j = i + 1; j < sequence_count; j++)
         {
             char* seq1;
             char* seq2;
             size_t len1, len2;
 
-            seq_get_pair(seq_data, i, j, &seq1, &len1, &seq2, &len2);
+            seq_get_pair(i, &seq1, &len1, j, &seq2, &len2);
 
             int score = align_pairwise(seq1, len1, seq2, len2);
 
@@ -229,22 +227,20 @@ align_singlethreaded(SequenceData* seq_data)
             h5_set_matrix_value(i, j, score);
             h5_set_matrix_value(j, i, score);
 
-            progress_counter++;
-            print(PROGRESS,
-                  MSG_PROPORTION((float)progress_counter / total_alignments),
-                  "Aligning sequences");
+            const int progress_percent = ++progress * 100 / alignment_count;
+            print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
         }
     }
 
-    h5_handler->checksum = local_checksum * 2;
+    g_hdf5_context.checksum = local_checksum * 2;
 }
 
 INLINE void
-align(SequenceData* seq_data)
+align(void)
 {
     if (args_mode_multithread())
     {
-        align_multithreaded(seq_data);
+        align_multithreaded();
     }
 
     else
@@ -255,7 +251,7 @@ align(SequenceData* seq_data)
             start_time = time_current();
         }
 
-        align_singlethreaded(seq_data);
+        align_singlethreaded();
 
         if (args_mode_benchmark())
         {

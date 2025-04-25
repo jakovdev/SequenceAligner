@@ -579,7 +579,7 @@ h5_set_matrix_value(size_t row, size_t col, int value)
 }
 
 INLINE bool
-h5_store_sequence_lengths(Sequence* sequences, size_t seq_count)
+h5_store_sequence_lengths(sequence_t* sequences, size_t seq_count)
 {
     size_t* lengths = malloc(seq_count * sizeof(*lengths));
     if (!lengths)
@@ -612,7 +612,7 @@ h5_store_sequence_lengths(Sequence* sequences, size_t seq_count)
 }
 
 INLINE bool
-h5_store_sequence_batch(Sequence* sequences,
+h5_store_sequence_batch(sequence_t* sequences,
                         size_t batch_start,
                         size_t batch_end,
                         hid_t string_type,
@@ -629,7 +629,7 @@ h5_store_sequence_batch(Sequence* sequences,
 
     for (size_t i = 0; i < current_batch_size; i++)
     {
-        seq_data[i] = sequences[batch_start + i].data;
+        seq_data[i] = sequences[batch_start + i].letters;
     }
 
     hsize_t batch_dims[1] = { current_batch_size };
@@ -705,7 +705,7 @@ h5_create_sequence_dataset(hid_t string_type)
 }
 
 INLINE bool
-h5_store_sequences(Sequence* sequences, size_t seq_count)
+h5_store_sequences(sequence_t* sequences, size_t seq_count)
 {
     if (!args_mode_write() || !g_hdf5_context.is_init || g_hdf5_context.sequences_stored)
     {
