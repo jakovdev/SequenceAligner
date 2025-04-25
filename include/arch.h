@@ -9,6 +9,7 @@
 #define ALIGN __attribute__((aligned(CACHE_LINE)))
 #define ALLOC __attribute__((malloc, alloc_size(1)))
 #define UNUSED __attribute__((unused))
+#define CLEANUP(function) __attribute__((cleanup(function)))
 #define PRAGMA(n) _Pragma(#n)
 #if defined(__clang__)
 #define UNROLL(n) PRAGMA(unroll n)

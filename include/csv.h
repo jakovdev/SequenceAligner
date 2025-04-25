@@ -113,7 +113,7 @@ csv_header_parse(char* restrict current, char* restrict end)
 {
     char* header_start = current;
 
-    __attribute__((cleanup(csv_metadata_free))) CsvMetadata csv_metadata = { 0, NULL };
+    CLEANUP(csv_metadata_free) CsvMetadata csv_metadata = { 0, NULL };
 
     csv_metadata.num_columns = csv_column_count(header_start);
 
