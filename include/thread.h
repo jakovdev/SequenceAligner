@@ -139,7 +139,6 @@ INLINE void
 align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const ScoringMatrix* scoring)
 {
     const int num_threads = args_thread_num();
-    const size_t seq_count = seq_data->count;
     const size_t total_alignments = seq_data->total_alignments;
 
     volatile size_t current_row = 0;
