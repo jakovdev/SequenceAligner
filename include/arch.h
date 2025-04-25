@@ -128,16 +128,14 @@ typedef __mmask64 num_t;
 #define mullo_epi32 _mm512_mullo_epi32
 #define set1_epi32 _mm512_set1_epi32
 #define set1_epi8 _mm512_set1_epi8
-#define cmpeq_epi8(a, b) _mm512_cmpeq_epi8_mask(a, b)
-#define movemask_epi8(mask) (mask)
+#define cmpeq_epi8 _mm512_cmpeq_epi8_mask
+#define movemask_epi8
 #define or_mask(a, b) ((a) | (b))
 #define or_si _mm512_or_si512
 #define setzero_si _mm512_setzero_si512
 #define and_si _mm512_and_si512
 #define setr_epi32 _mm512_setr_epi32
 #define set_row_indices() _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
-#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
-#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 
 #elif defined(__AVX2__)
 #include <immintrin.h>
@@ -162,8 +160,6 @@ typedef uint32_t num_t;
 #define and_si _mm256_and_si256
 #define setr_epi32 _mm256_setr_epi32
 #define set_row_indices() _mm256_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8)
-#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
-#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 
 #elif defined(__SSE2__)
 #include <emmintrin.h>
@@ -188,8 +184,6 @@ typedef uint16_t num_t;
 #define and_si _mm_and_si128
 #define setr_epi32 _mm_setr_epi32
 #define set_row_indices() _mm_setr_epi32(1, 2, 3, 4)
-#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
-#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
 
 INLINE __m128i
 _mm_mullo_epi32_fallback(__m128i a, __m128i b)
@@ -207,6 +201,8 @@ _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 
 #ifdef USE_SIMD
 #define PREFETCH_DISTANCE (BYTES << 4)
+#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
+#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 #endif
 
 INLINE int
