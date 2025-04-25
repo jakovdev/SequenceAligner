@@ -6,6 +6,7 @@
 #include "hdf5_context.h"
 #include "print.h"
 #include "thread.h"
+#include <stdio.h>
 
 int
 main(int argc, char* argv[])
@@ -29,7 +30,7 @@ main(int argc, char* argv[])
     size_t sequence_count = 0;
 
     {
-        CREATE_FILE input_file = { 0 };
+        CLEANUP(file_free) File input_file = { 0 };
         bench_io_add(file_read(&input_file, args_path_input()));
 
         char* file_cursor = input_file.file_data;

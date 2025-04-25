@@ -16,8 +16,6 @@ typedef struct
 #endif
 } File;
 
-#define CREATE_FILE CLEANUP(file_free) File
-
 typedef struct
 {
     int* data;
