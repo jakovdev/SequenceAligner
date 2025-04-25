@@ -59,13 +59,13 @@ csv_column_count(const char* line)
 }
 
 INLINE char*
-csv_column_copy(const char* start, const char* end)
+csv_column_copy(const char* file_start, const char* file_end)
 {
-    size_t len = end - start;
+    size_t len = file_end - file_start;
     char* name = malloc(len + 1);
     if (name)
     {
-        memcpy(name, start, len);
+        memcpy(name, file_start, len);
         name[len] = '\0';
     }
 
@@ -109,9 +109,9 @@ csv_column_sequence(char** headers, int num_cols)
 }
 
 INLINE char*
-csv_header_parse(char* restrict current, char* restrict end)
+csv_header_parse(char* restrict file_cursor, char* restrict file_end)
 {
-    char* header_start = current;
+    char* header_start = file_cursor;
 
     CLEANUP(csv_metadata_free) CsvMetadata csv_metadata = { 0, NULL };
 
@@ -134,40 +134,40 @@ csv_header_parse(char* restrict current, char* restrict end)
     const char* col_start = header_start;
     int col_idx = 0;
 
-    while (current < end)
+    while (file_cursor < file_end)
     {
-        if (*current == ',' || *current == '\n' || *current == '\r')
+        if (*file_cursor == ',' || *file_cursor == '\n' || *file_cursor == '\r')
         {
             if (col_idx < csv_metadata.num_columns)
             {
-                csv_metadata.headers[col_idx] = csv_column_copy(col_start, current);
+                csv_metadata.headers[col_idx] = csv_column_copy(col_start, file_cursor);
                 col_idx++;
             }
 
-            if (*current == ',' && col_idx < csv_metadata.num_columns)
+            if (*file_cursor == ',' && col_idx < csv_metadata.num_columns)
             {
-                col_start = current + 1;
+                col_start = file_cursor + 1;
             }
 
-            else if (*current == '\n')
+            else if (*file_cursor == '\n')
             {
-                current++; // Move past newline
+                file_cursor++; // Move past newline
                 break;
             }
 
-            else if (*current == '\r')
+            else if (*file_cursor == '\r')
             {
-                current++; // Move past CR
-                if (current < end && *current == '\n')
+                file_cursor++; // Move past CR
+                if (file_cursor < file_end && *file_cursor == '\n')
                 {
-                    current++; // Move past LF if present
+                    file_cursor++; // Move past LF if present
                 }
 
                 break;
             }
         }
 
-        current++;
+        file_cursor++;
     }
 
     g_seq_col_index = csv_column_sequence(csv_metadata.headers, csv_metadata.num_columns);
@@ -203,7 +203,7 @@ csv_header_parse(char* restrict current, char* restrict end)
           g_seq_col_index + 1,
           csv_metadata.headers[g_seq_col_index]);
 
-    return current;
+    return file_cursor;
 }
 
 INLINE size_t
@@ -267,13 +267,13 @@ csv_line_count(char** current)
 }
 
 INLINE size_t
-csv_sequence_lines(char* current, char* end)
+csv_sequence_lines(char* file_cursor, char* file_end)
 {
     size_t total_seqs = 0;
 
-    while (current < end && *current)
+    while (file_cursor < file_end && *file_cursor)
     {
-        if (csv_line_count(&current))
+        if (csv_line_count(&file_cursor))
         {
             total_seqs++;
         }

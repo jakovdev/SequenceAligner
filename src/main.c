@@ -31,15 +31,15 @@ main(int argc, char* argv[])
         CREATE_FILE input_file = { 0 };
         bench_io_add(file_read(&input_file, args_path_input()));
 
-        char* current = input_file.file_data;
-        char* end = input_file.file_data + input_file.data_size;
+        char* file_cursor = input_file.file_data;
+        char* file_end = input_file.file_data + input_file.data_size;
 
-        current = csv_header_parse(current, end);
-        char* header_start = current;
-        current = g_csv_has_no_header ? input_file.file_data : header_start;
+        file_cursor = csv_header_parse(file_cursor, file_end);
+        char* file_header_start = file_cursor;
+        file_cursor = g_csv_has_no_header ? input_file.file_data : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
-        size_t total_seqs_in_file = csv_sequence_lines(current, end);
+        size_t total_seqs_in_file = csv_sequence_lines(file_cursor, file_end);
 
         if (total_seqs_in_file == 0)
         {
@@ -49,8 +49,9 @@ main(int argc, char* argv[])
 
         print(DNA, MSG_NONE, "Found %zu sequences", total_seqs_in_file);
 
-        current = g_csv_has_no_header ? input_file.file_data : header_start;
-        bench_io_add(sequences_alloc_from_file(&seq_data, current, end, total_seqs_in_file));
+        file_cursor = g_csv_has_no_header ? input_file.file_data : file_header_start;
+        bench_io_add(sequences_alloc_from_file(&seq_data, file_cursor, file_end, total_seqs_in_file));
+
         if (!seq_data.sequences)
         {
             print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
