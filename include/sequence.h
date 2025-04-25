@@ -256,7 +256,7 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
             temp_seq_capacity = new_capacity;
         }
 
-        size_t sequence_length = csv_line_parse(&file_cursor, temp_seq);
+        size_t sequence_length = csv_line_column_extract(&file_cursor, temp_seq, g_sequence_column);
 
         if (!sequence_length)
         {

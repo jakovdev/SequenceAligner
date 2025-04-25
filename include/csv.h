@@ -9,7 +9,7 @@ typedef struct
     char** headers;
 } CsvMetadata;
 
-static int g_seq_col_index = -1;
+static int g_sequence_column = -1;
 static bool g_csv_has_no_header = false;
 
 INLINE void
@@ -81,25 +81,25 @@ csv_column_sequence(char** headers, int num_cols)
     const int num_keywords = sizeof(seq_keywords) / sizeof(seq_keywords[0]);
 
     // First pass: exact match for sequence column
-    for (int i = 0; i < num_cols; i++)
+    for (int column = 0; column < num_cols; column++)
     {
-        for (int k = 0; k < num_keywords; k++)
+        for (int key = 0; key < num_keywords; key++)
         {
-            if (strcasecmp(headers[i], seq_keywords[k]) == 0)
+            if (strcasecmp(headers[column], seq_keywords[key]) == 0)
             {
-                return i;
+                return column;
             }
         }
     }
 
     // Second pass: partial match (contains sequence keyword)
-    for (int i = 0; i < num_cols; i++)
+    for (int column = 0; column < num_cols; column++)
     {
-        for (int k = 0; k < num_keywords; k++)
+        for (int key = 0; key < num_keywords; key++)
         {
-            if (strcasestr(headers[i], seq_keywords[k]))
+            if (strcasestr(headers[column], seq_keywords[key]))
             {
-                return i;
+                return column;
             }
         }
     }
@@ -170,15 +170,15 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         file_cursor++;
     }
 
-    g_seq_col_index = csv_column_sequence(csv_metadata.headers, csv_metadata.num_columns);
+    g_sequence_column = csv_column_sequence(csv_metadata.headers, csv_metadata.num_columns);
 
     // If auto-detection failed
-    if (g_seq_col_index < 0)
+    if (g_sequence_column < 0)
     {
         char** choices = malloc((csv_metadata.num_columns + 2) * sizeof(*choices));
-        for (int i = 0; i < csv_metadata.num_columns; i++)
+        for (column = 0; column < csv_metadata.num_columns; column++)
         {
-            choices[i] = csv_metadata.headers[i];
+            choices[column] = csv_metadata.headers[column];
         }
 
         choices[csv_metadata.num_columns] = "My csv file does not have a header! Do not skip it!";
@@ -186,13 +186,13 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(LAST), "Please select the header column containing sequence data:");
-        g_seq_col_index = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
+        g_sequence_column = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
     }
 
-    if (g_seq_col_index == csv_metadata.num_columns)
+    if (g_sequence_column == csv_metadata.num_columns)
     {
         print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
-        g_seq_col_index = print(CHOICE, MSG_CHOICE(csv_metadata.headers), "Enter column number");
+        g_sequence_column = print(CHOICE, MSG_CHOICE(csv_metadata.headers), "Enter column number");
         g_csv_has_no_header = true;
     }
 
@@ -200,35 +200,35 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
     print(VERBOSE,
           MSG_LOC(MIDDLE),
           "Using column %d ('%s') for sequences",
-          g_seq_col_index + 1,
-          csv_metadata.headers[g_seq_col_index]);
+          g_sequence_column + 1,
+          csv_metadata.headers[g_sequence_column]);
 
     return file_cursor;
 }
 
-INLINE size_t
-csv_line_count(char** current)
+INLINE bool
+csv_line_next(char** file_cursor_ptr)
 {
-    char* p = *current;
+    char* cursor = *file_cursor_ptr;
 
-    while (*p && (*p == ' ' || *p == '\r' || *p == '\n'))
+    while (*cursor && (*cursor == ' ' || *cursor == '\r' || *cursor == '\n'))
     {
-        p++;
+        cursor++;
     }
 
-    if (!*p)
+    if (!*cursor)
     {
-        *current = p;
-        return 0;
+        *file_cursor_ptr = cursor;
+        return false;
     }
 
 #ifdef USE_SIMD
     const veci_t nl_vec = set1_epi8('\n');
     const veci_t cr_vec = set1_epi8('\r');
 
-    while (*p)
+    while (*cursor)
     {
-        veci_t data = loadu((veci_t*)p);
+        veci_t data = loadu((veci_t*)cursor);
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
         num_t mask_nl = cmpeq_epi8(data, nl_vec);
@@ -242,57 +242,57 @@ csv_line_count(char** current)
         if (mask)
         {
             num_t pos = ctz(mask);
-            p += pos;
+            cursor += pos;
             break;
         }
 
-        p += BYTES;
+        cursor += BYTES;
     }
 
 #else
-    while (*p && *p != '\n' && *p != '\r')
+    while (*cursor && *cursor != '\n' && *cursor != '\r')
     {
-        p++;
+        cursor++;
     }
 
 #endif
 
-    while (*p && (*p == '\n' || *p == '\r'))
+    while (*cursor && (*cursor == '\n' || *cursor == '\r'))
     {
-        p++;
+        cursor++;
     }
 
-    *current = p;
-    return 1;
+    *file_cursor_ptr = cursor;
+    return true;
 }
 
 INLINE size_t
-csv_sequence_lines(char* file_cursor, char* file_end)
+csv_total_lines(char* file_cursor, char* file_end)
 {
-    size_t total_seqs = 0;
+    size_t total_lines = 0;
 
     while (file_cursor < file_end && *file_cursor)
     {
-        if (csv_line_count(&file_cursor))
+        if (csv_line_next(&file_cursor))
         {
-            total_seqs++;
+            total_lines++;
         }
     }
 
-    return total_seqs;
+    return total_lines;
 }
 
 INLINE size_t
-csv_line_parse(char** current, char* seq)
+csv_line_column_extract(char** file_cursor_ptr, char* output_buffer, int target_column)
 {
-    char* p = *current;
+    char* cursor = *file_cursor_ptr;
     char* write_pos = NULL;
-    size_t col = 0;
-    size_t seq_len = 0;
+    int column = 0;
+    size_t column_length = 0;
 
-    while (*p && (*p == ' ' || *p == '\r' || *p == '\n'))
+    while (*cursor && (*cursor == ' ' || *cursor == '\r' || *cursor == '\n'))
     {
-        p++;
+        cursor++;
     }
 
 #ifdef USE_SIMD
@@ -300,14 +300,14 @@ csv_line_parse(char** current, char* seq)
     const veci_t nl_vec = set1_epi8('\n');
     const veci_t cr_vec = set1_epi8('\r');
 
-    while (*p && *p != '\n' && *p != '\r')
+    while (*cursor && *cursor != '\n' && *cursor != '\r')
     {
-        if ((int)col == g_seq_col_index)
+        if (column == target_column)
         {
-            write_pos = seq;
-            while (*p && *p != ',' && *p != '\n' && *p != '\r')
+            write_pos = output_buffer;
+            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
             {
-                veci_t data = loadu((veci_t*)p);
+                veci_t data = loadu((veci_t*)cursor);
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
                 num_t mask_delim = cmpeq_epi8(data, delim_vec);
@@ -327,76 +327,76 @@ csv_line_parse(char** current, char* seq)
                     storeu((veci_t*)write_pos, data);
                     write_pos[pos] = '\0';
                     write_pos += pos;
-                    p += pos;
+                    cursor += pos;
                     break;
                 }
 
                 storeu((veci_t*)write_pos, data);
-                p += BYTES;
+                cursor += BYTES;
                 write_pos += BYTES;
             }
 
             *write_pos = '\0';
-            seq_len = write_pos - seq;
+            column_length = write_pos - output_buffer;
         }
 
         else
         {
             // Skip other columns
-            while (*p && *p != ',' && *p != '\n' && *p != '\r')
+            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
             {
-                p++;
+                cursor++;
             }
         }
 
-        if (*p == ',')
+        if (*cursor == ',')
         {
-            p++;
-            col++;
+            cursor++;
+            column++;
         }
     }
 
 #else
-    while (*p && *p != '\n' && *p != '\r')
+    while (*cursor && *cursor != '\n' && *cursor != '\r')
     {
-        if ((int)col == g_seq_col_index)
+        if (column == target_column)
         {
-            write_pos = seq;
+            write_pos = output_buffer;
 
-            while (*p && *p != ',' && *p != '\n' && *p != '\r')
+            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
             {
-                *write_pos++ = *p++;
+                *write_pos++ = *cursor++;
             }
 
             *write_pos = '\0';
-            seq_len = write_pos - seq;
+            column_length = write_pos - output_buffer;
         }
 
         else
         {
             // Skip other columns
-            while (*p && *p != ',' && *p != '\n' && *p != '\r')
+            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
             {
-                p++;
+                cursor++;
             }
         }
 
-        if (*p == ',')
+        if (*cursor == ',')
         {
-            p++;
-            col++;
+            cursor++;
+            column++;
         }
     }
 
 #endif
 
-    while (*p && (*p == '\n' || *p == '\r'))
+    while (*cursor && (*cursor == '\n' || *cursor == '\r'))
     {
-        p++;
+        cursor++;
     }
 
-    *current = p;
-    return seq_len;
+    *file_cursor_ptr = cursor;
+    return column_length;
 }
 
 #endif

@@ -41,7 +41,7 @@ main(int argc, char* argv[])
         file_cursor = g_csv_has_no_header ? input_file.file_data : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
-        sequence_count = csv_sequence_lines(file_cursor, file_end);
+        sequence_count = csv_total_lines(file_cursor, file_end);
 
         if (!sequence_count)
         {
