@@ -534,7 +534,7 @@ align_sw(const char* seq1,
     seq_indices_precompute(&seq1_indices, seq1, len1);
 
     int final_score = 0;
-    int max_i = 0, max_j = 0;
+    UNUSED int max_i = 0, max_j = 0; // For potential traceback
     FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, final_score, max_i, max_j);
 
     seq_indices_free(&seq1_indices);
