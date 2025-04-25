@@ -485,4 +485,6 @@ args_init(int argc, char* argv[])
     }
 }
 
+#undef PARAM_UNSET
+
 #endif // ARGS_H
