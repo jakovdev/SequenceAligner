@@ -12,7 +12,6 @@
 typedef struct
 {
     int thread_id;
-    H5Handler* h5_handler;
     SequenceData* seq_data;
     const ScoringMatrix* scoring;
     int64_t local_checksum;
@@ -31,7 +30,7 @@ thread_worker(void* arg)
 
     SequenceData* seq_data = storage->seq_data;
     const size_t seq_count = seq_data->count;
-    H5Handler* h5_handler = storage->h5_handler;
+    
     const ScoringMatrix* scoring = storage->scoring;
 
     size_t local_progress = 0;
@@ -100,8 +99,8 @@ thread_worker(void* arg)
 
                 storage->local_checksum += score;
 
-                h5_set_matrix_value(h5_handler, i, j, score);
-                h5_set_matrix_value(h5_handler, j, i, score);
+                h5_set_matrix_value(i, j, score);
+                h5_set_matrix_value(j, i, score);
 
                 local_progress++;
 
@@ -136,7 +135,7 @@ thread_worker(void* arg)
 }
 
 INLINE void
-align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const ScoringMatrix* scoring)
+align_multithreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
 {
     const int num_threads = args_thread_num();
     const size_t total_alignments = seq_data->total_alignments;
@@ -160,7 +159,6 @@ align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scoring
     {
         ThreadStorage* storage = &thread_storages[t];
         storage->thread_id = t;
-        storage->h5_handler = h5_handler;
         storage->seq_data = seq_data;
         storage->scoring = scoring;
         storage->local_checksum = 0;
@@ -195,7 +193,7 @@ align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scoring
         total_checksum += thread_storages[t].local_checksum;
     }
 
-    h5_handler->checksum = total_checksum * 2;
+    g_hdf5_context.checksum = total_checksum * 2;
 
     pthread_mutex_destroy(&row_mutex);
     pthread_mutex_destroy(&completion_mutex);
@@ -210,7 +208,7 @@ align_multithreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scoring
 }
 
 INLINE void
-align_singlethreaded(H5Handler* h5_handler, SequenceData* seq_data, const ScoringMatrix* scoring)
+align_singlethreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
 {
     size_t seq_count = seq_data->count;
     size_t total_alignments = seq_data->total_alignments;
@@ -231,8 +229,8 @@ align_singlethreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scorin
 
             local_checksum += score;
 
-            h5_set_matrix_value(h5_handler, i, j, score);
-            h5_set_matrix_value(h5_handler, j, i, score);
+            h5_set_matrix_value(i, j, score);
+            h5_set_matrix_value(j, i, score);
 
             progress_counter++;
             print(PROGRESS,
@@ -245,7 +243,7 @@ align_singlethreaded(H5Handler* h5_handler, SequenceData* seq_data, const Scorin
 }
 
 INLINE void
-align(H5Handler* h5_handler, SequenceData* seq_data)
+align(SequenceData* seq_data)
 {
     print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
     ScoringMatrix scoring = { 0 };
@@ -253,7 +251,7 @@ align(H5Handler* h5_handler, SequenceData* seq_data)
 
     if (args_mode_multithread())
     {
-        align_multithreaded(h5_handler, seq_data, &scoring);
+        align_multithreaded(seq_data, &scoring);
     }
 
     else
@@ -264,7 +262,7 @@ align(H5Handler* h5_handler, SequenceData* seq_data)
             start_time = time_current();
         }
 
-        align_singlethreaded(h5_handler, seq_data, &scoring);
+        align_singlethreaded(seq_data, &scoring);
 
         if (args_mode_benchmark())
         {

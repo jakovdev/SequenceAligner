@@ -62,16 +62,15 @@ main(int argc, char* argv[])
     size_t seq_count = seq_data.count;
     size_t total_alignments = seq_data.total_alignments;
 
-    H5Handler h5_handler = { 0 };
-    bench_io_add(h5_initialize(&h5_handler, seq_count));
+    bench_io_add(h5_initialize(seq_count));
 
-    bench_io_add(h5_store_sequences(&h5_handler, seq_data.sequences, seq_count));
+    bench_io_add(h5_store_sequences(seq_data.sequences, seq_count));
 
     print(SECTION, MSG_NONE, "Performing Alignments");
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
 
-    align(&h5_handler, &seq_data);
+    align(&seq_data);
 
     if (!args_mode_write())
     {
@@ -80,7 +79,7 @@ main(int argc, char* argv[])
 
     bench_align_end();
 
-    bench_io_add(h5_close(&h5_handler));
+    bench_io_add(h5_close());
 
     bench_io_end();
 
