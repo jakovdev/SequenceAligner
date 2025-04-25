@@ -611,7 +611,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
                        box_vertical,
                        reset_code);
             }
-        } while (1);
+        } while (true);
     }
 
     else if (type == ALIAS)
@@ -701,7 +701,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
                        box_vertical,
                        reset_code);
             }
-        } while (1);
+        } while (true);
     }
 
     else if (type == INPUT)

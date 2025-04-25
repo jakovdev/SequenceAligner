@@ -45,7 +45,7 @@ thread_worker(void* arg)
 
     const size_t batch_size_tail = batch_size / 2;
 
-    while (1)
+    while (true)
     {
         size_t current_batch_size;
         size_t row;
