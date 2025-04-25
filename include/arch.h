@@ -26,8 +26,6 @@
 
 #define CACHE_LINE 64
 
-#define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
-
 #ifdef __cplusplus
 #define restrict __restrict
 #endif

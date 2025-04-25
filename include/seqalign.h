@@ -5,6 +5,7 @@
 #include "scoring.h"
 #include "types.h"
 
+#define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
 #define MATRIX_SIZE(len1, len2) ((len1 + 1) * (len2 + 1))
 #define MATRIX_BYTES(len1, len2) (MATRIX_SIZE(len1, len2) * sizeof(int))
