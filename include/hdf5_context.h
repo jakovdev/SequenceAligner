@@ -1,5 +1,5 @@
-#ifndef H5_HANDLER_H
-#define H5_HANDLER_H
+#ifndef HDF5_CONTEXT_H
+#define HDF5_CONTEXT_H
 
 #include "files.h"
 #include "sequence.h"
@@ -901,4 +901,4 @@ h5_close(void)
     g_hdf5_context.is_init = false;
 }
 
-#endif // H5_HANDLER_H
+#endif // HDF5_CONTEXT_H
