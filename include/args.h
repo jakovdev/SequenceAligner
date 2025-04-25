@@ -11,7 +11,7 @@
 
 #define PARAM_UNSET -1
 
-typedef struct
+static struct
 {
     char path_input[MAX_PATH];
     char path_output[MAX_PATH];
@@ -42,9 +42,7 @@ typedef struct
         unsigned verbose : 1;
         unsigned quiet : 1;
     };
-} Args;
-
-static Args g_args = { 0 };
+} g_args = { 0 };
 
 static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWlvqh";
 
