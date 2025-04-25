@@ -329,11 +329,11 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
 
 INLINE void
 seq_get_pair(size_t first_index,
-             char** first_sequence_out,
-             size_t* first_length_out,
+             char* restrict* first_sequence_out,
+             size_t* restrict first_length_out,
              size_t second_index,
-             char** second_sequence_out,
-             size_t* second_length_out)
+             char* restrict* second_sequence_out,
+             size_t* restrict second_length_out)
 {
     *first_sequence_out = g_sequence_dataset.sequences[first_index].letters;
     *first_length_out = g_sequence_dataset.sequences[first_index].length;

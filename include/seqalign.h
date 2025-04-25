@@ -281,7 +281,7 @@ matrix_free(int* matrix, int* stack_matrix)
 #ifdef USE_SIMD
 
 INLINE void
-simd_linear_row_init(int* matrix, int len1, int gap_penalty)
+simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
 {
     veci_t indices = g_first_row_indices;
     veci_t gap_penalty_vec = set1_epi32(gap_penalty);
@@ -308,7 +308,7 @@ simd_linear_row_init(int* matrix, int len1, int gap_penalty)
 }
 
 INLINE void
-simd_affine_global_row_init(int* match,
+simd_affine_global_row_init(int* restrict match,
                             int* gap_x,
                             int* gap_y,
                             int len1,
@@ -349,7 +349,7 @@ simd_affine_global_row_init(int* match,
 }
 
 INLINE void
-simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1, int len2)
+simd_affine_local_row_init(int* restrict match, int* gap_x, int* gap_y, int len1, int len2)
 {
     veci_t zero_vec = setzero_si();
     veci_t int_min_half = set1_epi32(INT_MIN / 2);
@@ -386,7 +386,7 @@ simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1, int len
 #endif
 
 INLINE int
-align_nw(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
+align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
@@ -433,7 +433,7 @@ align_nw(const char* seq1, const size_t len1, const char* seq2, const size_t len
 }
 
 INLINE int
-align_ga(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
+align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -491,7 +491,7 @@ align_ga(const char* seq1, const size_t len1, const char* seq2, const size_t len
 }
 
 INLINE int
-align_sw(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
+align_sw(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -533,7 +533,7 @@ align_sw(const char* seq1, const size_t len1, const char* seq2, const size_t len
 }
 
 INLINE int
-align_pairwise(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
+align_pairwise(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     switch (args_align_method())
     {
