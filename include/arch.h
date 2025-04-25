@@ -53,16 +53,16 @@ typedef HANDLE sem_t;
 #define T_Func DWORD WINAPI
 #define T_Ret(x) return (DWORD)(size_t)(x)
 
-#define pthread_create(t, _, sr, a)                                                                \
-    (void)(*t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)sr, a, 0, NULL))
+#define pthread_create(threads, _, function, arg)                                                  \
+    (void)(*threads = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)function, arg, 0, NULL))
 
-#define pthread_join(t, _) WaitForSingleObject(t, INFINITE)
+#define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
 #define sem_init(sem, _, value) *sem = CreateSemaphore(NULL, value, LONG_MAX, NULL)
 #define sem_post(sem) ReleaseSemaphore(*sem, 1, NULL)
 #define sem_wait(sem) WaitForSingleObject(*sem, INFINITE)
 #define sem_destroy(sem) CloseHandle(*sem)
 
-#define PIN_THREAD(t_id) SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << t_id)
+#define PIN_THREAD(thread_id) SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << thread_id)
 #define SET_HIGH_CLASS() SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS)
 
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
