@@ -155,7 +155,7 @@ matrix_free(int* matrix, int* stack_matrix)
         }                                                                                          \
     } while (false)
 
-#define FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty, similarity)                                  \
+#define FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty)                                              \
     do                                                                                             \
     {                                                                                              \
         for (int i = 1; i <= (int)len2; ++i)                                                       \
@@ -421,7 +421,7 @@ align_nw(const char* seq1, const size_t len1, const char* seq2, const size_t len
     SeqIndices seq1_indices = { 0 };
     seq_indices_precompute(&seq1_indices, seq1, len1);
 
-    FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty, similarity);
+    FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty);
 
     int score = matrix[len2 * cols + len1];
 
