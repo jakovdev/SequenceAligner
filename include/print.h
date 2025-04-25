@@ -6,6 +6,40 @@
 #include <stdarg.h>
 #include <stdbool.h>
 
+#ifndef TERMINAL_WIDTH
+#define TERMINAL_WIDTH 80
+#endif
+
+typedef enum
+{
+    FIRST,
+    MIDDLE,
+    LAST,
+} location_t;
+
+typedef struct
+{
+    char* ret;
+    const size_t rsiz;
+} input_t;
+
+typedef const union
+{
+    const location_t loc;
+    const int percent;
+    char* const* choices;
+    char** const* aliases;
+    const input_t input;
+} MSG_ARG;
+
+#define MSG_LOC(location) ((MSG_ARG){ .loc = (location) })
+#define MSG_PROPORTION(proportion) ((MSG_ARG){ .percent = ((int)(proportion * 100)) })
+#define MSG_PERCENT(percentage) ((MSG_ARG){ .percent = ((int)(percentage)) })
+#define MSG_CHOICE(choice_collection) ((MSG_ARG){ .choices = (choice_collection) })
+#define MSG_ALIAS(alias_collection) ((MSG_ARG){ .aliases = (alias_collection) })
+#define MSG_INPUT(result, rbuf_size) ((MSG_ARG){ .input = { .ret = result, .rsiz = rbuf_size } })
+#define MSG_NONE MSG_LOC(FIRST)
+
 typedef enum
 {
     HEADER,
@@ -23,37 +57,7 @@ typedef enum
     WARNING,
     ERROR,
     MSG_TYPE_COUNT
-} MsgType;
-
-typedef enum
-{
-    FIRST,
-    MIDDLE,
-    LAST,
-} MessageLocation;
-
-typedef struct
-{
-    char* result;
-    const size_t buffer_size;
-} Input;
-
-typedef union
-{
-    const MessageLocation location;
-    const int percent;
-    char* const* choices;
-    char** const* aliases;
-    const Input input;
-} MsgArgs;
-
-#define MSG_LOC(loc) ((MsgArgs){ .location = (loc) })
-#define MSG_PROPORTION(proportion) ((MsgArgs){ .percent = ((int)(proportion * 100)) })
-#define MSG_PERCENT(percentage) ((MsgArgs){ .percent = ((int)(percentage)) })
-#define MSG_CHOICE(choice_collection) ((MsgArgs){ .choices = (choice_collection) })
-#define MSG_ALIAS(alias_collection) ((MsgArgs){ .aliases = (alias_collection) })
-#define MSG_INPUT(res, bufsiz) ((MsgArgs){ .input = { .result = res, .buffer_size = bufsiz } })
-#define MSG_NONE MSG_LOC(FIRST)
+} message_t;
 
 typedef enum
 {
@@ -67,7 +71,7 @@ typedef enum
     COLOR_GRAY,
     COLOR_BRIGHT_CYAN,
     COLOR_TYPE_COUNT
-} ColorType;
+} color_t;
 
 typedef enum
 {
@@ -82,9 +86,15 @@ typedef enum
     ICON_ARROW,
     ICON_DOT,
     ICON_TYPE_COUNT
-} IconType;
+} icon_t;
 
 typedef enum
+{
+    OPTIONAL,
+    REQUIRED
+} requirement_t;
+
+enum
 {
     BOX_TOP_LEFT,
     BOX_LEFT_TEE,
@@ -95,16 +105,16 @@ typedef enum
     BOX_RIGHT_TEE,
     BOX_BOTTOM_RIGHT,
     BOX_CHAR_COUNT
-} BoxCharIndex;
+};
 
-typedef enum
+enum
 {
     BOX_NORMAL,
     BOX_FANCY,
     BOX_TYPE_COUNT
-} BoxType;
+};
 
-typedef struct
+static struct
 {
     struct
     {
@@ -117,11 +127,11 @@ typedef struct
         const char* ansi_carriage_return;
     } chars;
 
-    struct
+    const struct
     {
-        ColorType color;
-        IconType icon;
-        bool required;
+        color_t color;
+        icon_t icon;
+        requirement_t requirement;
     } map[MSG_TYPE_COUNT];
 
     size_t total_width;
@@ -133,9 +143,9 @@ typedef struct
         unsigned section_open : 1;
         unsigned content_printed : 1;
     } flags;
-} PrintStyle;
 
-static PrintStyle style = {
+} style = {
+
     .chars = {
         .codes = {
             [COLOR_RESET]       = "\x1b[0m",
@@ -175,25 +185,23 @@ static PrintStyle style = {
     },
     
     .map = {
-        [HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    0 },
-        [SECTION]  = { COLOR_BLUE,        ICON_NONE,    0 },
-        [SUCCESS]  = { COLOR_GREEN,       ICON_SUCCESS, 0 },
-        [INFO]     = { COLOR_BLUE,        ICON_INFO,    0 },
-        [VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     1 },
-        [CONFIG]   = { COLOR_YELLOW,      ICON_GEAR,    0 },
-        [TIMING]   = { COLOR_CYAN,        ICON_CLOCK,   1 },
-        [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     0 },
-        [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   0 },
-        [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    1 },
-        [ALIAS]    = { COLOR_BLUE,        ICON_INFO,    1 },
-        [INPUT]    = { COLOR_BLUE,        ICON_INFO,    1 },
-        [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, 1 },
-        [ERROR]    = { COLOR_RED,         ICON_ERROR,   1 },
+        [HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    OPTIONAL },
+        [SECTION]  = { COLOR_BLUE,        ICON_NONE,    OPTIONAL },
+        [SUCCESS]  = { COLOR_GREEN,       ICON_SUCCESS, OPTIONAL },
+        [INFO]     = { COLOR_BLUE,        ICON_INFO,    OPTIONAL },
+        [VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     REQUIRED },
+        [CONFIG]   = { COLOR_YELLOW,      ICON_GEAR,    OPTIONAL },
+        [TIMING]   = { COLOR_CYAN,        ICON_CLOCK,   REQUIRED },
+        [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     OPTIONAL },
+        [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   OPTIONAL },
+        [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
+        [ALIAS]    = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
+        [INPUT]    = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
+        [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, REQUIRED },
+        [ERROR]    = { COLOR_RED,         ICON_ERROR,   REQUIRED },
     },
     
-    .total_width = 80,
-    
-    .flags = {0},
+    .total_width = TERMINAL_WIDTH,
 };
 
 INLINE void
@@ -295,9 +303,9 @@ print(SECTION, MSG_NONE, "");
 */
 
 static int
-print(const MsgType type, const MsgArgs margs, const char* format, ...)
+print(message_t type, MSG_ARG margs, const char* restrict format, ...)
 {
-    const bool is_required = style.map[type].required;
+    const bool is_required = style.map[type].requirement == REQUIRED;
     if ((style.flags.quiet && !is_required) || (type == VERBOSE && !style.flags.verbose))
     {
         return 0;
@@ -326,7 +334,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
     }
 
     const bool simple_format = style.flags.quiet && is_required;
-    const IconType icon_type = style.map[type].icon;
+    const icon_t icon_type = style.map[type].icon;
 
     const char* c_icon = style.chars.icons[icon_type];
     const char* c_color = style.chars.codes[style.map[type].color];
@@ -337,7 +345,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
 
     const size_t box_char_width = simple_format ? 0 : 1;
     const size_t icon_width = (simple_format || icon_type == ICON_NONE) ? 0 : 2;
-    const size_t available = style.total_width - 2 * box_char_width - icon_width - 1;
+    const size_t available = style.total_width - (2 * box_char_width) - icon_width - 1;
 
     char buffer[BUFSIZ] = { 0 };
     int buflen = 0;
@@ -533,7 +541,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
             }
         }
 
-        char input_buffer[16] = { 0 };
+        char input_buffer[TERMINAL_WIDTH] = { 0 };
         const char* w_msg = "Invalid input! Please enter a number between";
         const char* w_color = style.chars.codes[style.map[WARNING].color];
         const char* w_icon = style.chars.icons[ICON_WARNING];
@@ -623,7 +631,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
         while (alias_collections[++collection_count])
             ;
 
-        char input_buffer[64] = { 0 };
+        char input_buffer[TERMINAL_WIDTH] = { 0 };
         const char* w_msg = "Invalid input! Please enter a valid option.";
         const char* w_color = style.chars.codes[style.map[WARNING].color];
         const char* w_icon = style.chars.icons[ICON_WARNING];
@@ -706,7 +714,7 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
 
     else if (type == INPUT)
     {
-        Input input = margs.input;
+        input_t input = margs.input;
 
         if (simple_format)
         {
@@ -719,11 +727,11 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
         }
 
         fflush(stdout);
-        terminal_read_input(input.result, input.buffer_size);
+        terminal_read_input(input.ret, input.rsiz);
 
         if (!simple_format)
         {
-            const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, input.result);
+            const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, input.ret);
             const size_t p_padding = p_len < available ? available - p_len : 0;
 
             printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
@@ -750,9 +758,9 @@ print(const MsgType type, const MsgArgs margs, const char* format, ...)
 
         else
         {
-            if (margs.location != FIRST && icon_type != ICON_NONE)
+            if (margs.loc != FIRST && icon_type != ICON_NONE)
             {
-                c_icon = style.chars.boxes[BOX_NORMAL][margs.location];
+                c_icon = style.chars.boxes[BOX_NORMAL][margs.loc];
             }
 
             printf("%s%s%s ", section_color, box_vertical, c_color);
@@ -788,5 +796,7 @@ print_end_section()
         print(SECTION, MSG_NONE, NULL);
     }
 }
+
+#undef TERMINAL_WIDTH
 
 #endif // PRINT_H
