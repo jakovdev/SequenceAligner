@@ -17,11 +17,11 @@ csv_metadata_free(CsvMetadata* csv_metadata)
 {
     if (csv_metadata->headers)
     {
-        for (int i = 0; i < csv_metadata->num_columns; i++)
+        for (int column = 0; column < csv_metadata->num_columns; column++)
         {
-            if (csv_metadata->headers[i])
+            if (csv_metadata->headers[column])
             {
-                free(csv_metadata->headers[i]);
+                free(csv_metadata->headers[column]);
             }
         }
 
@@ -132,19 +132,19 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
     }
 
     const char* col_start = header_start;
-    int col_idx = 0;
+    int column = 0;
 
     while (file_cursor < file_end)
     {
         if (*file_cursor == ',' || *file_cursor == '\n' || *file_cursor == '\r')
         {
-            if (col_idx < csv_metadata.num_columns)
+            if (column < csv_metadata.num_columns)
             {
-                csv_metadata.headers[col_idx] = csv_column_copy(col_start, file_cursor);
-                col_idx++;
+                csv_metadata.headers[column] = csv_column_copy(col_start, file_cursor);
+                column++;
             }
 
-            if (*file_cursor == ',' && col_idx < csv_metadata.num_columns)
+            if (*file_cursor == ',' && column < csv_metadata.num_columns)
             {
                 col_start = file_cursor + 1;
             }
