@@ -3,7 +3,7 @@
 #include "benchmark.h"
 #include "csv.h"
 #include "files.h"
-#include "h5_handler.h"
+#include "hdf5_context.h"
 #include "print.h"
 #include "thread.h"
 

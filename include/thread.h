@@ -4,7 +4,7 @@
 #include "arch.h"
 #include "args.h"
 #include "benchmark.h"
-#include "h5_handler.h"
+#include "hdf5_context.h"
 #include "print.h"
 #include "seqalign.h"
 #include <stdatomic.h>
