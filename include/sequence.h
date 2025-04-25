@@ -1,6 +1,7 @@
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
+#include "arch.h"
 #include "args.h"
 #include "csv.h"
 #include "print.h"
@@ -120,7 +121,7 @@ seq_pool_alloc(size_t size)
     return result;
 }
 
-INLINE __attribute__((destructor)) void
+INLINE DESTRUCTOR void
 seq_pool_free(void)
 {
     if (!g_sequence_pool.head)

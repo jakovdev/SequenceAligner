@@ -788,7 +788,7 @@ cleanup:
     return 0;
 }
 
-__attribute__((destructor)) void
+DESTRUCTOR void
 print_end_section()
 {
     if (style.flags.section_open)
