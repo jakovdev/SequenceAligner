@@ -92,12 +92,12 @@ typedef HANDLE sem_t;
 #define T_Func void*
 #define T_Ret(x) return (x)
 
-#define PIN_THREAD(t_id)                                                                           \
+#define PIN_THREAD(thread_id)                                                                      \
     do                                                                                             \
     {                                                                                              \
         cpu_set_t cpuset;                                                                          \
         CPU_ZERO(&cpuset);                                                                         \
-        CPU_SET(t_id, &cpuset);                                                                    \
+        CPU_SET(thread_id, &cpuset);                                                               \
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);                        \
     } while (false)
 
