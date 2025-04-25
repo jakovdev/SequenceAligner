@@ -267,10 +267,12 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
                 match[row_offset + j] = best;                                                      \
                                                                                                    \
-                int is_new_max = best > final_score;                                               \
-                max_i = is_new_max * i + (1 - is_new_max) * max_i;                                 \
-                max_j = is_new_max * j + (1 - is_new_max) * max_j;                                 \
-                final_score = is_new_max * best + (1 - is_new_max) * final_score;                  \
+                if (best > final_score)                                                            \
+                {                                                                                  \
+                    final_score = best;                                                            \
+                    max_i = i;                                                                     \
+                    max_j = j;                                                                     \
+                }                                                                                  \
             }                                                                                      \
         }                                                                                          \
     } while (0)
