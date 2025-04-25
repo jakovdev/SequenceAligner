@@ -348,7 +348,7 @@ simd_affine_global_row_init(int* match,
 }
 
 INLINE void
-simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1)
+simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1, int len2)
 {
     veci_t zero_vec = setzero_si();
     veci_t int_min_half = set1_epi32(INT_MIN / 2);
@@ -371,6 +371,14 @@ simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1)
                 gap_x[j + k] = gap_y[j + k] = INT_MIN / 2;
             }
         }
+    }
+
+    for (int i = 1; i <= len2; i++)
+    {
+        int idx = i * (len1 + 1);
+        match[idx] = 0;
+        gap_x[idx] = INT_MIN / 2;
+        gap_y[idx] = INT_MIN / 2;
     }
 }
 
@@ -510,7 +518,7 @@ align_sw(const char* seq1,
 #ifdef USE_SIMD
     if (len1 >= NUM_ELEMS)
     {
-        simd_affine_local_row_init(match, gap_x, gap_y, len1);
+        simd_affine_local_row_init(match, gap_x, gap_y, len1, len2);
     }
 
     else
