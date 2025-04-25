@@ -13,7 +13,6 @@ typedef struct
 {
     int thread_id;
     SequenceData* seq_data;
-    const ScoringMatrix* scoring;
     int64_t local_checksum;
     volatile size_t* current_row;
     pthread_mutex_t* row_mutex;
@@ -31,7 +30,6 @@ thread_worker(void* arg)
     SequenceData* seq_data = storage->seq_data;
     const size_t seq_count = seq_data->count;
     
-    const ScoringMatrix* scoring = storage->scoring;
 
     size_t local_progress = 0;
 
@@ -95,7 +93,7 @@ thread_worker(void* arg)
                     continue;
                 }
 
-                int score = align_pairwise(seq1, len1, seq2, len2, scoring);
+                int score = align_pairwise(seq1, len1, seq2, len2);
 
                 storage->local_checksum += score;
 
@@ -135,7 +133,7 @@ thread_worker(void* arg)
 }
 
 INLINE void
-align_multithreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
+align_multithreaded(SequenceData* seq_data)
 {
     const int num_threads = args_thread_num();
     const size_t total_alignments = seq_data->total_alignments;
@@ -160,7 +158,6 @@ align_multithreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
         ThreadStorage* storage = &thread_storages[t];
         storage->thread_id = t;
         storage->seq_data = seq_data;
-        storage->scoring = scoring;
         storage->local_checksum = 0;
         storage->current_row = &current_row;
         storage->row_mutex = &row_mutex;
@@ -208,7 +205,7 @@ align_multithreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
 }
 
 INLINE void
-align_singlethreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
+align_singlethreaded(SequenceData* seq_data)
 {
     size_t seq_count = seq_data->count;
     size_t total_alignments = seq_data->total_alignments;
@@ -225,7 +222,7 @@ align_singlethreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
 
             seq_get_pair(seq_data, i, j, &seq1, &len1, &seq2, &len2);
 
-            int score = align_pairwise(seq1, len1, seq2, len2, scoring);
+            int score = align_pairwise(seq1, len1, seq2, len2);
 
             local_checksum += score;
 
@@ -245,13 +242,9 @@ align_singlethreaded(SequenceData* seq_data, const ScoringMatrix* scoring)
 INLINE void
 align(SequenceData* seq_data)
 {
-    print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
-    ScoringMatrix scoring = { 0 };
-    scoring_matrix_init(&scoring);
-
     if (args_mode_multithread())
     {
-        align_multithreaded(seq_data, &scoring);
+        align_multithreaded(seq_data);
     }
 
     else
@@ -262,7 +255,7 @@ align(SequenceData* seq_data)
             start_time = time_current();
         }
 
-        align_singlethreaded(seq_data, &scoring);
+        align_singlethreaded(seq_data);
 
         if (args_mode_benchmark())
         {

@@ -169,7 +169,7 @@ matrix_free(int* matrix, int* stack_matrix)
             UNROLL(4) for (int j = 1; j <= (int)len1; j++)                                         \
             {                                                                                      \
                 int match = matrix[prev_row_offset + j - 1] +                                      \
-                            scoring->matrix[seq1_indices.data[j - 1]][c2_idx];                     \
+                            SCORING_MATRIX[seq1_indices.data[j - 1]][c2_idx];                      \
                 int del = matrix[prev_row_offset + j] - (gap_penalty);                             \
                 int insert = matrix[row_offset + j - 1] - (gap_penalty);                           \
                 matrix[row_offset + j] = match > del ? (match > insert ? match : insert)           \
@@ -193,7 +193,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
             for (int j = 1; j <= (int)len1; j++)                                                   \
             {                                                                                      \
-                int similarity = scoring->matrix[seq1_indices.data[j - 1]][c2_idx];                \
+                int similarity = SCORING_MATRIX[seq1_indices.data[j - 1]][c2_idx];                 \
                 int diag_score = match[prev_row_offset + j - 1] + similarity;                      \
                                                                                                    \
                 int open_x = match[row_offset + j - 1] - (gap_start);                              \
@@ -241,7 +241,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
             for (int j = 1; j <= (int)len1; j++)                                                   \
             {                                                                                      \
-                int similarity = scoring->matrix[seq1_indices.data[j - 1]][c2_idx];                \
+                int similarity = SCORING_MATRIX[seq1_indices.data[j - 1]][c2_idx];                 \
                 int diag_score = match[prev_row_offset + j - 1] + similarity;                      \
                                                                                                    \
                 int prev_match_x = match[row_offset + j - 1];                                      \
@@ -385,11 +385,7 @@ simd_affine_local_row_init(int* match, int* gap_x, int* gap_y, int len1, int len
 #endif
 
 INLINE int
-align_nw(const char* seq1,
-         const size_t len1,
-         const char* seq2,
-         const size_t len2,
-         const ScoringMatrix* restrict scoring)
+align_nw(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
@@ -436,11 +432,7 @@ align_nw(const char* seq1,
 }
 
 INLINE int
-align_ga(const char* seq1,
-         const size_t len1,
-         const char* seq2,
-         const size_t len2,
-         const ScoringMatrix* restrict scoring)
+align_ga(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -498,11 +490,7 @@ align_ga(const char* seq1,
 }
 
 INLINE int
-align_sw(const char* seq1,
-         const size_t len1,
-         const char* seq2,
-         const size_t len2,
-         const ScoringMatrix* restrict scoring)
+align_sw(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -544,22 +532,18 @@ align_sw(const char* seq1,
 }
 
 INLINE int
-align_pairwise(const char* seq1,
-               const size_t len1,
-               const char* seq2,
-               const size_t len2,
-               const ScoringMatrix* restrict scoring)
+align_pairwise(const char* seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     switch (args_align_method())
     {
         case ALIGN_GOTOH_AFFINE:
-            return align_ga(seq1, len1, seq2, len2, scoring);
+            return align_ga(seq1, len1, seq2, len2);
 
         case ALIGN_SMITH_WATERMAN:
-            return align_sw(seq1, len1, seq2, len2, scoring);
+            return align_sw(seq1, len1, seq2, len2);
 
         case ALIGN_NEEDLEMAN_WUNSCH:
-            return align_nw(seq1, len1, seq2, len2, scoring);
+            return align_nw(seq1, len1, seq2, len2);
 
         default:
             UNREACHABLE();

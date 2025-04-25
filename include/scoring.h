@@ -13,14 +13,10 @@ static veci_t g_gap_extend_vec;
 #endif
 
 static int SEQUENCE_LOOKUP[UCHAR_MAX + 1];
-
-typedef struct
-{
-    int matrix[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
-} ScoringMatrix;
+static int SCORING_MATRIX[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
 
 INLINE void
-scoring_matrix_init(ScoringMatrix* restrict matrix)
+scoring_matrix_init()
 {
     int matrix_id = args_scoring_matrix();
     int seq_type = args_sequence_type();
@@ -34,7 +30,7 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
             {
                 for (int j = 0; j < NUCLEOTIDE_SIZE; j++)
                 {
-                    matrix->matrix[i][j] = src_matrix[i][j];
+                    SCORING_MATRIX[i][j] = src_matrix[i][j];
                 }
             }
 
@@ -50,7 +46,7 @@ scoring_matrix_init(ScoringMatrix* restrict matrix)
             {
                 for (int j = 0; j < AMINO_SIZE; j++)
                 {
-                    matrix->matrix[i][j] = src_matrix[i][j];
+                    SCORING_MATRIX[i][j] = src_matrix[i][j];
                 }
             }
 

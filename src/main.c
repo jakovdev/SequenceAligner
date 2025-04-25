@@ -66,6 +66,9 @@ main(int argc, char* argv[])
 
     bench_io_add(h5_store_sequences(seq_data.sequences, seq_count));
 
+    print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
+    scoring_matrix_init();
+
     print(SECTION, MSG_NONE, "Performing Alignments");
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
