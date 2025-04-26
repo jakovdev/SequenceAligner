@@ -146,14 +146,14 @@ seq_pool_free(void)
 }
 
 INLINE void
-sequence_init(sequence_t* sequence, const char* data, size_t sequence_length)
+sequence_init(sequence_t* sequence, const char* letters, size_t sequence_length)
 {
     sequence->length = sequence_length;
 
     sequence->letters = seq_pool_alloc(sequence_length + 1);
     if (sequence->letters)
     {
-        memcpy(sequence->letters, data, sequence_length);
+        memcpy(sequence->letters, letters, sequence_length);
         sequence->letters[sequence_length] = '\0';
     }
 }
