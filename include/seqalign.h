@@ -2,8 +2,8 @@
 #define SEQALIGN_H
 
 #include "args.h"
+#include "biotypes.h"
 #include "scoring.h"
-#include "types.h"
 
 #define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
 #define STACK_MATRIX_THRESHOLD (128 * KiB)

@@ -2,10 +2,10 @@
 #define ARGS_H
 
 #include "arch.h"
+#include "biotypes.h"
 #include "files.h"
 #include "matrices.h"
 #include "print.h"
-#include "types.h"
 #include <ctype.h>
 #include <getopt.h>
 
