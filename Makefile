@@ -107,6 +107,10 @@ clean:
 $(SETUP_COMPLETE): | $(META_DIR)
 	@echo "Checking system configuration..."
 ifeq ($(IS_WINDOWS),yes)
+	@if [ -z "$$MSYSTEM" ] || [ "$$MSYSTEM" != "UCRT64" ]; then \
+        echo "Error: Please run this from the UCRT64 MSYS2 shell"; \
+        exit 1; \
+    fi
 	@if [ ! -f "/ucrt64/include/hdf5.h" ]; then \
         echo "Required tools not found. Installing..."; \
         bash $(SCRIPTS_DIR)/msys2_setup.sh; \
