@@ -43,7 +43,7 @@ main(int argc, char* argv[])
 
         if (!sequence_count)
         {
-            print(ERROR, MSG_NONE, "No sequences found in input file");
+            print(ERROR, MSG_NONE, "CSV | No sequences found in input file");
             return 1;
         }
 
@@ -54,7 +54,7 @@ main(int argc, char* argv[])
 
     if (!g_sequence_dataset.sequences)
     {
-        print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
+        print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for sequences");
         return 1;
     }
 

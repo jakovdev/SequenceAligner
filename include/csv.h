@@ -119,7 +119,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
 
     if (csv_metadata.num_columns <= 0)
     {
-        print(ERROR, MSG_NONE, "Invalid CSV header");
+        print(ERROR, MSG_NONE, "CSV | Invalid header (do you have an empty line or file?)");
         exit(1);
     }
 
@@ -127,7 +127,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
 
     if (!csv_metadata.headers)
     {
-        print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
+        print(ERROR, MSG_NONE, "CSV | Memory allocation failed for column headers");
         exit(1);
     }
 
