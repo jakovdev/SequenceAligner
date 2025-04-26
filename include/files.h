@@ -6,8 +6,8 @@
 
 typedef struct
 {
-    char* file_data;
-    size_t data_size;
+    char* data;
+    size_t size;
 #ifdef _WIN32
     HANDLE hFile;
     HANDLE hMapping;
@@ -96,16 +96,16 @@ file_read(File* file, const char* file_path)
         exit(1);
     }
 
-    file->data_size = sb.st_size;
-    file->file_data = mmap(NULL, file->data_size, PROT_READ, MAP_PRIVATE, file->fd, 0);
-    if (file->file_data == MAP_FAILED)
+    file->size = sb.st_size;
+    file->data = mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, file->fd, 0);
+    if (file->data == MAP_FAILED)
     {
         print(ERROR, MSG_NONE, "Could not memory map file '%s'", file_name);
         close(file->fd);
         exit(1);
     }
 
-    madvise(file->file_data, file->data_size, MADV_SEQUENTIAL);
+    madvise(file->data, file->size, MADV_SEQUENTIAL);
 #endif
 }
 
@@ -117,7 +117,7 @@ file_free(File* file)
     CloseHandle(file->hMapping);
     CloseHandle(file->hFile);
 #else
-    munmap(file->file_data, file->data_size);
+    munmap(file->data, file->size);
     close(file->fd);
 #endif
 }
