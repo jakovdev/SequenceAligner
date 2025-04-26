@@ -46,7 +46,7 @@ main(int argc, char* argv[])
         if (!sequence_count)
         {
             print(ERROR, MSG_NONE, "No sequences found in input file");
-            return 0;
+            return 1;
         }
 
         print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
