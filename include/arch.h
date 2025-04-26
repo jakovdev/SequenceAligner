@@ -2,7 +2,6 @@
 #define ARCH_H
 
 // GCC/Clang specific macros
-#define INLINE static inline
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #define UNREACHABLE() __builtin_unreachable()
@@ -186,7 +185,7 @@ typedef uint16_t num_t;
 #define setr_epi32 _mm_setr_epi32
 #define set_row_indices() _mm_setr_epi32(1, 2, 3, 4)
 
-INLINE __m128i
+static inline __m128i
 _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 {
     __m128i tmp1 = _mm_mul_epu32(a, b);
@@ -206,7 +205,7 @@ _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 #define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 #endif
 
-INLINE int
+static inline int
 thread_count(void)
 {
 #ifdef _WIN32
@@ -219,7 +218,7 @@ thread_count(void)
 #endif
 }
 
-INLINE double
+static inline double
 time_current(void)
 {
 #ifdef _WIN32
@@ -241,7 +240,7 @@ time_current(void)
 #endif
 }
 
-ALLOC INLINE void*
+ALLOC static inline void*
 alloc_huge_page(size_t size)
 {
     void* ptr = NULL;
@@ -264,7 +263,7 @@ alloc_huge_page(size_t size)
     return ptr;
 }
 
-INLINE size_t
+static inline size_t
 available_memory(void)
 {
     size_t available_mem = 0;

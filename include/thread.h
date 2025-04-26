@@ -20,7 +20,7 @@ typedef struct
     pthread_mutex_t* completion_mutex;
 } ThreadStorage;
 
-INLINE T_Func
+static inline T_Func
 thread_worker(void* thread_arg)
 {
     ThreadStorage* storage = thread_arg;
@@ -130,7 +130,7 @@ thread_worker(void* thread_arg)
     T_Ret(NULL);
 }
 
-INLINE void
+static inline void
 align_multithreaded(void)
 {
     const int num_threads = args_thread_num();
@@ -202,7 +202,7 @@ align_multithreaded(void)
     }
 }
 
-INLINE void
+static inline void
 align_singlethreaded(void)
 {
     const size_t sequence_count = g_sequence_dataset.sequence_count;
@@ -235,7 +235,7 @@ align_singlethreaded(void)
     g_hdf5_context.checksum = local_checksum * 2;
 }
 
-INLINE void
+static inline void
 align(void)
 {
     if (args_mode_multithread())

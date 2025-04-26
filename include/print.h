@@ -204,19 +204,19 @@ static struct
     .total_width = TERMINAL_WIDTH,
 };
 
-INLINE void
+static inline void
 print_verbose_flip()
 {
     style.flags.verbose = !style.flags.verbose;
 }
 
-INLINE void
+static inline void
 print_quiet_flip()
 {
     style.flags.quiet = !style.flags.quiet;
 }
 
-INLINE void
+static inline void
 print_context_init()
 {
     terminal_init();

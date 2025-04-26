@@ -12,7 +12,7 @@ typedef struct
 static int g_sequence_column = -1;
 static bool g_csv_has_no_header = false;
 
-INLINE void
+static inline void
 csv_metadata_free(CsvMetadata* csv_metadata)
 {
     if (csv_metadata->headers)
@@ -30,7 +30,7 @@ csv_metadata_free(CsvMetadata* csv_metadata)
     }
 }
 
-INLINE int
+static inline int
 csv_column_count(const char* line)
 {
     if (!line || !*line || *line == '\n' || *line == '\r')
@@ -58,7 +58,7 @@ csv_column_count(const char* line)
     return count;
 }
 
-INLINE char*
+static inline char*
 csv_column_copy(const char* file_start, const char* file_end)
 {
     size_t len = file_end - file_start;
@@ -72,7 +72,7 @@ csv_column_copy(const char* file_start, const char* file_end)
     return name;
 }
 
-INLINE int
+static inline int
 csv_column_sequence(char** headers, int num_cols)
 {
     const char* seq_keywords[] = { "sequence", "seq",   "protein", "dna",
@@ -108,7 +108,7 @@ csv_column_sequence(char** headers, int num_cols)
     return -1;
 }
 
-INLINE char*
+static inline char*
 csv_header_parse(char* restrict file_cursor, char* restrict file_end)
 {
     char* header_start = file_cursor;
@@ -208,7 +208,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
     return file_cursor;
 }
 
-INLINE bool
+static inline bool
 csv_line_next(char** file_cursor_ptr)
 {
     char* cursor = *file_cursor_ptr;
@@ -268,7 +268,7 @@ csv_line_next(char** file_cursor_ptr)
     return true;
 }
 
-INLINE size_t
+static inline size_t
 csv_total_lines(char* file_cursor, char* file_end)
 {
     size_t total_lines = 0;
@@ -284,7 +284,7 @@ csv_total_lines(char* file_cursor, char* file_end)
     return total_lines;
 }
 
-INLINE size_t
+static inline size_t
 csv_line_column_extract(char** file_cursor_ptr, char* output_buffer, int target_column)
 {
     char* cursor = *file_cursor_ptr;

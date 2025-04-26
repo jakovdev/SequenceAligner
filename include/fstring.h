@@ -9,7 +9,7 @@ sequence.h: sequence_init (memcpy)
 csv.h: csv_line_parse (string copying)
 */
 
-INLINE char*
+static inline char*
 fast_strcpy(char* restrict dst, const char* restrict src, size_t len)
 {
     size_t i = 0;
@@ -42,7 +42,7 @@ fast_strcpy(char* restrict dst, const char* restrict src, size_t len)
     return dst + len;
 }
 
-INLINE char*
+static inline char*
 int_to_str(char* restrict str, int num)
 {
     char* restrict ptr = str;

@@ -29,7 +29,7 @@ typedef struct
 #endif
 } MmapMatrix;
 
-INLINE const char*
+static inline const char*
 file_name_path(const char* path)
 {
 #ifdef _WIN32
@@ -40,7 +40,7 @@ file_name_path(const char* path)
     return name ? name + 1 : path;
 }
 
-INLINE void
+static inline void
 file_read(File* file, const char* file_path)
 {
     const char* file_name = file_name_path(file_path);
@@ -109,7 +109,7 @@ file_read(File* file, const char* file_path)
 #endif
 }
 
-INLINE void
+static inline void
 file_free(File* file)
 {
 #ifdef _WIN32
@@ -122,7 +122,7 @@ file_free(File* file)
 #endif
 }
 
-INLINE MmapMatrix
+static inline MmapMatrix
 mmap_matrix_create(const char* file_path, size_t matrix_size)
 {
     MmapMatrix matrix = { 0 };
@@ -242,7 +242,7 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     return matrix;
 }
 
-INLINE void
+static inline void
 mmap_matrix_close(MmapMatrix* matrix)
 {
     if (!matrix->data)
@@ -263,13 +263,13 @@ mmap_matrix_close(MmapMatrix* matrix)
     matrix->file_size = 0;
 }
 
-INLINE size_t
+static inline size_t
 mmap_triangle_index(size_t row, size_t col, size_t matrix_size)
 {
     return (row * matrix_size - (row * (row + 1)) / 2) + col - row;
 }
 
-INLINE void
+static inline void
 mmap_matrix_set_value(MmapMatrix* matrix, size_t row, size_t col, int value)
 {
     if (!matrix->data || row >= matrix->matrix_size || col >= matrix->matrix_size)
@@ -281,7 +281,7 @@ mmap_matrix_set_value(MmapMatrix* matrix, size_t row, size_t col, int value)
     matrix->data[index] = value;
 }
 
-INLINE void
+static inline void
 mmap_matrix_file_name(char* buffer, size_t buffer_size, const char* output_path)
 {
     if (output_path && output_path[0] != '\0')

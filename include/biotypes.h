@@ -79,25 +79,25 @@ static const SequenceTypeInfo SEQUENCE_TYPES[] = {
       (const char*[]){ "nucleotide", "dna", "rna", "nt", NULL } },
 };
 
-INLINE const char*
+static inline const char*
 alignment_name(int method)
 {
     return ALIGNMENT_METHODS[method].name;
 }
 
-INLINE bool
+static inline bool
 alignment_linear(int method)
 {
     return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
 }
 
-INLINE bool
+static inline bool
 alignment_affine(int method)
 {
     return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
 }
 
-INLINE const char*
+static inline const char*
 gap_type_name(int method)
 {
     switch (ALIGNMENT_METHODS[method].gap_type)
@@ -111,7 +111,7 @@ gap_type_name(int method)
     }
 }
 
-INLINE int
+static inline int
 alignment_arg(const char* arg)
 {
     if (!arg)
@@ -146,7 +146,7 @@ alignment_arg(const char* arg)
     return -1;
 }
 
-INLINE void
+static inline void
 alignment_list(void)
 {
     for (int i = 0; i < ALIGN_COUNT; i++)
@@ -159,7 +159,7 @@ alignment_list(void)
     }
 }
 
-INLINE const char*
+static inline const char*
 matrix_id_name(int seq_type, int matrix_id)
 {
     if (seq_type < 0 || matrix_id < 0)
@@ -180,7 +180,7 @@ matrix_id_name(int seq_type, int matrix_id)
     return "Unknown";
 }
 
-INLINE int
+static inline int
 matrix_name_id(int seq_type, const char* name)
 {
     if (!name)
@@ -230,7 +230,7 @@ matrix_name_id(int seq_type, const char* name)
     return -1;
 }
 
-INLINE void
+static inline void
 matrix_seq_type_list(int seq_type)
 {
     if (seq_type == SEQ_TYPE_AMINO)
@@ -258,13 +258,13 @@ matrix_seq_type_list(int seq_type)
     }
 }
 
-INLINE const char*
+static inline const char*
 sequence_type_name(int type)
 {
     return SEQUENCE_TYPES[type].name;
 }
 
-INLINE int
+static inline int
 sequence_type_arg(const char* arg)
 {
     if (!arg)
@@ -297,7 +297,7 @@ sequence_type_arg(const char* arg)
     return -1;
 }
 
-INLINE void
+static inline void
 sequence_types_list(void)
 {
     for (int i = 0; i < SEQ_TYPE_COUNT; i++)

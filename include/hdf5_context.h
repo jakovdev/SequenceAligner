@@ -40,7 +40,7 @@ static struct
     bool is_init;
 } g_hdf5_context = { 0 };
 
-INLINE bool
+static inline bool
 h5_matrix_buffer_allocate(void)
 {
     size_t matrix_size = g_hdf5_context.matrix_size;
@@ -57,7 +57,7 @@ h5_matrix_buffer_allocate(void)
     return true;
 }
 
-INLINE void
+static inline void
 h5_matrix_buffer_free(void)
 {
     if (g_hdf5_context.matrix_buffer.data)
@@ -69,7 +69,7 @@ h5_matrix_buffer_free(void)
     g_hdf5_context.matrix_buffer.size = 0;
 }
 
-INLINE void
+static inline void
 h5_calculate_chunk_dimensions(void)
 {
     size_t matrix_size = g_hdf5_context.matrix_size;
@@ -100,7 +100,7 @@ h5_calculate_chunk_dimensions(void)
           matrix_size);
 }
 
-INLINE bool
+static inline bool
 h5_create_file(void)
 {
     if (!args_mode_write())
@@ -123,7 +123,7 @@ h5_create_file(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_create_matrix_dataset(void)
 {
     g_hdf5_context.matrix_dims[0] = g_hdf5_context.matrix_size;
@@ -170,7 +170,7 @@ h5_create_matrix_dataset(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_create_sequence_group(void)
 {
     hid_t seq_group = H5Gcreate2(g_hdf5_context.file_id,
@@ -193,7 +193,7 @@ h5_create_sequence_group(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_create_sequence_length_dataset(void)
 {
     g_hdf5_context.seq_dims[0] = g_hdf5_context.matrix_size;
@@ -232,7 +232,7 @@ h5_create_sequence_length_dataset(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_setup_file(void)
 {
     if (!args_mode_write())
@@ -263,7 +263,7 @@ h5_setup_file(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_initialize_memory(void)
 {
     if (g_hdf5_context.use_mmap)
@@ -284,7 +284,7 @@ h5_initialize_memory(void)
     }
 }
 
-INLINE void
+static inline void
 h5_cleanup_on_init_failure(void)
 {
     if (g_hdf5_context.use_mmap)
@@ -314,7 +314,7 @@ h5_cleanup_on_init_failure(void)
     }
 }
 
-INLINE void
+static inline void
 h5_initialize(size_t matrix_size)
 {
     g_hdf5_context.matrix_size = matrix_size;
@@ -360,7 +360,7 @@ h5_initialize(size_t matrix_size)
     return;
 }
 
-INLINE bool
+static inline bool
 h5_flush_mmap_to_hdf5(void)
 {
     size_t matrix_size = g_hdf5_context.matrix_size;
@@ -486,7 +486,7 @@ h5_flush_mmap_to_hdf5(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_flush_buffer_to_hdf5(void)
 {
     herr_t status = H5Dwrite(g_hdf5_context.matrix_dataset_id,
@@ -505,7 +505,7 @@ h5_flush_buffer_to_hdf5(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_flush_matrix(void)
 {
     if (!args_mode_write() || !g_hdf5_context.is_init)
@@ -536,7 +536,7 @@ h5_flush_matrix(void)
     return result;
 }
 
-INLINE void
+static inline void
 h5_set_matrix_value(size_t row, size_t col, int value)
 {
     if (!args_mode_write() || !g_hdf5_context.is_init || row >= g_hdf5_context.matrix_size ||
@@ -578,7 +578,7 @@ h5_set_matrix_value(size_t row, size_t col, int value)
     }
 }
 
-INLINE bool
+static inline bool
 h5_store_sequence_lengths(sequence_t* sequences, size_t seq_count)
 {
     size_t* lengths = malloc(seq_count * sizeof(*lengths));
@@ -611,7 +611,7 @@ h5_store_sequence_lengths(sequence_t* sequences, size_t seq_count)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_store_sequence_batch(sequence_t* sequences,
                         size_t batch_start,
                         size_t batch_end,
@@ -673,7 +673,7 @@ h5_store_sequence_batch(sequence_t* sequences,
     return true;
 }
 
-INLINE hid_t
+static inline hid_t
 h5_create_sequence_dataset(hid_t string_type)
 {
     hid_t seq_space = H5Screate_simple(1, g_hdf5_context.seq_dims, NULL);
@@ -704,7 +704,7 @@ h5_create_sequence_dataset(hid_t string_type)
     return seq_space;
 }
 
-INLINE bool
+static inline bool
 h5_store_sequences(sequence_t* sequences, size_t seq_count)
 {
     if (!args_mode_write() || !g_hdf5_context.is_init || g_hdf5_context.sequences_stored)
@@ -765,7 +765,7 @@ h5_store_sequences(sequence_t* sequences, size_t seq_count)
     return true;
 }
 
-INLINE bool
+static inline bool
 h5_store_checksum(void)
 {
     if (!args_mode_write() || g_hdf5_context.matrix_dataset_id < 0 || g_hdf5_context.file_id < 0)
@@ -814,7 +814,7 @@ h5_store_checksum(void)
     return true;
 }
 
-INLINE void
+static inline void
 h5_close(void)
 {
     if (!g_hdf5_context.is_init)

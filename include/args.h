@@ -59,7 +59,7 @@ static struct option long_options[] = {
 };
 
 #define GETTER(type, name, field)                                                                  \
-    INLINE type args_##name(void)                                                                  \
+    static inline type args_##name(void)                                                           \
     {                                                                                              \
         return field;                                                                              \
     }
@@ -82,7 +82,7 @@ GETTER(bool, mode_write, g_args.mode_write)
 
 #undef GETTER
 
-INLINE int
+static inline int
 args_parse_scoring_matrix(const char* arg, int seq_type)
 {
     if (seq_type < 0)
@@ -106,7 +106,7 @@ args_parse_scoring_matrix(const char* arg, int seq_type)
     return matrix_name_id(seq_type, arg);
 }
 
-INLINE float
+static inline float
 args_parse_filter_threshold(const char* arg)
 {
     float threshold = atof(arg);
@@ -118,7 +118,7 @@ args_parse_filter_threshold(const char* arg)
     return threshold > 1.0f ? threshold / 100.0f : threshold;
 }
 
-INLINE int
+static inline int
 args_parse_thread_num(const char* arg)
 {
     int threads = atoi(arg);
@@ -130,14 +130,14 @@ args_parse_thread_num(const char* arg)
     return threads;
 }
 
-INLINE int
+static inline int
 args_parse_compression_level(const char* arg)
 {
     int level = atoi(arg);
     return (level < 0 || level > 9) ? 0 : level;
 }
 
-INLINE bool
+static inline bool
 args_validate_file_input(void)
 {
     if (!g_args.input_file_set)
@@ -157,7 +157,7 @@ args_validate_file_input(void)
     return true;
 }
 
-INLINE bool
+static inline bool
 args_validate_required(void)
 {
     bool valid = true;
@@ -209,7 +209,7 @@ args_validate_required(void)
     return valid;
 }
 
-INLINE void
+static inline void
 args_print_matrices(void)
 {
     printf("Listing available scoring matrices\n\n");
@@ -223,7 +223,7 @@ args_print_matrices(void)
     printf("\n");
 }
 
-INLINE void
+static inline void
 args_print_usage(const char* program_name)
 {
     printf("Usage: %s [ARGUMENTS]\n\n", program_name);
@@ -258,7 +258,7 @@ args_print_usage(const char* program_name)
     printf("  -h, --help             Display this help message\n");
 }
 
-INLINE void
+static inline void
 args_print_config(void)
 {
     if (g_args.quiet)
@@ -319,7 +319,7 @@ args_print_config(void)
     }
 }
 
-INLINE void
+static inline void
 args_parse(int argc, char* argv[])
 {
     int opt;
@@ -466,7 +466,7 @@ args_parse(int argc, char* argv[])
     g_args.mode_multithread = (g_args.thread_num > 1);
 }
 
-INLINE void
+static inline void
 args_init(int argc, char* argv[])
 {
     g_args.method_id = PARAM_UNSET;

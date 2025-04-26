@@ -38,7 +38,7 @@ static struct
     size_t alignment_count;
 } g_sequence_dataset = { 0 };
 
-INLINE void
+static inline void
 seq_pool_init(void)
 {
     if (g_sequence_pool.head)
@@ -69,7 +69,7 @@ seq_pool_init(void)
     g_sequence_pool.block_count = 1;
 }
 
-INLINE char*
+static inline char*
 seq_pool_alloc(size_t size)
 {
     if (!g_sequence_pool.head)
@@ -121,7 +121,7 @@ seq_pool_alloc(size_t size)
     return result;
 }
 
-INLINE DESTRUCTOR void
+static inline DESTRUCTOR void
 seq_pool_free(void)
 {
     if (!g_sequence_pool.head)
@@ -145,7 +145,7 @@ seq_pool_free(void)
     g_sequence_pool.block_count = 0;
 }
 
-INLINE void
+static inline void
 sequence_init(sequence_t* sequence, const char* letters, size_t sequence_length)
 {
     sequence->length = sequence_length;
@@ -158,7 +158,7 @@ sequence_init(sequence_t* sequence, const char* letters, size_t sequence_length)
     }
 }
 
-INLINE float
+static inline float
 similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict seq2, size_t len2)
 {
     if (UNLIKELY(!len1 || !len2))
@@ -208,7 +208,7 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
     return (float)matches / min_len;
 }
 
-INLINE void
+static inline void
 sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_total)
 {
     float filter_threshold = args_filter_threshold();
@@ -327,7 +327,7 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
     return;
 }
 
-INLINE void
+static inline void
 seq_get_pair(size_t first_index,
              char* restrict* first_sequence_out,
              size_t* restrict first_length_out,

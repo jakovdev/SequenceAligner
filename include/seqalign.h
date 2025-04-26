@@ -19,7 +19,7 @@ typedef struct
     bool is_stack;
 } SeqIndices;
 
-INLINE void
+static inline void
 seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len)
 {
     indices->size = len;
@@ -65,7 +65,7 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
 #endif
 }
 
-INLINE void
+static inline void
 seq_indices_free(SeqIndices* indices)
 {
     if (!indices->is_stack && indices->data)
@@ -75,7 +75,7 @@ seq_indices_free(SeqIndices* indices)
     }
 }
 
-INLINE int*
+static inline int*
 matrix_alloc(int* stack_matrix, size_t bytes)
 {
     if (USE_STACK_MATRIX(bytes))
@@ -89,7 +89,7 @@ matrix_alloc(int* stack_matrix, size_t bytes)
     }
 }
 
-INLINE void
+static inline void
 matrix_free(int* matrix, int* stack_matrix)
 {
     if (matrix != stack_matrix)
@@ -280,7 +280,7 @@ matrix_free(int* matrix, int* stack_matrix)
 
 #ifdef USE_SIMD
 
-INLINE void
+static inline void
 simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
 {
     veci_t indices = g_first_row_indices;
@@ -307,7 +307,7 @@ simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
     }
 }
 
-INLINE void
+static inline void
 simd_affine_global_row_init(int* restrict match,
                             int* gap_x,
                             int* gap_y,
@@ -348,7 +348,7 @@ simd_affine_global_row_init(int* restrict match,
     }
 }
 
-INLINE void
+static inline void
 simd_affine_local_row_init(int* restrict match, int* gap_x, int* gap_y, int len1, int len2)
 {
     veci_t zero_vec = setzero_si();
@@ -385,7 +385,7 @@ simd_affine_local_row_init(int* restrict match, int* gap_x, int* gap_y, int len1
 
 #endif
 
-INLINE int
+static inline int
 align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
@@ -432,7 +432,7 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
     return score;
 }
 
-INLINE int
+static inline int
 align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
@@ -490,7 +490,7 @@ align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const s
     return score;
 }
 
-INLINE int
+static inline int
 align_sw(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
@@ -532,7 +532,7 @@ align_sw(const char* restrict seq1, const size_t len1, const char* seq2, const s
     return final_score;
 }
 
-INLINE int
+static inline int
 align_pairwise(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
 {
     switch (args_align_method())

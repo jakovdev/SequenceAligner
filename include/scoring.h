@@ -15,7 +15,7 @@ static veci_t g_gap_extend_vec;
 static int SEQUENCE_LOOKUP[UCHAR_MAX + 1];
 static int SCORING_MATRIX[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
 
-INLINE void
+static inline void
 scoring_matrix_init()
 {
     int matrix_id = args_scoring_matrix();

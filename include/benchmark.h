@@ -26,7 +26,7 @@ static struct
         }                                                                                          \
     } while (false)
 
-INLINE void
+static inline void
 bench_align_end(void)
 {
     if (args_mode_benchmark())
@@ -35,7 +35,7 @@ bench_align_end(void)
     }
 }
 
-INLINE void
+static inline void
 bench_io_end(void)
 {
     if (args_mode_benchmark() && args_mode_write())
@@ -44,7 +44,7 @@ bench_io_end(void)
     }
 }
 
-INLINE void
+static inline void
 bench_total(size_t alignments)
 {
     if (args_mode_benchmark())

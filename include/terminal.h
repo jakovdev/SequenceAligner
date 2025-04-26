@@ -3,7 +3,7 @@
 
 #include "arch.h"
 
-INLINE int
+static inline int
 terminal_environment(void)
 {
     static int is_terminal = -1;
@@ -21,7 +21,7 @@ terminal_environment(void)
     return is_terminal;
 }
 
-INLINE void
+static inline void
 terminal_init(void)
 {
 #ifdef _WIN32
@@ -39,7 +39,7 @@ terminal_init(void)
 #endif
 }
 
-INLINE void
+static inline void
 terminal_mode_raw(void)
 {
 #ifdef _WIN32
@@ -55,7 +55,7 @@ terminal_mode_raw(void)
 #endif
 }
 
-INLINE void
+static inline void
 terminal_mode_restore(void)
 {
 #ifdef _WIN32
@@ -71,7 +71,7 @@ terminal_mode_restore(void)
 #endif
 }
 
-INLINE void
+static inline void
 terminal_read_input(char* input_buffer, int input_buffer_size)
 {
     int input_character_index = 0;
