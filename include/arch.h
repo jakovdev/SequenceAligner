@@ -45,14 +45,27 @@
 #include <windows.h>
 #include <winioctl.h>
 
+#ifdef ERROR
+#undef ERROR
+#endif
+
+#ifdef OPTIONAL
+#undef OPTIONAL
+#endif
+
 typedef HANDLE pthread_t;
 typedef HANDLE sem_t;
+typedef HANDLE pthread_mutex_t;
 
 #define T_Func DWORD WINAPI
 #define T_Ret(x) return (DWORD)(size_t)(x)
 
 #define pthread_create(threads, _, function, arg)                                                  \
     (void)(*threads = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)function, arg, 0, NULL))
+#define pthread_mutex_lock(mutex) WaitForSingleObject(mutex, INFINITE)
+#define pthread_mutex_unlock(mutex) ReleaseMutex(mutex)
+#define PTHREAD_MUTEX_INITIALIZER CreateMutex(NULL, FALSE, NULL)
+#define pthread_mutex_destroy(mutex) CloseHandle(mutex)
 
 #define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
 #define sem_init(sem, _, value) *sem = CreateSemaphore(NULL, value, LONG_MAX, NULL)
