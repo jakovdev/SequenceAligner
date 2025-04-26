@@ -35,9 +35,7 @@ main(int argc, char* argv[])
 
         char* file_cursor = input_file.data;
         char* file_end = input_file.data + input_file.size;
-
-        file_cursor = csv_header_parse(file_cursor, file_end);
-        char* file_header_start = file_cursor;
+        char* file_header_start = csv_header_parse(file_cursor, file_end);
         file_cursor = g_csv_has_no_header ? input_file.data : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
@@ -51,7 +49,6 @@ main(int argc, char* argv[])
 
         print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
 
-        file_cursor = g_csv_has_no_header ? input_file.data : file_header_start;
         bench_io_add(sequences_alloc_from_file(file_cursor, file_end, sequence_count));
     }
 
