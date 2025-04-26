@@ -6,7 +6,6 @@
 #include "hdf5_context.h"
 #include "print.h"
 #include "thread.h"
-#include <stdio.h>
 
 int
 main(int argc, char* argv[])
