@@ -13,13 +13,17 @@ BIN_DIR := bin
 RESULTS_DIR := results
 SCRIPTS_DIR := scripts
 META_DIR := .meta
+HEADERS := $(wildcard $(INCLUDE_DIR)/*.h)
 
 # Build configuration
 CC := gcc
 BIN_EXT := $(if $(IS_WINDOWS),.exe,)
 MAIN_SRC := $(SRC_DIR)/main.c
 MAIN_BIN := $(BIN_DIR)/seqalign$(BIN_EXT)
-HEADERS := $(wildcard $(INCLUDE_DIR)/*.h)
+DEBUG_BIN := $(BIN_DIR)/seqalign-debug$(BIN_EXT)
+X86_64_BIN := $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
+AVX2_BIN := $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
+AVX512_BIN := $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
 
 # Tracking files
 SETUP_COMPLETE := $(META_DIR)/setup_complete
@@ -49,23 +53,18 @@ LIBS := -lm $(HDF5_LIBS) $(if $(IS_WINDOWS),-lShlwapi,)
 .PHONY: all debug clean help setup update _x86-64 _avx2 _avx512
 
 all: check-setup $(BIN_DIR) $(RESULTS_DIR) $(MAIN_BIN) $(if $(IS_WINDOWS),check-libraries,)
-	@if [ -n "$$BUILD_OCCURRED" ]; then echo "Build complete! Run the program with: $(MAIN_BIN)"; fi
 
 debug: CFLAGS := $(BASE_FLAGS) -march=native $(DBG_FLAGS)
-debug: check-setup $(BIN_DIR) $(RESULTS_DIR) $(MAIN_BIN) $(if $(IS_WINDOWS),check-libraries,)
-	@if [ -n "$$BUILD_OCCURRED" ]; then echo "Debug build complete! Run the program with: $(MAIN_BIN)"; fi
+debug: check-setup $(BIN_DIR) $(RESULTS_DIR) $(DEBUG_BIN) $(if $(IS_WINDOWS),check-libraries,)
 
 _x86-64: CFLAGS := $(BASE_FLAGS) -march=x86-64 $(OPT_FLAGS)
-_x86-64: check-setup $(BIN_DIR) $(RESULTS_DIR) $(BIN_DIR)/seqalign-x86-64$(BIN_EXT) $(if $(IS_WINDOWS),check-libraries,)
-	@if [ -n "$$BUILD_OCCURRED" ]; then echo "x86-64 build complete!"; fi
+_x86-64: check-setup $(BIN_DIR) $(RESULTS_DIR) $(X86_64_BIN) $(if $(IS_WINDOWS),check-libraries,)
 
 _avx2: CFLAGS := $(BASE_FLAGS) -march=x86-64 -mavx2 $(OPT_FLAGS)
-_avx2: check-setup $(BIN_DIR) $(RESULTS_DIR) $(BIN_DIR)/seqalign-avx2$(BIN_EXT) $(if $(IS_WINDOWS),check-libraries,)
-	@if [ -n "$$BUILD_OCCURRED" ]; then echo "AVX2 build complete!"; fi
+_avx2: check-setup $(BIN_DIR) $(RESULTS_DIR) $(AVX2_BIN) $(if $(IS_WINDOWS),check-libraries,)
 
 _avx512: CFLAGS := $(BASE_FLAGS) -march=x86-64 -mavx512f -mavx512bw $(OPT_FLAGS)
-_avx512: check-setup $(BIN_DIR) $(RESULTS_DIR) $(BIN_DIR)/seqalign-avx512$(BIN_EXT) $(if $(IS_WINDOWS),check-libraries,)
-	@if [ -n "$$BUILD_OCCURRED" ]; then echo "AVX512 build complete!"; fi
+_avx512: check-setup $(BIN_DIR) $(RESULTS_DIR) $(AVX512_BIN) $(if $(IS_WINDOWS),check-libraries,)
 
 $(BIN_DIR):
 	@$(MKDIR) $(BIN_DIR)
@@ -78,30 +77,31 @@ $(META_DIR):
 
 $(MAIN_BIN): $(MAIN_SRC) $(HEADERS) | check-setup
 	@echo "Compiling Sequence Aligner..."
-	@export BUILD_OCCURRED=true; \
-	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+	@$(CC) $(CFLAGS) $< -o $@ $(LIBS) && echo "Build complete! Run the program with: $@"
 
-$(BIN_DIR)/seqalign-x86-64$(BIN_EXT): $(MAIN_SRC) $(HEADERS) | check-setup
+$(DEBUG_BIN): $(MAIN_SRC) $(HEADERS) | check-setup
+	@echo "Compiling Debug Sequence Aligner..."
+	@$(CC) $(CFLAGS) $< -o $@ $(LIBS) && echo "Debug build complete! Run the program with: $@"
+
+$(X86_64_BIN): $(MAIN_SRC) $(HEADERS) | check-setup
 	@echo "Compiling x86-64 Sequence Aligner..."
-	@export BUILD_OCCURRED=true; \
-	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+	@$(CC) $(CFLAGS) $< -o $@ $(LIBS) && echo "x86-64 build complete!"
 
-$(BIN_DIR)/seqalign-avx2$(BIN_EXT): $(MAIN_SRC) $(HEADERS) | check-setup
+$(AVX2_BIN): $(MAIN_SRC) $(HEADERS) | check-setup
 	@echo "Compiling AVX2 Sequence Aligner..."
-	@export BUILD_OCCURRED=true; \
-	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+	@$(CC) $(CFLAGS) $< -o $@ $(LIBS) && echo "AVX2 build complete!"
 
-$(BIN_DIR)/seqalign-avx512$(BIN_EXT): $(MAIN_SRC) $(HEADERS) | check-setup
+$(AVX512_BIN): $(MAIN_SRC) $(HEADERS) | check-setup
 	@echo "Compiling AVX512 Sequence Aligner..."
-	@export BUILD_OCCURRED=true; \
-	$(CC) $(CFLAGS) $< -o $@ $(LIBS)
+	@$(CC) $(CFLAGS) $< -o $@ $(LIBS) && echo "AVX512 build complete!"
 
 clean:
 	@echo "Cleaning previous build..."
 	@$(RM) $(MAIN_BIN)
-	@$(RM) $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
-	@$(RM) $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
-	@$(RM) $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
+	@$(RM) $(DEBUG_BIN)
+	@$(RM) $(X86_64_BIN)
+	@$(RM) $(AVX2_BIN)
+	@$(RM) $(AVX512_BIN)
 	@$(if $(IS_WINDOWS),, $(RM) $(patsubst %,%.exe,$(MAIN_BIN)))
 
 $(SETUP_COMPLETE): | $(META_DIR)
@@ -146,8 +146,9 @@ else
 endif
 
 help:
-	@echo "SequenceAligner: DNA/RNA Sequence Analysis Tool"
-	@echo "=============================================="
+	@echo "==============================================="
+	@echo "                SequenceAligner                "
+	@echo "==============================================="
 	@echo ""
 	@echo "Available commands:"
 	@echo "  $(MAKE_CMD)              - Build the program"
