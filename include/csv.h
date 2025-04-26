@@ -116,6 +116,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
     CLEANUP(csv_metadata_free) CsvMetadata csv_metadata = { 0, NULL };
 
     csv_metadata.num_columns = csv_column_count(header_start);
+    print(VERBOSE, MSG_NONE, "Found %d columns in input file", csv_metadata.num_columns);
 
     if (csv_metadata.num_columns <= 0)
     {
@@ -185,7 +186,9 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         choices[csv_metadata.num_columns + 1] = NULL;
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
-        print(INFO, MSG_LOC(LAST), "Please select the header column containing sequence data:");
+        print(INFO, MSG_LOC(MIDDLE), "Which column contains your sequences?");
+        print(INFO, MSG_LOC(LAST), "Select the header name (this first line will be skipped!):");
+
         g_sequence_column = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
     }
 
@@ -196,9 +199,8 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         g_csv_has_no_header = true;
     }
 
-    print(VERBOSE, MSG_LOC(FIRST), "Detected %d columns in CSV", csv_metadata.num_columns);
     print(VERBOSE,
-          MSG_LOC(MIDDLE),
+          MSG_NONE,
           "Using column %d ('%s') for sequences",
           g_sequence_column + 1,
           csv_metadata.headers[g_sequence_column]);
