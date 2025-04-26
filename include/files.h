@@ -68,8 +68,8 @@ file_read(File* file, const char* file_path)
         exit(1);
     }
 
-    file->file_data = (char*)MapViewOfFile(file->hMapping, FILE_MAP_READ, 0, 0, 0);
-    if (file->file_data == NULL)
+    file->data = (char*)MapViewOfFile(file->hMapping, FILE_MAP_READ, 0, 0, 0);
+    if (file->data == NULL)
     {
         print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
         CloseHandle(file->hMapping);
@@ -79,7 +79,7 @@ file_read(File* file, const char* file_path)
 
     LARGE_INTEGER file_size;
     GetFileSizeEx(file->hFile, &file_size);
-    file->data_size = file_size.QuadPart;
+    file->size = file_size.QuadPart;
 #else
     file->fd = open(file_path, O_RDONLY);
     if (file->fd == -1)
@@ -113,7 +113,7 @@ INLINE void
 file_free(File* file)
 {
 #ifdef _WIN32
-    UnmapViewOfFile(file->file_data);
+    UnmapViewOfFile(file->data);
     CloseHandle(file->hMapping);
     CloseHandle(file->hFile);
 #else
