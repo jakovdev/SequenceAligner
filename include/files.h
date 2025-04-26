@@ -129,7 +129,7 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     matrix.matrix_size = matrix_size;
 
     size_t triangle_elements = (matrix_size * (matrix_size + 1)) / 2;
-    size_t bytes_needed = triangle_elements * sizeof(int);
+    size_t bytes_needed = triangle_elements * sizeof(*matrix.data);
     matrix.file_size = bytes_needed;
     const char* file_name = file_name_path(file_path);
 
@@ -210,18 +210,16 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
 
 #endif
 
-    size_t check_count = 5;
-    size_t total_elements = bytes_needed / sizeof(int);
     size_t check_indices[5] = {
-        0,                      // First element
-        total_elements / 4,     // 25% in
-        total_elements / 2,     // Middle
-        total_elements * 3 / 4, // 75% in
-        total_elements - 1      // Last element
+        0,                         // First element
+        triangle_elements / 4,     // First quarter
+        triangle_elements / 2,     // Middle
+        triangle_elements * 3 / 4, // Third quarter
+        triangle_elements - 1      // Last element
     };
 
     bool is_zeroed = true;
-    for (size_t i = 0; i < check_count; i++)
+    for (size_t i = 0; i < (sizeof(check_indices) / sizeof(check_indices[0])); i++)
     {
         if (matrix.data[check_indices[i]] != 0)
         {
