@@ -53,7 +53,7 @@ typedef enum
     PROGRESS,
     CHOICE,
     ALIAS,
-    INPUT,
+    PROMPT,
     WARNING,
     ERROR,
     MSG_TYPE_COUNT
@@ -196,7 +196,7 @@ static struct
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   OPTIONAL },
         [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
         [ALIAS]    = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
-        [INPUT]    = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
+        [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
         [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, REQUIRED },
         [ERROR]    = { COLOR_RED,         ICON_ERROR,   REQUIRED },
     },
@@ -712,7 +712,7 @@ print(message_t type, MSG_ARG margs, const char* restrict format, ...)
         } while (true);
     }
 
-    else if (type == INPUT)
+    else if (type == PROMPT)
     {
         input_t input = margs.input;
 
