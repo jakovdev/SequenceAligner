@@ -193,7 +193,7 @@ mingw32-make help
   <tr>
     <td rowspan="2">Linux (Arch)</td>
     <td>16</td>
-    <td><strong>0.027s</strong></td>
+    <td><strong>0.026s</strong></td>
   </tr>
   <tr>
     <td>1</td>
@@ -226,7 +226,7 @@ mingw32-make help
   <tr>
     <td>Linux (Arch)</td>
     <td>16</td>
-    <td><strong>55.662s (31 million/s)</strong></td>
+    <td><strong>53.651s (32 million/s)</strong></td>
     <td>31.746s (hdf5 conversion)</td>
   </tr>
 </table>
@@ -271,8 +271,6 @@ All implementations use dynamic programming with optimized matrix operations.
 - **Sequence Format**:
   - For protein sequences: standard one-letter amino acid codes (ACDEFGHIKLMNPQRSTVWY)
   - For nucleotide sequences: standard DNA/RNA bases (ACGT)
-- **Size Limitations**:
-  - The input file's sequences must be small enough to fit in your computer's RAM
 
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format
