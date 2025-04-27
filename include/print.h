@@ -474,6 +474,11 @@ print(message_t type, MSG_ARG margs, const char* restrict format, ...)
         const size_t filled_width = bar_width * percent / 100;
         const size_t empty_width = bar_width - filled_width;
 
+        if (percent % 2)
+        {
+            c_color = style.chars.codes[COLOR_CYAN];
+        }
+
         if (style.flags.section_open)
         {
             printf("%s%s", style.chars.ansi_escape_start, style.chars.ansi_carriage_return);
