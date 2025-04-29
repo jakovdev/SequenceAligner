@@ -1,10 +1,11 @@
 IS_WINDOWS := $(if $(filter Windows_NT,$(OS)),yes,)
+MAKE_CMD := $(if $(IS_WINDOWS), mingw32-make, make)
+
 # TODO: Check if running MSYS2 from windows terminal and replace RM and MKDIR with:
 #RM := $(if $(IS_WINDOWS),powershell -Command "Remove-Item -Force -ErrorAction SilentlyContinue",rm -f)
 #$(if $(IS_WINDOWS),powershell -Command "if (-not (Test-Path $(FILE))) { New-Item -ItemType Directory -Path $(FILE) | Out-Null }",mkdir -p $(FILE))
 RM := rm -f
 MKDIR := mkdir -p
-MAKE_CMD := $(if $(IS_WINDOWS), mingw32-make, make)
 
 # Project directories
 SRC_DIR := src
