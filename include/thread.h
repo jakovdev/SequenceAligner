@@ -245,17 +245,16 @@ align(void)
 
     else
     {
-        double start_time = 0.0;
         if (args_mode_benchmark())
         {
-            start_time = time_current();
+            g_times.align = time_current();
         }
 
         align_singlethreaded();
 
         if (args_mode_benchmark())
         {
-            g_times.align += (time_current() - start_time);
+            g_times.align = -(g_times.align - time_current());
         }
     }
 }
