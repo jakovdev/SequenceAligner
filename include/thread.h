@@ -168,11 +168,12 @@ align_multithreaded(void)
     print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
 
     const size_t alignment_count = g_sequence_dataset.alignment_count;
+    const size_t update_interval_ms = 100;
 
     for (size_t progress = atomic_load(&shared_progress); progress < alignment_count;
          progress = atomic_load(&shared_progress))
     {
-        usleep(100000);
+        usleep(update_interval_ms * 1000);
         progress_percent = progress * 100 / alignment_count;
         print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
     }
