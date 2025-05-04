@@ -1,7 +1,14 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
-#include "arch.h"
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <termios.h>
+#include <unistd.h>
+#endif
+
+#include <stdio.h>
 
 static inline int
 terminal_environment(void)
@@ -50,7 +57,7 @@ terminal_mode_raw(void)
 #else
     struct termios term;
     tcgetattr(STDIN_FILENO, &term);
-    term.c_lflag &= ~(ICANON | ECHO); // Disable canonical mode and echo
+    term.c_lflag &= ~(ICANON | ECHO);
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 #endif
 }
