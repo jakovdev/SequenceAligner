@@ -26,24 +26,6 @@
 
 #define CACHE_LINE 64
 
-#ifdef __cplusplus
-#define restrict __restrict
-#define CAST(ptr) static_cast<decltype(ptr)>
-#else
-#define CAST(ptr)
-#endif
-
-#define ALLOCATION(ptr, count, func) CAST(ptr)(func((count) * sizeof(*(ptr))))
-
-#define MALLOC(ptr, count) ALLOCATION(ptr, count, malloc)
-#define ALLOCA(ptr, count) ALLOCATION(ptr, count, alloca)
-#define REALLOC(ptr, count) CAST(ptr)(realloc(ptr, (count) * sizeof(*(ptr))))
-
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
-
 #ifdef _WIN32
 
 #include <Shlwapi.h>
@@ -135,6 +117,25 @@ typedef HANDLE pthread_mutex_t;
 #define aligned_free(ptr) free(ptr)
 
 #endif
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <strings.h>
+
+#ifdef __cplusplus
+#define restrict __restrict
+#define CAST(ptr) static_cast<decltype(ptr)>
+#else
+#define CAST(ptr)
+#endif
+
+#define ALLOCATION(ptr, count, func) CAST(ptr)(func((count) * sizeof(*(ptr))))
+
+#define MALLOC(ptr, count) ALLOCATION(ptr, count, malloc)
+#define ALLOCA(ptr, count) ALLOCATION(ptr, count, alloca)
+#define REALLOC(ptr, count) CAST(ptr)(realloc(ptr, (count) * sizeof(*(ptr))))
 
 // SIMD detection and intrinsics
 #if defined(__AVX512F__) && defined(__AVX512BW__)
