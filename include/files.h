@@ -97,7 +97,7 @@ file_read(File* file, const char* file_path)
     }
 
     file->size = sb.st_size;
-    file->data = mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, file->fd, 0);
+    file->data = CAST(file->data)(mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, file->fd, 0));
     if (file->data == MAP_FAILED)
     {
         print(ERROR, MSG_NONE, "FILE | Could not memory map file '%s'", file_name);

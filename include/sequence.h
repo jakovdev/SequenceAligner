@@ -45,13 +45,13 @@ seq_pool_init(void)
         return;
     }
 
-    g_pool.head = malloc(sizeof(*g_pool.head));
+    g_pool.head = MALLOC(g_pool.head, 1);
     if (!g_pool.head)
     {
         return;
     }
 
-    g_pool.head->block = alloc_huge_page(SB_SIZE);
+    g_pool.head->block = CAST(g_pool.head->block)(alloc_huge_page(SB_SIZE));
     if (!g_pool.head->block)
     {
         free(g_pool.head);
@@ -90,13 +90,13 @@ seq_pool_alloc(size_t size)
             new_block_size = size;
         }
 
-        SeqMemBlock* new_block = malloc(sizeof(*new_block));
+        SeqMemBlock* new_block = MALLOC(new_block, 1);
         if (!new_block)
         {
             return NULL;
         }
 
-        new_block->block = malloc(new_block_size);
+        new_block->block = MALLOC(new_block->block, new_block_size);
         if (!new_block->block)
         {
             free(new_block);
@@ -213,7 +213,7 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
     float filter_threshold = args_filter_threshold();
     bool apply_filtering = args_mode_filter();
 
-    sequence_t* sequences = malloc(sequences_total * sizeof(*sequences));
+    sequence_t* sequences = MALLOC(sequences, sequences_total);
     if (!sequences)
     {
         return;
@@ -242,7 +242,7 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
         if (max_line_len + buffer_margin > temp_seq_capacity)
         {
             size_t new_capacity = max_line_len + buffer_padding;
-            char* new_buffer = malloc(new_capacity);
+            char* new_buffer = MALLOC(new_buffer, new_capacity);
             if (!new_buffer)
             {
                 free(temp_seq);
@@ -301,7 +301,7 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
     if (apply_filtering && filtered_count > 0 && filtered_count >= sequences_total / 4)
     {
         print(VERBOSE, MSG_NONE, "Reallocating memory to save %zu sequence slots", filtered_count);
-        sequence_t* _sequences_new = realloc(sequences, sequence_count * sizeof(*sequences));
+        sequence_t* _sequences_new = REALLOC(sequences, sequence_count);
         if (_sequences_new)
         {
             sequences = _sequences_new;

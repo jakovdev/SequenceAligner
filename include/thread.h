@@ -23,7 +23,7 @@ typedef struct
 static inline T_Func
 thread_worker(void* thread_arg)
 {
-    ThreadStorage* storage = thread_arg;
+    ThreadStorage* storage = CAST(storage)(thread_arg);
     PIN_THREAD(storage->thread_id);
 
     const size_t sequence_count = g_sequence_dataset.sequence_count;
@@ -142,8 +142,8 @@ align_multithreaded(void)
     volatile int threads_completed = 0;
     pthread_mutex_t completion_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-    pthread_t* threads = malloc(num_threads * sizeof(*threads));
-    ThreadStorage* thread_storages = calloc(num_threads, sizeof(*thread_storages));
+    pthread_t* threads = MALLOC(threads, num_threads);
+    ThreadStorage* thread_storages = MALLOC(thread_storages, num_threads);
 
     if (args_mode_benchmark())
     {

@@ -45,7 +45,7 @@ h5_matrix_buffer_allocate(void)
 {
     size_t matrix_size = g_hdf5.matrix_size;
     size_t bytes = matrix_size * matrix_size * sizeof(int);
-    g_hdf5.matrix_buffer.data = alloc_huge_page(bytes);
+    g_hdf5.matrix_buffer.data = CAST(g_hdf5.matrix_buffer.data)(alloc_huge_page(bytes));
     if (!g_hdf5.matrix_buffer.data)
     {
         return false;
@@ -381,7 +381,7 @@ h5_flush_mmap_to_hdf5(void)
           chunk_size,
           (chunk_size * row_bytes) / MiB);
 
-    int* buffer = calloc(chunk_size, row_bytes);
+    int* buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
     if (!buffer)
     {
         print(WARNING,
@@ -390,7 +390,7 @@ h5_flush_mmap_to_hdf5(void)
               chunk_size * row_bytes);
 
         chunk_size = 1;
-        buffer = calloc(chunk_size, row_bytes);
+        buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
         if (!buffer)
         {
             print(ERROR, MSG_NONE, "HDF5 | Cannot allocate even minimal buffer, aborting");

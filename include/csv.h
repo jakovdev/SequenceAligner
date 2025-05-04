@@ -1,6 +1,7 @@
 #ifndef CSV_H
 #define CSV_H
 
+#include "arch.h"
 #include "print.h"
 
 typedef struct
@@ -62,7 +63,7 @@ static inline char*
 csv_column_copy(const char* file_start, const char* file_end)
 {
     size_t len = file_end - file_start;
-    char* name = malloc(len + 1);
+    char* name = MALLOC(name, len + 1);
     if (name)
     {
         memcpy(name, file_start, len);
@@ -124,7 +125,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         exit(1);
     }
 
-    csv_metadata.headers = malloc(csv_metadata.num_columns * sizeof(*csv_metadata.headers));
+    csv_metadata.headers = MALLOC(csv_metadata.headers, csv_metadata.num_columns);
 
     if (!csv_metadata.headers)
     {
@@ -176,7 +177,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
     // If auto-detection failed
     if (g_sequence_column < 0)
     {
-        char** choices = malloc((csv_metadata.num_columns + 2) * sizeof(*choices));
+        char** choices = MALLOC(choices, csv_metadata.num_columns + 2);
         for (column = 0; column < csv_metadata.num_columns; column++)
         {
             choices[column] = csv_metadata.headers[column];

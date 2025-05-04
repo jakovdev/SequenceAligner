@@ -28,7 +28,16 @@
 
 #ifdef __cplusplus
 #define restrict __restrict
+#define CAST(ptr) static_cast<decltype(ptr)>
+#else
+#define CAST(ptr)
 #endif
+
+#define ALLOCATION(ptr, count, func) CAST(ptr)(func((count) * sizeof(*(ptr))))
+
+#define MALLOC(ptr, count) ALLOCATION(ptr, count, malloc)
+#define ALLOCA(ptr, count) ALLOCATION(ptr, count, alloca)
+#define REALLOC(ptr, count) CAST(ptr)(realloc(ptr, (count) * sizeof(*(ptr))))
 
 #include <stdbool.h>
 #include <stdint.h>

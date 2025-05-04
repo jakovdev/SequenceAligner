@@ -26,14 +26,13 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
 
     if (len <= MAX_STACK_SEQUENCE_LENGTH)
     {
-        int* stack_buffer = alloca(len * sizeof(*stack_buffer));
-        indices->data = stack_buffer;
+        indices->data = ALLOCA(indices->data, len);
         indices->is_stack = true;
     }
 
     else
     {
-        indices->data = malloc(len * sizeof(*indices->data));
+        indices->data = MALLOC(indices->data, len);
         indices->is_stack = false;
     }
 
