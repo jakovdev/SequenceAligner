@@ -1,7 +1,6 @@
 #ifndef BENCHMARK_H
 #define BENCHMARK_H
 
-#include "arch.h"
 #include "args.h"
 #include "print.h"
 
