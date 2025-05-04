@@ -75,7 +75,7 @@ main(int argc, char* argv[])
 
     if (!args_mode_write())
     {
-        print(INFO, MSG_NONE, "Matrix checksum: %lld", g_hdf5_context.checksum);
+        print(INFO, MSG_NONE, "Matrix checksum: %lld", g_hdf5.checksum);
     }
 
     bench_align_end();

@@ -189,7 +189,7 @@ align_multithreaded(void)
         total_checksum += thread_storages[t].local_checksum;
     }
 
-    g_hdf5_context.checksum = total_checksum * 2;
+    g_hdf5.checksum = total_checksum * 2;
 
     pthread_mutex_destroy(&row_mutex);
     pthread_mutex_destroy(&completion_mutex);
@@ -233,7 +233,7 @@ align_singlethreaded(void)
         }
     }
 
-    g_hdf5_context.checksum = local_checksum * 2;
+    g_hdf5.checksum = local_checksum * 2;
 }
 
 static inline void
