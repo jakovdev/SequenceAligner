@@ -12,11 +12,10 @@ typedef struct
     size_t length;
 } sequence_t;
 
-#define SEQ_POOL_BLOCK_SIZE (4 * MiB)
-
 typedef struct SeqMemBlock
 {
-    char* sequence_block;
+#define SB_SIZE (4 * MiB)
+    char* block;
     size_t used;
     size_t capacity;
     struct SeqMemBlock* next;
@@ -29,7 +28,7 @@ static struct
     size_t total_bytes;
     size_t total_allocated;
     size_t block_count;
-} g_sequence_pool = { 0 };
+} g_pool = { 0 };
 
 static struct
 {
@@ -41,41 +40,41 @@ static struct
 static inline void
 seq_pool_init(void)
 {
-    if (g_sequence_pool.head)
+    if (g_pool.head)
     {
         return;
     }
 
-    g_sequence_pool.head = malloc(sizeof(*g_sequence_pool.head));
-    if (!g_sequence_pool.head)
+    g_pool.head = malloc(sizeof(*g_pool.head));
+    if (!g_pool.head)
     {
         return;
     }
 
-    g_sequence_pool.head->sequence_block = alloc_huge_page(SEQ_POOL_BLOCK_SIZE);
-    if (!g_sequence_pool.head->sequence_block)
+    g_pool.head->block = alloc_huge_page(SB_SIZE);
+    if (!g_pool.head->block)
     {
-        free(g_sequence_pool.head);
-        g_sequence_pool.head = NULL;
+        free(g_pool.head);
+        g_pool.head = NULL;
         return;
     }
 
-    g_sequence_pool.head->used = 0;
-    g_sequence_pool.head->capacity = SEQ_POOL_BLOCK_SIZE;
-    g_sequence_pool.head->next = NULL;
-    g_sequence_pool.current = g_sequence_pool.head;
-    g_sequence_pool.total_bytes = SEQ_POOL_BLOCK_SIZE;
-    g_sequence_pool.total_allocated = 0;
-    g_sequence_pool.block_count = 1;
+    g_pool.head->used = 0;
+    g_pool.head->capacity = SB_SIZE;
+    g_pool.head->next = NULL;
+    g_pool.current = g_pool.head;
+    g_pool.total_bytes = SB_SIZE;
+    g_pool.total_allocated = 0;
+    g_pool.block_count = 1;
 }
 
 static inline char*
 seq_pool_alloc(size_t size)
 {
-    if (!g_sequence_pool.head)
+    if (!g_pool.head)
     {
         seq_pool_init();
-        if (!g_sequence_pool.head)
+        if (!g_pool.head)
         {
             return NULL;
         }
@@ -83,9 +82,9 @@ seq_pool_alloc(size_t size)
 
     size = (size + 7) & ~7;
 
-    if (g_sequence_pool.current->used + size > g_sequence_pool.current->capacity)
+    if (g_pool.current->used + size > g_pool.current->capacity)
     {
-        size_t new_block_size = SEQ_POOL_BLOCK_SIZE;
+        size_t new_block_size = SB_SIZE;
         if (size > new_block_size)
         {
             new_block_size = size;
@@ -97,8 +96,8 @@ seq_pool_alloc(size_t size)
             return NULL;
         }
 
-        new_block->sequence_block = malloc(new_block_size);
-        if (!new_block->sequence_block)
+        new_block->block = malloc(new_block_size);
+        if (!new_block->block)
         {
             free(new_block);
             return NULL;
@@ -108,15 +107,15 @@ seq_pool_alloc(size_t size)
         new_block->capacity = new_block_size;
         new_block->next = NULL;
 
-        g_sequence_pool.current->next = new_block;
-        g_sequence_pool.current = new_block;
-        g_sequence_pool.total_bytes += new_block_size;
-        g_sequence_pool.block_count++;
+        g_pool.current->next = new_block;
+        g_pool.current = new_block;
+        g_pool.total_bytes += new_block_size;
+        g_pool.block_count++;
     }
 
-    char* result = g_sequence_pool.current->sequence_block + g_sequence_pool.current->used;
-    g_sequence_pool.current->used += size;
-    g_sequence_pool.total_allocated += size;
+    char* result = g_pool.current->block + g_pool.current->used;
+    g_pool.current->used += size;
+    g_pool.total_allocated += size;
 
     return result;
 }
@@ -124,25 +123,25 @@ seq_pool_alloc(size_t size)
 static inline DESTRUCTOR void
 seq_pool_free(void)
 {
-    if (!g_sequence_pool.head)
+    if (!g_pool.head)
     {
         return;
     }
 
-    SeqMemBlock* block = g_sequence_pool.head;
-    while (block)
+    SeqMemBlock* curr = g_pool.head;
+    while (curr)
     {
-        SeqMemBlock* next = block->next;
-        aligned_free(block->sequence_block);
-        free(block);
-        block = next;
+        SeqMemBlock* next = curr->next;
+        aligned_free(curr->block);
+        free(curr);
+        curr = next;
     }
 
-    g_sequence_pool.head = NULL;
-    g_sequence_pool.current = NULL;
-    g_sequence_pool.total_bytes = 0;
-    g_sequence_pool.total_allocated = 0;
-    g_sequence_pool.block_count = 0;
+    g_pool.head = NULL;
+    g_pool.current = NULL;
+    g_pool.total_bytes = 0;
+    g_pool.total_allocated = 0;
+    g_pool.block_count = 0;
 }
 
 static inline void
