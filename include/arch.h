@@ -82,10 +82,17 @@ typedef HANDLE pthread_mutex_t;
 #define strcasestr(haystack, needle) StrStrIA(haystack, needle)
 #define usleep(microseconds) Sleep((microseconds) / 1000)
 
+#define MAX max
+#define MIN min
+
 #else // POSIX/Linux
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+#ifndef __USE_GNU
 #define __USE_GNU
+#endif
 #define MAX_PATH (260)
 
 #include <fcntl.h>
@@ -117,9 +124,6 @@ typedef HANDLE pthread_mutex_t;
 #define SET_HIGH_CLASS()
 
 #define aligned_free(ptr) free(ptr)
-
-#define max MAX
-#define min MIN
 
 #endif
 

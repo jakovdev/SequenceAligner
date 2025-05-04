@@ -86,7 +86,7 @@ h5_calculate_chunk_dimensions(void)
         optimal_chunk = (size_t)(1000 * scale_factor);
     }
 
-    optimal_chunk = max(H5_MIN_CHUNK_SIZE, min(optimal_chunk, H5_MAX_CHUNK_SIZE));
+    optimal_chunk = MAX(H5_MIN_CHUNK_SIZE, MIN(optimal_chunk, H5_MAX_CHUNK_SIZE));
 
     g_hdf5_context.chunk_dims[0] = optimal_chunk;
     g_hdf5_context.chunk_dims[1] = optimal_chunk;
