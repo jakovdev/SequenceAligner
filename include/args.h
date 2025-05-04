@@ -474,7 +474,6 @@ args_init(int argc, char* argv[])
     g_args.matrix_id = PARAM_UNSET;
 
     args_parse(argc, argv);
-    print_context_init();
 
     if (!args_validate_required())
     {
