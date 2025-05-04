@@ -4,7 +4,6 @@
 #include "arch.h"
 #include "terminal.h"
 #include <stdarg.h>
-#include <stdbool.h>
 
 #ifndef TERMINAL_WIDTH
 #define TERMINAL_WIDTH 80
@@ -305,7 +304,7 @@ print(SECTION, MSG_NONE, "");
 static int
 print(message_t type, MSG_ARG margs, const char* restrict format, ...)
 {
-    const bool is_required = style.map[type].requirement == REQUIRED;
+    const int is_required = style.map[type].requirement == REQUIRED;
     if ((style.flags.quiet && !is_required) || (type == VERBOSE && !style.flags.verbose))
     {
         return 0;
@@ -341,7 +340,7 @@ print(message_t type, MSG_ARG margs, const char* restrict format, ...)
         }
     }
 
-    const bool simple_format = style.flags.quiet && is_required;
+    const int simple_format = style.flags.quiet && is_required;
     const icon_t icon_type = style.map[type].icon;
 
     const char* c_icon = style.chars.icons[icon_type];
@@ -677,7 +676,7 @@ print(message_t type, MSG_ARG margs, const char* restrict format, ...)
                 printf("\n");
             }
 
-            bool found = false;
+            int found = false;
             for (int i = 0; i < collection_count && !found; i++)
             {
                 char* const* aliases = alias_collections[i];
