@@ -1,5 +1,5 @@
-#ifndef HDF5_CONTEXT_H
-#define HDF5_CONTEXT_H
+#ifndef SEQALIGN_HDF5_H
+#define SEQALIGN_HDF5_H
 
 #include "files.h"
 #include "sequence.h"
@@ -899,4 +899,4 @@ h5_close(void)
     g_hdf5.is_init = false;
 }
 
-#endif // HDF5_CONTEXT_H
+#endif // SEQALIGN_HDF5_H

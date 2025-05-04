@@ -4,9 +4,9 @@
 #include "arch.h"
 #include "args.h"
 #include "benchmark.h"
-#include "hdf5_context.h"
 #include "print.h"
 #include "seqalign.h"
+#include "seqalign_hdf5.h"
 #include <stdatomic.h>
 
 typedef struct

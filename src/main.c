@@ -3,8 +3,8 @@
 #include "benchmark.h"
 #include "csv.h"
 #include "files.h"
-#include "hdf5_context.h"
 #include "print.h"
+#include "seqalign_hdf5.h"
 #include "thread.h"
 
 int
