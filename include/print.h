@@ -801,7 +801,7 @@ cleanup:
     return 0;
 }
 
-DESTRUCTOR void
+DESTRUCTOR static void
 print_end_section()
 {
     if (style.flags.section_open)
