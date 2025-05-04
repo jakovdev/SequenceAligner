@@ -37,7 +37,7 @@ SequenceAligner is a highly optimized tool for performing rapid pairwise sequenc
 <summary><strong>Linux</strong></summary>
 
 #### Dependencies
-- GCC with C99 support
+- GCC with C99 support or later
 - GNU Make
 - HDF5 library
 
