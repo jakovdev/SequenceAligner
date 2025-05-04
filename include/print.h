@@ -316,10 +316,9 @@ print(message_t type, MSG_ARG margs, const char* restrict format, ...)
         print(SECTION, MSG_NONE, "");
     }
 
+    static int last_percentage = -1;
     if (type == PROGRESS)
     {
-        static int last_percentage = -1;
-
         if (margs.percent == last_percentage)
         {
             return 0;
@@ -329,6 +328,15 @@ print(message_t type, MSG_ARG margs, const char* restrict format, ...)
 
         if (last_percentage == 100)
         {
+            last_percentage = -1;
+        }
+    }
+
+    else if (type == ERROR && last_percentage != -1)
+    {
+        if (style.flags.content_printed)
+        {
+            printf("\n");
             last_percentage = -1;
         }
     }
