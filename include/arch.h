@@ -96,9 +96,7 @@ typedef HANDLE pthread_mutex_t;
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <sys/types.h>
-#include <termios.h>
 #include <time.h>
-#include <unistd.h>
 
 #define T_Func void*
 #define T_Ret(x) return (x)
