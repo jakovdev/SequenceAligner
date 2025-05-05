@@ -122,7 +122,7 @@ thread_worker(void* thread_arg)
 
         if (*storage->threads_completed == num_threads)
         {
-            g_times.align = -(g_times.align - time_current());
+            bench_align_end();
         }
 
         pthread_mutex_unlock(storage->completion_mutex);
@@ -146,10 +146,7 @@ align_multithreaded(void)
     pthread_t* threads = MALLOC(threads, num_threads);
     ThreadStorage* thread_storages = MALLOC(thread_storages, num_threads);
 
-    if (args_mode_benchmark())
-    {
-        g_times.align = time_current();
-    }
+    bench_align_start();
 
     for (int t = 0; t < num_threads; t++)
     {
@@ -247,17 +244,11 @@ align(void)
 
     else
     {
-        if (args_mode_benchmark())
-        {
-            g_times.align = time_current();
-        }
+        bench_align_start();
 
         align_singlethreaded();
 
-        if (args_mode_benchmark())
-        {
-            g_times.align = -(g_times.align - time_current());
-        }
+        bench_align_end();
     }
 }
 
