@@ -3,6 +3,7 @@
 
 #include "arch.h"
 #include "matrices.h"
+
 #include <ctype.h>
 
 #define MAX_MATRIX_DIM AMINO_SIZE

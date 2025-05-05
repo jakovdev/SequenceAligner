@@ -2,7 +2,9 @@
 #define SCORING_H
 
 #include "args.h"
+#include "biotypes.h"
 #include "matrices.h"
+
 #include <limits.h>
 
 #ifdef USE_SIMD
