@@ -1,6 +1,8 @@
 #ifndef PRINT_H
 #define PRINT_H
 
+#include <stddef.h>
+
 #ifdef __cplusplus
 #define P_RESTRICT __restrict
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
@@ -19,7 +21,7 @@ typedef enum
 typedef struct
 {
     char* ret;
-    const unsigned long rsiz;
+    const size_t rsiz;
 } input_t;
 
 typedef const union
