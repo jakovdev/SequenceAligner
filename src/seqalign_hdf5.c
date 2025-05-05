@@ -5,7 +5,7 @@
 
 #include "arch.h"
 #include "files.h"
-#include "sequence.h"
+#include "sequences.h"
 #include <hdf5.h>
 #include <math.h>
 

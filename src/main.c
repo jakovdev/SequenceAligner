@@ -24,8 +24,6 @@ main(int argc, char* argv[])
         PIN_THREAD(0);
     }
 
-    seq_pool_init();
-
     size_t sequence_count = 0;
 
     {
@@ -48,24 +46,29 @@ main(int argc, char* argv[])
 
         print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
 
-        bench_io_add(sequences_alloc_from_file(file_cursor, file_end, sequence_count));
+        bench_io_add(sequences_alloc_from_file(file_cursor,
+                                               file_end,
+                                               sequence_count,
+                                               args_filter_threshold(),
+                                               args_mode_filter(),
+                                               g_sequence_column));
     }
 
-    if (!g_sequence_dataset.sequences)
+    if (!sequences_get())
     {
         print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for sequences");
         return 1;
     }
 
-    sequence_count = g_sequence_dataset.sequence_count;
-    size_t total_alignments = g_sequence_dataset.alignment_count;
+    sequence_count = sequences_count();
+    size_t total_alignments = sequences_alignment_count();
 
     bench_io_add(h5_initialize(args_path_output(),
                                sequence_count,
                                args_compression_level(),
                                args_mode_write()));
 
-    bench_io_add(h5_store_sequences(g_sequence_dataset.sequences, sequence_count));
+    bench_io_add(h5_store_sequences(sequences_get(), sequence_count));
 
     print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
     scoring_matrix_init();
@@ -88,7 +91,5 @@ main(int argc, char* argv[])
     bench_io_end();
 
     bench_total(total_alignments);
-
-    free(g_sequence_dataset.sequences);
     return 0;
 }

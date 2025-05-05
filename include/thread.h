@@ -26,8 +26,8 @@ thread_worker(void* thread_arg)
     ThreadStorage* storage = CAST(storage)(thread_arg);
     PIN_THREAD(storage->thread_id);
 
-    const size_t sequence_count = g_sequence_dataset.sequence_count;
-    const size_t alignment_count = g_sequence_dataset.alignment_count;
+    const size_t sequence_count = sequences_count();
+    const size_t alignment_count = sequences_alignment_count();
 
     size_t local_progress = 0;
 
@@ -84,7 +84,7 @@ thread_worker(void* thread_arg)
                 char* seq2;
                 size_t len2;
 
-                seq_get_pair(i, &seq1, &len1, j, &seq2, &len2);
+                sequences_get_pair(i, &seq1, &len1, j, &seq2, &len2);
 
                 if (UNLIKELY(!seq1 || !seq2 || !len1 || !len2))
                 {
@@ -167,7 +167,7 @@ align_multithreaded(void)
     int progress_percent = 0;
     print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
 
-    const size_t alignment_count = g_sequence_dataset.alignment_count;
+    const size_t alignment_count = sequences_alignment_count();
     const size_t update_interval_ms = 100;
 
     for (size_t progress = atomic_load(&shared_progress); progress < alignment_count;
@@ -206,8 +206,8 @@ align_multithreaded(void)
 static inline void
 align_singlethreaded(void)
 {
-    const size_t sequence_count = g_sequence_dataset.sequence_count;
-    const size_t alignment_count = g_sequence_dataset.alignment_count;
+    const size_t sequence_count = sequences_count();
+    const size_t alignment_count = sequences_alignment_count();
     int64_t local_checksum = 0;
     size_t progress = 0;
 
@@ -219,7 +219,7 @@ align_singlethreaded(void)
             char* seq2;
             size_t len1, len2;
 
-            seq_get_pair(i, &seq1, &len1, j, &seq2, &len2);
+            sequences_get_pair(i, &seq1, &len1, j, &seq2, &len2);
 
             int score = align_pairwise(seq1, len1, seq2, len2);
 

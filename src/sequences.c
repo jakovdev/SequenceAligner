@@ -1,16 +1,8 @@
-#ifndef SEQUENCE_H
-#define SEQUENCE_H
+#include "sequences.h"
 
 #include "arch.h"
-#include "args.h"
 #include "csv.h"
 #include "print.h"
-
-typedef struct
-{
-    char* letters;
-    size_t length;
-} sequence_t;
 
 typedef struct SeqMemBlock
 {
@@ -37,7 +29,7 @@ static struct
     size_t alignment_count;
 } g_sequence_dataset = { 0 };
 
-static inline void
+static void
 seq_pool_init(void)
 {
     if (g_pool.head)
@@ -68,7 +60,7 @@ seq_pool_init(void)
     g_pool.block_count = 1;
 }
 
-static inline char*
+static char*
 seq_pool_alloc(size_t size)
 {
     if (!g_pool.head)
@@ -120,7 +112,7 @@ seq_pool_alloc(size_t size)
     return result;
 }
 
-static inline DESTRUCTOR void
+DESTRUCTOR static void
 seq_pool_free(void)
 {
     if (!g_pool.head)
@@ -142,6 +134,19 @@ seq_pool_free(void)
     g_pool.total_bytes = 0;
     g_pool.total_allocated = 0;
     g_pool.block_count = 0;
+}
+
+DESTRUCTOR static void
+sequences_free(void)
+{
+    if (g_sequence_dataset.sequences)
+    {
+        free(g_sequence_dataset.sequences);
+        g_sequence_dataset.sequences = NULL;
+    }
+
+    g_sequence_dataset.sequence_count = 0;
+    g_sequence_dataset.alignment_count = 0;
 }
 
 static inline void
@@ -207,12 +212,15 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
     return (float)matches / min_len;
 }
 
-static inline void
-sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_total)
+void
+sequences_alloc_from_file(char* file_cursor,
+                          char* file_end,
+                          size_t sequences_total,
+                          float filter_threshold,
+                          bool apply_filtering,
+                          int sequence_column)
 {
-    float filter_threshold = args_filter_threshold();
-    bool apply_filtering = args_mode_filter();
-
+    seq_pool_init();
     sequence_t* sequences = MALLOC(sequences, sequences_total);
     if (!sequences)
     {
@@ -255,7 +263,7 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
             temp_seq_capacity = new_capacity;
         }
 
-        size_t sequence_length = csv_line_column_extract(&file_cursor, temp_seq, g_sequence_column);
+        size_t sequence_length = csv_line_column_extract(&file_cursor, temp_seq, sequence_column);
 
         if (!sequence_length)
         {
@@ -326,13 +334,13 @@ sequences_alloc_from_file(char* file_cursor, char* file_end, size_t sequences_to
     return;
 }
 
-static inline void
-seq_get_pair(size_t first_index,
-             char* restrict* first_sequence_out,
-             size_t* restrict first_length_out,
-             size_t second_index,
-             char* restrict* second_sequence_out,
-             size_t* restrict second_length_out)
+inline void
+sequences_get_pair(size_t first_index,
+                   char* restrict* first_sequence_out,
+                   size_t* restrict first_length_out,
+                   size_t second_index,
+                   char* restrict* second_sequence_out,
+                   size_t* restrict second_length_out)
 {
     *first_sequence_out = g_sequence_dataset.sequences[first_index].letters;
     *first_length_out = g_sequence_dataset.sequences[first_index].length;
@@ -343,4 +351,20 @@ seq_get_pair(size_t first_index,
     prefetch(*second_sequence_out);
 }
 
-#endif // SEQUENCE_H
+sequence_t*
+sequences_get(void)
+{
+    return g_sequence_dataset.sequences;
+}
+
+size_t
+sequences_count(void)
+{
+    return g_sequence_dataset.sequence_count;
+}
+
+size_t
+sequences_alignment_count(void)
+{
+    return g_sequence_dataset.alignment_count;
+}
