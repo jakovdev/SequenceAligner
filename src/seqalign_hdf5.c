@@ -1,6 +1,3 @@
-#ifndef SEQALIGN_HDF5_H
-#define SEQALIGN_HDF5_H
-
 #include "seqalign_hdf5.h"
 
 #include "arch.h"
@@ -919,5 +916,3 @@ h5_close(void)
 
     g_hdf5.is_init = false;
 }
-
-#endif // SEQALIGN_HDF5_H

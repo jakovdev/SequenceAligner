@@ -1,6 +1,3 @@
-#ifndef ARGS_H
-#define ARGS_H
-
 #include "arch.h"
 #include "biotypes.h"
 #include "print.h"
@@ -482,5 +479,3 @@ args_init(int argc, char* argv[])
         exit(1);
     }
 }
-
-#endif // ARGS_H

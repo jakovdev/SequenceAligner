@@ -1,6 +1,3 @@
-#ifndef BENCHMARK_H
-#define BENCHMARK_H
-
 #include "arch.h"
 #include "args.h"
 #include "print.h"
@@ -99,5 +96,3 @@ bench_print_total(size_t alignments)
         }
     }
 }
-
-#endif
