@@ -78,7 +78,7 @@ GETTER(bool, mode_write, g_args.mode_write)
 
 #undef GETTER
 
-static inline int
+static int
 args_parse_scoring_matrix(const char* arg, int seq_type)
 {
     if (seq_type < 0)
@@ -102,7 +102,7 @@ args_parse_scoring_matrix(const char* arg, int seq_type)
     return matrix_name_id(seq_type, arg);
 }
 
-static inline float
+static float
 args_parse_filter_threshold(const char* arg)
 {
     float threshold = atof(arg);
@@ -114,7 +114,7 @@ args_parse_filter_threshold(const char* arg)
     return threshold > 1.0f ? threshold / 100.0f : threshold;
 }
 
-static inline int
+static int
 args_parse_thread_num(const char* arg)
 {
     int threads = atoi(arg);
@@ -126,14 +126,14 @@ args_parse_thread_num(const char* arg)
     return threads;
 }
 
-static inline int
+static int
 args_parse_compression_level(const char* arg)
 {
     int level = atoi(arg);
     return (level < 0 || level > 9) ? 0 : level;
 }
 
-static inline bool
+static bool
 args_validate_file_input(void)
 {
     if (!g_args.input_file_set)
@@ -153,7 +153,7 @@ args_validate_file_input(void)
     return true;
 }
 
-static inline bool
+static bool
 args_validate_required(void)
 {
     bool valid = true;
@@ -205,7 +205,7 @@ args_validate_required(void)
     return valid;
 }
 
-static inline void
+static void
 args_print_matrices(void)
 {
     printf("Listing available scoring matrices\n\n");
@@ -219,7 +219,7 @@ args_print_matrices(void)
     printf("\n");
 }
 
-static inline void
+static void
 args_print_usage(const char* program_name)
 {
     printf("Usage: %s [ARGUMENTS]\n\n", program_name);
@@ -315,7 +315,7 @@ args_print_config(void)
     }
 }
 
-static inline void
+static void
 args_parse(int argc, char* argv[])
 {
     int opt;

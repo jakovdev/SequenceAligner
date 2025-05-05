@@ -56,7 +56,7 @@ h5_checksum(void)
     return g_hdf5.checksum;
 }
 
-static inline bool
+static bool
 h5_matrix_buffer_allocate(void)
 {
     size_t matrix_size = g_hdf5.matrix_size;
@@ -73,7 +73,7 @@ h5_matrix_buffer_allocate(void)
     return true;
 }
 
-static inline void
+static void
 h5_matrix_buffer_free(void)
 {
     if (g_hdf5.matrix_buffer.data)
@@ -85,7 +85,7 @@ h5_matrix_buffer_free(void)
     g_hdf5.matrix_buffer.size = 0;
 }
 
-static inline void
+static void
 h5_calculate_chunk_dimensions(void)
 {
     size_t matrix_size = g_hdf5.matrix_size;
@@ -116,7 +116,7 @@ h5_calculate_chunk_dimensions(void)
           matrix_size);
 }
 
-static inline bool
+static bool
 h5_create_file(void)
 {
     if (!g_hdf5.mode_write)
@@ -139,7 +139,7 @@ h5_create_file(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_create_matrix_dataset(void)
 {
     g_hdf5.matrix_dims[0] = g_hdf5.matrix_size;
@@ -185,7 +185,7 @@ h5_create_matrix_dataset(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_create_sequence_group(void)
 {
     hid_t seq_group = H5Gcreate2(g_hdf5.file_id,
@@ -208,7 +208,7 @@ h5_create_sequence_group(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_create_sequence_length_dataset(void)
 {
     g_hdf5.seq_dims[0] = g_hdf5.matrix_size;
@@ -247,7 +247,7 @@ h5_create_sequence_length_dataset(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_setup_file(void)
 {
     if (!g_hdf5.mode_write)
@@ -278,7 +278,7 @@ h5_setup_file(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_initialize_memory(void)
 {
     if (g_hdf5.use_mmap)
@@ -298,7 +298,7 @@ h5_initialize_memory(void)
     }
 }
 
-static inline void
+static void
 h5_cleanup_on_init_failure(void)
 {
     if (g_hdf5.use_mmap)
@@ -377,7 +377,7 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
     return;
 }
 
-static inline bool
+static bool
 h5_flush_mmap_to_hdf5(void)
 {
     size_t matrix_size = g_hdf5.matrix_size;
@@ -503,7 +503,7 @@ h5_flush_mmap_to_hdf5(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_flush_buffer_to_hdf5(void)
 {
     herr_t status = H5Dwrite(g_hdf5.matrix_dataset_id,
@@ -522,7 +522,7 @@ h5_flush_buffer_to_hdf5(void)
     return true;
 }
 
-static inline bool
+static bool
 h5_flush_matrix(void)
 {
     if (!g_hdf5.mode_write || !g_hdf5.is_init)
@@ -594,7 +594,7 @@ h5_set_matrix_value(size_t row, size_t col, int value)
     }
 }
 
-static inline bool
+static bool
 h5_store_sequence_lengths(sequence_t* sequences, size_t seq_count)
 {
     size_t* lengths = MALLOC(lengths, seq_count);
@@ -627,7 +627,7 @@ h5_store_sequence_lengths(sequence_t* sequences, size_t seq_count)
     return true;
 }
 
-static inline bool
+static bool
 h5_store_sequence_batch(sequence_t* sequences,
                         size_t batch_start,
                         size_t batch_end,
@@ -689,7 +689,7 @@ h5_store_sequence_batch(sequence_t* sequences,
     return true;
 }
 
-static inline hid_t
+static hid_t
 h5_create_sequence_dataset(hid_t string_type)
 {
     hid_t seq_space = H5Screate_simple(1, g_hdf5.seq_dims, NULL);
@@ -781,7 +781,7 @@ h5_store_sequences(sequence_t* sequences, size_t seq_count)
     return true;
 }
 
-static inline bool
+static bool
 h5_store_checksum(void)
 {
     if (!g_hdf5.mode_write || g_hdf5.matrix_dataset_id < 0 || g_hdf5.file_id < 0)

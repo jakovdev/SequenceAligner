@@ -149,7 +149,7 @@ sequences_free(void)
     g_sequence_dataset.alignment_count = 0;
 }
 
-static inline void
+static void
 sequence_init(sequence_t* sequence, const char* letters, size_t sequence_length)
 {
     sequence->length = sequence_length;
@@ -162,7 +162,7 @@ sequence_init(sequence_t* sequence, const char* letters, size_t sequence_length)
     }
 }
 
-static inline float
+static float
 similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict seq2, size_t len2)
 {
     if (UNLIKELY(!len1 || !len2))
@@ -334,7 +334,7 @@ sequences_alloc_from_file(char* file_cursor,
     return;
 }
 
-inline void
+void
 sequences_get_pair(size_t first_index,
                    char* restrict* first_sequence_out,
                    size_t* restrict first_length_out,
