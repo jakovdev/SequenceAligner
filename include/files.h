@@ -29,17 +29,6 @@ typedef struct
 #endif
 } MmapMatrix;
 
-static inline const char*
-file_name_path(const char* path)
-{
-#ifdef _WIN32
-    const char* name = strrchr(path, '\\');
-#else
-    const char* name = strrchr(path, '/');
-#endif
-    return name ? name + 1 : path;
-}
-
 static inline void
 file_read(File* file, const char* file_path)
 {

@@ -334,4 +334,15 @@ available_memory(void)
     return available_mem;
 }
 
+static inline const char*
+file_name_path(const char* path)
+{
+#ifdef _WIN32
+    const char* name = strrchr(path, '\\');
+#else
+    const char* name = strrchr(path, '/');
+#endif
+    return name ? name + 1 : path;
+}
+
 #endif // ARCH_H
