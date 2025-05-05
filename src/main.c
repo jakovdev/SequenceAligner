@@ -60,7 +60,10 @@ main(int argc, char* argv[])
     sequence_count = g_sequence_dataset.sequence_count;
     size_t total_alignments = g_sequence_dataset.alignment_count;
 
-    bench_io_add(h5_initialize(sequence_count));
+    bench_io_add(h5_initialize(args_path_output(),
+                               sequence_count,
+                               args_compression_level(),
+                               args_mode_write()));
 
     bench_io_add(h5_store_sequences(g_sequence_dataset.sequences, sequence_count));
 
@@ -75,7 +78,7 @@ main(int argc, char* argv[])
 
     if (!args_mode_write())
     {
-        print(INFO, MSG_NONE, "Matrix checksum: %lld", g_hdf5.checksum);
+        print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_get_checksum());
     }
 
     bench_align_end();
