@@ -84,7 +84,7 @@ main(int argc, char* argv[])
 
     if (!args_mode_write())
     {
-        print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_get_checksum());
+        print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_checksum());
     }
 
     bench_print_align();

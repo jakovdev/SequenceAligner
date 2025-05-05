@@ -54,7 +54,7 @@ h5_set_checksum(int64_t checksum)
 }
 
 int64_t
-h5_get_checksum(void)
+h5_checksum(void)
 {
     return g_hdf5.checksum;
 }
