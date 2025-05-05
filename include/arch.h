@@ -13,8 +13,10 @@
 #define PRAGMA(n) _Pragma(#n)
 #if defined(__clang__)
 #define UNROLL(n) PRAGMA(unroll n)
+#define VECTORIZE PRAGMA(clang loop vectorize(assume_safety))
 #else
 #define UNROLL(n) PRAGMA(GCC unroll n)
+#define VECTORIZE PRAGMA(GCC ivdep)
 #endif
 
 // System and memory-related constants
