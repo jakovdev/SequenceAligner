@@ -1,7 +1,8 @@
-# Suppress make recursive messages
-MAKEFLAGS += --no-print-directory
+# Suppress make recursive messages + use all available CPU cores
+MAKEFLAGS += --no-print-directory -j$(shell nproc)
 
-# Windows specific settings
+# OS specific settings
+OS ?= $(shell uname -s)
 IS_WINDOWS := $(if $(filter Windows_NT,$(OS)),yes,)
 MAKE_CMD := $(if $(IS_WINDOWS), mingw32-make, make)
 
