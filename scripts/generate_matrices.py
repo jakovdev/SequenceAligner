@@ -132,6 +132,7 @@ def format_matrix_as_c_array(matrix):
 def generate_matrix_tables():
     matrix_types = get_available_matrices()
     header_content = [
+        "#pragma once",
         "#ifndef MATRICES_H",
         "#define MATRICES_H",
         "// clang-format off",

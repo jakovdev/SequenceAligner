@@ -1,3 +1,4 @@
+#pragma once
 #ifndef FSTRING_H
 #define FSTRING_H
 

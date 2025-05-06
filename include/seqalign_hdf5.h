@@ -1,3 +1,4 @@
+#pragma once
 #ifndef SEQALIGN_HDF5_H
 #define SEQALIGN_HDF5_H
 

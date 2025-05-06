@@ -1,3 +1,4 @@
+#pragma once
 #ifndef SEQALIGN_H
 #define SEQALIGN_H
 

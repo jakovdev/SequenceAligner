@@ -1,3 +1,4 @@
+#pragma once
 #ifndef MATRICES_H
 #define MATRICES_H
 // clang-format off
