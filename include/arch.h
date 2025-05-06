@@ -2,6 +2,13 @@
 #ifndef ARCH_H
 #define ARCH_H
 
+// Language features
+#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) &&                                  \
+    (!(defined(__APPLE__) || defined(__FreeBSD__)) ||                                              \
+     (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))))
+#define ALIGNED_ALLOC_AVAILABLE
+#endif
+
 // GCC/Clang specific macros
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
@@ -276,18 +283,35 @@ alloc_huge_page(size_t size)
 #ifdef __linux__
     if (size >= HUGE_PAGE_THRESHOLD)
     {
-        ptr = aligned_alloc(HUGE_PAGE_THRESHOLD, size);
+        size_t aligned_size = (size + HUGE_PAGE_THRESHOLD - 1) & ~(HUGE_PAGE_THRESHOLD - 1);
+#ifdef ALIGNED_ALLOC_AVAILABLE
+        ptr = aligned_alloc(HUGE_PAGE_THRESHOLD, aligned_size);
+#else
+        if (posix_memalign(&ptr, HUGE_PAGE_THRESHOLD, aligned_size) != 0)
+        {
+            ptr = NULL;
+        }
+
+#endif
         if (ptr)
         {
             madvise(ptr, size, MADV_HUGEPAGE);
+            return ptr;
         }
     }
 
 #endif
-    if (!ptr)
+
+    size_t aligned_size = (size + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
+#ifdef ALIGNED_ALLOC_AVAILABLE
+    ptr = aligned_alloc(CACHE_LINE, aligned_size);
+#else
+    if (posix_memalign(&ptr, CACHE_LINE, aligned_size) != 0)
     {
-        ptr = aligned_alloc(CACHE_LINE, size);
+        ptr = NULL;
     }
+
+#endif
 
     return ptr;
 }
