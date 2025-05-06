@@ -91,18 +91,23 @@ h5_calculate_chunk_dimensions(void)
     size_t matrix_size = g_hdf5.matrix_size;
     size_t optimal_chunk;
 
-    if (matrix_size <= 1000)
+    if (matrix_size <= H5_MIN_CHUNK_SIZE)
     {
         optimal_chunk = matrix_size;
     }
 
-    else
+    else if (matrix_size <= KiB)
     {
-        double scale_factor = 1.0 - fmin(0.9, log10((double)matrix_size / 1000) * 0.3);
-        optimal_chunk = (size_t)(1000 * scale_factor);
+        optimal_chunk = MIN(matrix_size, H5_MIN_CHUNK_SIZE);
     }
 
-    optimal_chunk = MAX(H5_MIN_CHUNK_SIZE, MIN(optimal_chunk, H5_MAX_CHUNK_SIZE));
+    else
+    {
+        double scale_factor = 1.0 - fmin(0.9, log10((double)matrix_size / KiB) * 0.3);
+        optimal_chunk = (size_t)(KiB * scale_factor);
+        optimal_chunk = MAX(H5_MIN_CHUNK_SIZE, MIN(optimal_chunk, H5_MAX_CHUNK_SIZE));
+        optimal_chunk = MIN(optimal_chunk, matrix_size);
+    }
 
     g_hdf5.chunk_dims[0] = optimal_chunk;
     g_hdf5.chunk_dims[1] = optimal_chunk;
@@ -155,11 +160,15 @@ h5_create_matrix_dataset(void)
     }
 
     hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-    H5Pset_chunk(plist_id, 2, g_hdf5.chunk_dims);
 
-    if (g_hdf5.compression_level > 0)
+    if (g_hdf5.matrix_size > H5_MIN_CHUNK_SIZE)
     {
-        H5Pset_deflate(plist_id, g_hdf5.compression_level);
+        H5Pset_chunk(plist_id, 2, g_hdf5.chunk_dims);
+
+        if (g_hdf5.compression_level > 0)
+        {
+            H5Pset_deflate(plist_id, g_hdf5.compression_level);
+        }
     }
 
     g_hdf5.matrix_dataset_id = H5Dcreate2(g_hdf5.file_id,
@@ -328,7 +337,7 @@ h5_cleanup_on_init_failure(void)
     }
 }
 
-void
+bool
 h5_initialize(const char* fname, size_t matsize, int compression, bool write)
 {
     g_hdf5.matrix_size = matsize;
@@ -343,7 +352,13 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
     if (!g_hdf5.mode_write)
     {
         g_hdf5.is_init = true;
-        return;
+        return true;
+    }
+
+    if (g_hdf5.matrix_size < 1)
+    {
+        print(ERROR, MSG_NONE, "HDF5 | Matrix size is too small");
+        return false;
     }
 
     const size_t bytes_needed = matsize * matsize * sizeof(int);
@@ -354,7 +369,7 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
     if (!h5_initialize_memory())
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to initialize matrix memory");
-        return;
+        return false;
     }
 
     h5_calculate_chunk_dimensions();
@@ -362,7 +377,7 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
     if (!h5_setup_file())
     {
         h5_cleanup_on_init_failure();
-        return;
+        return false;
     }
 
     g_hdf5.is_init = true;
@@ -374,7 +389,7 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
           matsize,
           matsize);
 
-    return;
+    return true;
 }
 
 static bool

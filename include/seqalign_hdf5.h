@@ -8,7 +8,7 @@
 
 #include "sequences.h"
 
-extern void h5_initialize(const char* fname, size_t matsize, int compression, bool write);
+extern bool h5_initialize(const char* fname, size_t matsize, int compression, bool write);
 extern void h5_set_matrix_value(size_t row, size_t col, int value);
 extern void h5_set_checksum(int64_t checksum);
 extern int64_t h5_checksum(void);

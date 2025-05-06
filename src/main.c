@@ -69,7 +69,24 @@ main(int argc, char* argv[])
     size_t total_alignments = sequences_alignment_count();
 
     bench_io_start();
-    h5_initialize(args_path_output(), sequence_count, args_compression_level(), args_mode_write());
+    if (!h5_initialize(args_path_output(),
+                       sequence_count,
+                       args_compression_level(),
+                       args_mode_write()))
+    {
+        print(ERROR, MSG_NONE, "HDF5 | Failed to create file, will use no-write mode");
+        char result[2] = { 0 };
+        print(PROMPT, MSG_INPUT(result, sizeof(result)), "Do you want to continue? [y/N]");
+        if (result[0] != 'y' && result[0] != 'Y')
+        {
+            print(INFO, MSG_LOC(LAST), "Exiting due to file creation failure");
+            return 1;
+        }
+
+        bench_io_start();
+        h5_initialize(NULL, 0, 0, false);
+    }
+
     h5_store_sequences(sequences_get(), sequence_count);
     bench_io_end();
 
