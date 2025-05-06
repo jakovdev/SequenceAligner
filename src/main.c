@@ -75,9 +75,8 @@ main(int argc, char* argv[])
                        args_mode_write()))
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to create file, will use no-write mode");
-        char result[2] = { 0 };
-        print(PROMPT, MSG_INPUT(result, sizeof(result)), "Do you want to continue? [y/N]");
-        if (result[0] != 'y' && result[0] != 'Y')
+
+        if (!print_yN("Do you want to continue? [y/N]"))
         {
             print(INFO, MSG_LOC(LAST), "Exiting due to file creation failure");
             return 1;

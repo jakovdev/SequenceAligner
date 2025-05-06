@@ -92,6 +92,60 @@ extern void print_quiet_flip();
 
 extern print_return_t print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...);
 
+#define PRINT_USER_YES 1
+#define PRINT_USER_NO 0
+
+static inline int
+print_yN(const char* P_RESTRICT prompt)
+{
+    char result[2] = { 0 };
+    print(PROMPT, MSG_INPUT(result, sizeof(result)), prompt);
+    if (result[0] == 'y' || result[0] == 'Y')
+    {
+        return PRINT_USER_YES;
+    }
+
+    else
+    {
+        return PRINT_USER_NO;
+    }
+}
+
+static inline int
+print_Yn(const char* P_RESTRICT prompt)
+{
+    char result[2] = { 0 };
+    print(PROMPT, MSG_INPUT(result, sizeof(result)), prompt);
+    if (result[0] == 'n' || result[0] == 'N')
+    {
+        return PRINT_USER_NO;
+    }
+
+    else
+    {
+        return PRINT_USER_YES;
+    }
+}
+
+static inline int
+print_yn(const char* P_RESTRICT prompt)
+{
+    char result[2] = { 0 };
+repeat:
+    print(PROMPT, MSG_INPUT(result, sizeof(result)), prompt);
+    if (result[0] == 'y' || result[0] == 'Y')
+    {
+        return PRINT_USER_YES;
+    }
+
+    else if (result[0] == 'n' || result[0] == 'N')
+    {
+        return PRINT_USER_NO;
+    }
+
+    goto repeat;
+}
+
 /*
 BASIC USAGE:
 
