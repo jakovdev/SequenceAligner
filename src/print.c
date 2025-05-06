@@ -571,6 +571,15 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         while (choices[++choice_count])
             ;
 
+        if (choice_count < 2)
+        {
+            va_end(args);
+#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
+            print(ERROR, MSG_NONE, "_TO_DEV_ | Not enough choices in choice collection (<2)");
+#endif
+            return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
+        }
+
         int i;
         for (i = 0; i < choice_count; i++)
         {
@@ -692,7 +701,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
-            print(ERROR, MSG_NONE, "_TO_DEV_ | Alias collection should contain 2 or more aliases.");
+            print(ERROR, MSG_NONE, "_TO_DEV_ | Not enough aliases in alias collection (<2)");
 #endif
             return PRINT_ALIAS_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_ALIASES__ERROR;
         }
