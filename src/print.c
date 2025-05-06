@@ -6,17 +6,6 @@
 #include <stdlib.h>
 #include <strings.h>
 
-#if defined(__STDC__) && !defined(__STDC_VERSION__)
-#ifdef _WIN32
-#define snprintf _snprintf
-#define vsnprintf _vsnprintf
-#else
-#pragma message("Warning: Using unsafe sprintf/vsprintf instead of snprintf/vsnprintf")
-#define snprintf sprintf
-#define vsnprintf(a, b, c, d) vsprintf(a, c, d)
-#endif
-#endif
-
 #define TERMINAL_WIDTH 80
 
 #ifdef _WIN32
@@ -688,8 +677,9 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
     else if (type == PROMPT)
     {
-        input_t input = margs.input;
-        if (input.rsz < 2)
+        char* result = margs.input.ret;
+        const int rsz = margs.input.rsz;
+        if (rsz < 2)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
@@ -709,11 +699,11 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         }
 
         fflush(stdout);
-        terminal_read_input(input.ret, input.rsz);
+        terminal_read_input(result, rsz);
 
         if (!simple_format)
         {
-            const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, input.ret);
+            const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, result);
             const size_t p_padding = p_len < available ? available - p_len : 0;
 
             printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);

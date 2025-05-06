@@ -2,14 +2,22 @@
 #ifndef PRINT_H
 #define PRINT_H
 
-#include <stddef.h>
-
 #ifdef __cplusplus
+#if defined(__GNUC__) || defined(__clang__)
+#define P_RESTRICT __restrict__
+#elif defined(_MSC_VER)
 #define P_RESTRICT __restrict
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
-#define P_RESTRICT restrict
 #else
 #define P_RESTRICT
+#endif
+
+#else
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#define P_RESTRICT restrict
+#else
+/* While restrict is optional, snprintf and vsnprintf are required */
+#error "Compiler does not support C99 or later. Please use a compatible compiler."
+#endif
 #endif
 
 typedef enum
@@ -17,26 +25,26 @@ typedef enum
     FIRST,
     MIDDLE,
     LAST,
-} location_t;
+} p_location_t;
 
 typedef struct
 {
     char** chs;
     const int n;
-} choice_t;
+} p_choice_t;
 
 typedef struct
 {
     char* ret;
     const int rsz;
-} input_t;
+} p_input_t;
 
 typedef const union
 {
-    const location_t loc;
+    const p_location_t loc;
     const int percent;
-    const choice_t choice_coll;
-    const input_t input;
+    const p_choice_t choice_coll;
+    const p_input_t input;
 } MSG_ARG;
 
 #define MSG_LOC(location) ((MSG_ARG){ .loc = (location) })
