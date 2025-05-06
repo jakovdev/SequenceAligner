@@ -274,7 +274,6 @@ static struct
         [DNA]      = { COLOR_MAGENTA,     ICON_DNA,     OPTIONAL },
         [PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   OPTIONAL },
         [CHOICE]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
-        [ALIAS]    = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
         [PROMPT]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
         [WARNING]  = { COLOR_YELLOW,      ICON_WARNING, REQUIRED },
         [ERROR]    = { COLOR_RED,         ICON_ERROR,   REQUIRED },
@@ -564,12 +563,9 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
     else if (type == CHOICE)
     {
-        char* const* choices = margs.choices;
-        int choice_count = 0;
+        char** choices = margs.choice_coll.chs;
+        int choice_count = margs.choice_coll.n;
         int selected = 0;
-
-        while (choices[++choice_count])
-            ;
 
         if (choice_count < 2)
         {
@@ -579,6 +575,8 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 #endif
             return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
         }
+
+        choices[choice_count] = NULL;
 
         int i;
         for (i = 0; i < choice_count; i++)
@@ -657,7 +655,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
             {
                 style.flags.content_printed = 1;
                 va_end(args);
-                return selected - 1;
+                return selected - 1 + PRINT_FIRST_CHOICE_INDEX__SUCCESS;
             }
 
             if (simple_format)
@@ -688,110 +686,10 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         } while (1);
     }
 
-    else if (type == ALIAS)
-    {
-        char** const* alias_collections = margs.aliases;
-        int collection_count = 0;
-        int selected = -1;
-
-        while (alias_collections[++collection_count])
-            ;
-
-        if (collection_count < 2)
-        {
-            va_end(args);
-#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
-            print(ERROR, MSG_NONE, "_TO_DEV_ | Not enough aliases in alias collection (<2)");
-#endif
-            return PRINT_ALIAS_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_ALIASES__ERROR;
-        }
-
-        char input_buffer[TERMINAL_WIDTH] = { 0 };
-        const char* w_msg = "Invalid input! Please enter a valid option.";
-        const char* w_color = style.chars.codes[style.map[WARNING].color];
-        const char* w_icon = style.chars.icons[ICON_WARNING];
-
-        do
-        {
-            if (simple_format)
-            {
-                printf("%s: ", buffer);
-            }
-
-            else
-            {
-                printf("%s%s%s %s %s: ", section_color, box_vertical, c_color, c_icon, buffer);
-            }
-
-            fflush(stdout);
-            terminal_read_input(input_buffer, sizeof(input_buffer));
-
-            if (!simple_format)
-            {
-                const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, input_buffer);
-                const size_t p_padding = p_len < available ? available - p_len : 0;
-
-                printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
-            }
-
-            else
-            {
-                printf("\n");
-            }
-
-            int found = 0;
-            int i, j;
-            for (i = 0; i < collection_count && !found; i++)
-            {
-                char* const* aliases = alias_collections[i];
-                for (j = 0; aliases[j] != NULL; j++)
-                {
-                    if (strcasecmp(input_buffer, aliases[j]) == 0)
-                    {
-                        selected = i;
-                        found = 1;
-                        break;
-                    }
-                }
-            }
-
-            if (found)
-            {
-                style.flags.content_printed = 1;
-                va_end(args);
-                return selected;
-            }
-
-            if (simple_format)
-            {
-                printf("%s\n", w_msg);
-            }
-
-            else
-            {
-                const int e_len = snprintf(NULL, 0, "%s %s", w_icon, w_msg);
-
-                const size_t e_padding = available > (size_t)e_len ? available - e_len + 2 : 0;
-
-                printf("%s%s%s %s %s%*s%s%s%s\n",
-                       section_color,
-                       box_vertical,
-                       w_color,
-                       w_icon,
-                       w_msg,
-                       (int)e_padding,
-                       "",
-                       section_color,
-                       box_vertical,
-                       reset_code);
-            }
-        } while (1);
-    }
-
     else if (type == PROMPT)
     {
         input_t input = margs.input;
-        if (input.rsiz < 2)
+        if (input.rsz < 2)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
@@ -811,7 +709,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         }
 
         fflush(stdout);
-        terminal_read_input(input.ret, input.rsiz);
+        terminal_read_input(input.ret, input.rsz);
 
         if (!simple_format)
         {

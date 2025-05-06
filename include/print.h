@@ -21,25 +21,29 @@ typedef enum
 
 typedef struct
 {
+    char** chs;
+    const int n;
+} choice_t;
+
+typedef struct
+{
     char* ret;
-    const size_t rsiz;
+    const int rsz;
 } input_t;
 
 typedef const union
 {
     const location_t loc;
     const int percent;
-    char* const* choices;
-    char** const* aliases;
+    const choice_t choice_coll;
     const input_t input;
 } MSG_ARG;
 
 #define MSG_LOC(location) ((MSG_ARG){ .loc = (location) })
 #define MSG_PROPORTION(proportion) ((MSG_ARG){ .percent = ((int)(proportion * 100)) })
 #define MSG_PERCENT(percentage) ((MSG_ARG){ .percent = ((int)(percentage)) })
-#define MSG_CHOICE(choice_collection) ((MSG_ARG){ .choices = (choice_collection) })
-#define MSG_ALIAS(alias_collection) ((MSG_ARG){ .aliases = (alias_collection) })
-#define MSG_INPUT(result, rbuf_size) ((MSG_ARG){ .input = { .ret = result, .rsiz = rbuf_size } })
+#define MSG_CHOICE(choices, num) ((MSG_ARG){ .choice_coll = { .chs = choices, .n = num } })
+#define MSG_INPUT(result, rbuf_size) ((MSG_ARG){ .input = { .ret = result, .rsz = rbuf_size } })
 #define MSG_NONE MSG_LOC(FIRST)
 
 typedef enum
@@ -54,7 +58,6 @@ typedef enum
     DNA,
     PROGRESS,
     CHOICE,
-    ALIAS,
     PROMPT,
     WARNING,
     ERROR,
@@ -64,14 +67,13 @@ typedef enum
 // Useful for debugging
 typedef enum
 {
+    // All fields are customizable for easier debugging or if checks
     PRINT_SUCCESS = 0,
     PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS = 0,
     PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS = 0,
     PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0, // Editable first choice index
-    PRINT_FIRST_ALIAS_INDEX__SUCCESS = 0,  // Editable first alias index
     PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
     PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
-    PRINT_ALIAS_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_ALIASES__ERROR = -2,
     PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
 } print_return_t;
 

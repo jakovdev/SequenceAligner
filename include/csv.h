@@ -185,19 +185,21 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         }
 
         choices[csv_metadata.num_columns] = "My csv file does not have a header! Do not skip it!";
-        choices[csv_metadata.num_columns + 1] = NULL;
+        size_t choice_num = csv_metadata.num_columns + 1;
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(MIDDLE), "Which column contains your sequences?");
         print(INFO, MSG_LOC(LAST), "Select the header name (this first line will be skipped!):");
 
-        g_sequence_column = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
+        g_sequence_column = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
     }
 
     if (g_sequence_column == csv_metadata.num_columns)
     {
         print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
-        g_sequence_column = print(CHOICE, MSG_CHOICE(csv_metadata.headers), "Enter column number");
+        char** choices = csv_metadata.headers;
+        size_t choice_num = csv_metadata.num_columns;
+        g_sequence_column = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
         g_csv_has_no_header = true;
     }
 
