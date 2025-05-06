@@ -61,10 +61,26 @@ typedef enum
     MSG_TYPE_COUNT
 } message_t;
 
+// Useful for debugging
+typedef enum
+{
+    PRINT_SUCCESS = 0,
+    PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS = 0,
+    PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS = 0,
+    PRINT_FIRST_ALIAS_INDEX__SUCCESS = 0,  // Alias indexes start at 0
+    PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0, // Choice indexes start at 0
+    PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
+    PRINT_ALIAS_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_ALIASES__ERROR = -2,
+    PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
+    PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
+} print_return_t;
+
+#define DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES 0
+
 extern void print_verbose_flip();
 extern void print_quiet_flip();
 
-extern int print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...);
+extern print_return_t print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...);
 
 /*
 BASIC USAGE:

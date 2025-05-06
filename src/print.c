@@ -330,7 +330,7 @@ print_end_section()
     }
 }
 
-int
+print_return_t
 print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 {
     if (!style.flags.is_init)
@@ -344,7 +344,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     const int is_required = style.map[type].requirement == REQUIRED;
     if ((style.flags.quiet && !is_required) || (type == VERBOSE && !style.flags.verbose))
     {
-        return 0;
+        return PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS;
     }
 
     if (!style.flags.section_open && type != HEADER && type != SECTION)
@@ -357,7 +357,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     {
         if (margs.percent == last_percentage)
         {
-            return 0;
+            return PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS;
         }
 
         last_percentage = margs.percent;
@@ -403,7 +403,10 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         if (buflen < 0)
         {
             va_end(args);
-            return -1;
+#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
+            print(ERROR, MSG_NONE, "_TO_DEV_ | Failed to format string");
+#endif
+            return PRINT_INVALID_FORMAT_ARGS__ERROR;
         }
     }
 
@@ -685,6 +688,15 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         while (alias_collections[++collection_count])
             ;
 
+        if (collection_count < 2)
+        {
+            va_end(args);
+#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
+            print(ERROR, MSG_NONE, "_TO_DEV_ | Alias collection should contain 2 or more aliases.");
+#endif
+            return PRINT_ALIAS_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_ALIASES__ERROR;
+        }
+
         char input_buffer[TERMINAL_WIDTH] = { 0 };
         const char* w_msg = "Invalid input! Please enter a valid option.";
         const char* w_color = style.chars.codes[style.map[WARNING].color];
@@ -770,6 +782,14 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     else if (type == PROMPT)
     {
         input_t input = margs.input;
+        if (input.rsiz < 2)
+        {
+            va_end(args);
+#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
+            print(ERROR, MSG_NONE, "_TO_DEV_ | Input buffer size is too small.");
+#endif
+            return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
+        }
 
         if (simple_format)
         {
@@ -841,5 +861,5 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
 cleanup:
     va_end(args);
-    return 0;
+    return PRINT_SUCCESS;
 }
