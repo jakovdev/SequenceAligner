@@ -33,6 +33,11 @@ main(int argc, char* argv[])
         file_read(&input_file, args_path_input());
         bench_io_end();
 
+        if (!input_file.data)
+        {
+            return 1;
+        }
+
         char* file_cursor = input_file.data;
         char* file_end = input_file.data + input_file.size;
         char* file_header_start = csv_header_parse(file_cursor, file_end);

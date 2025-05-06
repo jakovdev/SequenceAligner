@@ -47,7 +47,10 @@ file_read(File* file, const char* file_path)
     if (file->hFile == INVALID_HANDLE_VALUE)
     {
         print(ERROR, MSG_NONE, "FILE | Could not open file '%s'", file_name);
-        exit(1);
+        file->hMapping = NULL;
+        file->data = NULL;
+        file->size = 0;
+        return;
     }
 
     file->hMapping = CreateFileMapping(file->hFile, NULL, PAGE_READONLY, 0, 0, NULL);
@@ -55,7 +58,10 @@ file_read(File* file, const char* file_path)
     {
         print(ERROR, MSG_NONE, "FILE | Could not create file mapping for '%s'", file_name);
         CloseHandle(file->hFile);
-        exit(1);
+        file->hFile = INVALID_HANDLE_VALUE;
+        file->data = NULL;
+        file->size = 0;
+        return;
     }
 
     file->data = (char*)MapViewOfFile(file->hMapping, FILE_MAP_READ, 0, 0, 0);
@@ -64,7 +70,10 @@ file_read(File* file, const char* file_path)
         print(ERROR, MSG_NONE, "FILE | Could not map view of file '%s'", file_name);
         CloseHandle(file->hMapping);
         CloseHandle(file->hFile);
-        exit(1);
+        file->hMapping = NULL;
+        file->hFile = INVALID_HANDLE_VALUE;
+        file->size = 0;
+        return;
     }
 
     LARGE_INTEGER file_size;
@@ -75,7 +84,9 @@ file_read(File* file, const char* file_path)
     if (file->fd == -1)
     {
         print(ERROR, MSG_NONE, "FILE | Could not open input file '%s'", file_name);
-        exit(1);
+        file->data = NULL;
+        file->size = 0;
+        return;
     }
 
     struct stat sb;
@@ -83,7 +94,10 @@ file_read(File* file, const char* file_path)
     {
         print(ERROR, MSG_NONE, "FILE | Could not stat file '%s'", file_name);
         close(file->fd);
-        exit(1);
+        file->fd = -1;
+        file->data = NULL;
+        file->size = 0;
+        return;
     }
 
     file->size = sb.st_size;
@@ -92,7 +106,10 @@ file_read(File* file, const char* file_path)
     {
         print(ERROR, MSG_NONE, "FILE | Could not memory map file '%s'", file_name);
         close(file->fd);
-        exit(1);
+        file->fd = -1;
+        file->data = NULL;
+        file->size = 0;
+        return;
     }
 
     madvise(file->data, file->size, MADV_SEQUENTIAL);
@@ -103,12 +120,33 @@ static inline void
 file_free(File* file)
 {
 #ifdef _WIN32
-    UnmapViewOfFile(file->data);
-    CloseHandle(file->hMapping);
-    CloseHandle(file->hFile);
+    if (file->data)
+    {
+        UnmapViewOfFile(file->data);
+    }
+
+    if (file->hMapping)
+    {
+        CloseHandle(file->hMapping);
+    }
+
+    if (file->hFile)
+    {
+        CloseHandle(file->hFile);
+    }
+
 #else
-    munmap(file->data, file->size);
-    close(file->fd);
+
+    if (file->data)
+    {
+        munmap(file->data, file->size);
+    }
+
+    if (file->fd)
+    {
+        close(file->fd);
+    }
+
 #endif
 }
 
