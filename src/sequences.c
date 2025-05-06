@@ -305,6 +305,12 @@ sequences_alloc_from_file(char* file_cursor,
     free(temp_seq);
 
     size_t sequence_count = sequence_count_current;
+    if (UNLIKELY(sequence_count > UINT32_MAX))
+    {
+        print(ERROR, MSG_LOC(LAST), "Too many sequences: %zu", sequence_count);
+        free(sequences);
+        return;
+    }
 
     if (apply_filtering && filtered_count > 0 && filtered_count >= sequences_total / 4)
     {
