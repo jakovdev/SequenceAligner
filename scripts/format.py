@@ -1,3 +1,26 @@
+# Inserts a newline after closing braces (`}`) in the given file,
+# if the next line does not begin with another closing brace.
+#
+# Usage:
+#   python3 format.py <file_path>
+#
+# Requirements:
+#   - Python 3
+#
+# Example:
+#   python3 format.py myfile.c
+#
+# VS Code (Run on Save)
+# Example `settings.json`:
+# "emeraldwalk.runonsave": {
+#     "commands": [
+#         {
+#             "match": "\\.(?:c|h|cpp|hpp)$",
+#             "cmd": "python3 /path/to/scripts/format.py \"${file}\""
+#         }
+#     ]
+# },
+
 import os
 import sys
 
