@@ -194,7 +194,6 @@ matrix_free(int* matrix, int* stack_matrix)
             prefetch(&gap_x[row_offset + PREFETCH_DISTANCE]);                                      \
             prefetch(&gap_y[row_offset + PREFETCH_DISTANCE]);                                      \
                                                                                                    \
-            int diag_scores[len1 > 64 ? 64 : len1];                                                \
             const int* restrict seq1_idx_data = seq1_indices.data;                                 \
                                                                                                    \
             VECTORIZE for (int j = 1; j <= (int)len1; j++)                                         \
@@ -319,40 +318,6 @@ simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
 }
 
 static inline void
-simd_affine_global_row_init(int* restrict match,
-                            int* restrict gap_x,
-                            int* restrict gap_y,
-                            int len1,
-                            int len2,
-                            int cols,
-                            int gap_start,
-                            int gap_extend)
-{
-    match[0] = 0;
-    gap_x[0] = gap_y[0] = INT_MIN / 2;
-    veci_t int_min_half = set1_epi32(INT_MIN / 2);
-    veci_t gap_start_vec = set1_epi32(gap_start);
-    veci_t gap_extend_vec = set1_epi32(gap_extend);
-
-    // Fill first row
-    for (int j = 1; j <= len1; j++)
-    {
-        gap_x[j] = MAX(match[j - 1] - gap_start, gap_x[j - 1] - gap_extend);
-        match[j] = gap_x[j];
-        gap_y[j] = INT_MIN / 2;
-    }
-
-    // Fill first column
-    for (int i = 1; i <= (int)len2; i++)
-    {
-        int idx = i * cols;
-        gap_y[idx] = MAX(match[idx - cols] - gap_start, gap_y[idx - cols] - gap_extend);
-        match[idx] = gap_y[idx];
-        gap_x[idx] = INT_MIN / 2;
-    }
-}
-
-static inline void
 simd_affine_local_row_init(int* restrict match,
                            int* restrict gap_x,
                            int* restrict gap_y,
@@ -454,36 +419,7 @@ align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const s
     const int gap_start = args_gap_start();
     const int gap_extend = args_gap_extend();
 
-#ifdef USE_SIMD
-    match[0] = 0;
-    gap_x[0] = gap_y[0] = INT_MIN / 2;
-
-    if (len1 >= NUM_ELEMS)
-    {
-        simd_affine_global_row_init(match, gap_x, gap_y, len1, len2, cols, gap_start, gap_extend);
-    }
-
-    else
-    {
-        for (int j = 1; j <= (int)len1; j++)
-        {
-            match[j] = -(gap_start + (j - 1) * gap_extend);
-            gap_x[j] = match[j];
-            gap_y[j] = INT_MIN / 2;
-        }
-    }
-
-    for (int i = 1; i <= (int)len2; i++)
-    {
-        int idx = i * cols;
-        match[idx] = -(gap_start + (i - 1) * gap_extend);
-        gap_y[idx] = match[idx];
-        gap_x[idx] = INT_MIN / 2;
-    }
-
-#else
     INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
-#endif
 
     SeqIndices seq1_indices = { 0 };
     seq_indices_precompute(&seq1_indices, seq1, len1);
