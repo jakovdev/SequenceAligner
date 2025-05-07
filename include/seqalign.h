@@ -107,12 +107,12 @@ matrix_free(int* matrix, int* stack_matrix)
         matrix[0] = 0;                                                                             \
         VECTORIZE UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                   \
         {                                                                                          \
-            matrix[j] = j * (gap_penalty);                                                         \
+            matrix[j] = j * -(gap_penalty);                                                        \
         }                                                                                          \
                                                                                                    \
         VECTORIZE UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                   \
         {                                                                                          \
-            matrix[i * cols] = i * (gap_penalty);                                                  \
+            matrix[i * cols] = i * -(gap_penalty);                                                 \
         }                                                                                          \
     } while (false)
 
@@ -173,8 +173,8 @@ matrix_free(int* matrix, int* stack_matrix)
             {                                                                                      \
                 int match = matrix[prev_row_offset + j - 1] +                                      \
                             SCORING_MATRIX[seq1_indices.data[j - 1]][c2_idx];                      \
-                int del = matrix[prev_row_offset + j] + (gap_penalty);                             \
-                int insert = matrix[row_offset + j - 1] + (gap_penalty);                           \
+                int del = matrix[prev_row_offset + j] - (gap_penalty);                             \
+                int insert = matrix[row_offset + j - 1] - (gap_penalty);                           \
                 matrix[row_offset + j] = match > del ? (match > insert ? match : insert)           \
                                                      : (del > insert ? del : insert);              \
             }                                                                                      \
@@ -294,7 +294,7 @@ static inline void
 simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
 {
     veci_t indices = g_first_row_indices;
-    veci_t gap_penalty_vec = set1_epi32(gap_penalty);
+    veci_t gap_penalty_vec = set1_epi32(-gap_penalty);
 
     for (int j = 1; j <= len1; j += NUM_ELEMS)
     {
@@ -309,7 +309,7 @@ simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
         {
             for (int k = 0; k < remaining; k++)
             {
-                matrix[j + k] = (j + k) * gap_penalty;
+                matrix[j + k] = (j + k) * -(gap_penalty);
             }
         }
 
@@ -365,7 +365,7 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
     int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
     int* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
     const int cols = len1 + 1;
-    const int gap_penalty = -args_gap_penalty();
+    const int gap_penalty = args_gap_penalty();
 
 #ifdef USE_SIMD
     matrix[0] = 0;
@@ -379,13 +379,13 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
     {
         for (int j = 1; j <= (int)len1; j++)
         {
-            matrix[j] = j * gap_penalty;
+            matrix[j] = j * -(gap_penalty);
         }
     }
 
     for (int i = 1; i <= (int)len2; i++)
     {
-        matrix[i * cols] = i * gap_penalty;
+        matrix[i * cols] = i * -(gap_penalty);
     }
 
 #else
