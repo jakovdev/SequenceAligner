@@ -173,8 +173,8 @@ matrix_free(int* matrix, int* stack_matrix)
             {                                                                                      \
                 int match = matrix[prev_row_offset + j - 1] +                                      \
                             SCORING_MATRIX[seq1_indices.data[j - 1]][c2_idx];                      \
-                int del = matrix[prev_row_offset + j] - (gap_penalty);                             \
-                int insert = matrix[row_offset + j - 1] - (gap_penalty);                           \
+                int del = matrix[prev_row_offset + j] + (gap_penalty);                             \
+                int insert = matrix[row_offset + j - 1] + (gap_penalty);                           \
                 matrix[row_offset + j] = match > del ? (match > insert ? match : insert)           \
                                                      : (del > insert ? del : insert);              \
             }                                                                                      \
@@ -407,7 +407,7 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
     int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
     int* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
     const int cols = len1 + 1;
-    const int gap_penalty = args_gap_penalty();
+    const int gap_penalty = -args_gap_penalty();
 
 #ifdef USE_SIMD
     matrix[0] = 0;
