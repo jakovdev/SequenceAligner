@@ -89,6 +89,7 @@ typedef enum
 
 extern void print_verbose_flip();
 extern void print_quiet_flip();
+extern void print_detail_flip();
 
 extern print_return_t print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...);
 

@@ -132,8 +132,9 @@ mingw32-make help
 | `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold |
 | `-B, --benchmark` | Enable benchmarking mode |
 | `-W, --no-write` | Disable writing to output file |
-| `-v, --verbose` | Enable verbose output |
-| `-q, --quiet` | Suppress all non-error output |
+| `-D, --no-detail` | Disable detailed printing |
+| `-v, --verbose` | Enable verbose printing |
+| `-q, --quiet` | Suppress all non-error printing |
 | `-l, --list-matrices` | List all available scoring matrices |
 | `-h, --help` | Display help message |
 

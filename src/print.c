@@ -207,6 +207,7 @@ static struct
     {
         unsigned verbose : 1;
         unsigned quiet : 1;
+        unsigned nodetail : 1;
         unsigned section_open : 1;
         unsigned content_printed : 1;
         unsigned is_init : 1;
@@ -281,6 +282,12 @@ void
 print_quiet_flip()
 {
     style.flags.quiet = !style.flags.quiet;
+}
+
+void
+print_detail_flip()
+{
+    style.flags.nodetail = !style.flags.nodetail;
 }
 
 static void
@@ -365,7 +372,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         }
     }
 
-    const int simple_format = style.flags.quiet && is_required;
+    const int simple_format = style.flags.nodetail || (style.flags.quiet && is_required);
     const icon_t icon_type = style.map[type].icon;
 
     const char* c_icon = style.chars.icons[icon_type];
@@ -385,7 +392,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     va_list args;
     va_start(args, format);
 
-    if (format != NULL)
+    if (format)
     {
         buflen = vsnprintf(buffer, sizeof(buffer), format, args);
         if (buflen < 0)
@@ -400,8 +407,15 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
     if (type == HEADER)
     {
-        if (format == NULL)
+        if (!format)
         {
+            goto cleanup;
+        }
+
+        if (simple_format)
+        {
+            printf("\n%s\n\n", format);
+            style.flags.section_open = 0;
             goto cleanup;
         }
 
@@ -447,27 +461,42 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         /* Close previous section if open */
         if (style.flags.section_open && (format == NULL || style.flags.content_printed))
         {
-            printf("%s%s", section_color, style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_LEFT]);
-            size_t i;
-            for (i = 0; i < style.total_width - 2; i++)
+            if (simple_format)
             {
-                printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
+                printf("\n");
+
+                style.flags.section_open = 0;
+                style.flags.content_printed = 0;
             }
 
-            printf("%s%s\n", style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_RIGHT], reset_code);
-
-            style.flags.section_open = 0;
-            style.flags.content_printed = 0;
-
-            if (format == NULL)
+            else
             {
-                goto cleanup;
+                printf("%s%s", section_color, style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_LEFT]);
+                size_t i;
+                for (i = 0; i < style.total_width - 2; i++)
+                {
+                    printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
+                }
+
+                printf("%s%s\n", style.chars.boxes[BOX_NORMAL][BOX_BOTTOM_RIGHT], reset_code);
+
+                style.flags.section_open = 0;
+                style.flags.content_printed = 0;
             }
         }
 
         /* Open new section */
         if (format)
         {
+            if (simple_format)
+            {
+                printf("%s\n", format);
+
+                style.flags.section_open = 1;
+                style.flags.content_printed = 0;
+                goto cleanup;
+            }
+
             size_t dash_count = (style.total_width - 2 - buflen - 2) / 2;
             const size_t remaining = style.total_width - 2 - dash_count - buflen - 2;
 
@@ -507,6 +536,26 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     {
         const int percent = margs.percent < 0 ? 0 : (margs.percent > 100 ? 100 : margs.percent);
         const int percent_width = percent < 10 ? 1 : (percent < 100 ? 2 : 3);
+
+        if (simple_format)
+        {
+            if (style.flags.section_open)
+            {
+                printf("%s", style.chars.ansi_carriage_return);
+            }
+
+            printf("%s %*d%%", buffer, percent_width, percent);
+
+            if (percent == 100)
+            {
+                printf("\n");
+            }
+
+            fflush(stdout);
+            style.flags.content_printed = 1;
+            goto cleanup;
+        }
+
         const int metadata_width = 2 + 1 + percent_width + 1 + 1;
         const size_t bar_width = available - buflen - metadata_width - 1;
         const size_t filled_width = bar_width * percent / 100;
@@ -519,7 +568,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
         if (style.flags.section_open)
         {
-            printf("%s%s", style.chars.ansi_escape_start, style.chars.ansi_carriage_return);
+            printf("%s", style.chars.ansi_carriage_return);
         }
 
         printf("%s%s%s ", section_color, box_vertical, c_color);

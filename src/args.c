@@ -35,24 +35,31 @@ static struct
         unsigned mode_write : 1;
         unsigned mode_benchmark : 1;
         unsigned mode_filter : 1;
-        unsigned verbose : 1;
         unsigned quiet : 1;
     };
 } g_args = { 0 };
 
-static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWlvqh";
+static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWlvqDh";
 
-static struct option long_options[] = {
-    { "input", required_argument, 0, 'i' },     { "output", required_argument, 0, 'o' },
-    { "align", required_argument, 0, 'a' },     { "type", required_argument, 0, 't' },
-    { "matrix", required_argument, 0, 'm' },    { "gap-penalty", required_argument, 0, 'p' },
-    { "gap-start", required_argument, 0, 's' }, { "gap-extend", required_argument, 0, 'e' },
-    { "threads", required_argument, 0, 'T' },   { "compression", required_argument, 0, 'z' },
-    { "filter", required_argument, 0, 'f' },    { "benchmark", no_argument, 0, 'B' },
-    { "no-write", no_argument, 0, 'W' },        { "verbose", no_argument, 0, 'v' },
-    { "quiet", no_argument, 0, 'q' },           { "help", no_argument, 0, 'h' },
-    { "list-matrices", no_argument, 0, 'l' },   { 0, 0, 0, 0 }
-};
+static struct option long_options[] = { { "input", required_argument, 0, 'i' },
+                                        { "output", required_argument, 0, 'o' },
+                                        { "align", required_argument, 0, 'a' },
+                                        { "type", required_argument, 0, 't' },
+                                        { "matrix", required_argument, 0, 'm' },
+                                        { "gap-penalty", required_argument, 0, 'p' },
+                                        { "gap-start", required_argument, 0, 's' },
+                                        { "gap-extend", required_argument, 0, 'e' },
+                                        { "threads", required_argument, 0, 'T' },
+                                        { "compression", required_argument, 0, 'z' },
+                                        { "filter", required_argument, 0, 'f' },
+                                        { "benchmark", no_argument, 0, 'B' },
+                                        { "no-write", no_argument, 0, 'W' },
+                                        { "no-detail", no_argument, 0, 'D' },
+                                        { "verbose", no_argument, 0, 'v' },
+                                        { "quiet", no_argument, 0, 'q' },
+                                        { "help", no_argument, 0, 'h' },
+                                        { "list-matrices", no_argument, 0, 'l' },
+                                        { 0, 0, 0, 0 } };
 
 #define GETTER(type, name, field)                                                                  \
     type args_##name(void)                                                                         \
@@ -248,8 +255,9 @@ args_print_usage(const char* program_name)
     printf("  -f, --filter THRESHOLD Filter sequences with similarity above threshold\n");
     printf("  -B, --benchmark        Enable benchmarking mode\n");
     printf("  -W, --no-write         Disable writing to output file\n");
-    printf("  -v, --verbose          Enable verbose output\n");
-    printf("  -q, --quiet            Suppress all non-error output\n");
+    printf("  -D, --no-detail        Disable detailed printing\n");
+    printf("  -v, --verbose          Enable verbose printing\n");
+    printf("  -q, --quiet            Suppress all non-error printing\n");
     printf("  -l, --list-matrices    List all available scoring matrices\n");
     printf("  -h, --help             Display this help message\n");
 }
@@ -430,13 +438,16 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 'v':
-                g_args.verbose = 1;
                 print_verbose_flip();
                 break;
 
             case 'q':
                 g_args.quiet = 1;
                 print_quiet_flip();
+                break;
+
+            case 'D':
+                print_detail_flip();
                 break;
 
             case 'l':
