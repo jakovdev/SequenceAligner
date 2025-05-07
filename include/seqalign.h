@@ -124,16 +124,16 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
         UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                             \
         {                                                                                          \
-            match[j] = -(gap_start + (j - 1) * gap_extend);                                        \
-            gap_x[j] = match[j];                                                                   \
+            gap_x[j] = MAX(match[j - 1] - gap_start, gap_x[j - 1] - gap_extend);                   \
+            match[j] = gap_x[j];                                                                   \
             gap_y[j] = INT_MIN / 2;                                                                \
         }                                                                                          \
                                                                                                    \
         UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                             \
         {                                                                                          \
             int idx = i * cols;                                                                    \
-            match[idx] = -(gap_start + (i - 1) * gap_extend);                                      \
-            gap_y[idx] = match[idx];                                                               \
+            gap_y[idx] = MAX(match[idx - cols] - gap_start, gap_y[idx - cols] - gap_extend);       \
+            match[idx] = gap_y[idx];                                                               \
             gap_x[idx] = INT_MIN / 2;                                                              \
         }                                                                                          \
     } while (false)
@@ -320,42 +320,35 @@ simd_linear_row_init(int* restrict matrix, int len1, int gap_penalty)
 
 static inline void
 simd_affine_global_row_init(int* restrict match,
-                            int* gap_x,
-                            int* gap_y,
+                            int* restrict gap_x,
+                            int* restrict gap_y,
                             int len1,
+                            int len2,
+                            int cols,
                             int gap_start,
                             int gap_extend)
 {
-    veci_t indices = g_first_row_indices;
+    match[0] = 0;
+    gap_x[0] = gap_y[0] = INT_MIN / 2;
+    veci_t int_min_half = set1_epi32(INT_MIN / 2);
     veci_t gap_start_vec = set1_epi32(gap_start);
     veci_t gap_extend_vec = set1_epi32(gap_extend);
-    veci_t int_min_half = set1_epi32(INT_MIN / 2);
 
-    for (int j = 1; j <= len1; j += NUM_ELEMS)
+    // Fill first row
+    for (int j = 1; j <= len1; j++)
     {
-        int remaining = len1 + 1 - j;
-        if (remaining >= NUM_ELEMS)
-        {
-            veci_t position_indices = add_epi32(indices, set1_epi32(j - 1));
-            veci_t values = add_epi32(mullo_epi32(position_indices, gap_extend_vec), gap_start_vec);
-            values = sub_epi32(setzero_si(), values);
+        gap_x[j] = MAX(match[j - 1] - gap_start, gap_x[j - 1] - gap_extend);
+        match[j] = gap_x[j];
+        gap_y[j] = INT_MIN / 2;
+    }
 
-            storeu((veci_t*)&match[j], values);
-            storeu((veci_t*)&gap_x[j], values);
-            storeu((veci_t*)&gap_y[j], int_min_half);
-        }
-
-        else
-        {
-            for (int k = 0; k < remaining; k++)
-            {
-                match[j + k] = -(gap_start + (j + k - 1) * gap_extend);
-                gap_x[j + k] = match[j + k];
-                gap_y[j + k] = INT_MIN / 2;
-            }
-        }
-
-        indices = add_epi32(indices, set1_epi32(NUM_ELEMS));
+    // Fill first column
+    for (int i = 1; i <= (int)len2; i++)
+    {
+        int idx = i * cols;
+        gap_y[idx] = MAX(match[idx - cols] - gap_start, gap_y[idx - cols] - gap_extend);
+        match[idx] = gap_y[idx];
+        gap_x[idx] = INT_MIN / 2;
     }
 }
 
@@ -467,7 +460,7 @@ align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const s
 
     if (len1 >= NUM_ELEMS)
     {
-        simd_affine_global_row_init(match, gap_x, gap_y, len1, gap_start, gap_extend);
+        simd_affine_global_row_init(match, gap_x, gap_y, len1, len2, cols, gap_start, gap_extend);
     }
 
     else
