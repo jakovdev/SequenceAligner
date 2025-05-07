@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Creates enlarged dataset by multiplying the original data, used for testing purposes"""
 
 from sys import stdout, platform

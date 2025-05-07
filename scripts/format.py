@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Inserts a newline after closing braces (`}`) in the given file,
 # if the next line does not begin with another closing brace.
 #
