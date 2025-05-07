@@ -246,6 +246,19 @@ mingw32-make help
 - **Gotoh Algorithm**: Global alignment with affine gap penalties
 
 All implementations use dynamic programming with optimized matrix operations.
+
+<details>
+<summary>Parasail python equivalents</summary>
+
+> [!NOTE]
+> - nw in Parasail is actually the Gotoh algorithm with affine gaps
+> - To get actual linear gaps you need to set the `open` and `extend` parameters to the same value
+> - This also applies to the Gotoh algorithm in this project, but you should use nw since it is faster
+- **Needleman-Wunsch**: `parasail.nw(..., open=gap, extend=gap, ...)`
+- **Smith-Waterman**: `parasail.sw()`
+- **Gotoh Algorithm**: `parasail.nw()`
+</details>
+
 </details>
 
 <details>
