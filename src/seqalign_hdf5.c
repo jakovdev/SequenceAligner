@@ -19,9 +19,9 @@ static struct
     hsize_t seq_dims[1];
 
     hid_t file_id;
-    hid_t matrix_dataset_id;
-    hid_t seq_dataset_id;
-    hid_t seq_lengths_dataset_id;
+    hid_t matrix_id;
+    hid_t sequences_id;
+    hid_t lengths_id;
 
     size_t matrix_size;
 
@@ -171,17 +171,17 @@ h5_create_matrix_dataset(void)
         }
     }
 
-    g_hdf5.matrix_dataset_id = H5Dcreate2(g_hdf5.file_id,
-                                          "/similarity_matrix",
-                                          H5T_STD_I32LE,
-                                          matrix_space,
-                                          H5P_DEFAULT,
-                                          plist_id,
-                                          H5P_DEFAULT);
+    g_hdf5.matrix_id = H5Dcreate2(g_hdf5.file_id,
+                                  "/similarity_matrix",
+                                  H5T_STD_I32LE,
+                                  matrix_space,
+                                  H5P_DEFAULT,
+                                  plist_id,
+                                  H5P_DEFAULT);
 
     H5Sclose(matrix_space);
 
-    if (g_hdf5.matrix_dataset_id < 0)
+    if (g_hdf5.matrix_id < 0)
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to create similarity matrix dataset");
         H5Pclose(plist_id);
@@ -206,8 +206,8 @@ h5_create_sequence_group(void)
     if (seq_group < 0)
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to create sequences group");
-        H5Dclose(g_hdf5.matrix_dataset_id);
-        g_hdf5.matrix_dataset_id = -1;
+        H5Dclose(g_hdf5.matrix_id);
+        g_hdf5.matrix_id = -1;
         H5Fclose(g_hdf5.file_id);
         g_hdf5.file_id = -1;
         return false;
@@ -221,33 +221,33 @@ static bool
 h5_create_sequence_length_dataset(void)
 {
     g_hdf5.seq_dims[0] = g_hdf5.matrix_size;
-    hid_t seq_lengths_space = H5Screate_simple(1, g_hdf5.seq_dims, NULL);
+    hid_t lengths_space = H5Screate_simple(1, g_hdf5.seq_dims, NULL);
 
-    if (seq_lengths_space < 0)
+    if (lengths_space < 0)
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to create sequence lengths dataspace");
-        H5Dclose(g_hdf5.matrix_dataset_id);
-        g_hdf5.matrix_dataset_id = -1;
+        H5Dclose(g_hdf5.matrix_id);
+        g_hdf5.matrix_id = -1;
         H5Fclose(g_hdf5.file_id);
         g_hdf5.file_id = -1;
         return false;
     }
 
-    g_hdf5.seq_lengths_dataset_id = H5Dcreate2(g_hdf5.file_id,
-                                               "/sequences/lengths",
-                                               H5T_STD_U64LE,
-                                               seq_lengths_space,
-                                               H5P_DEFAULT,
-                                               H5P_DEFAULT,
-                                               H5P_DEFAULT);
+    g_hdf5.lengths_id = H5Dcreate2(g_hdf5.file_id,
+                                   "/sequences/lengths",
+                                   H5T_STD_U64LE,
+                                   lengths_space,
+                                   H5P_DEFAULT,
+                                   H5P_DEFAULT,
+                                   H5P_DEFAULT);
 
-    H5Sclose(seq_lengths_space);
+    H5Sclose(lengths_space);
 
-    if (g_hdf5.seq_lengths_dataset_id < 0)
+    if (g_hdf5.lengths_id < 0)
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to create sequence lengths dataset");
-        H5Dclose(g_hdf5.matrix_dataset_id);
-        g_hdf5.matrix_dataset_id = -1;
+        H5Dclose(g_hdf5.matrix_id);
+        g_hdf5.matrix_id = -1;
         H5Fclose(g_hdf5.file_id);
         g_hdf5.file_id = -1;
         return false;
@@ -321,14 +321,14 @@ h5_cleanup_on_init_failure(void)
         h5_matrix_buffer_free();
     }
 
-    if (g_hdf5.matrix_dataset_id > 0)
+    if (g_hdf5.matrix_id > 0)
     {
-        H5Dclose(g_hdf5.matrix_dataset_id);
+        H5Dclose(g_hdf5.matrix_id);
     }
 
-    if (g_hdf5.seq_lengths_dataset_id > 0)
+    if (g_hdf5.lengths_id > 0)
     {
-        H5Dclose(g_hdf5.seq_lengths_dataset_id);
+        H5Dclose(g_hdf5.lengths_id);
     }
 
     if (g_hdf5.file_id > 0)
@@ -342,9 +342,9 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
 {
     g_hdf5.matrix_size = matsize;
     g_hdf5.file_id = -1;
-    g_hdf5.matrix_dataset_id = -1;
-    g_hdf5.seq_dataset_id = -1;
-    g_hdf5.seq_lengths_dataset_id = -1;
+    g_hdf5.matrix_id = -1;
+    g_hdf5.sequences_id = -1;
+    g_hdf5.lengths_id = -1;
     g_hdf5.filename = fname;
     g_hdf5.compression_level = compression;
     g_hdf5.mode_write = write;
@@ -433,7 +433,7 @@ h5_flush_mmap_to_hdf5(void)
         print(WARNING, MSG_NONE, "Using minimal buffer size of 1 row (%zu bytes)", row_bytes);
     }
 
-    hid_t file_space = H5Dget_space(g_hdf5.matrix_dataset_id);
+    hid_t file_space = H5Dget_space(g_hdf5.matrix_id);
     if (file_space < 0)
     {
         free(buffer);
@@ -493,7 +493,7 @@ h5_flush_mmap_to_hdf5(void)
             return false;
         }
 
-        herr_t status = H5Dwrite(g_hdf5.matrix_dataset_id,
+        herr_t status = H5Dwrite(g_hdf5.matrix_id,
                                  H5T_NATIVE_INT,
                                  mem_space,
                                  file_space,
@@ -521,7 +521,7 @@ h5_flush_mmap_to_hdf5(void)
 static bool
 h5_flush_buffer_to_hdf5(void)
 {
-    herr_t status = H5Dwrite(g_hdf5.matrix_dataset_id,
+    herr_t status = H5Dwrite(g_hdf5.matrix_id,
                              H5T_NATIVE_INT,
                              H5S_ALL,
                              H5S_ALL,
@@ -545,7 +545,7 @@ h5_flush_matrix(void)
         return true;
     }
 
-    if (g_hdf5.matrix_dataset_id < 0 || (g_hdf5.use_mmap && !g_hdf5.mmap_matrix.data) ||
+    if (g_hdf5.matrix_id < 0 || (g_hdf5.use_mmap && !g_hdf5.mmap_matrix.data) ||
         (!g_hdf5.use_mmap && !g_hdf5.matrix_buffer.data))
     {
         print(ERROR, MSG_NONE, "HDF5 | Cannot flush matrix: memory not properly initialized");
@@ -624,7 +624,7 @@ h5_store_sequence_lengths(sequence_t* sequences, size_t seq_count)
         lengths[i] = sequences[i].length;
     }
 
-    herr_t status = H5Dwrite(g_hdf5.seq_lengths_dataset_id,
+    herr_t status = H5Dwrite(g_hdf5.lengths_id,
                              H5T_NATIVE_ULONG,
                              H5S_ALL,
                              H5S_ALL,
@@ -685,7 +685,7 @@ h5_store_sequence_batch(sequence_t* sequences,
         return false;
     }
 
-    status = H5Dwrite(g_hdf5.seq_dataset_id,
+    status = H5Dwrite(g_hdf5.sequences_id,
                       string_type,
                       batch_mem_space,
                       seq_space,
@@ -716,15 +716,15 @@ h5_create_sequence_dataset(hid_t string_type)
         return -1;
     }
 
-    g_hdf5.seq_dataset_id = H5Dcreate2(g_hdf5.file_id,
-                                       "/sequences/data",
-                                       string_type,
-                                       seq_space,
-                                       H5P_DEFAULT,
-                                       H5P_DEFAULT,
-                                       H5P_DEFAULT);
+    g_hdf5.sequences_id = H5Dcreate2(g_hdf5.file_id,
+                                     "/sequences/data",
+                                     string_type,
+                                     seq_space,
+                                     H5P_DEFAULT,
+                                     H5P_DEFAULT,
+                                     H5P_DEFAULT);
 
-    if (g_hdf5.seq_dataset_id < 0)
+    if (g_hdf5.sequences_id < 0)
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to create sequences dataset");
         H5Sclose(seq_space);
@@ -780,8 +780,8 @@ h5_store_sequences(sequence_t* sequences, size_t seq_count)
         {
             H5Sclose(seq_space);
             H5Tclose(string_type);
-            H5Dclose(g_hdf5.seq_dataset_id);
-            g_hdf5.seq_dataset_id = -1;
+            H5Dclose(g_hdf5.sequences_id);
+            g_hdf5.sequences_id = -1;
             return false;
         }
 
@@ -799,15 +799,15 @@ h5_store_sequences(sequence_t* sequences, size_t seq_count)
 static bool
 h5_store_checksum(void)
 {
-    if (!g_hdf5.mode_write || g_hdf5.matrix_dataset_id < 0 || g_hdf5.file_id < 0)
+    if (!g_hdf5.mode_write || g_hdf5.matrix_id < 0 || g_hdf5.file_id < 0)
     {
         return false;
     }
 
-    htri_t attr_exists = H5Aexists(g_hdf5.matrix_dataset_id, "checksum");
+    htri_t attr_exists = H5Aexists(g_hdf5.matrix_id, "checksum");
     if (attr_exists > 0)
     {
-        H5Adelete(g_hdf5.matrix_dataset_id, "checksum");
+        H5Adelete(g_hdf5.matrix_id, "checksum");
     }
 
     hid_t attr_space = H5Screate(H5S_SCALAR);
@@ -817,7 +817,7 @@ h5_store_checksum(void)
         return false;
     }
 
-    hid_t attr_id = H5Acreate2(g_hdf5.matrix_dataset_id,
+    hid_t attr_id = H5Acreate2(g_hdf5.matrix_id,
                                "checksum",
                                H5T_STD_I64LE,
                                attr_space,
@@ -876,22 +876,22 @@ h5_close(void)
             success = false;
         }
 
-        if (g_hdf5.seq_dataset_id > 0)
+        if (g_hdf5.sequences_id > 0)
         {
-            H5Dclose(g_hdf5.seq_dataset_id);
-            g_hdf5.seq_dataset_id = -1;
+            H5Dclose(g_hdf5.sequences_id);
+            g_hdf5.sequences_id = -1;
         }
 
-        if (g_hdf5.seq_lengths_dataset_id > 0)
+        if (g_hdf5.lengths_id > 0)
         {
-            H5Dclose(g_hdf5.seq_lengths_dataset_id);
-            g_hdf5.seq_lengths_dataset_id = -1;
+            H5Dclose(g_hdf5.lengths_id);
+            g_hdf5.lengths_id = -1;
         }
 
-        if (g_hdf5.matrix_dataset_id > 0)
+        if (g_hdf5.matrix_id > 0)
         {
-            H5Dclose(g_hdf5.matrix_dataset_id);
-            g_hdf5.matrix_dataset_id = -1;
+            H5Dclose(g_hdf5.matrix_id);
+            g_hdf5.matrix_id = -1;
         }
 
         if (g_hdf5.file_id > 0)
