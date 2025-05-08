@@ -79,6 +79,7 @@ main(int argc, char* argv[])
                        args_compression_level(),
                        args_mode_write()))
     {
+        bench_io_end();
         print(ERROR, MSG_NONE, "HDF5 | Failed to create file, will use no-write mode");
 
         if (!print_yN("Do you want to continue? [y/N]"))
@@ -91,7 +92,21 @@ main(int argc, char* argv[])
         h5_initialize(NULL, 0, 0, false);
     }
 
-    h5_store_sequences(sequences_get(), sequence_count);
+    if (!h5_store_sequences(sequences_get(), sequence_count))
+    {
+        bench_io_end();
+        print(ERROR, MSG_NONE, "HDF5 | Failed to store sequences, will use no-write mode");
+
+        if (!print_yN("Do you want to continue? [y/N]"))
+        {
+            print(INFO, MSG_LOC(LAST), "Exiting due to sequence store failure");
+            return 1;
+        }
+
+        bench_io_start();
+        h5_initialize(NULL, 0, 0, false);
+    }
+
     bench_io_end();
 
     print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
