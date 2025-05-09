@@ -1,5 +1,6 @@
 # Suppress make recursive messages + use all available CPU cores
 MAKEFLAGS += --no-print-directory -j$(shell nproc)
+.PHONY: all debug clean help setup update _x86-64 _avx2 _avx512
 
 # OS specific settings
 OS ?= $(shell uname -s)
@@ -56,8 +57,6 @@ DEBUG_BIN := $(BIN_DIR)/seqalign-debug$(BIN_EXT)
 X86_64_BIN := $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
 AVX2_BIN := $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
 AVX512_BIN := $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
-
-.PHONY: all debug clean help setup update _x86-64 _avx2 _avx512
 
 all: CFLAGS := -march=native $(RELEASE_CFLAGS)
 all: check-setup $(BIN_DIR) $(OBJ_DIR) $(RESULTS_DIR) $(MAIN_BIN) $(if $(IS_WINDOWS),check-libraries,)
@@ -189,7 +188,7 @@ help:
 	@echo "  $(MAKE_CMD)              - Build the program"
 	@echo "  $(MAKE_CMD) debug        - Build with debugging information"
 	@echo "  $(MAKE_CMD) clean        - Remove built files"
-	@echo "  $(MAKE_CMD) setup        - Install required tools"
+	@echo "  $(MAKE_CMD) setup        - Check if required tools exist"
 	@echo "  $(MAKE_CMD) update       - Update required tools"
 	@echo "  $(MAKE_CMD) help         - Show this help message"
 	@echo ""
