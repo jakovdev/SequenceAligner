@@ -20,4 +20,4 @@ jobs:
         run: make
       
       - name: Run test
-        run: bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v -q
+        run: bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v -D
