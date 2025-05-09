@@ -4,3 +4,4 @@ results/
 .cache/
 .vscode/
 compile_commands.json
+.clangd
