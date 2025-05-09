@@ -1,11 +1,27 @@
 # Suppress make recursive messages + use all available CPU cores
 MAKEFLAGS += --no-print-directory -j$(shell nproc)
-.PHONY: all debug clean help setup update _x86-64 _avx2 _avx512
+.PHONY: release help clean update setup debug all check-setup check-libraries _x86-64 _avx2 _avx512
 
 # OS specific settings
 OS ?= $(shell uname -s)
 IS_WINDOWS := $(if $(filter Windows_NT,$(OS)),yes,)
 MAKE_CMD := $(if $(IS_WINDOWS), mingw32-make, make)
+.DEFAULT_GOAL := release
+
+help:
+	@echo "==============================================="
+	@echo "                SequenceAligner                "
+	@echo "==============================================="
+	@echo ""
+	@echo "Available commands:"
+	@echo "  $(MAKE_CMD) release      - Build the program"
+	@echo "  $(MAKE_CMD) debug        - Build with debugging information"
+	@echo "  $(MAKE_CMD) clean        - Remove built files"
+	@echo "  $(MAKE_CMD) setup        - Check if required tools exist"
+	@echo "  $(MAKE_CMD) update       - Update required tools"
+	@echo "  $(MAKE_CMD) help         - Show this help message"
+	@echo ""
+	@echo "After building, run the program with: $(MAIN_BIN)"
 
 # TODO: Check if running MSYS2 from windows terminal and replace RM and MKDIR with:
 #RM := $(if $(IS_WINDOWS),powershell -Command "Remove-Item -Force -ErrorAction SilentlyContinue",rm -f)
@@ -13,12 +29,14 @@ MAKE_CMD := $(if $(IS_WINDOWS), mingw32-make, make)
 # or move it to a simple .sh script
 RM := rm -f
 MKDIR := mkdir -p
+check_dir_exists = $(if $(wildcard $1),,$(error Error: $2 directory ($1) not found! Please don't move the Makefile without the required directories))
 
 # Project directories
 BIN_DIR := bin
 META_DIR := .meta
 RESULTS_DIR := results
 SCRIPTS_DIR := scripts
+$(call check_dir_exists,$(SCRIPTS_DIR),Scripts)
 
 # Tracking files
 DLL_COMPLETE := $(META_DIR)/dll_complete
@@ -26,7 +44,9 @@ SETUP_COMPLETE := $(META_DIR)/setup_complete
 
 # GCC directories
 SRC_DIR := src
+$(call check_dir_exists,$(SRC_DIR),Source)
 INCLUDE_DIR := include
+$(call check_dir_exists,$(INCLUDE_DIR),Include)
 OBJ_DIR := $(BIN_DIR)/obj
 
 # GCC files
@@ -58,20 +78,21 @@ X86_64_BIN := $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
 AVX2_BIN := $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
 AVX512_BIN := $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
 
-all: CFLAGS := -march=native $(RELEASE_CFLAGS)
-all: check-setup $(BIN_DIR) $(OBJ_DIR) $(RESULTS_DIR) $(MAIN_BIN) $(if $(IS_WINDOWS),check-libraries,)
+release: CFLAGS := -march=native $(RELEASE_CFLAGS)
+release: $(MAIN_BIN)
+all: release # Only build release since it's probably what the user wants
 
 debug: CFLAGS := -march=native $(DEBUG_CFLAGS)
-debug: check-setup $(BIN_DIR) $(OBJ_DIR) $(RESULTS_DIR) $(DEBUG_BIN) $(if $(IS_WINDOWS),check-libraries,)
+debug: $(DEBUG_BIN)
 
 _x86-64: CFLAGS := -march=x86-64 $(RELEASE_CFLAGS)
-_x86-64: check-setup $(BIN_DIR) $(OBJ_DIR) $(RESULTS_DIR) $(X86_64_BIN) $(if $(IS_WINDOWS),check-libraries,)
+_x86-64: $(X86_64_BIN)
 
 _avx2: CFLAGS := -march=x86-64 -mavx2 $(RELEASE_CFLAGS)
-_avx2: check-setup $(BIN_DIR) $(OBJ_DIR) $(RESULTS_DIR) $(AVX2_BIN) $(if $(IS_WINDOWS),check-libraries,)
+_avx2: $(AVX2_BIN)
 
 _avx512: CFLAGS := -march=x86-64 -mavx512f -mavx512bw $(RELEASE_CFLAGS)
-_avx512: check-setup $(BIN_DIR) $(OBJ_DIR) $(RESULTS_DIR) $(AVX512_BIN) $(if $(IS_WINDOWS),check-libraries,)
+_avx512: $(AVX512_BIN)
 
 # Directories
 $(BIN_DIR):
@@ -108,23 +129,23 @@ $(OBJ_DIR)/%-avx512.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 # GCC build results
-$(MAIN_BIN): $(MAIN_SRC) $(OBJS) $(HEADERS) | check-setup
+$(MAIN_BIN): $(MAIN_SRC) $(OBJS) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
 	@echo "Compiling Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(CLIBS) && echo "Build complete! Run the program with: $@"
 
-$(DEBUG_BIN): $(MAIN_SRC) $(OBJS_DEBUG) $(HEADERS) | check-setup
+$(DEBUG_BIN): $(MAIN_SRC) $(OBJS_DEBUG) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
 	@echo "Compiling Debug Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS_DEBUG) -o $@ $(CLIBS) && echo "Debug build complete! Run the program with: $@"
 
-$(X86_64_BIN): $(MAIN_SRC) $(OBJS_X86_64) $(HEADERS) | check-setup
+$(X86_64_BIN): $(MAIN_SRC) $(OBJS_X86_64) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
 	@echo "Compiling x86-64 Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS_X86_64) -o $@ $(CLIBS) && echo "x86-64 build complete!"
 
-$(AVX2_BIN): $(MAIN_SRC) $(OBJS_AVX2) $(HEADERS) | check-setup
+$(AVX2_BIN): $(MAIN_SRC) $(OBJS_AVX2) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
 	@echo "Compiling AVX2 Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS_AVX2) -o $@ $(CLIBS) && echo "AVX2 build complete!"
 
-$(AVX512_BIN): $(MAIN_SRC) $(OBJS_AVX512) $(HEADERS) | check-setup
+$(AVX512_BIN): $(MAIN_SRC) $(OBJS_AVX512) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
 	@echo "Compiling AVX512 Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS_AVX512) -o $@ $(CLIBS) && echo "AVX512 build complete!"
 
@@ -155,7 +176,7 @@ else
 endif
 	@touch $@
 
-check-setup: $(SETUP_COMPLETE)
+check-setup: $(RESULTS_DIR) $(SETUP_COMPLETE)
 
 setup:
 	@echo "Setting up required tools..."
@@ -178,18 +199,3 @@ ifeq ($(IS_WINDOWS),yes)
 else
 	@echo "Nothing to update on this platform."
 endif
-
-help:
-	@echo "==============================================="
-	@echo "                SequenceAligner                "
-	@echo "==============================================="
-	@echo ""
-	@echo "Available commands:"
-	@echo "  $(MAKE_CMD)              - Build the program"
-	@echo "  $(MAKE_CMD) debug        - Build with debugging information"
-	@echo "  $(MAKE_CMD) clean        - Remove built files"
-	@echo "  $(MAKE_CMD) setup        - Check if required tools exist"
-	@echo "  $(MAKE_CMD) update       - Update required tools"
-	@echo "  $(MAKE_CMD) help         - Show this help message"
-	@echo ""
-	@echo "After building, run the program with: $(MAIN_BIN)"
