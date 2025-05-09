@@ -2,6 +2,106 @@
 #ifndef PRINT_H
 #define PRINT_H
 
+/*
+REQUIRED: C99 or later
+BASIC USAGE:
+
+// Setup box width:
+#define TERMINAL_WIDTH 80
+// Will automatically adjust to this terminal width
+
+// Also available:
+print_quiet_flip(); // Only prints important messages like errors and user prompts
+print_detail_flip(); // Prints the message without the details (box, icon, etc.)
+print_verbose_flip(); // Prints VERBOSE messages
+// You can also freely customize icons, colors, return codes etc. in print.h and print.c.
+
+print(HEADER, MSG_NONE, "Header text");
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                 Header text                                  ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+print(SECTION, MSG_NONE, "Setup");
+┌─────────────────────────────────── Setup ────────────────────────────────────┐
+
+print(SUCCESS, MSG_NONE, "Success text");
+│ ✓ Success text                                                               │
+
+const char* input_file = "input.csv";
+// Automatically formats the string like printf
+print(INFO, MSG_NONE, "Reading input file: %s", input_file);
+│ • Reading input file: input.csv                                              │
+
+print(VERBOSE, MSG_NONE, "Batch size: %zu tasks per batch", optimal_batch_size);
+│ · Batch size: 6163 tasks per batch                                           │
+
+// Multiple related items with indentation hierarchy
+print(CONFIG, MSG_LOC(FIRST), "Input: %s", input_file);
+print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", output_file);
+print(CONFIG, MSG_LOC(LAST), "Compression: %d", compression_level);
+│ ⚙ Input: in.csv                                                              │
+│ ├ Output: out.h5                                                             │
+│ └ Compression: 0                                                             │
+
+// Timing breakdown with hierarchy
+print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
+print(TIMING, MSG_LOC(MIDDLE), "Init: %.3f sec (%.1f%%)", init_time, init_percent);
+print(TIMING, MSG_LOC(MIDDLE), "Compute: %.3f sec (%.1f%%)", compute_time, compute_percent);
+print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", io_time, io_percent);
+print(TIMING, MSG_LOC(LAST), "Total: %.3f sec (%.1f%%)", total_time, total_percent);
+│ ⧗ Timing breakdown:                                                          │
+│ ├ Init: 0.005 sec (7.5%)                                                     │
+│ ├ Compute: 0.044 sec (73.0%)                                                 │
+│ ├ I/O: 0.012 sec (19.4%)                                                     │
+│ └ Total: 0.060 sec (100.0%)                                                  │
+
+print(DNA, MSG_NONE, "Found %d sequences", seq_number);
+│ ◇ Found 1042 sequences                                                       │
+
+// Progress bar display
+for (int i = 0; i < seq_number; i++) {
+    int percentage = (i + 1) * 100 / seq_number;
+    print(PROGRESS, MSG_PERCENT(percentage), "Storing sequences");
+}
+
+// Has quick return for repeating percentages, draws over empty boxes
+│ ▶ Storing sequences [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■] 100% │
+
+// Interactive prompt with choices
+char* choices[] = {"hello", "second"}; // Will auto NULL terminate, but you can also do it manually
+int selected = print(CHOICE, MSG_CHOICE(choices, sizeof(choices)), "Enter column number");
+// This will display:
+│ 1: hello                                                                     │
+│ 2: second                                                                    │
+│ • Enter column number (1-2): 4                                               │
+│ ! Invalid input! Please enter a number between 1 and 2.                      │
+// On valid input, returns the zero-based index of the selected choice
+
+print(WARNING, MSG_NONE, "Warning text");
+│ ! Warning text                                                               │
+
+print(ERROR, MSG_NONE, "Error: File not found");
+│ ✗ Error: File not found                                                      │
+
+// For getting user input
+char result[16] = { 0 };
+print(PROMPT, MSG_INPUT(result, sizeof(result)), "Enter a character: ");
+│ • Enter a character: hello                                                   │
+// result will now contain "hello"
+
+// Quick y/N prompt (also has Y/n and y/n variants)
+int answer = print_yN("Do you want to continue? (y/N): ");
+│ • Do you want to continue? (y/N): y                                          │
+// answer will be 1 (yes) or 0 (no)
+
+// Close section (useful for program exit, otherwise it will be closed automatically)
+print(SECTION, MSG_NONE, NULL);
+└──────────────────────────────────────────────────────────────────────────────┘
+// For starting section with no text
+print(SECTION, MSG_NONE, "");
+┌──────────────────────────────────────────────────────────────────────────────┐
+*/
+
 #ifdef __cplusplus
 #if defined(__GNUC__) || defined(__clang__)
 #define P_RESTRICT __restrict__
@@ -146,82 +246,6 @@ repeat:
 
     goto repeat;
 }
-
-/*
-BASIC USAGE:
-
-print(HEADER, MSG_NONE, "Header text");
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                                 Header text                                  ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-print(SECTION, MSG_NONE, "Setup");
-┌─────────────────────────────────── Setup ────────────────────────────────────┐
-
-print(SUCCESS, MSG_NONE, "Success text");
-│ ✓ Success text                                                               │
-
-const char* input_file = "input.csv";
-print(INFO, MSG_NONE, "Reading input file: %s", input_file);
-│ • Reading input file: input.csv                                              │
-
-print(VERBOSE, MSG_NONE, "Batch size: %zu tasks per batch", optimal_batch_size);
-│ · Batch size: 6163 tasks per batch                                           │
-
-// Multiple related items with indentation hierarchy
-print(CONFIG, MSG_LOC(FIRST), "Input: %s", input_file);
-print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", output_file);
-print(CONFIG, MSG_LOC(LAST), "Compression: %d", compression_level);
-│ ⚙ Input: in.csv                                                              │
-│ ├ Output: out.h5                                                             │
-│ └ Compression: 0                                                             │
-
-// Timing breakdown with hierarchy
-print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
-print(TIMING, MSG_LOC(MIDDLE), "Init: %.3f sec (%.1f%%)", init_time, init_percent);
-print(TIMING, MSG_LOC(MIDDLE), "Compute: %.3f sec (%.1f%%)", compute_time, compute_percent);
-print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", io_time, io_percent);
-print(TIMING, MSG_LOC(LAST), "Total: %.3f sec (%.1f%%)", total_time, total_percent);
-│ ⧗ Timing breakdown:                                                          │
-│ ├ Init: 0.005 sec (7.5%)                                                     │
-│ ├ Compute: 0.044 sec (73.0%)                                                 │
-│ ├ I/O: 0.012 sec (19.4%)                                                     │
-│ └ Total: 0.060 sec (100.0%)                                                  │
-
-print(DNA, MSG_NONE, "Found %d sequences", seq_number);
-│ ◇ Found 1042 sequences                                                       │
-
-// Progress bar display
-for (int i = 0; i < seq_number; i++) {
-    int percentage = (i + 1) * 100 / seq_number;
-    print(PROGRESS, MSG_PERCENT(percentage), "Storing sequences");
-}
-
-│ ▶ Storing sequences [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■] 100% │
-
-// Interactive prompt with choices
-char* choices[] = {"hello", "second", NULL};
-int selected = print(CHOICE, MSG_CHOICE(choices), "Enter column number");
-// This will display:
-│ 1: hello                                                                     │
-│ 2: second                                                                    │
-│ • Enter column number (1-2): 4                                               │
-│ ! Invalid input! Please enter a number between 1 and 2.                      │
-// On valid input, returns the zero-based index of the selected choice
-
-print(WARNING, MSG_NONE, "Warning text");
-│ ! Warning text                                                               │
-
-print(ERROR, MSG_NONE, "Error: File not found");
-│ ✗ Error: File not found                                                      │
-
-// Close section (useful for program exit, otherwise it will be closed automatically)
-print(SECTION, MSG_NONE, NULL);
-└──────────────────────────────────────────────────────────────────────────────┘
-// For starting section with no text
-print(SECTION, MSG_NONE, "");
-┌──────────────────────────────────────────────────────────────────────────────┐
-*/
 
 #undef P_RESTRICT
 #endif /* PRINT_H */
