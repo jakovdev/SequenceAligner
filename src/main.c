@@ -38,10 +38,13 @@ main(int argc, char* argv[])
             return 1;
         }
 
+        bool headerless;
+        int seq_column;
+
         char* file_cursor = input_file.data;
         char* file_end = input_file.data + input_file.size;
-        char* file_header_start = csv_header_parse(file_cursor, file_end);
-        file_cursor = g_csv_has_no_header ? input_file.data : file_header_start;
+        char* file_header_start = csv_header_parse(file_cursor, file_end, &headerless, &seq_column);
+        file_cursor = headerless ? input_file.data : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
         sequence_count = csv_total_lines(file_cursor, file_end);
@@ -55,7 +58,7 @@ main(int argc, char* argv[])
         print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
 
         bench_io_start();
-        sequences_alloc_from_file(file_cursor, file_end, sequence_count, args_filter(), g_column);
+        sequences_alloc_from_file(file_cursor, file_end, sequence_count, args_filter(), seq_column);
         bench_io_end();
     }
 
