@@ -13,6 +13,6 @@ extern void h5_set_matrix_value(size_t row, size_t col, int value);
 extern void h5_set_checksum(int64_t checksum);
 extern int64_t h5_checksum(void);
 extern bool h5_store_sequences(sequence_t* sequences, size_t seq_count);
-extern void h5_close(void);
+extern void h5_close(int skip_flush);
 
 #endif // SEQALIGN_HDF5_H

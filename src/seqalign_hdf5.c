@@ -846,7 +846,7 @@ h5_store_checksum(void)
 }
 
 void
-h5_close(void)
+h5_close(int skip_flush)
 {
     if (!g_hdf5.is_init)
     {
@@ -857,23 +857,26 @@ h5_close(void)
     {
         bool success = true;
 
-        print(SECTION, MSG_NONE, "Finalizing Results");
-        print(INFO,
-              MSG_LOC(FIRST),
-              "Writing results to output file: %s",
-              file_name_path(g_hdf5.filename));
-
-        if (!h5_flush_matrix())
+        if (!skip_flush)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to write matrix data to output file");
-            success = false;
-        }
+            print(SECTION, MSG_NONE, "Finalizing Results");
+            print(INFO,
+                  MSG_LOC(FIRST),
+                  "Writing results to output file: %s",
+                  file_name_path(g_hdf5.filename));
 
-        print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", g_hdf5.checksum);
-        if (!h5_store_checksum())
-        {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to store checksum in output file");
-            success = false;
+            if (!h5_flush_matrix())
+            {
+                print(ERROR, MSG_NONE, "HDF5 | Failed to write matrix data to output file");
+                success = false;
+            }
+
+            print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", g_hdf5.checksum);
+            if (!h5_store_checksum())
+            {
+                print(ERROR, MSG_NONE, "HDF5 | Failed to store checksum in output file");
+                success = false;
+            }
         }
 
         if (g_hdf5.sequences_id > 0)

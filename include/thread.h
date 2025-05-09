@@ -210,6 +210,8 @@ align_singlethreaded(void)
     int64_t local_checksum = 0;
     size_t progress = 0;
 
+    bench_align_start();
+
     UNROLL(8) for (size_t i = 0; i < sequence_count; i++)
     {
         for (size_t j = i + 1; j < sequence_count; j++)
@@ -232,10 +234,12 @@ align_singlethreaded(void)
         }
     }
 
+    bench_align_end();
+
     h5_set_checksum(local_checksum * 2);
 }
 
-static inline void
+static inline bool
 align(void)
 {
     if (args_mode_multithread())
@@ -245,12 +249,10 @@ align(void)
 
     else
     {
-        bench_align_start();
-
         align_singlethreaded();
-
-        bench_align_end();
     }
+
+    return true;
 }
 
 #endif // THREAD_H

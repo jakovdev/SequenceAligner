@@ -85,6 +85,7 @@ main(int argc, char* argv[])
         if (!print_yN("Do you want to continue? [y/N]"))
         {
             print(INFO, MSG_LOC(LAST), "Exiting due to file creation failure");
+            h5_close(1);
             return 1;
         }
 
@@ -100,6 +101,7 @@ main(int argc, char* argv[])
         if (!print_yN("Do you want to continue? [y/N]"))
         {
             print(INFO, MSG_LOC(LAST), "Exiting due to sequence store failure");
+            h5_close(1);
             return 1;
         }
 
@@ -116,7 +118,12 @@ main(int argc, char* argv[])
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
 
-    align();
+    if (!align())
+    {
+        print(ERROR, MSG_NONE, "Failed to perform alignments");
+        h5_close(1);
+        return 1;
+    }
 
     if (!args_mode_write())
     {
@@ -126,7 +133,7 @@ main(int argc, char* argv[])
     bench_print_align();
 
     bench_io_start();
-    h5_close();
+    h5_close(0);
     bench_io_end();
 
     bench_print_io();
