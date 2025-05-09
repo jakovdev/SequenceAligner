@@ -19,7 +19,7 @@ static struct
     int gap_extend;
     int thread_num;
     int compression_level;
-    float filter_threshold;
+    float filter;
 
     struct
     {
@@ -37,7 +37,7 @@ static struct
         unsigned mode_filter : 1;
         unsigned quiet : 1;
     };
-} g_args = { 0 };
+} args = { 0 };
 
 static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWlvqDh";
 
@@ -67,21 +67,21 @@ static struct option long_options[] = { { "input", required_argument, 0, 'i' },
         return field;                                                                              \
     }
 
-GETTER(const char*, path_input, g_args.path_input)
-GETTER(const char*, path_output, g_args.path_output)
-GETTER(int, gap_penalty, g_args.gap_penalty)
-GETTER(int, gap_start, g_args.gap_start)
-GETTER(int, gap_extend, g_args.gap_extend)
-GETTER(int, thread_num, g_args.thread_num)
-GETTER(int, align_method, g_args.method_id)
-GETTER(int, sequence_type, g_args.seq_type)
-GETTER(int, scoring_matrix, g_args.matrix_id)
-GETTER(int, compression_level, g_args.compression_level)
-GETTER(float, filter_threshold, g_args.filter_threshold)
-GETTER(bool, mode_multithread, g_args.mode_multithread)
-GETTER(bool, mode_benchmark, g_args.mode_benchmark)
-GETTER(bool, mode_filter, g_args.mode_filter)
-GETTER(bool, mode_write, g_args.mode_write)
+GETTER(const char*, input, args.path_input)
+GETTER(const char*, output, args.path_output)
+GETTER(int, gap_penalty, args.gap_penalty)
+GETTER(int, gap_start, args.gap_start)
+GETTER(int, gap_extend, args.gap_extend)
+GETTER(int, thread_num, args.thread_num)
+GETTER(int, align_method, args.method_id)
+GETTER(int, sequence_type, args.seq_type)
+GETTER(int, scoring_matrix, args.matrix_id)
+GETTER(int, compression, args.compression_level)
+GETTER(float, filter, args.filter)
+GETTER(bool, mode_multithread, args.mode_multithread)
+GETTER(bool, mode_benchmark, args.mode_benchmark)
+GETTER(bool, mode_filter, args.mode_filter)
+GETTER(bool, mode_write, args.mode_write)
 
 #undef GETTER
 
@@ -143,16 +143,16 @@ args_parse_compression_level(const char* arg)
 static bool
 args_validate_file_input(void)
 {
-    if (!g_args.input_file_set)
+    if (!args.input_file_set)
     {
         print(ERROR, MSG_NONE, "ARGS | Missing parameter: input file (-i, --input)");
         return false;
     }
 
-    FILE* test = fopen(g_args.path_input, "r");
+    FILE* test = fopen(args.path_input, "r");
     if (!test)
     {
-        print(ERROR, MSG_NONE, "ARGS | Cannot open input file: %s", g_args.path_input);
+        print(ERROR, MSG_NONE, "ARGS | Cannot open input file: %s", args.path_input);
         return false;
     }
 
@@ -167,41 +167,41 @@ args_validate_required(void)
 
     valid &= args_validate_file_input();
 
-    if (!g_args.seq_type_set)
+    if (!args.seq_type_set)
     {
         print(ERROR, MSG_NONE, "ARGS | Missing parameter: sequence type (-t, --type)");
         valid = false;
     }
 
-    if (!g_args.method_id_set)
+    if (!args.method_id_set)
     {
         print(ERROR, MSG_NONE, "ARGS | Missing parameter: alignment method (-a, --align)");
         valid = false;
     }
 
-    if (!g_args.matrix_set)
+    if (!args.matrix_set)
     {
         print(ERROR, MSG_NONE, "ARGS | Missing parameter: scoring matrix (-m, --matrix)");
         valid = false;
     }
 
-    if (g_args.method_id_set && g_args.method_id >= 0 && g_args.method_id < ALIGN_COUNT)
+    if (args.method_id_set && args.method_id >= 0 && args.method_id < ALIGN_COUNT)
     {
-        if (alignment_linear(g_args.method_id) && !g_args.gap_penalty_set)
+        if (alignment_linear(args.method_id) && !args.gap_penalty_set)
         {
             print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap penalty (-p, --gap-penalty)");
             valid = false;
         }
 
-        else if (alignment_affine(g_args.method_id))
+        else if (alignment_affine(args.method_id))
         {
-            if (!g_args.gap_start_set)
+            if (!args.gap_start_set)
             {
                 print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap start (-s, --gap-start)");
                 valid = false;
             }
 
-            if (!g_args.gap_extend_set)
+            if (!args.gap_extend_set)
             {
                 print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap extend (-e, --gap-extend)");
                 valid = false;
@@ -265,18 +265,18 @@ args_print_usage(const char* program_name)
 void
 args_print_config(void)
 {
-    if (g_args.quiet)
+    if (args.quiet)
     {
         return;
     }
 
     print(SECTION, MSG_NONE, "Configuration");
 
-    print(CONFIG, MSG_LOC(FIRST), "Input: %s", file_name_path(g_args.path_input));
+    print(CONFIG, MSG_LOC(FIRST), "Input: %s", file_name_path(args.path_input));
 
-    if (g_args.output_file_set)
+    if (args.output_file_set)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", file_name_path(g_args.path_output));
+        print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", file_name_path(args.path_output));
     }
 
     else
@@ -284,40 +284,33 @@ args_print_config(void)
         print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (no output file specified)");
     }
 
-    print(CONFIG, MSG_LOC(MIDDLE), "Method: %s", alignment_name(g_args.method_id));
-    print(CONFIG, MSG_LOC(MIDDLE), "Sequence type: %s", sequence_type_name(g_args.seq_type));
-    print(CONFIG, MSG_LOC(MIDDLE), "Matrix: %s", matrix_id_name(g_args.seq_type, g_args.matrix_id));
+    print(CONFIG, MSG_LOC(MIDDLE), "Method: %s", alignment_name(args.method_id));
+    print(CONFIG, MSG_LOC(MIDDLE), "Sequence type: %s", sequence_type_name(args.seq_type));
+    print(CONFIG, MSG_LOC(MIDDLE), "Matrix: %s", matrix_id_name(args.seq_type, args.matrix_id));
 
-    if (alignment_linear(g_args.method_id) && g_args.gap_penalty_set)
+    if (alignment_linear(args.method_id) && args.gap_penalty_set)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Gap: %d", g_args.gap_penalty);
+        print(CONFIG, MSG_LOC(MIDDLE), "Gap: %d", args.gap_penalty);
     }
 
-    else if (alignment_affine(g_args.method_id) && (g_args.gap_start_set && g_args.gap_extend_set))
+    else if (alignment_affine(args.method_id) && (args.gap_start_set && args.gap_extend_set))
     {
-        print(CONFIG,
-              MSG_LOC(MIDDLE),
-              "Gap open: %d, extend: %d",
-              g_args.gap_start,
-              g_args.gap_extend);
+        print(CONFIG, MSG_LOC(MIDDLE), "Gap open: %d, extend: %d", args.gap_start, args.gap_extend);
     }
 
-    if (g_args.mode_filter)
+    if (args.mode_filter)
     {
-        print(CONFIG,
-              MSG_LOC(MIDDLE),
-              "Filter threshold: %.1f%%",
-              g_args.filter_threshold * 100.0f);
+        print(CONFIG, MSG_LOC(MIDDLE), "Filter threshold: %.1f%%", args.filter * 100.0f);
     }
 
-    if (g_args.mode_write)
+    if (args.mode_write)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Compression: %d", g_args.compression_level);
+        print(CONFIG, MSG_LOC(MIDDLE), "Compression: %d", args.compression_level);
     }
 
-    print(CONFIG, MSG_LOC(LAST), "Threads: %d", g_args.thread_num);
+    print(CONFIG, MSG_LOC(LAST), "Threads: %d", args.thread_num);
 
-    if (g_args.mode_benchmark)
+    if (args.mode_benchmark)
     {
         print(TIMING, MSG_NONE, "Benchmarking mode enabled");
     }
@@ -334,21 +327,21 @@ args_parse(int argc, char* argv[])
         switch (opt)
         {
             case 'i':
-                strncpy(g_args.path_input, optarg, MAX_PATH - 1);
-                g_args.input_file_set = 1;
+                strncpy(args.path_input, optarg, MAX_PATH - 1);
+                args.input_file_set = 1;
                 break;
 
             case 'o':
-                strncpy(g_args.path_output, optarg, MAX_PATH - 1);
-                g_args.output_file_set = 1;
-                g_args.mode_write = 1;
+                strncpy(args.path_output, optarg, MAX_PATH - 1);
+                args.output_file_set = 1;
+                args.mode_write = 1;
                 break;
 
             case 'a':
-                g_args.method_id = alignment_arg(optarg);
-                if (g_args.method_id != PARAM_UNSET)
+                args.method_id = alignment_arg(optarg);
+                if (args.method_id != PARAM_UNSET)
                 {
-                    g_args.method_id_set = 1;
+                    args.method_id_set = 1;
                 }
 
                 else
@@ -359,10 +352,10 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 't':
-                g_args.seq_type = sequence_type_arg(optarg);
-                if (g_args.seq_type != PARAM_UNSET)
+                args.seq_type = sequence_type_arg(optarg);
+                if (args.seq_type != PARAM_UNSET)
                 {
-                    g_args.seq_type_set = 1;
+                    args.seq_type_set = 1;
                 }
 
                 else
@@ -373,16 +366,16 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 'm':
-                if (!g_args.seq_type_set)
+                if (!args.seq_type_set)
                 {
                     print(ERROR, MSG_NONE, "ARGS | Must specify sequence type (-t) before matrix");
                     break;
                 }
 
-                g_args.matrix_id = args_parse_scoring_matrix(optarg, g_args.seq_type);
-                if (g_args.matrix_id != PARAM_UNSET)
+                args.matrix_id = args_parse_scoring_matrix(optarg, args.seq_type);
+                if (args.matrix_id != PARAM_UNSET)
                 {
-                    g_args.matrix_set = 1;
+                    args.matrix_set = 1;
                 }
 
                 else
@@ -393,33 +386,33 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 'p':
-                g_args.gap_penalty = atoi(optarg);
-                g_args.gap_penalty_set = 1;
+                args.gap_penalty = atoi(optarg);
+                args.gap_penalty_set = 1;
                 break;
 
             case 's':
-                g_args.gap_start = atoi(optarg);
-                g_args.gap_start_set = 1;
+                args.gap_start = atoi(optarg);
+                args.gap_start_set = 1;
                 break;
 
             case 'e':
-                g_args.gap_extend = atoi(optarg);
-                g_args.gap_extend_set = 1;
+                args.gap_extend = atoi(optarg);
+                args.gap_extend_set = 1;
                 break;
 
             case 'T':
-                g_args.thread_num = args_parse_thread_num(optarg);
+                args.thread_num = args_parse_thread_num(optarg);
                 break;
 
             case 'z':
-                g_args.compression_level = args_parse_compression_level(optarg);
+                args.compression_level = args_parse_compression_level(optarg);
                 break;
 
             case 'f':
-                g_args.filter_threshold = args_parse_filter_threshold(optarg);
-                if (g_args.filter_threshold >= 0)
+                args.filter = args_parse_filter_threshold(optarg);
+                if (args.filter >= 0.0f)
                 {
-                    g_args.mode_filter = 1;
+                    args.mode_filter = 1;
                 }
 
                 else
@@ -430,11 +423,11 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 'B':
-                g_args.mode_benchmark = 1;
+                args.mode_benchmark = 1;
                 break;
 
             case 'W':
-                g_args.mode_write = 0;
+                args.mode_write = 0;
                 break;
 
             case 'v':
@@ -442,7 +435,7 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 'q':
-                g_args.quiet = 1;
+                args.quiet = 1;
                 print_quiet_flip();
                 break;
 
@@ -465,20 +458,20 @@ args_parse(int argc, char* argv[])
         }
     }
 
-    if (g_args.thread_num == 0)
+    if (args.thread_num == 0)
     {
-        g_args.thread_num = thread_count();
+        args.thread_num = thread_count();
     }
 
-    g_args.mode_multithread = (g_args.thread_num > 1);
+    args.mode_multithread = (args.thread_num > 1);
 }
 
 void
 args_init(int argc, char* argv[])
 {
-    g_args.method_id = PARAM_UNSET;
-    g_args.seq_type = PARAM_UNSET;
-    g_args.matrix_id = PARAM_UNSET;
+    args.method_id = PARAM_UNSET;
+    args.seq_type = PARAM_UNSET;
+    args.matrix_id = PARAM_UNSET;
 
     args_parse(argc, argv);
 

@@ -225,19 +225,11 @@ matrix_free(int* matrix, int* stack_matrix)
         }                                                                                          \
     } while (false)
 
-#define FILL_AFFINE_LOCAL(match,                                                                   \
-                          gap_x,                                                                   \
-                          gap_y,                                                                   \
-                          cols,                                                                    \
-                          gap_start,                                                               \
-                          gap_extend,                                                              \
-                          final_score,                                                             \
-                          max_i,                                                                   \
-                          max_j)                                                                   \
+#define FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, score, max_i, max_j)   \
     do                                                                                             \
     {                                                                                              \
         const int* restrict seq1_idx = seq1_indices.data;                                          \
-        final_score = 0;                                                                           \
+        score = 0;                                                                                 \
         max_i = max_j = 0;                                                                         \
                                                                                                    \
         for (int i = 1; i <= (int)len2; ++i)                                                       \
@@ -278,9 +270,9 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
                 match[row_offset + j] = best;                                                      \
                                                                                                    \
-                if (best > final_score)                                                            \
+                if (best > score)                                                                  \
                 {                                                                                  \
-                    final_score = best;                                                            \
+                    score = best;                                                                  \
                     max_i = i;                                                                     \
                     max_j = j;                                                                     \
                 }                                                                                  \
@@ -466,14 +458,14 @@ align_sw(const char* restrict seq1, const size_t len1, const char* restrict seq2
     SeqIndices seq1_indices = { 0 };
     seq_indices_precompute(&seq1_indices, seq1, len1);
 
-    int final_score = 0;
+    int score = 0;
     UNUSED int max_i = 0, max_j = 0; // For potential traceback
-    FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, final_score, max_i, max_j);
+    FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, score, max_i, max_j);
 
     seq_indices_free(&seq1_indices);
     matrix_free(matrix, stack_matrix);
 
-    return final_score;
+    return score;
 }
 
 static inline int

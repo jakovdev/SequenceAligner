@@ -213,19 +213,16 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 }
 
 void
-sequences_alloc_from_file(char* file_cursor,
-                          char* file_end,
-                          size_t sequences_total,
-                          float filter_threshold,
-                          bool apply_filtering,
-                          int sequence_column)
+sequences_alloc_from_file(char* start, char* end, size_t total, float filter, int col)
 {
     seq_pool_init();
-    sequence_t* sequences = MALLOC(sequences, sequences_total);
+    sequence_t* sequences = MALLOC(sequences, total);
     if (!sequences)
     {
         return;
     }
+
+    bool apply_filtering = filter > 0.0f;
 
     const size_t buffer_margin = 16;
     const size_t buffer_padding = 64;
@@ -237,15 +234,15 @@ sequences_alloc_from_file(char* file_cursor,
     char* temp_seq = NULL;
     size_t temp_seq_capacity = 0;
 
-    while (file_cursor < file_end && *file_cursor)
+    while (start < end && *start)
     {
-        char* line_end = file_cursor;
+        char* line_end = start;
         while (*line_end && *line_end != '\n' && *line_end != '\r')
         {
             line_end++;
         }
 
-        size_t max_line_len = line_end - file_cursor;
+        size_t max_line_len = line_end - start;
 
         if (max_line_len + buffer_margin > temp_seq_capacity)
         {
@@ -263,7 +260,7 @@ sequences_alloc_from_file(char* file_cursor,
             temp_seq_capacity = new_capacity;
         }
 
-        size_t sequence_length = csv_line_column_extract(&file_cursor, temp_seq, sequence_column);
+        size_t sequence_length = csv_line_column_extract(&start, temp_seq, col);
 
         if (!sequence_length)
         {
@@ -281,7 +278,7 @@ sequences_alloc_from_file(char* file_cursor,
                                                        sequences[j].letters,
                                                        sequences[j].length);
 
-                if (similarity >= filter_threshold)
+                if (similarity >= filter)
                 {
                     should_include = false;
                     filtered_count++;
@@ -297,9 +294,9 @@ sequences_alloc_from_file(char* file_cursor,
             sequence_count_current++;
         }
 
-        print(PROGRESS,
-              MSG_PROPORTION((float)(sequence_count_current + filtered_count) / sequences_total),
-              apply_filtering ? "Filtering sequences" : "Loading sequences");
+        int percent = (int)((float)(sequence_count_current + filtered_count) / total * 100.0f);
+        const char* progress_msg = apply_filtering ? "Filtering sequences" : "Loading sequences";
+        print(PROGRESS, MSG_PERCENT(percent), progress_msg);
     }
 
     free(temp_seq);
@@ -312,7 +309,7 @@ sequences_alloc_from_file(char* file_cursor,
         return;
     }
 
-    if (apply_filtering && filtered_count > 0 && filtered_count >= sequences_total / 4)
+    if (apply_filtering && filtered_count > 0 && filtered_count >= total / 4)
     {
         print(VERBOSE, MSG_NONE, "Reallocating memory to save %zu sequence slots", filtered_count);
         sequence_t* _sequences_new = REALLOC(sequences, sequence_count);

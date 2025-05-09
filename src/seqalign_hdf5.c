@@ -13,7 +13,7 @@
 
 static struct
 {
-    char mmap_filename[MAX_PATH];
+    char file_mmap[MAX_PATH];
     hsize_t matrix_dims[2];
     hsize_t chunk_dims[2];
     hsize_t seq_dims[1];
@@ -33,7 +33,7 @@ static struct
 
     MmapMatrix mmap_matrix;
 
-    const char* filename;
+    const char* file_path;
 
     int64_t checksum;
 
@@ -112,13 +112,7 @@ h5_calculate_chunk_dimensions(void)
     g_hdf5.chunk_dims[0] = optimal_chunk;
     g_hdf5.chunk_dims[1] = optimal_chunk;
 
-    print(VERBOSE,
-          MSG_LOC(FIRST),
-          "HDF5 chunk size: %zu x %zu for %zu x %zu matrix",
-          optimal_chunk,
-          optimal_chunk,
-          matrix_size,
-          matrix_size);
+    print(VERBOSE, MSG_LOC(FIRST), "HDF5 chunk size: %zu x %zu", optimal_chunk, optimal_chunk);
 }
 
 static bool
@@ -132,12 +126,12 @@ h5_create_file(void)
     hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
 
-    g_hdf5.file_id = H5Fcreate(g_hdf5.filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+    g_hdf5.file_id = H5Fcreate(g_hdf5.file_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
     H5Pclose(fapl);
 
     if (g_hdf5.file_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create HDF5 file: %s", g_hdf5.filename);
+        print(ERROR, MSG_NONE, "HDF5 | Failed to create HDF5 file: %s", g_hdf5.file_path);
         return false;
     }
 
@@ -292,11 +286,11 @@ h5_initialize_memory(void)
 {
     if (g_hdf5.use_mmap)
     {
-        mmap_matrix_file_name(g_hdf5.mmap_filename, MAX_PATH, g_hdf5.filename);
+        mmap_matrix_file_name(g_hdf5.file_mmap, MAX_PATH, g_hdf5.file_path);
 
         print(INFO, MSG_LOC(FIRST), "Matrix size exceeds RAM threshold, using memory-mapping");
 
-        g_hdf5.mmap_matrix = mmap_matrix_create(g_hdf5.mmap_filename, g_hdf5.matrix_size);
+        g_hdf5.mmap_matrix = mmap_matrix_create(g_hdf5.file_mmap, g_hdf5.matrix_size);
 
         return g_hdf5.mmap_matrix.data != NULL;
     }
@@ -313,7 +307,7 @@ h5_cleanup_on_init_failure(void)
     if (g_hdf5.use_mmap)
     {
         mmap_matrix_close(&g_hdf5.mmap_matrix);
-        remove(g_hdf5.mmap_filename);
+        remove(g_hdf5.file_mmap);
     }
 
     else
@@ -345,7 +339,7 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
     g_hdf5.matrix_id = -1;
     g_hdf5.sequences_id = -1;
     g_hdf5.lengths_id = -1;
-    g_hdf5.filename = fname;
+    g_hdf5.file_path = fname;
     g_hdf5.compression_level = compression;
     g_hdf5.mode_write = write;
 
@@ -382,12 +376,8 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
 
     g_hdf5.is_init = true;
 
-    print(VERBOSE,
-          MSG_LOC(LAST),
-          "%s file created with matrix size: %zu x %zu",
-          g_hdf5.use_mmap ? "Memory-mapped" : "HDF5",
-          matsize,
-          matsize);
+    const char* file_type = g_hdf5.use_mmap ? "Memory-mapped file" : "HDF5 file";
+    print(VERBOSE, MSG_LOC(LAST), "%s has matrix size: %zu x %zu", file_type, matsize, matsize);
 
     return true;
 }
@@ -408,19 +398,13 @@ h5_flush_mmap_to_hdf5(void)
     size_t chunk_size = max_rows < 4 ? 4 : max_rows;
     chunk_size = chunk_size > KiB ? KiB : chunk_size;
 
-    print(VERBOSE,
-          MSG_NONE,
-          "Converting matrix using %zu rows per chunk (%zu MiB buffer)",
-          chunk_size,
-          (chunk_size * row_bytes) / MiB);
+    const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
+    print(VERBOSE, MSG_NONE, "Using %zu rows per chunk (%zu MiB buffer)", chunk_size, buffer_mib);
 
     int* buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
     if (!buffer)
     {
-        print(WARNING,
-              MSG_NONE,
-              "Failed to allocate transfer buffer of %zu bytes",
-              chunk_size * row_bytes);
+        print(WARNING, MSG_NONE, "Failed to allocate buffer of %zu bytes", chunk_size * row_bytes);
 
         chunk_size = 1;
         buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
@@ -860,10 +844,7 @@ h5_close(int skip_flush)
         if (!skip_flush)
         {
             print(SECTION, MSG_NONE, "Finalizing Results");
-            print(INFO,
-                  MSG_LOC(FIRST),
-                  "Writing results to output file: %s",
-                  file_name_path(g_hdf5.filename));
+            print(INFO, MSG_LOC(FIRST), "Writing results to %s", file_name_path(g_hdf5.file_path));
 
             if (!h5_flush_matrix())
             {
@@ -908,21 +889,15 @@ h5_close(int skip_flush)
             mmap_matrix_close(&g_hdf5.mmap_matrix);
             if (success)
             {
-                if (remove(g_hdf5.mmap_filename) != 0)
+                if (remove(g_hdf5.file_mmap) != 0)
                 {
-                    print(WARNING,
-                          MSG_NONE,
-                          "Failed to remove temporary file: %s",
-                          g_hdf5.mmap_filename);
+                    print(WARNING, MSG_NONE, "Failed to remove file: %s", g_hdf5.file_mmap);
                 }
             }
 
             else
             {
-                print(WARNING,
-                      MSG_NONE,
-                      "Keeping temporary file for debugging: %s",
-                      g_hdf5.mmap_filename);
+                print(WARNING, MSG_NONE, "Keeping matrix file for debugging: %s", g_hdf5.file_mmap);
             }
         }
 

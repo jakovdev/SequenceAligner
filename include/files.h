@@ -160,12 +160,9 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     size_t bytes_needed = triangle_elements * sizeof(*matrix.data);
     matrix.file_size = bytes_needed;
     const char* file_name = file_name_path(file_path);
+    const float mmap_size = (float)bytes_needed / (float)GiB;
 
-    print(INFO,
-          MSG_LOC(LAST),
-          "Creating memory-mapped matrix file: %s (%.2f GiB)",
-          file_name,
-          bytes_needed / (float)GiB);
+    print(INFO, MSG_LOC(LAST), "Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
 
 #ifdef _WIN32
     matrix.hFile = CreateFileA(file_path,

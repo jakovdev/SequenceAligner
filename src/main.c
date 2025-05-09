@@ -30,7 +30,7 @@ main(int argc, char* argv[])
         CLEANUP(file_free) File input_file = { 0 };
 
         bench_io_start();
-        file_read(&input_file, args_path_input());
+        file_read(&input_file, args_input());
         bench_io_end();
 
         if (!input_file.data)
@@ -55,12 +55,7 @@ main(int argc, char* argv[])
         print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
 
         bench_io_start();
-        sequences_alloc_from_file(file_cursor,
-                                  file_end,
-                                  sequence_count,
-                                  args_filter_threshold(),
-                                  args_mode_filter(),
-                                  g_sequence_column);
+        sequences_alloc_from_file(file_cursor, file_end, sequence_count, args_filter(), g_column);
         bench_io_end();
     }
 
@@ -74,10 +69,7 @@ main(int argc, char* argv[])
     size_t total_alignments = sequences_alignment_count();
 
     bench_io_start();
-    if (!h5_initialize(args_path_output(),
-                       sequence_count,
-                       args_compression_level(),
-                       args_mode_write()))
+    if (!h5_initialize(args_output(), sequence_count, args_compression(), args_mode_write()))
     {
         bench_io_end();
         print(ERROR, MSG_NONE, "HDF5 | Failed to create file, will use no-write mode");

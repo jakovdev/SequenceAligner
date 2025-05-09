@@ -11,7 +11,7 @@ typedef struct
     char** headers;
 } CsvMetadata;
 
-static int g_sequence_column = -1;
+static int g_column = -1;
 static bool g_csv_has_no_header = false;
 
 static inline void
@@ -173,10 +173,10 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         file_cursor++;
     }
 
-    g_sequence_column = csv_column_sequence(csv_metadata.headers, csv_metadata.num_columns);
+    g_column = csv_column_sequence(csv_metadata.headers, csv_metadata.num_columns);
 
     // If auto-detection failed
-    if (g_sequence_column < 0)
+    if (g_column < 0)
     {
         char** choices = MALLOC(choices, csv_metadata.num_columns + 2);
         for (column = 0; column < csv_metadata.num_columns; column++)
@@ -191,23 +191,20 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end)
         print(INFO, MSG_LOC(MIDDLE), "Which column contains your sequences?");
         print(INFO, MSG_LOC(LAST), "Select the header name (this first line will be skipped!):");
 
-        g_sequence_column = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
+        g_column = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
     }
 
-    if (g_sequence_column == csv_metadata.num_columns)
+    if (g_column == csv_metadata.num_columns)
     {
         print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
         char** choices = csv_metadata.headers;
         size_t choice_num = csv_metadata.num_columns;
-        g_sequence_column = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
+        g_column = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
         g_csv_has_no_header = true;
     }
 
-    print(VERBOSE,
-          MSG_NONE,
-          "Using column %d ('%s') for sequences",
-          g_sequence_column + 1,
-          csv_metadata.headers[g_sequence_column]);
+    const char* sequence_column = csv_metadata.headers[g_column];
+    print(VERBOSE, MSG_NONE, "Using column %d ('%s') for sequences", g_column + 1, sequence_column);
 
     return file_cursor;
 }
