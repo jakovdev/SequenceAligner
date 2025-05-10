@@ -23,19 +23,11 @@ MATRIX_TYPES = {
         "alphabet": AMINO_ACIDS,
         "matrices": [],
         "pattern": r"(blosum\d+|pam\d+)",
-        "id": "SEQ_TYPE_AMINO",
-        "name": "Amino acids",
-        "description": "protein sequences",
-        "aliases": ["amino", "aa", "protein"],
     },
     "nucleotide": {
         "alphabet": NUCLEOTIDES,
         "matrices": [],
         "pattern": r"(dnafull|nuc44)",
-        "id": "SEQ_TYPE_NUCLEOTIDE",
-        "name": "Nucleotides",
-        "description": "DNA/RNA sequences",
-        "aliases": ["nucleotide", "dna", "rna", "nt"],
     },
 }
 
