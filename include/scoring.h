@@ -3,7 +3,7 @@
 #define SCORING_H
 
 #include "arch.h"
-#include "biotypes.h"
+#include "matrices.h"
 
 #include <limits.h>
 

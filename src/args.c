@@ -1,5 +1,6 @@
 #include "arch.h"
 #include "biotypes.h"
+#include "matrices.h"
 #include "print.h"
 
 #include <ctype.h>
