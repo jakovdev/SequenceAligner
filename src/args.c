@@ -464,6 +464,20 @@ args_parse(int argc, char* argv[])
     }
 
     args.mode_multithread = (args.thread_num > 1);
+
+    if (args.method_id == ALIGN_GOTOH_AFFINE && args.gap_start == args.gap_extend)
+    {
+        if (print_Yn("Equal gap penalties detected, switch to Needleman-Wunsch? (Y/n)"))
+        {
+            args.method_id = ALIGN_NEEDLEMAN_WUNSCH;
+            args.gap_penalty = args.gap_start;
+            args.gap_penalty_set = 1;
+            args.gap_start = PARAM_UNSET;
+            args.gap_extend = PARAM_UNSET;
+            args.gap_start_set = 0;
+            args.gap_extend_set = 0;
+        }
+    }
 }
 
 void
