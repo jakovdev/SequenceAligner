@@ -161,7 +161,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
         }
 
         choices[num_columns] = "My csv file does not have a header! Do not skip it!";
-        size_t choice_num = num_columns + 1;
+        int choice_num = num_columns + 1;
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(MIDDLE), "Which column contains your sequences?");
