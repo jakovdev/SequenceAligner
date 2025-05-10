@@ -43,9 +43,9 @@ DLL_COMPLETE := $(META_DIR)/dll_complete
 SETUP_COMPLETE := $(META_DIR)/setup_complete
 
 # GCC directories
-SRC_DIR := src
+SRC_DIR := code/src
 $(call check_dir_exists,$(SRC_DIR),Source)
-INCLUDE_DIR := include
+INCLUDE_DIR := code/include
 $(call check_dir_exists,$(INCLUDE_DIR),Include)
 OBJ_DIR := $(BIN_DIR)/obj
 
