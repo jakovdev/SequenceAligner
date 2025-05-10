@@ -1,8 +1,8 @@
 name: Test for errors
 
 on:
-  schedule:
-    - cron: '0 16 * * *'
+  repository_dispatch:
+    types: [run-daily-workflows]
 
 permissions:
   contents: read

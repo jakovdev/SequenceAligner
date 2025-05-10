@@ -12,8 +12,8 @@
 name: "CodeQL Advanced"
 
 on:
-  schedule:
-    - cron: '0 16 * * *'
+  repository_dispatch:
+    types: [run-daily-workflows]
 
 jobs:
   analyze:

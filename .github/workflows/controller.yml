@@ -1,0 +1,47 @@
+name: Controller
+
+on:
+  schedule:
+    - cron: '0 16 * * *'  # Run daily at 16:00 UTC
+
+jobs:
+  check-for-commits:
+    runs-on: ubuntu-latest
+    outputs:
+      has_new_commits: ${{ steps.check_commits.outputs.has_new_commits }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Check for new commits
+        id: check_commits
+        run: |
+          # Get the date 24 hours ago in ISO format
+          SINCE_DATE=$(date --date='24 hours ago' --utc +'%Y-%m-%dT%H:%M:%SZ')
+          echo "Checking for commits since $SINCE_DATE"
+          
+          # Count commits since 24 hours ago
+          COMMIT_COUNT=$(git log --since="$SINCE_DATE" --format="%H" | wc -l)
+          echo "Found $COMMIT_COUNT new commits"
+          
+          # Set output variable to true if there are new commits
+          if [ $COMMIT_COUNT -gt 0 ]; then
+            echo "has_new_commits=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_commits=false" >> $GITHUB_OUTPUT
+          fi
+
+  trigger-workflows:
+    needs: check-for-commits
+    if: ${{ needs.check-for-commits.outputs.has_new_commits == 'true' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger daily workflows
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.WORKFLOW_DISPATCH_TOKEN }}
+          event-type: run-daily-workflows
