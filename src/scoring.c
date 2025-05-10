@@ -1,5 +1,6 @@
 #include "scoring.h"
 #include "args.h"
+#include "biotypes.h"
 
 #include <string.h>
 
