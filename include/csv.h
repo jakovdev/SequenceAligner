@@ -180,7 +180,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
     }
 
     const char* sequence_column = headers[*seq_col];
-    print(VERBOSE, MSG_NONE, "Using column %d ('%s') for sequences", seq_col + 1, sequence_column);
+    print(VERBOSE, MSG_NONE, "Using column %d ('%s') for sequences", *seq_col + 1, sequence_column);
 
     if (headers)
     {
