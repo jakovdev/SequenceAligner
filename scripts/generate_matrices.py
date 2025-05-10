@@ -9,9 +9,11 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 if os.path.exists("scripts/generate_matrices.py"):
-    OUTPUT_FILE = "include/matrices.h"
+    HEADER_FILE = "include/matrices.h"
+    SOURCE_FILE = "src/matrices.c"
 else:
-    OUTPUT_FILE = "../include/matrices.h"
+    HEADER_FILE = "../include/matrices.h"
+    SOURCE_FILE = "../src/matrices.c"
 
 AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYV"
 NUCLEOTIDES = "ACGT"
@@ -130,8 +132,7 @@ def format_matrix_as_c_array(matrix):
     return "{\n" + "\n".join(formatted_rows) + "\n    }"
 
 
-def generate_matrix_tables():
-    matrix_types = get_available_matrices()
+def generate_header_file(matrix_types):
     header_content = [
         "#pragma once",
         "#ifndef MATRICES_H",
@@ -144,84 +145,146 @@ def generate_matrix_tables():
         if not type_info["matrices"]:
             continue
 
-        alphabet = type_info["alphabet"]
         alphabet_name = type_name.upper()
-        header_content.extend(
-            [
-                f'static const char {alphabet_name}_ALPHABET[] = "{alphabet}";',
-                f"#define {alphabet_name}_SIZE {len(alphabet)}",
-                "",
-            ]
+        header_content.append(
+            f"#define {alphabet_name}_SIZE {len(type_info['alphabet'])}"
         )
+        header_content.append(f"extern const char {alphabet_name}_ALPHABET[];")
+        header_content.append("")
+
+    max_dim = 0
+    max_dim_name = ""
+    for type_name, type_info in matrix_types.items():
+        if not type_info["matrices"]:
+            continue
+
+        dim_size = len(type_info["alphabet"])
+        if dim_size > max_dim:
+            max_dim = dim_size
+            max_dim_name = f"{type_name.upper()}_SIZE"
+
+    header_content.append(f"#define MAX_MATRIX_DIM {max_dim_name}")
+    header_content.append("")
 
     for type_name, type_info in matrix_types.items():
         if not type_info["matrices"]:
             continue
 
         alphabet_name = type_name.upper()
-        type_info["matrices"].sort()
-
         header_content.append(
             f"#define NUM_{alphabet_name}_MATRICES {len(type_info['matrices'])}"
         )
+    header_content.append("")
 
+    for type_name, type_info in matrix_types.items():
+        if not type_info["matrices"]:
+            continue
+
+        alphabet_name = type_name.upper()
         header_content.extend(
             [
-                "",
-                f"typedef struct {{",
-                f"    const char* name;",
+                f"typedef struct",
+                "{",
+                "    const char* name;",
                 f"    const int (*matrix)[{alphabet_name}_SIZE];",
                 f"}} {type_name.capitalize()}Matrix;",
                 "",
             ]
         )
 
-        header_content.append(f"// {type_name.capitalize()} matrix identifiers")
-        header_content.append(f"typedef enum {{")
-        for i, (name, _) in enumerate(type_info["matrices"]):
-            header_content.append(f"    {name}_ID = {i},")
-        header_content.append(f"}} {type_name.capitalize()}MatrixID;")
-        header_content.append("")
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet_name = type_name.upper()
-        header_content.append(f"// {type_name.capitalize()} matrices")
-
-        for name, matrix_obj in type_info["matrices"]:
-            header_content.append(
-                f"static const int {name}[{alphabet_name}_SIZE][{alphabet_name}_SIZE] = {format_matrix_as_c_array(matrix_obj)};"
-            )
-            header_content.append("")
-
     for type_name, type_info in matrix_types.items():
         if not type_info["matrices"]:
             continue
 
         alphabet_name = type_name.upper()
         header_content.append(
-            f"static const {type_name.capitalize()}Matrix ALL_{alphabet_name}_MATRICES[NUM_{alphabet_name}_MATRICES] = {{"
+            f"extern const {type_name.capitalize()}Matrix ALL_{alphabet_name}_MATRICES[NUM_{alphabet_name}_MATRICES];"
         )
-        for name, _ in type_info["matrices"]:
-            header_content.append(f'    {{"{name}", {name}}},')
-        header_content.append("};")
-        header_content.append("")
 
+    header_content.append("")
     header_content.append("// clang-format on")
     header_content.append("#endif // MATRICES_H")
     return "\n".join(header_content)
 
 
-def create_matrices_header():
-    header_content = generate_matrix_tables()
+def generate_source_file(matrix_types):
+    source_content = [
+        "// clang-format off",
+        '#include "matrices.h"',
+        "",
+    ]
 
-    os.makedirs(os.path.dirname(os.path.abspath(OUTPUT_FILE)), exist_ok=True)
-    with open(OUTPUT_FILE, "w") as f:
+    for type_name, type_info in matrix_types.items():
+        if not type_info["matrices"]:
+            continue
+
+        alphabet = type_info["alphabet"]
+        alphabet_name = type_name.upper()
+        source_content.extend(
+            [
+                f'const char {alphabet_name}_ALPHABET[] = "{alphabet}";',
+                "",
+            ]
+        )
+
+    for type_name, type_info in matrix_types.items():
+        if not type_info["matrices"]:
+            continue
+
+        source_content.append(f"// {type_name.capitalize()} matrix identifiers")
+        source_content.append(f"typedef enum")
+        source_content.append("{")
+        for i, (name, _) in enumerate(type_info["matrices"]):
+            source_content.append(f"    {name}_ID = {i},")
+        source_content.append(f"}} {type_name.capitalize()}MatrixID;")
+        source_content.append("")
+
+    for type_name, type_info in matrix_types.items():
+        if not type_info["matrices"]:
+            continue
+
+        alphabet_name = type_name.upper()
+        source_content.append(f"// {type_name.capitalize()} matrices")
+
+        for name, matrix_obj in type_info["matrices"]:
+            source_content.append(
+                f"static const int {name}[{alphabet_name}_SIZE][{alphabet_name}_SIZE] = {format_matrix_as_c_array(matrix_obj)};"
+            )
+            source_content.append("")
+
+    for type_name, type_info in matrix_types.items():
+        if not type_info["matrices"]:
+            continue
+
+        alphabet_name = type_name.upper()
+        source_content.append(
+            f"const {type_name.capitalize()}Matrix ALL_{alphabet_name}_MATRICES[NUM_{alphabet_name}_MATRICES] = {{"
+        )
+        for name, _ in type_info["matrices"]:
+            source_content.append(f'    {{"{name}", {name}}},')
+        source_content.append("};")
+        source_content.append("")
+
+    source_content.append("// clang-format on")
+    return "\n".join(source_content)
+
+
+def create_matrices_files():
+    matrix_types = get_available_matrices()
+
+    header_content = generate_header_file(matrix_types)
+    source_content = generate_source_file(matrix_types)
+
+    os.makedirs(os.path.dirname(os.path.abspath(HEADER_FILE)), exist_ok=True)
+    os.makedirs(os.path.dirname(os.path.abspath(SOURCE_FILE)), exist_ok=True)
+
+    with open(HEADER_FILE, "w") as f:
         f.write(header_content)
 
-    logger.info(f"Generated {OUTPUT_FILE}")
+    with open(SOURCE_FILE, "w") as f:
+        f.write(source_content)
+
+    logger.info(f"Generated {HEADER_FILE} and {SOURCE_FILE}")
 
     for type_name, type_info in MATRIX_TYPES.items():
         if type_info["matrices"]:
@@ -232,4 +295,4 @@ def create_matrices_header():
 
 
 if __name__ == "__main__":
-    create_matrices_header()
+    create_matrices_files()
