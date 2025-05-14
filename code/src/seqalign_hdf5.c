@@ -438,9 +438,9 @@ h5_flush_mmap_to_hdf5(void)
 
         for (size_t i = start_row; i < end_row; i++)
         {
-            for (size_t j = i; j < matrix_size; j++)
+            for (size_t j = i + 1; j < matrix_size; j++)
             {
-                size_t idx = mmap_triangle_index(i, j, matrix_size);
+                size_t idx = mmap_triangle_index(i, j);
                 int value = g_hdf5.mmap_matrix.data[idx];
                 buffer[(i - start_row) * matrix_size + j] = value;
             }
@@ -455,7 +455,7 @@ h5_flush_mmap_to_hdf5(void)
 
                 else
                 {
-                    size_t idx = mmap_triangle_index(j, i, matrix_size);
+                    size_t idx = mmap_triangle_index(j, i);
                     int value = g_hdf5.mmap_matrix.data[idx];
                     buffer[(i - start_row) * matrix_size + j] = value;
                 }
