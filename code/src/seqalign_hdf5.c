@@ -845,17 +845,16 @@ h5_close(int skip_flush)
         {
             print(SECTION, MSG_NONE, "Finalizing Results");
             print(INFO, MSG_LOC(FIRST), "Writing results to %s", file_name_path(g_hdf5.file_path));
-
-            if (!h5_flush_matrix())
-            {
-                print(ERROR, MSG_NONE, "HDF5 | Failed to write matrix data to output file");
-                success = false;
-            }
-
             print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", g_hdf5.checksum);
             if (!h5_store_checksum())
             {
                 print(ERROR, MSG_NONE, "HDF5 | Failed to store checksum in output file");
+                success = false;
+            }
+
+            if (!h5_flush_matrix())
+            {
+                print(ERROR, MSG_NONE, "HDF5 | Failed to write matrix data to output file");
                 success = false;
             }
         }
