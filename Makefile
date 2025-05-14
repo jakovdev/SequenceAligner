@@ -67,7 +67,7 @@ RELEASE_CFLAGS := $(BASE_CFLAGS) -O3 -ffast-math -flto -fomit-frame-pointer "-Wl
 DEBUG_CFLAGS := $(BASE_CFLAGS) -g -O0 -Wall -Wextra -Werror -Wshadow -Wconversion -Wmissing-declarations -pedantic -fstack-protector-strong -fsanitize=address
 # GCC libraries
 HDF5_CLIBS := $(if $(IS_WINDOWS),-L/ucrt64/lib -lhdf5 -lz,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | tail -n 1))
-CLIBS := -lm $(HDF5_CLIBS) $(if $(IS_WINDOWS),-lShlwapi,)
+CLIBS := $(HDF5_CLIBS) $(if $(IS_WINDOWS),-lShlwapi,)
 
 # GCC build results
 CC := gcc
