@@ -156,7 +156,7 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     MmapMatrix matrix = { 0 };
     matrix.matrix_size = matrix_size;
 
-    size_t triangle_elements = (matrix_size * (matrix_size + 1)) / 2;
+    size_t triangle_elements = (matrix_size * (matrix_size - 1)) / 2;
     size_t bytes_needed = triangle_elements * sizeof(*matrix.data);
     matrix.file_size = bytes_needed;
     const char* file_name = file_name_path(file_path);
@@ -289,9 +289,57 @@ mmap_matrix_close(MmapMatrix* matrix)
 }
 
 static inline size_t
-mmap_triangle_index(size_t row, size_t col, size_t matrix_size)
+mmap_triangle_index(size_t row, size_t col)
 {
-    return (row * matrix_size - (row * (row + 1)) / 2) + col - row;
+    if (row > col)
+    {
+        size_t temp = row;
+        row = col;
+        col = temp;
+    }
+
+    if (row == col)
+    {
+        return 0;
+    }
+
+    size_t row_offset = (row * (row - 1)) / 2;
+    return row_offset + (col - row - 1);
+}
+
+static inline void
+mmap_triangle_element(size_t index, size_t n, size_t* restrict row_out, size_t* restrict col_out)
+{
+    size_t row = 0;
+    size_t low = 0, high = n - 1;
+
+    while (low <= high)
+    {
+        size_t mid = (low + high) / 2;
+        size_t row_start = (mid * (mid - 1)) / 2;
+
+        if (row_start <= index)
+        {
+            if (mid + 1 >= n || (((mid + 1) * mid) / 2) > index)
+            {
+                row = mid;
+                break;
+            }
+
+            low = mid + 1;
+        }
+
+        else
+        {
+            high = mid - 1;
+        }
+    }
+
+    size_t row_start = (row * (row - 1)) / 2;
+    size_t col = index - row_start + row + 1;
+
+    *row_out = row;
+    *col_out = col;
 }
 
 static inline void
@@ -302,7 +350,19 @@ mmap_matrix_set_value(MmapMatrix* matrix, size_t row, size_t col, int value)
         return;
     }
 
-    size_t index = mmap_triangle_index(row, col, matrix->matrix_size);
+    if (row == col)
+    {
+        return;
+    }
+
+    if (row > col)
+    {
+        size_t temp = row;
+        row = col;
+        col = temp;
+    }
+
+    size_t index = mmap_triangle_index(row, col);
     matrix->data[index] = value;
 }
 
