@@ -6,10 +6,9 @@
 #include "sequences.h"
 
 #include <hdf5.h>
-#include <math.h>
 
-#define H5_MIN_CHUNK_SIZE 128
-#define H5_MAX_CHUNK_SIZE 1024
+#define H5_MIN_CHUNK_SIZE 1 * KiB / 8
+#define H5_MAX_CHUNK_SIZE 4 * KiB
 #define H5_SEQUENCE_BATCH_SIZE 5000
 
 static struct
@@ -97,17 +96,47 @@ h5_calculate_chunk_dimensions(void)
         optimal_chunk = matrix_size;
     }
 
-    else if (matrix_size <= KiB)
+    else if (matrix_size > 10 * KiB)
     {
-        optimal_chunk = MIN(matrix_size, H5_MIN_CHUNK_SIZE);
+        size_t target_chunks = matrix_size > 50 * KiB ? 16 : 32;
+        optimal_chunk = matrix_size / target_chunks;
+
+        optimal_chunk = ((optimal_chunk + 63) / 128) * 128;
+
+        if (optimal_chunk < H5_MIN_CHUNK_SIZE)
+        {
+            optimal_chunk = H5_MIN_CHUNK_SIZE;
+        }
+
+        else if (optimal_chunk > H5_MAX_CHUNK_SIZE)
+        {
+            optimal_chunk = H5_MAX_CHUNK_SIZE;
+        }
     }
 
     else
     {
-        double scale_factor = 1.0 - fmin(0.9, log10((double)matrix_size / KiB) * 0.3);
-        optimal_chunk = (size_t)(KiB * scale_factor);
-        optimal_chunk = MAX(H5_MIN_CHUNK_SIZE, MIN(optimal_chunk, H5_MAX_CHUNK_SIZE));
-        optimal_chunk = MIN(optimal_chunk, matrix_size);
+        size_t chunk_candidates[] = { 128, 256, 512, 1024, 2048, 4096 };
+        size_t num_candidates = sizeof(chunk_candidates) / sizeof(*chunk_candidates);
+
+        optimal_chunk = H5_MIN_CHUNK_SIZE;
+
+        for (size_t i = 0; i < num_candidates; i++)
+        {
+            size_t candidate = chunk_candidates[i];
+
+            if (candidate > H5_MAX_CHUNK_SIZE || candidate > matrix_size)
+            {
+                break;
+            }
+
+            optimal_chunk = candidate;
+
+            if (candidate * 8 >= matrix_size)
+            {
+                break;
+            }
+        }
     }
 
     g_hdf5.chunk_dims[0] = optimal_chunk;
