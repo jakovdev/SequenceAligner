@@ -244,7 +244,7 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     };
 
     bool is_zeroed = true;
-    for (size_t i = 0; i < (sizeof(check_indices) / sizeof(check_indices[0])); i++)
+    for (size_t i = 0; i < (sizeof(check_indices) / sizeof(*check_indices)); i++)
     {
         if (matrix.data[check_indices[i]] != 0)
         {
