@@ -58,7 +58,7 @@ csv_column_sequence(char** headers, size_t num_cols)
     const char* seq_keywords[] = { "sequence", "seq",   "protein", "dna",
                                    "rna",      "amino", "peptide", "chain" };
 
-    const size_t num_keywords = sizeof(seq_keywords) / sizeof(seq_keywords[0]);
+    const size_t num_keywords = sizeof(seq_keywords) / sizeof(*seq_keywords);
 
     // First pass: exact match for sequence column
     for (size_t column = 0; column < num_cols; column++)

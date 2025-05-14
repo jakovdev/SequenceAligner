@@ -60,7 +60,7 @@ static bool
 h5_matrix_buffer_allocate(void)
 {
     size_t matrix_size = g_hdf5.matrix_size;
-    size_t bytes = matrix_size * matrix_size * sizeof(int);
+    size_t bytes = matrix_size * matrix_size * sizeof(*g_hdf5.matrix_buffer.data);
     g_hdf5.matrix_buffer.data = CAST(g_hdf5.matrix_buffer.data)(alloc_huge_page(bytes));
     if (!g_hdf5.matrix_buffer.data)
     {
@@ -385,7 +385,7 @@ h5_initialize(const char* fname, size_t matsize, unsigned int compression, bool 
         return false;
     }
 
-    const size_t bytes_needed = matsize * matsize * sizeof(int);
+    const size_t bytes_needed = matsize * matsize * sizeof(*g_hdf5.matrix_buffer.data);
     const size_t safe_memory = available_memory() * 3 / 4;
 
     g_hdf5.use_mmap = bytes_needed > safe_memory;
@@ -423,7 +423,7 @@ h5_flush_mmap_to_hdf5(void)
         return false;
     }
 
-    size_t row_bytes = matrix_size * sizeof(int);
+    size_t row_bytes = matrix_size * sizeof(*g_hdf5.mmap_matrix.data);
     size_t max_rows = available_mem / (4 * row_bytes);
     size_t chunk_size = max_rows < 4 ? 4 : max_rows;
     chunk_size = chunk_size > KiB ? KiB : chunk_size;
