@@ -100,7 +100,7 @@ file_read(File* file, const char* file_path)
         return;
     }
 
-    file->size = sb.st_size;
+    file->size = (size_t)sb.st_size;
     file->data = CAST(file->data)(mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, file->fd, 0));
     if (file->data == MAP_FAILED)
     {
@@ -212,7 +212,7 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
         return matrix;
     }
 
-    if (ftruncate(matrix.fd, bytes_needed) == -1)
+    if (ftruncate(matrix.fd, (off_t)bytes_needed) == -1)
     {
         print(ERROR, MSG_NONE, "MMAPMATRIX | Could not set size for file '%s'", file_name);
         close(matrix.fd);
@@ -377,7 +377,7 @@ mmap_matrix_file_name(char* buffer, size_t buffer_size, const char* output_path)
         const char* last_slash = strrchr(output_path, '/');
         if (last_slash)
         {
-            size_t dir_len = last_slash - output_path + 1;
+            size_t dir_len = (size_t)(last_slash - output_path + 1);
             strncpy(dir, output_path, dir_len);
             dir[dir_len] = '\0';
             strncpy(base, last_slash + 1, MAX_PATH - 1);

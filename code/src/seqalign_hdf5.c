@@ -2,14 +2,15 @@
 
 #include "arch.h"
 #include "files.h"
+#include "print.h"
 #include "sequences.h"
+
 #include <hdf5.h>
 #include <math.h>
 
 #define H5_MIN_CHUNK_SIZE 128
 #define H5_MAX_CHUNK_SIZE 1024
 #define H5_SEQUENCE_BATCH_SIZE 5000
-#define MMAP_MEMORY_USAGE_THRESHOLD 0.7
 
 static struct
 {
@@ -37,7 +38,7 @@ static struct
 
     int64_t checksum;
 
-    int compression_level;
+    unsigned int compression_level;
     bool sequences_stored;
     bool mode_write;
     bool use_mmap;
@@ -332,7 +333,7 @@ h5_cleanup_on_init_failure(void)
 }
 
 bool
-h5_initialize(const char* fname, size_t matsize, int compression, bool write)
+h5_initialize(const char* fname, size_t matsize, unsigned int compression, bool write)
 {
     g_hdf5.matrix_size = matsize;
     g_hdf5.file_id = -1;
@@ -356,7 +357,7 @@ h5_initialize(const char* fname, size_t matsize, int compression, bool write)
     }
 
     const size_t bytes_needed = matsize * matsize * sizeof(int);
-    const size_t safe_memory = available_memory() * MMAP_MEMORY_USAGE_THRESHOLD;
+    const size_t safe_memory = available_memory() * 3 / 4;
 
     g_hdf5.use_mmap = bytes_needed > safe_memory;
 
@@ -494,7 +495,8 @@ h5_flush_mmap_to_hdf5(void)
             return false;
         }
 
-        print(PROGRESS, MSG_PROPORTION((float)end_row / matrix_size), "Converting to HDF5");
+        const int percentage = (int)(100 * end_row / matrix_size);
+        print(PROGRESS, MSG_PERCENT(percentage), "Converting to HDF5");
     }
 
     H5Sclose(file_space);
@@ -769,7 +771,8 @@ h5_store_sequences(sequence_t* sequences, size_t seq_count)
             return false;
         }
 
-        print(PROGRESS, MSG_PROPORTION((float)batch_end / seq_count), "Storing sequences");
+        const int percentage = (int)(100 * batch_end / seq_count);
+        print(PROGRESS, MSG_PERCENT(percentage), "Storing sequences");
     }
 
     H5Sclose(seq_space);

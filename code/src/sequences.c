@@ -72,7 +72,7 @@ seq_pool_alloc(size_t size)
         }
     }
 
-    size = (size + 7) & ~7;
+    size = (size + 7) & ~((size_t)7);
 
     if (g_pool.current->used + size > g_pool.current->capacity)
     {
@@ -189,10 +189,10 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
         num_t mask = cmpeq_epi8(v1, v2);
-        matches += __builtin_popcountll(mask);
+        matches += (size_t)__builtin_popcountll(mask);
 #else
         num_t mask = movemask_epi8(cmpeq_epi8(v1, v2));
-        matches += __builtin_popcount(mask);
+        matches += (size_t)__builtin_popcount(mask);
 #endif
     }
 
@@ -209,7 +209,7 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 
 #endif
 
-    return (float)matches / min_len;
+    return (float)matches / (float)min_len;
 }
 
 void
@@ -242,7 +242,7 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
             line_end++;
         }
 
-        size_t max_line_len = line_end - start;
+        size_t max_line_len = (size_t)(line_end - start);
 
         if (max_line_len + buffer_margin > temp_seq_capacity)
         {
@@ -294,9 +294,9 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
             sequence_count_current++;
         }
 
-        int percent = (int)((float)(sequence_count_current + filtered_count) / total * 100.0f);
+        int percentage = (int)(100 * (sequence_count_current + filtered_count) / total);
         const char* progress_msg = apply_filtering ? "Filtering sequences" : "Loading sequences";
-        print(PROGRESS, MSG_PERCENT(percent), progress_msg);
+        print(PROGRESS, MSG_PERCENT(percentage), progress_msg);
     }
 
     free(temp_seq);
@@ -324,7 +324,7 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
         print(DNA, MSG_NONE, "Loaded %zu sequences (filtered %zu)", sequence_count, filtered_count);
     }
 
-    float sequence_average_length = (float)total_sequence_length / sequence_count;
+    float sequence_average_length = (float)total_sequence_length / (float)sequence_count;
 
     print(INFO, MSG_NONE, "Average sequence length: %.2f", sequence_average_length);
 

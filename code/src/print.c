@@ -62,7 +62,7 @@ terminal_mode_raw(void)
 #else
     struct termios term;
     tcgetattr(STDIN_FILENO, &term);
-    term.c_lflag &= ~(ICANON | ECHO);
+    term.c_lflag &= ~((tcflag_t)(ICANON | ECHO));
     tcsetattr(STDIN_FILENO, TCSANOW, &term);
 #endif
 }
@@ -116,7 +116,7 @@ terminal_read_input(char* input_buffer, int input_buffer_size)
 
         if (input_character_index < input_buffer_size - 1)
         {
-            input_buffer[input_character_index++] = input_character;
+            input_buffer[input_character_index++] = (char)input_character;
             input_buffer[input_character_index] = '\0';
             printf("%c", input_character);
             fflush(stdout);
@@ -386,16 +386,16 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     const size_t icon_width = (simple_format || icon_type == ICON_NONE) ? 0 : 2;
     const size_t available = style.total_width - (2 * box_char_width) - icon_width - 1;
 
-    char buffer[BUFSIZ] = { 0 };
-    int buflen = 0;
+    char p_buffer[BUFSIZ] = { 0 };
+    int p_buffer_size = 0;
 
     va_list args;
     va_start(args, format);
 
     if (format)
     {
-        buflen = vsnprintf(buffer, sizeof(buffer), format, args);
-        if (buflen < 0)
+        p_buffer_size = vsnprintf(p_buffer, sizeof(p_buffer), format, args);
+        if (p_buffer_size < 0)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
@@ -404,6 +404,8 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
             return PRINT_INVALID_FORMAT_ARGS__ERROR;
         }
     }
+
+    size_t p_buflen = (size_t)p_buffer_size;
 
     if (type == HEADER)
     {
@@ -435,11 +437,11 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_TOP_RIGHT], reset_code);
 
         /* Content with centering */
-        const size_t left_padding = (style.total_width - 2 - buflen) / 2;
-        const size_t right_padding = style.total_width - 2 - buflen - left_padding;
+        const size_t left_padding = (style.total_width - 2 - p_buflen) / 2;
+        const size_t right_padding = style.total_width - 2 - p_buflen - left_padding;
 
         printf("%s%s", c_color, style.chars.boxes[BOX_FANCY][BOX_VERTICAL]);
-        printf("%*s%s%*s", (int)left_padding, "", buffer, (int)right_padding, "");
+        printf("%*s%s%*s", (int)left_padding, "", p_buffer, (int)right_padding, "");
         printf("%s%s\n", style.chars.boxes[BOX_FANCY][BOX_VERTICAL], reset_code);
 
         /* Bottom border */
@@ -497,12 +499,12 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
                 goto cleanup;
             }
 
-            size_t dash_count = (style.total_width - 2 - buflen - 2) / 2;
-            const size_t remaining = style.total_width - 2 - dash_count - buflen - 2;
+            size_t dash_count = (style.total_width - 2 - p_buflen - 2) / 2;
+            const size_t remaining = style.total_width - 2 - dash_count - p_buflen - 2;
 
             printf("%s%s", c_color, style.chars.boxes[BOX_NORMAL][BOX_TOP_LEFT]);
 
-            if (!buffer[0])
+            if (!p_buffer[0])
             {
                 dash_count += 2;
             }
@@ -513,9 +515,9 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
                 printf("%s", style.chars.boxes[BOX_NORMAL][BOX_HORIZONTAL]);
             }
 
-            if (buffer[0])
+            if (p_buffer[0])
             {
-                printf(" %s ", buffer);
+                printf(" %s ", p_buffer);
             }
 
             for (i = 0; i < remaining; i++)
@@ -544,7 +546,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
                 printf("%s", style.chars.ansi_carriage_return);
             }
 
-            printf("%s %*d%%", buffer, percent_width, percent);
+            printf("%s %*d%%", p_buffer, percent_width, percent);
 
             if (percent == 100)
             {
@@ -556,9 +558,9 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
             goto cleanup;
         }
 
-        const int metadata_width = 2 + 1 + percent_width + 1 + 1;
-        const size_t bar_width = available - buflen - metadata_width - 1;
-        const size_t filled_width = bar_width * percent / 100;
+        const size_t metadata_width = (size_t)percent_width + 2 + 1 + 1 + 1;
+        const size_t bar_width = available - p_buflen - metadata_width - 1;
+        const size_t filled_width = bar_width * (size_t)percent / 100;
         const size_t empty_width = bar_width - filled_width;
 
         if (percent % 2)
@@ -573,7 +575,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
         printf("%s%s%s ", section_color, box_vertical, c_color);
 
-        printf("%s %s [", c_icon, buffer);
+        printf("%s %s [", c_icon, p_buffer);
 
         size_t i;
         for (i = 0; i < filled_width; i++)
@@ -602,10 +604,10 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     else if (type == CHOICE)
     {
         char** choices = margs.choice_coll.chs;
-        int choice_count = margs.choice_coll.n;
+        int c_count = margs.choice_coll.n;
         int selected = 0;
 
-        if (choice_count < 2)
+        if (c_count < 2)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
@@ -614,10 +616,10 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
             return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
         }
 
-        choices[choice_count] = NULL;
+        choices[c_count] = NULL;
 
         int i;
-        for (i = 0; i < choice_count; i++)
+        for (i = 0; i < c_count; i++)
         {
             if (simple_format)
             {
@@ -626,7 +628,8 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
             else
             {
-                const size_t label_len = snprintf(NULL, 0, "%d: %s", i + 1, choices[i]);
+                const int label_chars = snprintf(NULL, 0, "%d: %s", i + 1, choices[i]);
+                const size_t label_len = (label_chars < 0) ? 0 : (size_t)label_chars;
                 const size_t padding = label_len < available ? available - label_len + 2 : 0;
 
                 printf("%s%s%s %d: %s%*s%s%s%s\n",
@@ -643,7 +646,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
             }
         }
 
-        char input_buffer[TERMINAL_WIDTH] = { 0 };
+        char i_buffer[TERMINAL_WIDTH] = { 0 };
         const char* w_msg = "Invalid input! Please enter a number between";
         const char* w_color = style.chars.codes[style.map[WARNING].color];
         const char* w_icon = style.chars.icons[ICON_WARNING];
@@ -652,33 +655,23 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         {
             if (simple_format)
             {
-                printf("%s (%d-%d): ", buffer, 1, choice_count);
+                printf("%s (%d-%d): ", p_buffer, 1, c_count);
             }
 
             else
             {
-                printf("%s%s%s %s %s (1-%d): ",
-                       section_color,
-                       box_vertical,
-                       c_color,
-                       c_icon,
-                       buffer,
-                       choice_count);
+                const char* c_fmt = "%s%s%s %s %s (1-%d): ";
+                printf(c_fmt, section_color, box_vertical, c_color, c_icon, p_buffer, c_count);
             }
 
             fflush(stdout);
-            terminal_read_input(input_buffer, sizeof(input_buffer));
-            selected = atoi(input_buffer);
+            terminal_read_input(i_buffer, sizeof(i_buffer));
+            selected = atoi(i_buffer);
 
             if (!simple_format)
             {
-                const size_t p_len = snprintf(NULL,
-                                              0,
-                                              "%s (1-%d): %s",
-                                              buffer,
-                                              choice_count,
-                                              input_buffer);
-
+                const int p_chars = snprintf(NULL, 0, "%s (1-%d): %s", p_buffer, c_count, i_buffer);
+                const size_t p_len = (p_chars < 0) ? 0 : (size_t)p_chars;
                 const size_t p_padding = p_len < available ? available - p_len : 0;
 
                 printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
@@ -689,7 +682,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
                 printf("\n");
             }
 
-            if (selected >= 1 && selected <= choice_count)
+            if (selected >= 1 && selected <= c_count)
             {
                 style.flags.content_printed = 1;
                 va_end(args);
@@ -698,14 +691,14 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
             if (simple_format)
             {
-                printf("%s %d and %d.\n", w_msg, 1, choice_count);
+                printf("%s %d and %d.\n", w_msg, 1, c_count);
             }
 
             else
             {
-                const int w_len = snprintf(NULL, 0, "%s %s 1 and %d.", w_icon, w_msg, choice_count);
-
-                const size_t w_padding = available > (size_t)w_len ? available - w_len + 2 : 0;
+                const int w_chars = snprintf(NULL, 0, "%s %s 1 and %d.", w_icon, w_msg, c_count);
+                const size_t w_len = (w_chars < 0) ? 0 : (size_t)w_chars;
+                const size_t w_padding = available > w_len ? available - w_len + 2 : 0;
 
                 printf("%s%s%s %s %s %d and %d.%*s%s%s%s\n",
                        section_color,
@@ -714,7 +707,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
                        w_icon,
                        w_msg,
                        1,
-                       choice_count,
+                       c_count,
                        (int)w_padding,
                        "",
                        section_color,
@@ -739,12 +732,12 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
         if (simple_format)
         {
-            printf("%s: ", buffer);
+            printf("%s: ", p_buffer);
         }
 
         else
         {
-            printf("%s%s%s %s %s: ", section_color, box_vertical, c_color, c_icon, buffer);
+            printf("%s%s%s %s %s: ", section_color, box_vertical, c_color, c_icon, p_buffer);
         }
 
         fflush(stdout);
@@ -752,7 +745,8 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
         if (!simple_format)
         {
-            const size_t p_len = snprintf(NULL, 0, "%s: %s", buffer, result);
+            const int p_chars = snprintf(NULL, 0, "%s: %s", p_buffer, result);
+            const size_t p_len = (p_chars < 0) ? 0 : (size_t)p_chars;
             const size_t p_padding = p_len < available ? available - p_len : 0;
 
             printf("%*s%s%s%s\n", (int)p_padding, "", section_color, box_vertical, reset_code);
@@ -770,11 +764,11 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
     else
     {
-        const size_t padding = available > (size_t)buflen ? available - buflen : 0;
+        const size_t padding = available > p_buflen ? available - p_buflen : 0;
 
         if (simple_format)
         {
-            printf("%s\n", buffer);
+            printf("%s\n", p_buffer);
         }
 
         else
@@ -791,7 +785,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
                 printf("%s ", c_icon);
             }
 
-            printf("%s", buffer);
+            printf("%s", p_buffer);
 
             size_t i;
             for (i = 0; i < padding; i++)

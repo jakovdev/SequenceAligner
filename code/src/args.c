@@ -1,3 +1,4 @@
+#include "args.h"
 #include "arch.h"
 #include "biotypes.h"
 #include "matrices.h"
@@ -18,8 +19,8 @@ static struct
     int gap_penalty;
     int gap_start;
     int gap_extend;
-    int thread_num;
-    int compression_level;
+    long thread_num;
+    unsigned int compression_level;
     float filter;
 
     struct
@@ -73,15 +74,14 @@ GETTER(const char*, output, args.path_output)
 GETTER(int, gap_penalty, args.gap_penalty)
 GETTER(int, gap_start, args.gap_start)
 GETTER(int, gap_extend, args.gap_extend)
-GETTER(int, thread_num, args.thread_num)
+GETTER(long, thread_num, args.thread_num)
 GETTER(int, align_method, args.method_id)
 GETTER(int, sequence_type, args.seq_type)
 GETTER(int, scoring_matrix, args.matrix_id)
-GETTER(int, compression, args.compression_level)
+GETTER(unsigned int, compression, args.compression_level)
 GETTER(float, filter, args.filter)
 GETTER(bool, mode_multithread, args.mode_multithread)
 GETTER(bool, mode_benchmark, args.mode_benchmark)
-GETTER(bool, mode_filter, args.mode_filter)
 GETTER(bool, mode_write, args.mode_write)
 
 #undef GETTER
@@ -113,7 +113,7 @@ args_parse_scoring_matrix(const char* arg, int seq_type)
 static float
 args_parse_filter_threshold(const char* arg)
 {
-    float threshold = atof(arg);
+    float threshold = strtof(arg, NULL);
     if (threshold < 0.0f || threshold > 100.0f)
     {
         return -1.0f;
@@ -122,10 +122,10 @@ args_parse_filter_threshold(const char* arg)
     return threshold > 1.0f ? threshold / 100.0f : threshold;
 }
 
-static int
+static long
 args_parse_thread_num(const char* arg)
 {
-    int threads = atoi(arg);
+    long threads = atol(arg);
     if (threads < 0)
     {
         return 0;
@@ -134,11 +134,11 @@ args_parse_thread_num(const char* arg)
     return threads;
 }
 
-static int
+static unsigned int
 args_parse_compression_level(const char* arg)
 {
     int level = atoi(arg);
-    return (level < 0 || level > 9) ? 0 : level;
+    return (level < 0 || level > 9) ? 0 : (unsigned int)level;
 }
 
 static bool
@@ -314,10 +314,10 @@ args_print_config(void)
 
     if (args.mode_write)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Compression: %d", args.compression_level);
+        print(CONFIG, MSG_LOC(MIDDLE), "Compression: %u", args.compression_level);
     }
 
-    print(CONFIG, MSG_LOC(LAST), "Threads: %d", args.thread_num);
+    print(CONFIG, MSG_LOC(LAST), "Threads: %ld", args.thread_num);
 
     if (args.mode_benchmark)
     {
