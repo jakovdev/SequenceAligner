@@ -303,8 +303,7 @@ mmap_triangle_index(size_t row, size_t col)
         return 0;
     }
 
-    size_t row_offset = (row * (row - 1)) / 2;
-    return row_offset + (col - row - 1);
+    return (col * (col - 1)) / 2 + row;
 }
 
 static inline void
