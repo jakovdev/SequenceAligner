@@ -8,7 +8,7 @@
 
 #define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
-#define MATRIX_SIZE(len1, len2) ((len1 + 1) * (len2 + 1))
+#define MATRIX_SIZE(len1, len2) (((size_t)len1 + 1) * ((size_t)len2 + 1))
 #define MATRIX_BYTES(len1, len2) (MATRIX_SIZE(len1, len2) * sizeof(int))
 #define MATRICES_3X_BYTES(len1, len2) (3 * MATRIX_BYTES(len1, len2))
 #define USE_STACK_MATRIX(bytes) ((bytes) <= STACK_MATRIX_THRESHOLD)
@@ -105,12 +105,12 @@ matrix_free(int* matrix, int* stack_matrix)
     do                                                                                             \
     {                                                                                              \
         matrix[0] = 0;                                                                             \
-        VECTORIZE UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                   \
+        VECTORIZE UNROLL(8) for (int j = 1; j <= len1; j++)                                        \
         {                                                                                          \
             matrix[j] = j * -(gap_penalty);                                                        \
         }                                                                                          \
                                                                                                    \
-        VECTORIZE UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                   \
+        VECTORIZE UNROLL(8) for (int i = 1; i <= len2; i++)                                        \
         {                                                                                          \
             matrix[i * cols] = i * -(gap_penalty);                                                 \
         }                                                                                          \
@@ -122,14 +122,14 @@ matrix_free(int* matrix, int* stack_matrix)
         match[0] = 0;                                                                              \
         gap_x[0] = gap_y[0] = INT_MIN / 2;                                                         \
                                                                                                    \
-        UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                             \
+        UNROLL(8) for (int j = 1; j <= len1; j++)                                                  \
         {                                                                                          \
             gap_x[j] = MAX(match[j - 1] - gap_start, gap_x[j - 1] - gap_extend);                   \
             match[j] = gap_x[j];                                                                   \
             gap_y[j] = INT_MIN / 2;                                                                \
         }                                                                                          \
                                                                                                    \
-        UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                             \
+        UNROLL(8) for (int i = 1; i <= len2; i++)                                                  \
         {                                                                                          \
             int idx = i * cols;                                                                    \
             gap_y[idx] = MAX(match[idx - cols] - gap_start, gap_y[idx - cols] - gap_extend);       \
@@ -144,13 +144,13 @@ matrix_free(int* matrix, int* stack_matrix)
         match[0] = 0;                                                                              \
         gap_x[0] = gap_y[0] = INT_MIN / 2;                                                         \
                                                                                                    \
-        UNROLL(8) for (int j = 1; j <= (int)len1; j++)                                             \
+        UNROLL(8) for (int j = 1; j <= len1; j++)                                                  \
         {                                                                                          \
             match[j] = 0;                                                                          \
             gap_x[j] = gap_y[j] = INT_MIN / 2;                                                     \
         }                                                                                          \
                                                                                                    \
-        UNROLL(8) for (int i = 1; i <= (int)len2; i++)                                             \
+        UNROLL(8) for (int i = 1; i <= len2; i++)                                                  \
         {                                                                                          \
             int idx = i * cols;                                                                    \
             match[idx] = 0;                                                                        \
@@ -161,7 +161,7 @@ matrix_free(int* matrix, int* stack_matrix)
 #define FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty)                                              \
     do                                                                                             \
     {                                                                                              \
-        for (int i = 1; i <= (int)len2; ++i)                                                       \
+        for (int i = 1; i <= len2; ++i)                                                            \
         {                                                                                          \
             int row_offset = i * cols;                                                             \
             int prev_row_offset = (i - 1) * cols;                                                  \
@@ -169,7 +169,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
             prefetch(&matrix[row_offset + PREFETCH_DISTANCE]);                                     \
                                                                                                    \
-            UNROLL(4) for (int j = 1; j <= (int)len1; j++)                                         \
+            UNROLL(4) for (int j = 1; j <= len1; j++)                                              \
             {                                                                                      \
                 int match = matrix[prev_row_offset + j - 1] +                                      \
                             SCORING_MATRIX[seq1_indices.data[j - 1]][c2_idx];                      \
@@ -184,7 +184,7 @@ matrix_free(int* matrix, int* stack_matrix)
 #define FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend)                       \
     do                                                                                             \
     {                                                                                              \
-        for (int i = 1; i <= (int)len2; ++i)                                                       \
+        for (int i = 1; i <= len2; ++i)                                                            \
         {                                                                                          \
             int row_offset = i * cols;                                                             \
             int prev_row_offset = (i - 1) * cols;                                                  \
@@ -196,7 +196,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
             const int* restrict seq1_idx_data = seq1_indices.data;                                 \
                                                                                                    \
-            VECTORIZE for (int j = 1; j <= (int)len1; j++)                                         \
+            VECTORIZE for (int j = 1; j <= len1; j++)                                              \
             {                                                                                      \
                 int similarity = SCORING_MATRIX[seq1_idx_data[j - 1]][c2_idx];                     \
                 int diag_score = match[prev_row_offset + j - 1] + similarity;                      \
@@ -232,7 +232,7 @@ matrix_free(int* matrix, int* stack_matrix)
         score = 0;                                                                                 \
         max_i = max_j = 0;                                                                         \
                                                                                                    \
-        for (int i = 1; i <= (int)len2; ++i)                                                       \
+        for (int i = 1; i <= len2; ++i)                                                            \
         {                                                                                          \
             int row_offset = i * cols;                                                             \
             int prev_row_offset = (i - 1) * cols;                                                  \
@@ -242,7 +242,7 @@ matrix_free(int* matrix, int* stack_matrix)
             prefetch(&gap_x[row_offset + PREFETCH_DISTANCE]);                                      \
             prefetch(&gap_y[row_offset + PREFETCH_DISTANCE]);                                      \
                                                                                                    \
-            for (int j = 1; j <= (int)len1; j++)                                                   \
+            for (int j = 1; j <= len1; j++)                                                        \
             {                                                                                      \
                 int similarity = SCORING_MATRIX[seq1_idx[j - 1]][c2_idx];                          \
                 int diag_score = match[prev_row_offset + j - 1] + similarity;                      \
@@ -351,7 +351,7 @@ simd_affine_local_row_init(int* restrict match,
 #endif
 
 static inline int
-align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
+align_nw(const char* restrict seq1, const int len1, const char* seq2, const int len2)
 {
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
@@ -369,13 +369,13 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
 
     else
     {
-        for (int j = 1; j <= (int)len1; j++)
+        for (int j = 1; j <= len1; j++)
         {
             matrix[j] = j * -(gap_penalty);
         }
     }
 
-    for (int i = 1; i <= (int)len2; i++)
+    for (int i = 1; i <= len2; i++)
     {
         matrix[i * cols] = i * -(gap_penalty);
     }
@@ -385,7 +385,7 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
 #endif
 
     SeqIndices seq1_indices = { 0 };
-    seq_indices_precompute(&seq1_indices, seq1, len1);
+    seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
     FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty);
 
@@ -398,7 +398,7 @@ align_nw(const char* restrict seq1, const size_t len1, const char* seq2, const s
 }
 
 static inline int
-align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
+align_ga(const char* restrict seq1, const int len1, const char* seq2, const int len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -414,7 +414,7 @@ align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const s
     INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
 
     SeqIndices seq1_indices = { 0 };
-    seq_indices_precompute(&seq1_indices, seq1, len1);
+    seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
     FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
 
@@ -427,7 +427,7 @@ align_ga(const char* restrict seq1, const size_t len1, const char* seq2, const s
 }
 
 static inline int
-align_sw(const char* restrict seq1, const size_t len1, const char* restrict seq2, const size_t len2)
+align_sw(const char* restrict seq1, const int len1, const char* restrict seq2, const int len2)
 {
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
     int stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
@@ -456,7 +456,7 @@ align_sw(const char* restrict seq1, const size_t len1, const char* restrict seq2
 #endif
 
     SeqIndices seq1_indices = { 0 };
-    seq_indices_precompute(&seq1_indices, seq1, len1);
+    seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
     int score = 0;
     UNUSED int max_i = 0, max_j = 0; // For potential traceback
@@ -469,7 +469,7 @@ align_sw(const char* restrict seq1, const size_t len1, const char* restrict seq2
 }
 
 static inline int
-align_pairwise(const char* restrict seq1, const size_t len1, const char* seq2, const size_t len2)
+align_pairwise(const char* restrict seq1, const int len1, const char* seq2, const int len2)
 {
     switch (args_align_method())
     {

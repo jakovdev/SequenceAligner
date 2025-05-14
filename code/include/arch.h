@@ -34,7 +34,7 @@
 
 #define HUGE_PAGE_THRESHOLD (2 * MiB)
 
-#define CACHE_LINE 64
+#define CACHE_LINE ((size_t)64)
 
 #ifdef _WIN32
 
@@ -156,7 +156,7 @@ typedef __m512i veci_t;
 typedef __mmask64 num_t;
 #define BYTES (64)
 #define NUM_ELEMS (16)
-#define ctz __builtin_ctzll
+#define ctz(x) ((num_t)__builtin_ctzll(x))
 #define loadu _mm512_loadu_si512
 #define storeu _mm512_storeu_si512
 #define add_epi32 _mm512_add_epi32
@@ -181,7 +181,7 @@ typedef __m256i veci_t;
 typedef uint32_t num_t;
 #define BYTES (32)
 #define NUM_ELEMS (8)
-#define ctz __builtin_ctz
+#define ctz(x) ((num_t)__builtin_ctz(x))
 #define loadu _mm256_loadu_si256
 #define storeu _mm256_storeu_si256
 #define add_epi32 _mm256_add_epi32
@@ -190,7 +190,7 @@ typedef uint32_t num_t;
 #define set1_epi32 _mm256_set1_epi32
 #define set1_epi8 _mm256_set1_epi8
 #define cmpeq_epi8 _mm256_cmpeq_epi8
-#define movemask_epi8 _mm256_movemask_epi8
+#define movemask_epi8(x) ((num_t)_mm256_movemask_epi8(x))
 #define or_si _mm256_or_si256
 #define setzero_si _mm256_setzero_si256
 #define and_si _mm256_and_si256
@@ -205,7 +205,7 @@ typedef __m128i veci_t;
 typedef uint16_t num_t;
 #define BYTES (16)
 #define NUM_ELEMS (4)
-#define ctz __builtin_ctz
+#define ctz(x) ((num_t)__builtin_ctz(x))
 #define loadu _mm_loadu_si128
 #define storeu _mm_storeu_si128
 #define add_epi32 _mm_add_epi32
@@ -214,7 +214,7 @@ typedef uint16_t num_t;
 #define set1_epi32 _mm_set1_epi32
 #define set1_epi8 _mm_set1_epi8
 #define cmpeq_epi8 _mm_cmpeq_epi8
-#define movemask_epi8 _mm_movemask_epi8
+#define movemask_epi8(x) ((num_t)_mm_movemask_epi8(x))
 #define or_si _mm_or_si128
 #define setzero_si _mm_setzero_si128
 #define and_si _mm_and_si128
@@ -241,13 +241,13 @@ _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 #define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
 #endif
 
-static inline int
+static inline long
 thread_count(void)
 {
 #ifdef _WIN32
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
-    return sysinfo.dwNumberOfProcessors;
+    return (long)sysinfo.dwNumberOfProcessors;
 #else
     long nprocs = sysconf(_SC_NPROCESSORS_ONLN);
     return nprocs;
@@ -272,7 +272,7 @@ time_current(void)
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
-    return ts.tv_sec + ts.tv_nsec * 1e-9;
+    return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 #endif
 }
 

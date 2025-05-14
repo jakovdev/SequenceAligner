@@ -5,7 +5,7 @@
 #include "arch.h"
 #include "print.h"
 
-static inline int
+static inline size_t
 csv_column_count(const char* line)
 {
     if (!line || !*line || *line == '\n' || *line == '\r')
@@ -13,7 +13,7 @@ csv_column_count(const char* line)
         return 0;
     }
 
-    int count = 1; // Start with 1 for the first column
+    size_t count = 1; // Start with 1 for the first column
 
     while (*line)
     {
@@ -36,7 +36,7 @@ csv_column_count(const char* line)
 static inline char*
 csv_column_copy(const char* restrict file_start, const char* restrict file_end)
 {
-    size_t len = file_end - file_start;
+    size_t len = (size_t)(file_end - file_start);
     char* name = MALLOC(name, len + 1);
     if (name)
     {
@@ -48,33 +48,38 @@ csv_column_copy(const char* restrict file_start, const char* restrict file_end)
 }
 
 static inline int
-csv_column_sequence(char** headers, int num_cols)
+csv_column_sequence(char** headers, size_t num_cols)
 {
+    if (!headers || num_cols == 0 || num_cols > INT_MAX)
+    {
+        return -1;
+    }
+
     const char* seq_keywords[] = { "sequence", "seq",   "protein", "dna",
                                    "rna",      "amino", "peptide", "chain" };
 
-    const int num_keywords = sizeof(seq_keywords) / sizeof(seq_keywords[0]);
+    const size_t num_keywords = sizeof(seq_keywords) / sizeof(seq_keywords[0]);
 
     // First pass: exact match for sequence column
-    for (int column = 0; column < num_cols; column++)
+    for (size_t column = 0; column < num_cols; column++)
     {
-        for (int key = 0; key < num_keywords; key++)
+        for (size_t key = 0; key < num_keywords; key++)
         {
             if (strcasecmp(headers[column], seq_keywords[key]) == 0)
             {
-                return column;
+                return (int)column;
             }
         }
     }
 
     // Second pass: partial match (contains sequence keyword)
-    for (int column = 0; column < num_cols; column++)
+    for (size_t column = 0; column < num_cols; column++)
     {
-        for (int key = 0; key < num_keywords; key++)
+        for (size_t key = 0; key < num_keywords; key++)
         {
             if (strcasestr(headers[column], seq_keywords[key]))
             {
-                return column;
+                return (int)column;
             }
         }
     }
@@ -90,13 +95,13 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
     *seq_col = -1;
     *no_header = false;
 
-    int num_columns = 0;
+    size_t num_columns = 0;
     char** headers = NULL;
 
     num_columns = csv_column_count(header_start);
-    print(VERBOSE, MSG_NONE, "Found %d columns in input file", num_columns);
+    print(VERBOSE, MSG_NONE, "Found %zu columns in input file", num_columns);
 
-    if (num_columns <= 0)
+    if (!num_columns)
     {
         print(ERROR, MSG_NONE, "CSV | Invalid header (do you have an empty line or file?)");
         exit(1);
@@ -111,7 +116,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
     }
 
     const char* col_start = header_start;
-    int column = 0;
+    size_t column = 0;
 
     while (file_cursor < file_end)
     {
@@ -161,7 +166,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
         }
 
         choices[num_columns] = "My csv file does not have a header! Do not skip it!";
-        int choice_num = num_columns + 1;
+        size_t choice_num = num_columns + 1;
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(MIDDLE), "Which column contains your sequences?");
@@ -170,7 +175,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
         *seq_col = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
     }
 
-    if (*seq_col == num_columns)
+    if ((size_t)*seq_col == num_columns)
     {
         print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
         char** choices = headers;
@@ -184,7 +189,7 @@ csv_header_parse(char* restrict file_cursor, char* restrict file_end, bool* no_h
 
     if (headers)
     {
-        for (int column = 0; column < num_columns; column++)
+        for (column = 0; column < num_columns; column++)
         {
             if (headers[column])
             {
@@ -330,7 +335,7 @@ csv_line_column_extract(char* restrict* restrict p_cursor, char* restrict output
             }
 
             *write_pos = '\0';
-            column_length = write_pos - output;
+            column_length = (size_t)(write_pos - output);
         }
 
         else
@@ -362,7 +367,7 @@ csv_line_column_extract(char* restrict* restrict p_cursor, char* restrict output
             }
 
             *write_pos = '\0';
-            column_length = write_pos - output;
+            column_length = (size_t)(write_pos - output);
         }
 
         else

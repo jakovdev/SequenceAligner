@@ -1,3 +1,4 @@
+#include "benchmark.h"
 #include "arch.h"
 #include "args.h"
 #include "print.h"
@@ -84,13 +85,13 @@ bench_print_total(size_t alignments)
 
         print(TIMING, MSG_LOC(LAST), "Total: %.3f sec", time_total, 100.0);
 
-        double alignments_per_sec = alignments / g_times.align;
+        double alignments_per_sec = (double)alignments / g_times.align;
         print(TIMING, MSG_LOC(FIRST), "Alignments per second: %.2f", alignments_per_sec);
 
         if (args_thread_num() > 1)
         {
-            double time_thread = g_times.align / args_thread_num();
-            double time_thread_sec = alignments_per_sec / args_thread_num();
+            double time_thread = g_times.align / (double)args_thread_num();
+            double time_thread_sec = alignments_per_sec / (double)args_thread_num();
             print(TIMING, MSG_LOC(MIDDLE), "Average time per thread: %.3f sec", time_thread);
             print(TIMING, MSG_LOC(LAST), "Alignments per second per thread: %.2f", time_thread_sec);
         }

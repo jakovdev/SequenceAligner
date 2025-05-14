@@ -13,12 +13,12 @@
 
 typedef struct
 {
-    int thread_id;
+    size_t thread_id;
     int64_t local_checksum;
     volatile size_t* current_row;
     pthread_mutex_t* row_mutex;
     atomic_size_t* shared_progress;
-    volatile int* threads_completed;
+    volatile size_t* threads_completed;
     pthread_mutex_t* completion_mutex;
 } ThreadStorage;
 
@@ -33,8 +33,9 @@ thread_worker(void* thread_arg)
 
     size_t local_progress = 0;
 
-    const int num_threads = args_thread_num();
-    const size_t progress_update_interval = alignment_count * 0.01 / num_threads;
+    const long thread_num = args_thread_num();
+    const size_t num_threads = (thread_num > 0) ? (size_t)thread_num : 1;
+    const size_t progress_update_interval = alignment_count / (num_threads * 100);
 
     const size_t batch_size = num_threads;
 
@@ -93,7 +94,7 @@ thread_worker(void* thread_arg)
                     continue;
                 }
 
-                int score = align_pairwise(seq1, len1, seq2, len2);
+                int score = align_pairwise(seq1, (int)len1, seq2, (int)len2);
 
                 storage->local_checksum += score;
 
@@ -135,13 +136,14 @@ thread_worker(void* thread_arg)
 static inline void
 align_multithreaded(void)
 {
-    const int num_threads = args_thread_num();
+    const long thread_num = args_thread_num();
+    const size_t num_threads = (thread_num > 0) ? (size_t)thread_num : 1;
 
     volatile size_t current_row = 0;
     pthread_mutex_t row_mutex = PTHREAD_MUTEX_INITIALIZER;
     atomic_size_t shared_progress = 0;
 
-    volatile int threads_completed = 0;
+    volatile size_t threads_completed = 0;
     pthread_mutex_t completion_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_t* threads = MALLOC(threads, num_threads);
@@ -149,7 +151,7 @@ align_multithreaded(void)
 
     bench_align_start();
 
-    for (int t = 0; t < num_threads; t++)
+    for (size_t t = 0; t < num_threads; t++)
     {
         ThreadStorage* storage = &thread_storages[t];
         storage->thread_id = t;
@@ -163,27 +165,27 @@ align_multithreaded(void)
         pthread_create(&threads[t], NULL, thread_worker, storage);
     }
 
-    int progress_percent = 0;
-    print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+    int percentage = 0;
+    print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
 
     const size_t alignment_count = sequences_alignment_count();
-    const size_t update_interval_ms = 100;
+    const unsigned int update_interval_ms = 100;
 
     for (size_t progress = atomic_load(&shared_progress); progress < alignment_count;
          progress = atomic_load(&shared_progress))
     {
         usleep(update_interval_ms * 1000);
-        progress_percent = progress * 100 / alignment_count;
-        print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+        percentage = (int)(100 * progress / alignment_count);
+        print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
     }
 
-    for (int t = 0; t < num_threads; t++)
+    for (size_t t = 0; t < num_threads; t++)
     {
         pthread_join(threads[t], NULL);
     }
 
     int64_t total_checksum = 0;
-    for (int t = 0; t < num_threads; t++)
+    for (size_t t = 0; t < num_threads; t++)
     {
         total_checksum += thread_storages[t].local_checksum;
     }
@@ -195,10 +197,10 @@ align_multithreaded(void)
     free(threads);
     free(thread_storages);
 
-    if (progress_percent < 100)
+    if (percentage < 100)
     {
-        progress_percent = 100;
-        print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+        percentage = 100;
+        print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
     }
 }
 
@@ -222,15 +224,15 @@ align_singlethreaded(void)
 
             sequences_get_pair(i, &seq1, &len1, j, &seq2, &len2);
 
-            int score = align_pairwise(seq1, len1, seq2, len2);
+            int score = align_pairwise(seq1, (int)len1, seq2, (int)len2);
 
             local_checksum += score;
 
             h5_set_matrix_value(i, j, score);
             h5_set_matrix_value(j, i, score);
 
-            const int progress_percent = ++progress * 100 / alignment_count;
-            print(PROGRESS, MSG_PERCENT(progress_percent), "Aligning sequences");
+            const int percentage = (int)(100 * ++progress / alignment_count);
+            print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
         }
     }
 

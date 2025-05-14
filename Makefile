@@ -64,7 +64,7 @@ OBJS_AVX512 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-avx512.o,$(SRCS))
 HDF5_CFLAGS := $(if $(IS_WINDOWS),-I/ucrt64/include,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | head -n 1))
 BASE_CFLAGS := -pthread -I$(INCLUDE_DIR) $(HDF5_CFLAGS) 
 RELEASE_CFLAGS := $(BASE_CFLAGS) -O3 -ffast-math -flto -fomit-frame-pointer "-Wl,--gc-sections" -DNDEBUG
-DEBUG_CFLAGS := $(BASE_CFLAGS) -g -O0 -Wall -Wextra -Wpedantic -Werror -fstack-protector-strong
+DEBUG_CFLAGS := $(BASE_CFLAGS) -g -O0 -Wall -Wextra -Werror -Wshadow -Wconversion -Wmissing-declarations -pedantic -fstack-protector-strong -fsanitize=address
 # GCC libraries
 HDF5_CLIBS := $(if $(IS_WINDOWS),-L/ucrt64/lib -lhdf5 -lz,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | tail -n 1))
 CLIBS := -lm $(HDF5_CLIBS) $(if $(IS_WINDOWS),-lShlwapi,)
