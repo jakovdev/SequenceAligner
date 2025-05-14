@@ -277,12 +277,20 @@ args_print_config(void)
 
     if (args.output_file_set)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", file_name_path(args.path_output));
+        if (!args.mode_write)
+        {
+            print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (-W, --no-write), ignoring file");
+        }
+
+        else
+        {
+            print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", file_name_path(args.path_output));
+        }
     }
 
     else
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (no output file specified)");
+        print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (-W, --no-write) or file not specified");
     }
 
     print(CONFIG, MSG_LOC(MIDDLE), "Method: %s", alignment_name(args.method_id));
