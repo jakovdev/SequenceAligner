@@ -307,41 +307,6 @@ mmap_triangle_index(size_t row, size_t col)
 }
 
 static inline void
-mmap_triangle_element(size_t index, size_t n, size_t* restrict row_out, size_t* restrict col_out)
-{
-    size_t row = 0;
-    size_t low = 0, high = n - 1;
-
-    while (low <= high)
-    {
-        size_t mid = (low + high) / 2;
-        size_t row_start = (mid * (mid - 1)) / 2;
-
-        if (row_start <= index)
-        {
-            if (mid + 1 >= n || (((mid + 1) * mid) / 2) > index)
-            {
-                row = mid;
-                break;
-            }
-
-            low = mid + 1;
-        }
-
-        else
-        {
-            high = mid - 1;
-        }
-    }
-
-    size_t row_start = (row * (row - 1)) / 2;
-    size_t col = index - row_start + row + 1;
-
-    *row_out = row;
-    *col_out = col;
-}
-
-static inline void
 mmap_matrix_set_value(MmapMatrix* matrix, size_t row, size_t col, int value)
 {
     if (!matrix->data || row >= matrix->matrix_size || col >= matrix->matrix_size)
