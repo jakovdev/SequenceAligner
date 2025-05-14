@@ -423,10 +423,14 @@ h5_flush_mmap_to_hdf5(void)
         return false;
     }
 
+    size_t chunk_rows = g_hdf5.chunk_dims[0];
     size_t row_bytes = matrix_size * sizeof(*g_hdf5.mmap_matrix.data);
     size_t max_rows = available_mem / (4 * row_bytes);
-    size_t chunk_size = max_rows < 4 ? 4 : max_rows;
-    chunk_size = chunk_size > KiB ? KiB : chunk_size;
+    size_t chunk_size = chunk_rows > 4 ? chunk_rows : 4;
+    if (chunk_size > max_rows && max_rows > 4)
+    {
+        chunk_size = max_rows;
+    }
 
     const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
     print(VERBOSE, MSG_NONE, "Using %zu rows per chunk (%zu MiB buffer)", chunk_size, buffer_mib);
