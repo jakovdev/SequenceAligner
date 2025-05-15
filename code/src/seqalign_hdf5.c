@@ -589,42 +589,20 @@ h5_flush_matrix(void)
 void
 h5_set_matrix_value(size_t row, size_t col, int value)
 {
-    if (!g_hdf5.mode_write || !g_hdf5.is_init || row >= g_hdf5.matrix_size ||
-        col >= g_hdf5.matrix_size)
+    if (!g_hdf5.mode_write)
     {
         return;
     }
 
     if (g_hdf5.use_mmap)
     {
-        if (row > col)
-        {
-            return;
-        }
-
-        if (!g_hdf5.mmap_matrix.data)
-        {
-            return;
-        }
-
-        mmap_matrix_set_value(&g_hdf5.mmap_matrix, row, col, value);
+        g_hdf5.mmap_matrix.data[mmap_triangle_index(row, col)] = value;
     }
 
     else
     {
-        if (!g_hdf5.matrix_buffer.data)
-        {
-            return;
-        }
-
-        size_t pos1 = row * g_hdf5.matrix_size + col;
-        g_hdf5.matrix_buffer.data[pos1] = value;
-
-        if (row != col)
-        {
-            size_t pos2 = col * g_hdf5.matrix_size + row;
-            g_hdf5.matrix_buffer.data[pos2] = value;
-        }
+        g_hdf5.matrix_buffer.data[row * g_hdf5.matrix_size + col] = value;
+        g_hdf5.matrix_buffer.data[col * g_hdf5.matrix_size + row] = value;
     }
 }
 

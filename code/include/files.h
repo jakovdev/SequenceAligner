@@ -291,43 +291,7 @@ mmap_matrix_close(MmapMatrix* matrix)
 static inline size_t
 mmap_triangle_index(size_t row, size_t col)
 {
-    if (row > col)
-    {
-        size_t temp = row;
-        row = col;
-        col = temp;
-    }
-
-    if (row == col)
-    {
-        return 0;
-    }
-
     return (col * (col - 1)) / 2 + row;
-}
-
-static inline void
-mmap_matrix_set_value(MmapMatrix* matrix, size_t row, size_t col, int value)
-{
-    if (!matrix->data || row >= matrix->matrix_size || col >= matrix->matrix_size)
-    {
-        return;
-    }
-
-    if (row == col)
-    {
-        return;
-    }
-
-    if (row > col)
-    {
-        size_t temp = row;
-        row = col;
-        col = temp;
-    }
-
-    size_t index = mmap_triangle_index(row, col);
-    matrix->data[index] = value;
 }
 
 static inline void

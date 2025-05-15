@@ -99,7 +99,6 @@ thread_worker(void* thread_arg)
                 storage->local_checksum += score;
 
                 h5_set_matrix_value(i, j, score);
-                h5_set_matrix_value(j, i, score);
 
                 local_progress++;
 
@@ -133,7 +132,7 @@ thread_worker(void* thread_arg)
     T_Ret(NULL);
 }
 
-static inline void
+static inline bool
 align_multithreaded(void)
 {
     const long thread_num = args_thread_num();
@@ -148,6 +147,15 @@ align_multithreaded(void)
 
     pthread_t* threads = MALLOC(threads, num_threads);
     ThreadStorage* thread_storages = MALLOC(thread_storages, num_threads);
+    if (!thread_storages || !threads)
+    {
+        print(ERROR, MSG_NONE, "Failed to allocate memory for multithreading");
+        free(thread_storages);
+        free(threads);
+        pthread_mutex_destroy(&row_mutex);
+        pthread_mutex_destroy(&completion_mutex);
+        return false;
+    }
 
     bench_align_start();
 
@@ -202,6 +210,8 @@ align_multithreaded(void)
         percentage = 100;
         print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
     }
+
+    return true;
 }
 
 static inline void
@@ -229,7 +239,6 @@ align_singlethreaded(void)
             local_checksum += score;
 
             h5_set_matrix_value(i, j, score);
-            h5_set_matrix_value(j, i, score);
 
             const int percentage = (int)(100 * ++progress / alignment_count);
             print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
@@ -246,14 +255,10 @@ align(void)
 {
     if (args_mode_multithread())
     {
-        align_multithreaded();
+        return align_multithreaded();
     }
 
-    else
-    {
-        align_singlethreaded();
-    }
-
+    align_singlethreaded();
     return true;
 }
 

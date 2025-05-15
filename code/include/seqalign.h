@@ -4,6 +4,7 @@
 
 #include "args.h"
 #include "biotypes.h"
+#include "print.h"
 #include "scoring.h"
 
 #define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
@@ -34,6 +35,12 @@ seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len
     else
     {
         indices->data = MALLOC(indices->data, len);
+        if (!indices->data)
+        {
+            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
+            exit(1);
+        }
+
         indices->is_stack = false;
     }
 
