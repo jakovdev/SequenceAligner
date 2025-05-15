@@ -125,6 +125,7 @@ seq_pool_free(void)
     {
         SeqMemBlock* next = curr->next;
         aligned_free(curr->block);
+        curr->block = NULL;
         free(curr);
         curr = next;
     }
@@ -258,6 +259,15 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
             free(temp_seq);
             temp_seq = new_buffer;
             temp_seq_capacity = new_capacity;
+        }
+
+        else
+        {
+            if (!temp_seq)
+            {
+                free(sequences);
+                return;
+            }
         }
 
         size_t sequence_length = csv_line_column_extract(&start, temp_seq, col);
