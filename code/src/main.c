@@ -27,13 +27,13 @@ main(int argc, char* argv[])
     size_t sequence_count = 0;
 
     {
-        CLEANUP(file_free) File input_file = { 0 };
+        CLEANUP(file_text_close) FileText input_file = { 0 };
 
         bench_io_start();
-        file_read(&input_file, args_input());
+        file_text_open(&input_file, args_input());
         bench_io_end();
 
-        if (!input_file.data)
+        if (!input_file.text)
         {
             return 1;
         }
@@ -41,10 +41,10 @@ main(int argc, char* argv[])
         bool headerless;
         int seq_column;
 
-        char* file_cursor = input_file.data;
-        char* file_end = input_file.data + input_file.size;
+        char* file_cursor = input_file.text;
+        char* file_end = input_file.text + input_file.meta.bytes;
         char* file_header_start = csv_header_parse(file_cursor, file_end, &headerless, &seq_column);
-        file_cursor = headerless ? input_file.data : file_header_start;
+        file_cursor = headerless ? input_file.text : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
         sequence_count = csv_total_lines(file_cursor, file_end);
@@ -72,7 +72,7 @@ main(int argc, char* argv[])
     size_t total_alignments = sequences_alignment_count();
 
     bench_io_start();
-    if (!h5_initialize(args_output(), sequence_count, args_compression(), args_mode_write()))
+    if (!h5_open(args_output(), sequence_count, args_compression(), args_mode_write()))
     {
         bench_io_end();
         print(ERROR, MSG_NONE, "HDF5 | Failed to create file, will use no-write mode");
@@ -85,10 +85,10 @@ main(int argc, char* argv[])
         }
 
         bench_io_start();
-        h5_initialize(NULL, 0, 0, false);
+        h5_open(NULL, 0, 0, false);
     }
 
-    if (!h5_store_sequences(sequences_get(), sequence_count))
+    if (!h5_sequences_store(sequences_get(), sequence_count))
     {
         bench_io_end();
         print(ERROR, MSG_NONE, "HDF5 | Failed to store sequences, will use no-write mode");
@@ -101,7 +101,7 @@ main(int argc, char* argv[])
         }
 
         bench_io_start();
-        h5_initialize(NULL, 0, 0, false);
+        h5_open(NULL, 0, 0, false);
     }
 
     bench_io_end();

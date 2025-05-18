@@ -36,6 +36,8 @@
 
 #define CACHE_LINE ((size_t)64)
 
+#define ALIGN_POW2(value, pow2) (((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
+
 #ifdef _WIN32
 
 #include <Shlwapi.h>

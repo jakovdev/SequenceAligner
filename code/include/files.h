@@ -7,231 +7,236 @@
 
 typedef struct
 {
-    char* data;
-    size_t size;
+    size_t bytes;
 #ifdef _WIN32
     HANDLE hFile;
     HANDLE hMapping;
 #else
     int fd;
 #endif
-} File;
+} FileMetadata;
 
 typedef struct
 {
-    int* data;
-    size_t matrix_size;
-    size_t file_size;
-#ifdef _WIN32
-    HANDLE hFile;
-    HANDLE hMapping;
-#else
-    int fd;
-#endif
-} MmapMatrix;
+    FileMetadata meta;
+    char* text;
+} FileText;
+
+typedef struct
+{
+    FileMetadata meta;
+    int* matrix;
+} FileMatrix;
 
 static inline void
-file_read(File* file, const char* file_path)
+file_metadata_init(FileMetadata* meta)
 {
+#ifdef _WIN32
+    meta->hFile = INVALID_HANDLE_VALUE;
+    meta->hMapping = NULL;
+#else
+    meta->fd = -1;
+#endif
+    meta->bytes = 0;
+}
+
+static inline void
+file_metadata_close(FileMetadata* meta)
+{
+#ifdef _WIN32
+    if (meta->hMapping)
+    {
+        CloseHandle(meta->hMapping);
+        meta->hMapping = NULL;
+    }
+
+    if (meta->hFile != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(meta->hFile);
+        meta->hFile = INVALID_HANDLE_VALUE;
+    }
+
+#else
+    if (meta->fd != -1)
+    {
+        close(meta->fd);
+        meta->fd = -1;
+    }
+
+#endif
+    meta->bytes = 0;
+}
+
+static inline void
+file_text_open(FileText* file, const char* file_path)
+{
+    file_metadata_init(&file->meta);
+    file->text = NULL;
+
     const char* file_name = file_name_path(file_path);
 
 #ifdef _WIN32
-    file->hFile = CreateFileA(file_path,
-                              GENERIC_READ,
-                              FILE_SHARE_READ,
-                              NULL,
-                              OPEN_EXISTING,
-                              FILE_FLAG_SEQUENTIAL_SCAN,
-                              NULL);
+    file->meta.hFile = CreateFileA(file_path,
+                                   GENERIC_READ,
+                                   FILE_SHARE_READ,
+                                   NULL,
+                                   OPEN_EXISTING,
+                                   FILE_FLAG_SEQUENTIAL_SCAN,
+                                   NULL);
 
-    if (file->hFile == INVALID_HANDLE_VALUE)
+    if (file->meta.hFile == INVALID_HANDLE_VALUE)
     {
         print(ERROR, MSG_NONE, "FILE | Could not open file '%s'", file_name);
-        file->hMapping = NULL;
-        file->data = NULL;
-        file->size = 0;
         return;
     }
 
-    file->hMapping = CreateFileMapping(file->hFile, NULL, PAGE_READONLY, 0, 0, NULL);
-    if (file->hMapping == NULL)
+    file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+    if (file->meta.hMapping == NULL)
     {
         print(ERROR, MSG_NONE, "FILE | Could not create file mapping for '%s'", file_name);
-        CloseHandle(file->hFile);
-        file->hFile = INVALID_HANDLE_VALUE;
-        file->data = NULL;
-        file->size = 0;
+        file_metadata_close(&file->meta);
         return;
     }
 
-    file->data = (char*)MapViewOfFile(file->hMapping, FILE_MAP_READ, 0, 0, 0);
-    if (file->data == NULL)
+    file->text = (char*)MapViewOfFile(file->meta.hMapping, FILE_MAP_READ, 0, 0, 0);
+    if (file->text == NULL)
     {
         print(ERROR, MSG_NONE, "FILE | Could not map view of file '%s'", file_name);
-        CloseHandle(file->hMapping);
-        CloseHandle(file->hFile);
-        file->hMapping = NULL;
-        file->hFile = INVALID_HANDLE_VALUE;
-        file->size = 0;
+        file_metadata_close(&file->meta);
         return;
     }
 
     LARGE_INTEGER file_size;
-    GetFileSizeEx(file->hFile, &file_size);
-    file->size = file_size.QuadPart;
+    GetFileSizeEx(file->meta.hFile, &file_size);
+    file->meta.bytes = file_size.QuadPart;
 #else
-    file->fd = open(file_path, O_RDONLY);
-    if (file->fd == -1)
+    file->meta.fd = open(file_path, O_RDONLY);
+    if (file->meta.fd == -1)
     {
         print(ERROR, MSG_NONE, "FILE | Could not open input file '%s'", file_name);
-        file->data = NULL;
-        file->size = 0;
         return;
     }
 
     struct stat sb;
-    if (fstat(file->fd, &sb) == -1)
+    if (fstat(file->meta.fd, &sb) == -1)
     {
         print(ERROR, MSG_NONE, "FILE | Could not stat file '%s'", file_name);
-        close(file->fd);
-        file->fd = -1;
-        file->data = NULL;
-        file->size = 0;
+        file_metadata_close(&file->meta);
         return;
     }
 
-    file->size = (size_t)sb.st_size;
-    file->data = CAST(file->data)(mmap(NULL, file->size, PROT_READ, MAP_PRIVATE, file->fd, 0));
-    if (file->data == MAP_FAILED)
+    file->meta.bytes = (size_t)sb.st_size;
+    file->text = (char*)mmap(NULL, file->meta.bytes, PROT_READ, MAP_PRIVATE, file->meta.fd, 0);
+    if (file->text == MAP_FAILED)
     {
         print(ERROR, MSG_NONE, "FILE | Could not memory map file '%s'", file_name);
-        close(file->fd);
-        file->fd = -1;
-        file->data = NULL;
-        file->size = 0;
+        file_metadata_close(&file->meta);
+        file->text = NULL;
         return;
     }
 
-    madvise(file->data, file->size, MADV_SEQUENTIAL);
+    madvise(file->text, file->meta.bytes, MADV_SEQUENTIAL);
 #endif
 }
 
 static inline void
-file_free(File* file)
+file_text_close(FileText* file)
 {
 #ifdef _WIN32
-    if (file->data)
+    if (file->text)
     {
-        UnmapViewOfFile(file->data);
-    }
-
-    if (file->hMapping)
-    {
-        CloseHandle(file->hMapping);
-    }
-
-    if (file->hFile)
-    {
-        CloseHandle(file->hFile);
+        UnmapViewOfFile(file->text);
+        file->text = NULL;
     }
 
 #else
-
-    if (file->data)
+    if (file->text)
     {
-        munmap(file->data, file->size);
-    }
-
-    if (file->fd)
-    {
-        close(file->fd);
+        munmap(file->text, file->meta.bytes);
+        file->text = NULL;
     }
 
 #endif
+    file_metadata_close(&file->meta);
 }
 
-static inline MmapMatrix
-mmap_matrix_create(const char* file_path, size_t matrix_size)
+static inline FileMatrix
+file_matrix_open(const char* file_path, size_t matrix_dim)
 {
-    MmapMatrix matrix = { 0 };
-    matrix.matrix_size = matrix_size;
+    FileMatrix file = { 0 };
+    file_metadata_init(&file.meta);
 
-    size_t triangle_elements = (matrix_size * (matrix_size - 1)) / 2;
-    size_t bytes_needed = triangle_elements * sizeof(*matrix.data);
-    matrix.file_size = bytes_needed;
+    size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
+    size_t bytes = triangle_elements * sizeof(*file.matrix);
+    file.meta.bytes = bytes;
     const char* file_name = file_name_path(file_path);
-    const float mmap_size = (float)bytes_needed / (float)GiB;
+    const float mmap_size = (float)bytes / (float)GiB;
 
     print(INFO, MSG_LOC(LAST), "Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
 
 #ifdef _WIN32
-    matrix.hFile = CreateFileA(file_path,
-                               GENERIC_READ | GENERIC_WRITE,
-                               0,
-                               NULL,
-                               CREATE_ALWAYS,
-                               FILE_ATTRIBUTE_NORMAL,
-                               NULL);
+    file.meta.hFile = CreateFileA(file_path,
+                                  GENERIC_READ | GENERIC_WRITE,
+                                  0,
+                                  NULL,
+                                  CREATE_ALWAYS,
+                                  FILE_ATTRIBUTE_NORMAL,
+                                  NULL);
 
-    if (matrix.hFile == INVALID_HANDLE_VALUE)
+    if (file.meta.hFile == INVALID_HANDLE_VALUE)
     {
-        print(ERROR, MSG_NONE, "MMAPMATRIX | Could not create memory-mapped file '%s'", file_name);
+        print(ERROR, MSG_NONE, "MATRIXFILE | Could not create memory-mapped file '%s'", file_name);
         return matrix;
     }
 
     LARGE_INTEGER file_size;
-    file_size.QuadPart = bytes_needed;
-    SetFilePointerEx(matrix.hFile, file_size, NULL, FILE_BEGIN);
-    SetEndOfFile(matrix.hFile);
+    file_size.QuadPart = bytes;
+    SetFilePointerEx(file.meta.hFile, file_size, NULL, FILE_BEGIN);
+    SetEndOfFile(file.meta.hFile);
 
-    matrix.hMapping = CreateFileMapping(matrix.hFile, NULL, PAGE_READWRITE, 0, 0, NULL);
-    if (matrix.hMapping == NULL)
+    file.meta.hMapping = CreateFileMapping(file.meta.hFile, NULL, PAGE_READWRITE, 0, 0, NULL);
+    if (file.meta.hMapping == NULL)
     {
-        print(ERROR, MSG_NONE, "MMAPMATRIX | Could not create file mapping for '%s'", file_name);
-        CloseHandle(matrix.hFile);
-        matrix.hFile = INVALID_HANDLE_VALUE;
+        print(ERROR, MSG_NONE, "MATRIXFILE | Could not create file mapping for '%s'", file_name);
+        file_metadata_close(&file.meta);
         return matrix;
     }
 
-    matrix.data = (int*)MapViewOfFile(matrix.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if (matrix.data == NULL)
+    file.matrix = (int*)MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    if (file.matrix == NULL)
     {
-        print(ERROR, MSG_NONE, "MMAPMATRIX | Could not map view of file '%s'", file_name);
-        CloseHandle(matrix.hMapping);
-        CloseHandle(matrix.hFile);
-        matrix.hMapping = NULL;
-        matrix.hFile = INVALID_HANDLE_VALUE;
+        print(ERROR, MSG_NONE, "MATRIXFILE | Could not map view of file '%s'", file_name);
+        file_metadata_close(&file.meta);
         return matrix;
     }
 
 #else
-    matrix.fd = open(file_path, O_RDWR | O_CREAT | O_TRUNC, 0644);
-    if (matrix.fd == -1)
+    file.meta.fd = open(file_path, O_RDWR | O_CREAT | O_TRUNC, 0644);
+    if (file.meta.fd == -1)
     {
-        print(ERROR, MSG_NONE, "MMAPMATRIX | Could not create memory-mapped file '%s'", file_name);
-        return matrix;
+        print(ERROR, MSG_NONE, "MATRIXFILE | Could not create memory-mapped file '%s'", file_name);
+        return file;
     }
 
-    if (ftruncate(matrix.fd, (off_t)bytes_needed) == -1)
+    if (ftruncate(file.meta.fd, (off_t)bytes) == -1)
     {
-        print(ERROR, MSG_NONE, "MMAPMATRIX | Could not set size for file '%s'", file_name);
-        close(matrix.fd);
-        matrix.fd = -1;
-        return matrix;
+        print(ERROR, MSG_NONE, "MATRIXFILE | Could not set size for file '%s'", file_name);
+        file_metadata_close(&file.meta);
+        return file;
     }
 
-    matrix.data = (int*)mmap(NULL, bytes_needed, PROT_READ | PROT_WRITE, MAP_SHARED, matrix.fd, 0);
-    if (matrix.data == MAP_FAILED)
+    file.matrix = (int*)mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, file.meta.fd, 0);
+    if (file.matrix == MAP_FAILED)
     {
-        print(ERROR, MSG_NONE, "MMAPMATRIX | Could not memory map file '%s'", file_name);
-        close(matrix.fd);
-        matrix.fd = -1;
-        return matrix;
+        print(ERROR, MSG_NONE, "MATRIXFILE | Could not memory map file '%s'", file_name);
+        file_metadata_close(&file.meta);
+        file.matrix = NULL;
+        return file;
     }
 
-    madvise(matrix.data, bytes_needed, MADV_RANDOM);
-    madvise(matrix.data, bytes_needed, MADV_HUGEPAGE);
-    madvise(matrix.data, bytes_needed, MADV_DONTFORK);
+    madvise(file.matrix, bytes, MADV_RANDOM);
+    madvise(file.matrix, bytes, MADV_HUGEPAGE);
+    madvise(file.matrix, bytes, MADV_DONTFORK);
 
 #endif
 
@@ -246,7 +251,7 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
     bool is_zeroed = true;
     for (size_t i = 0; i < (sizeof(check_indices) / sizeof(*check_indices)); i++)
     {
-        if (matrix.data[check_indices[i]] != 0)
+        if (file.matrix[check_indices[i]] != 0)
         {
             is_zeroed = false;
             break;
@@ -258,44 +263,41 @@ mmap_matrix_create(const char* file_path, size_t matrix_size)
         print(VERBOSE, MSG_LOC(FIRST), "Memory not pre-zeroed, performing explicit initialization");
 
         double pre_memset_time = time_current();
-        memset(matrix.data, 0, bytes_needed);
+        memset(file.matrix, 0, bytes);
         double memset_time = pre_memset_time - time_current();
 
         print(VERBOSE, MSG_LOC(LAST), "Matrix data memset performed in %.2f seconds", memset_time);
     }
 
-    return matrix;
+    return file;
 }
 
 static inline void
-mmap_matrix_close(MmapMatrix* matrix)
+file_matrix_close(FileMatrix* matrix)
 {
-    if (!matrix->data)
+    if (!matrix->matrix)
     {
         return;
     }
 
 #ifdef _WIN32
     UnmapViewOfFile(matrix->data);
-    CloseHandle(matrix->hMapping);
-    CloseHandle(matrix->hFile);
-#else
-    munmap(matrix->data, matrix->file_size);
-    close(matrix->fd);
-#endif
-
     matrix->data = NULL;
-    matrix->file_size = 0;
+#else
+    munmap(matrix->matrix, matrix->meta.bytes);
+    matrix->matrix = NULL;
+#endif
+    file_metadata_close(&matrix->meta);
 }
 
 static inline size_t
-mmap_triangle_index(size_t row, size_t col)
+matrix_triangle_index(size_t row, size_t col)
 {
     return (col * (col - 1)) / 2 + row;
 }
 
 static inline void
-mmap_matrix_file_name(char* buffer, size_t buffer_size, const char* output_path)
+file_matrix_name(char* buffer, size_t buffer_size, const char* output_path)
 {
     if (output_path && output_path[0] != '\0')
     {
