@@ -37,11 +37,14 @@ static struct
         unsigned mode_write : 1;
         unsigned mode_benchmark : 1;
         unsigned mode_filter : 1;
+#ifdef USE_CUDA
+        unsigned mode_cuda : 1;
+#endif
         unsigned quiet : 1;
     };
 } args = { 0 };
 
-static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWlvqDh";
+static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWClvqDh";
 
 static struct option long_options[] = { { "input", required_argument, 0, 'i' },
                                         { "output", required_argument, 0, 'o' },
@@ -55,6 +58,9 @@ static struct option long_options[] = { { "input", required_argument, 0, 'i' },
                                         { "compression", required_argument, 0, 'z' },
                                         { "filter", required_argument, 0, 'f' },
                                         { "benchmark", no_argument, 0, 'B' },
+#ifdef USE_CUDA
+                                        { "no-cuda", no_argument, 0, 'C' },
+#endif
                                         { "no-write", no_argument, 0, 'W' },
                                         { "no-detail", no_argument, 0, 'D' },
                                         { "verbose", no_argument, 0, 'v' },
@@ -83,6 +89,10 @@ GETTER(float, filter, args.filter)
 GETTER(bool, mode_multithread, args.mode_multithread)
 GETTER(bool, mode_benchmark, args.mode_benchmark)
 GETTER(bool, mode_write, args.mode_write)
+
+#ifdef USE_CUDA
+GETTER(bool, mode_cuda, args.mode_cuda)
+#endif
 
 #undef GETTER
 
@@ -255,6 +265,9 @@ args_print_usage(const char* program_name)
     printf("  -z, --compression N    HDF5 compression level (0-9) [default: 0 (no compression)]\n");
     printf("  -f, --filter THRESHOLD Filter sequences with similarity above threshold\n");
     printf("  -B, --benchmark        Enable benchmarking mode\n");
+#ifdef USE_CUDA
+    printf("  -C, --no-cuda          Disable CUDA support\n");
+#endif
     printf("  -W, --no-write         Disable writing to output file\n");
     printf("  -D, --no-detail        Disable detailed printing\n");
     printf("  -v, --verbose          Enable verbose printing\n");
@@ -316,6 +329,19 @@ args_print_config(void)
     {
         print(CONFIG, MSG_LOC(MIDDLE), "Compression: %u", args.compression_level);
     }
+
+#ifdef USE_CUDA
+    if (args.mode_cuda)
+    {
+        print(CONFIG, MSG_LOC(MIDDLE), "CUDA: Enabled");
+    }
+
+    else
+    {
+        print(CONFIG, MSG_LOC(MIDDLE), "CUDA: Disabled");
+    }
+
+#endif
 
     print(CONFIG, MSG_LOC(LAST), "Threads: %ld", args.thread_num);
 
@@ -439,6 +465,14 @@ args_parse(int argc, char* argv[])
                 args.mode_write = 0;
                 break;
 
+            case 'C':
+#ifdef USE_CUDA
+                args.mode_cuda = 0;
+#else
+                print(WARNING, MSG_NONE, "Ignored: -C, --no-cuda (not compiled with CUDA support)");
+#endif
+                break;
+
             case 'v':
                 print_verbose_flip();
                 break;
@@ -495,6 +529,10 @@ args_init(int argc, char* argv[])
     args.method_id = PARAM_UNSET;
     args.seq_type = PARAM_UNSET;
     args.matrix_id = PARAM_UNSET;
+
+#ifdef USE_CUDA
+    args.mode_cuda = 1;
+#endif
 
     args_parse(argc, argv);
 

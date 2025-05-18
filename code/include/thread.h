@@ -11,6 +11,10 @@
 
 #include <stdatomic.h>
 
+#ifdef USE_CUDA
+#include "seqalign_cuda.h"
+#endif
+
 typedef struct
 {
     size_t thread_id;
@@ -253,6 +257,14 @@ align_singlethreaded(void)
 static inline bool
 align(void)
 {
+#ifdef USE_CUDA
+    if (args_mode_cuda())
+    {
+        return cuda_align();
+    }
+
+#endif
+
     if (args_mode_multithread())
     {
         return align_multithreaded();

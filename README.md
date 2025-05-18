@@ -9,7 +9,7 @@
 
 ## Overview
 
-SequenceAligner is a highly optimized tool for performing rapid pairwise sequence alignments on protein or DNA sequences. It leverages low level optimizations like SIMD instructions (AVX/SSE), memory mapping, and efficient cache utilization to achieve better performance.
+SequenceAligner is a highly optimized tool for performing rapid pairwise sequence alignments on protein or DNA sequences. It leverages low level CPU optimizations like SIMD instructions (AVX/SSE), memory mapping, efficient cache utilization and optionally GPU acceleration through CUDA to achieve better performance.
 
 <details open>
 <summary><strong>Features</strong></summary>
@@ -18,9 +18,15 @@ SequenceAligner is a highly optimized tool for performing rapid pairwise sequenc
   - Needleman-Wunsch (global alignment)
   - Smith-Waterman (local alignment)
   - Gotoh algorithm with affine gap penalties
+- GPU acceleration with CUDA support
+- CPU optimizations:
+  - SIMD vectorization (AVX512/AVX2/SSE)
+  - Efficient multithreading with minimal overhead
+  - Memory-mapped file I/O
+  - Sequence memory pools
 - [Multiple configurable options](#usage)
 - Predefined scoring matrices
-- HDF5 output format with compression
+- HDF5 output format with optional compression
 
 </details>
 
@@ -40,13 +46,18 @@ SequenceAligner is a highly optimized tool for performing rapid pairwise sequenc
 - GCC with C99 support or later
 - GNU Make
 - HDF5 library
+- CUDA toolkit (optional, for GPU acceleration)
 
 ```bash
 # Debian/Ubuntu
 sudo apt install build-essential libhdf5-dev
+# For CUDA support, install CUDA toolkit
+sudo apt install nvidia-cuda-toolkit
 
 # Arch Linux
 sudo pacman -S gcc make hdf5
+# For CUDA support
+sudo pacman -S cuda
 ```
 
 #### Building
@@ -59,7 +70,10 @@ cd SequenceAligner
 # Build the project
 make
 
-# Profiles
+# Build with CUDA support (if available)
+make cuda
+
+# Other build profiles
 make help
 ```
 </details>
@@ -90,20 +104,24 @@ cd /c/Users/John/Downloads/SequenceAligner
 ```bash
 # Build the program
 mingw32-make
-```
 
-```bash
 # All available commands
 mingw32-make help
 ```
+
+> [!NOTE]
+> CUDA support is currently not yet available in the Windows build.
 
 </details>
 
 ## Usage
 
 ```bash
-# Linux
+# Linux (CPU only version)
 ./bin/seqalign [ARGUMENTS]
+
+# Linux (CUDA+CPU version)
+./bin/seqalign-cuda [ARGUMENTS]
 
 # Windows
 ./bin/seqalign.exe [ARGUMENTS]
@@ -131,6 +149,7 @@ mingw32-make help
 | `-z, --compression N` | HDF5 compression level (0-9) [default: 0 (no compression)] |
 | `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold |
 | `-B, --benchmark` | Enable benchmarking mode |
+| `-C, --no-cuda` | Disable CUDA |
 | `-W, --no-write` | Disable writing to output file |
 | `-D, --no-detail` | Disable detailed printing |
 | `-v, --verbose` | Enable verbose printing |
@@ -155,6 +174,12 @@ mingw32-make help
 # Using Smith-Waterman algorithm (requires affine gap parameters) with 8 threads
 ./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a sw -m blosum62 -s 10 -e 1 -T 8
 
+# Run with CUDA
+./bin/seqalign-cuda -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4
+
+# Run with CUDA but disable it (equivalent to CPU version)
+./bin/seqalign-cuda -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4 -C
+
 # Gotoh algorithm with affine gaps
 ./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a ga -m pam250 -s 12 -e 2
 
@@ -170,72 +195,87 @@ mingw32-make help
 
 ## Performance Benchmarks
 
-<table>
-  <tr>
-    <th colspan="3">Test Environment</th>
-  </tr>
-  <tr>
-    <td><a href="/datasets/avppred.csv">Dataset</a></td>
-    <td colspan="2">1042 sequences (21.58 avg length)</td>
-  </tr>
-  <tr>
-    <td>Alignments</td>
-    <td colspan="2">542,361 pairwise comparisons</td>
-  </tr>
-  <tr>
-    <td>Algorithm</td>
-    <td colspan="2">Needleman-Wunsch</td>
-  </tr>
-  <tr>
-    <th>System</th>
-    <th>Threads</th>
-    <th>Alignment Time</th>
-  </tr>
-  <tr>
-    <td rowspan="2">Linux (Arch)</td>
-    <td>16</td>
-    <td><strong>0.026s</strong></td>
-  </tr>
-  <tr>
-    <td>1</td>
-    <td>0.15s</td>
-  </tr>
-</table>
+<div class="benchmarks">
+  <table>
+    <tr>
+      <th colspan="4">Test Environment</th>
+    </tr>
+    <tr>
+      <td><a href="/datasets/avppred.csv">Dataset</a></td>
+      <td colspan="3">1042 sequences (21.58 avg length)</td>
+    </tr>
+    <tr>
+      <td>Alignments</td>
+      <td colspan="3">542,361 pairwise comparisons</td>
+    </tr>
+    <tr>
+      <td>Algorithm</td>
+      <td colspan="3">Needleman-Wunsch</td>
+    </tr>
+    <tr>
+      <th>System</th>
+      <th>Hardware</th>
+      <th>Threads</th>
+      <th>Alignment Time</th>
+    </tr>
+    <tr>
+      <td rowspan="3">Linux (Arch)</td>
+      <td>CPU (AMD Ryzen 7 5700G)</td>
+      <td>16</td>
+      <td><strong>0.026s</strong></td>
+    </tr>
+    <tr>
+      <td>CPU (AMD Ryzen 7 5700G)</td>
+      <td>1</td>
+      <td>0.15s</td>
+    </tr>
+    <tr>
+      <td>GPU (NVIDIA GTX 1070 Ti)</td>
+      <td>1024</td>
+      <td><strong>0.028s</strong></td>
+    </tr>
+  </table>
 
-<table>
-  <tr>
-    <th colspan="4">Large Dataset Performance</th>
-  </tr>
-  <tr>
-    <td><a href="/datasets/drosophila.csv">Dataset</a></td>
-    <td colspan="3">58,746 sequences (17.93 avg length)</td>
-  </tr>
-  <tr>
-    <td>Alignments</td>
-    <td colspan="3">1,725,516,885 pairwise comparisons</td>
-  </tr>
-  <tr>
-    <td>Algorithm</td>
-    <td colspan="3">Needleman-Wunsch</td>
-  </tr>
-  <tr>
-    <th>System</th>
-    <th>Threads</th>
-    <th>Alignment Time</th>
-    <th>I/O Time</th>
-  </tr>
-  <tr>
-    <td>Linux (Arch)</td>
-    <td>16</td>
-    <td><strong>53.651s (32 million/s)</strong></td>
-    <td>31.746s (hdf5 conversion)</td>
-  </tr>
-</table>
+  <table>
+    <tr>
+      <th colspan="5">Large Dataset Performance</th>
+    </tr>
+    <tr>
+      <td><a href="/datasets/drosophila.csv">Dataset</a></td>
+      <td colspan="4">58,746 sequences (17.93 avg length)</td>
+    </tr>
+    <tr>
+      <td>Alignments</td>
+      <td colspan="4">1,725,516,885 pairwise comparisons</td>
+    </tr>
+    <tr>
+      <td>Algorithm</td>
+      <td colspan="4">Needleman-Wunsch</td>
+    </tr>
+    <tr>
+      <th>System</th>
+      <th>Hardware</th>
+      <th>Threads</th>
+      <th>Alignment Time</th>
+      <th>I/O Time</th>
+    </tr>
+    <tr>
+      <td>Linux (Arch)</td>
+      <td>CPU (AMD Ryzen 7 5700G)</td>
+      <td>16</td>
+      <td>53.651s (32 million/s)</td>
+      <td>31.746s</td>
+    </tr>
+  </table>
+</div>
 
 > [!NOTE]
 > - Smith-Waterman and Gotoh algorithms are slower than Needleman-Wunsch
-> - Longer sequences require more time to align
-> - For very large datasets (exceeding available RAM), the final step of saving results to HDF5 format may become the most time-consuming part of the process
+> - CUDA acceleration provides speedups for Smith-Waterman, Gotoh and datasets with longer sequences
+> - - GA CPU: 0.08s, CUDA: 0.05s for 1042 sequences, avg len: 21.58 @[avppred.csv](datasets/avppred.csv)
+> - - NW CPU: 4.049s, CUDA: 3.931s for 9409 sequences, avg len: 30.47 @[amp.csv](datasets/amp.csv)
+> - - CPU still faster for datasets with short sequences and/or Needleman-Wunsch algorithm
+> - For very large datasets (exceeding available RAM), the alignments will be performed in batches and written to disk before being converted to HDF5 format
 
 ## Implementation Details
 
@@ -248,30 +288,39 @@ mingw32-make help
 
 All implementations use dynamic programming with optimized matrix operations.
 
-<details>
-<summary>Parasail python equivalents</summary>
-
 > [!NOTE]
+> Parasail python equivalents
 > - nw in Parasail is actually the Gotoh algorithm with affine gaps
 > - To get actual linear gaps you need to set the `open` and `extend` parameters to the same value
 > - This also applies to the Gotoh algorithm in this project, but you should use nw since it is faster
-- **Needleman-Wunsch**: `parasail.nw(..., open=gap, extend=gap, ...)`
-- **Smith-Waterman**: `parasail.sw()`
-- **Gotoh Algorithm**: `parasail.nw()`
-</details>
+> - **Needleman-Wunsch**: `parasail.nw(..., open=gap, extend=gap, ...)`
+> - **Smith-Waterman**: `parasail.sw()`
+> - **Gotoh Algorithm**: `parasail.nw()`
 
 </details>
 
 <details>
-<summary><strong>Optimization Techniques</strong></summary>
+<summary><strong>CPU Optimization Techniques</strong></summary>
 
 - SIMD vectorization using AVX/SSE instructions
 - Cache friendly memory access patterns
 - Memory prefetching
-- Thread work stealing for load balancing
+- Mutex-based thread work allocation with dynamic batch sizing
 - Huge pages for large memory allocations
 - Efficient matrix allocation with stack fallback for small sequences
 - Memory mapped input file reading and storage for large matrices
+- Sequence memory pools for fast sequence storage
+</details>
+
+<details>
+<summary><strong>CUDA GPU Optimization Techniques</strong></summary>
+
+- Constant memory usage for frequently accessed data and smaller datasets
+- Device-specific tuning of thread and block dimensions
+- Efficient data transfer to and from GPU memory
+- Memory-mapped matrix storage for large datasets
+- Batched execution for datasets exceeding GPU memory
+- Triangular matrix computation to reduce redundant calculations
 </details>
 
 ## File Formats
@@ -299,6 +348,17 @@ All implementations use dynamic programming with optimized matrix operations.
   - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
   - Many programming languages have libraries to read HDF5 (Python: h5py, R: rhdf5)
 
+## System Requirements
+
+### CPU Version
+- Any x86-64 processor
+- Enough RAM to store sequences from a dataset
+- Disk space for output files (varies with dataset size)
+
+### CUDA Version
+- NVIDIA GPU with compute capability 3.5 or higher
+- CUDA toolkit 10.0 or newer
+- Appropriate NVIDIA drivers
 
 ## License
 

@@ -22,4 +22,8 @@ extern bool args_mode_multithread(void);
 extern bool args_mode_benchmark(void);
 extern bool args_mode_write(void);
 
+#ifdef USE_CUDA
+extern bool args_mode_cuda(void);
+#endif
+
 #endif // ARGS_H

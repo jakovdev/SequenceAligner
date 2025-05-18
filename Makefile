@@ -1,6 +1,6 @@
 # Suppress make recursive messages + use all available CPU cores
 MAKEFLAGS += --no-print-directory -j$(shell nproc)
-.PHONY: release help clean update setup debug all check-setup check-libraries _x86-64 _avx2 _avx512
+.PHONY: release cuda help clean update setup debug cuda-debug all check-setup check-libraries check-cuda _x86-64 _avx2 _avx512
 
 # OS specific settings
 OS ?= $(shell uname -s)
@@ -15,11 +15,15 @@ help:
 	@echo ""
 	@echo "Available commands:"
 	@echo "  $(MAKE_CMD) release      - Build the program"
-	@echo "  $(MAKE_CMD) debug        - Build with debugging information"
 	@echo "  $(MAKE_CMD) clean        - Remove built files"
 	@echo "  $(MAKE_CMD) setup        - Check if required tools exist"
 	@echo "  $(MAKE_CMD) update       - Update required tools"
 	@echo "  $(MAKE_CMD) help         - Show this help message"
+ifneq ($(IS_WINDOWS),yes)
+	@echo ""
+	@echo "CUDA Commands:"
+	@echo "  $(MAKE_CMD) cuda         - Build with CUDA support"
+endif
 	@echo ""
 	@echo "After building, run the program with: $(MAIN_BIN)"
 
@@ -40,6 +44,7 @@ $(call check_dir_exists,$(SCRIPTS_DIR),Scripts)
 
 # Tracking files
 DLL_COMPLETE := $(META_DIR)/dll_complete
+CUDA_COMPLETE := $(META_DIR)/cuda_complete
 SETUP_COMPLETE := $(META_DIR)/setup_complete
 
 # GCC directories
@@ -82,6 +87,38 @@ X86_64_BIN := $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
 AVX2_BIN := $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
 AVX512_BIN := $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
 
+# CUDA directories
+CUDA_OBJ_DIR := $(BIN_DIR)/cuda_obj
+ifneq ($(filter cuda cuda-debug,$(MAKECMDGOALS)),)
+CUDA_SRC_DIR := code/cuda/src
+$(call check_dir_exists,$(CUDA_SRC_DIR),CUDA source)
+CUDA_INCLUDE_DIR := code/cuda/include
+$(call check_dir_exists,$(CUDA_INCLUDE_DIR),CUDA include)
+CUDA_C_BINDINGS_DIR := code/cuda/c_bindings
+
+# CUDA files
+CUDA_SRCS := $(wildcard $(CUDA_SRC_DIR)/*.cu)
+CUDA_HEADERS := $(wildcard $(CUDA_INCLUDE_DIR)/*.{h,hpp,cuh}) $(wildcard $(CUDA_C_BINDINGS_DIR)/*.{h,hpp,cuh})
+HEADERS += $(wildcard $(CUDA_C_BINDINGS_DIR)/*.{h,hpp,cuh})
+CUDA_OBJS := $(patsubst $(CUDA_SRC_DIR)/%.cu,$(CUDA_OBJ_DIR)/%.o,$(CUDA_SRCS))
+CUDA_C_OBJS := $(patsubst $(SRC_DIR)/%.c,$(CUDA_OBJ_DIR)/%.o,$(SRCS))
+# CUDA files for various builds
+CUDA_OBJS_DEBUG := $(patsubst $(CUDA_SRC_DIR)/%.cu,$(CUDA_OBJ_DIR)/%-debug.o,$(CUDA_SRCS))
+CUDA_C_OBJS_DEBUG := $(patsubst $(SRC_DIR)/%.c,$(CUDA_OBJ_DIR)/%-debug.o,$(SRCS))
+# TODO: Maybe add _x86-64 _avx2 _avx512 versions of the CUDA builds (though they wont make that much of a difference since it's now GPU bound)
+
+# CUDA flags and libraries
+CUDA_RELEASE_FLAGS := -std=c++20 -O3 -Xcompiler "-fPIC" -I$(CUDA_INCLUDE_DIR) -I$(CUDA_C_BINDINGS_DIR) -Wno-deprecated-gpu-targets
+CUDA_DEBUG_FLAGS := -g -G -O0 -Xcompiler "-Wall -fPIC" -I$(CUDA_INCLUDE_DIR) -I$(CUDA_C_BINDINGS_DIR) -Wno-deprecated-gpu-targets
+CUDA_LIBS := $(shell pkg-config --libs cuda) -lcudart
+CUDA_CFLAGS := -DUSE_CUDA -I$(CUDA_C_BINDINGS_DIR)
+
+# CUDA build results
+NVCC := nvcc
+endif
+CUDA_BIN := $(BIN_DIR)/seqalign-cuda$(BIN_EXT)
+CUDA_DEBUG_BIN := $(BIN_DIR)/seqalign-cuda-debug$(BIN_EXT)
+
 release: CFLAGS := -march=native $(RELEASE_CFLAGS)
 release: $(MAIN_BIN)
 all: release # Only build release since it's probably what the user wants
@@ -98,12 +135,23 @@ _avx2: $(AVX2_BIN)
 _avx512: CFLAGS := -march=x86-64 -mavx512f -mavx512bw $(RELEASE_CFLAGS)
 _avx512: $(AVX512_BIN)
 
+cuda: CFLAGS := -march=native $(RELEASE_CFLAGS) $(CUDA_CFLAGS)
+cuda: CLIBS += $(CUDA_LIBS) -lstdc++
+cuda: $(CUDA_BIN)
+
+cuda-debug: CFLAGS := -march=native $(DEBUG_CFLAGS) $(CUDA_CFLAGS) -fno-sanitize=address
+cuda-debug: CLIBS += $(CUDA_LIBS) -lstdc++
+cuda-debug: $(CUDA_DEBUG_BIN)
+
 # Directories
 $(BIN_DIR):
 	@$(MKDIR) $(BIN_DIR)
 
 $(OBJ_DIR):
 	@$(MKDIR) $(OBJ_DIR)
+
+$(CUDA_OBJ_DIR):
+	@$(MKDIR) $(CUDA_OBJ_DIR)
 
 $(RESULTS_DIR):
 	@$(MKDIR) $(RESULTS_DIR)
@@ -134,6 +182,10 @@ $(OBJ_DIR)/%-avx512.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
 
 # GCC build results
 $(MAIN_BIN): $(MAIN_SRC) $(OBJS) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
+	@if [ -L "$(MAIN_BIN)" ]; then \
+        echo "Removing existing symlink at $(MAIN_BIN)"; \
+        $(RM) $(MAIN_BIN); \
+    fi
 	@echo "Compiling Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS) -o $@ $(CLIBS) && echo "Build complete! Run the program with: $@"
 
@@ -153,6 +205,36 @@ $(AVX512_BIN): $(MAIN_SRC) $(OBJS_AVX512) $(HEADERS) | $(BIN_DIR) check-setup ch
 	@echo "Compiling AVX512 Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS_AVX512) -o $@ $(CLIBS) && echo "AVX512 build complete!"
 
+# CUDA object files
+$(CUDA_OBJ_DIR)/%.o: $(CUDA_SRC_DIR)/%.cu $(CUDA_HEADERS) | $(CUDA_OBJ_DIR)
+	@echo "Compiling CUDA source: $<"
+	@$(NVCC) $(CUDA_RELEASE_FLAGS) -c $< -o $@
+
+$(CUDA_OBJ_DIR)/%-debug.o: $(CUDA_SRC_DIR)/%.cu $(CUDA_HEADERS) | $(CUDA_OBJ_DIR)
+	@echo "Compiling CUDA debug source: $<"
+	@$(NVCC) $(CUDA_DEBUG_FLAGS) -c $< -o $@
+# CUDA C object files
+$(CUDA_OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(CUDA_OBJ_DIR)
+	@echo "Compiling CUDA C source: $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(CUDA_OBJ_DIR)/%-debug.o: $(SRC_DIR)/%.c $(HEADERS) | $(CUDA_OBJ_DIR)
+	@echo "Compiling CUDA C debug source: $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+# CUDA build results
+$(CUDA_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS) $(CUDA_C_OBJS) $(CUDA_HEADERS) | $(BIN_DIR) check-cuda check-libraries
+	@echo "Compiling Sequence Aligner with CUDA..."
+	@$(CC) $(CFLAGS) $< $(CUDA_OBJS) $(CUDA_C_OBJS) -o $@ $(CLIBS) && echo "CUDA build complete! Run the program with: $@"
+	@if [ ! -f "$(MAIN_BIN)" ] && [ -f "$(CUDA_BIN)" ]; then \
+        echo "Creating symlink from $(MAIN_BIN) to $(CUDA_BIN)"; \
+        ln -sf $(notdir $(CUDA_BIN)) $(MAIN_BIN); \
+    fi
+
+$(CUDA_DEBUG_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS) $(CUDA_HEADERS) | $(BIN_DIR) check-cuda check-libraries
+	@echo "Compiling Debug Sequence Aligner with CUDA..."
+	@$(CC) $(CFLAGS) $< $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS) -o $@ $(CLIBS) && echo "CUDA debug build complete! Run the program with: $@"
+
 clean:
 	@echo "Cleaning previous build..."
 	@$(RM) $(MAIN_BIN)
@@ -161,6 +243,9 @@ clean:
 	@$(RM) $(AVX2_BIN)
 	@$(RM) $(AVX512_BIN)
 	@$(RM) -r $(OBJ_DIR)
+	@$(RM) $(CUDA_BIN)
+	@$(RM) $(CUDA_DEBUG_BIN)
+	@$(RM) -r $(CUDA_OBJ_DIR)
 	@$(if $(IS_WINDOWS),, $(RM) $(patsubst %,%.exe,$(MAIN_BIN)))
 
 $(SETUP_COMPLETE): | $(META_DIR)
@@ -186,6 +271,18 @@ setup:
 	@echo "Setting up required tools..."
 	@$(RM) $(SETUP_COMPLETE)
 	@$(MAKE) check-setup
+
+$(CUDA_COMPLETE): | $(META_DIR)
+ifneq ($(IS_WINDOWS),yes)
+	@echo "Checking CUDA toolkit..."
+	@which nvcc > /dev/null 2>&1 || (echo "Error: CUDA toolkit not found. Please install CUDA toolkit." && exit 1)
+	@touch $@
+endif
+
+check-cuda: check-setup $(CUDA_COMPLETE)
+ifeq ($(IS_WINDOWS),yes)
+	@echo "Error: CUDA builds are not supported on Windows for now." && exit 1
+endif
 
 $(DLL_COMPLETE): | $(META_DIR) $(BIN_DIR)
 ifeq ($(IS_WINDOWS),yes)
