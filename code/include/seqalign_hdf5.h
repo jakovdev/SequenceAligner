@@ -8,11 +8,11 @@
 #include "stddef.h"
 #include "stdint.h"
 
-extern bool h5_initialize(const char* fname, size_t matsize, unsigned int compression, bool write);
-extern void h5_set_matrix_value(size_t row, size_t col, int value);
-extern void h5_set_checksum(int64_t checksum);
+extern bool h5_open(const char* fname, size_t mat_dim, unsigned int compression, bool write);
+extern bool h5_sequences_store(sequence_t* sequences, size_t seq_count);
+extern void h5_matrix_set(size_t row, size_t col, int value);
+extern void h5_checksum_set(int64_t checksum);
 extern int64_t h5_checksum(void);
-extern bool h5_store_sequences(sequence_t* sequences, size_t seq_count);
 extern void h5_close(int skip_flush);
 
 #endif // SEQALIGN_HDF5_H

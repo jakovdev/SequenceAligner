@@ -98,7 +98,7 @@ thread_worker(void* thread_arg)
 
                 storage->local_checksum += score;
 
-                h5_set_matrix_value(i, j, score);
+                h5_matrix_set(i, j, score);
 
                 local_progress++;
 
@@ -198,7 +198,7 @@ align_multithreaded(void)
         total_checksum += thread_storages[t].local_checksum;
     }
 
-    h5_set_checksum(total_checksum * 2);
+    h5_checksum_set(total_checksum * 2);
 
     pthread_mutex_destroy(&row_mutex);
     pthread_mutex_destroy(&completion_mutex);
@@ -238,7 +238,7 @@ align_singlethreaded(void)
 
             local_checksum += score;
 
-            h5_set_matrix_value(i, j, score);
+            h5_matrix_set(i, j, score);
 
             const int percentage = (int)(100 * ++progress / alignment_count);
             print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
@@ -247,7 +247,7 @@ align_singlethreaded(void)
 
     bench_align_end();
 
-    h5_set_checksum(local_checksum * 2);
+    h5_checksum_set(local_checksum * 2);
 }
 
 static inline bool
