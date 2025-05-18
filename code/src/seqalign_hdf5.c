@@ -267,7 +267,7 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
 
         hsize_t start[1] = { batch_start };
         hsize_t count[1] = { current_batch_size };
-        herr_t status = H5Sselect_hyperslab(seq_space, H5S_SELECT_SET, start, NULL, count, NULL);
+        status = H5Sselect_hyperslab(seq_space, H5S_SELECT_SET, start, NULL, count, NULL);
 
         if (status >= 0)
         {
@@ -351,8 +351,6 @@ h5_close(int skip_flush)
 
     if (g_hdf5.mode_write)
     {
-        bool success = true;
-
         if (!skip_flush)
         {
             print(SECTION, MSG_NONE, "Finalizing Results");
