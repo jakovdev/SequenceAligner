@@ -17,33 +17,12 @@
 typedef struct
 {
     int* data;
-    size_t size;
     bool is_stack;
 } SeqIndices;
 
 static inline void
 seq_indices_precompute(SeqIndices* indices, const char* restrict seq, size_t len)
 {
-    indices->size = len;
-
-    if (len <= MAX_STACK_SEQUENCE_LENGTH)
-    {
-        indices->data = ALLOCA(indices->data, len);
-        indices->is_stack = true;
-    }
-
-    else
-    {
-        indices->data = MALLOC(indices->data, len);
-        if (!indices->data)
-        {
-            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
-            exit(1);
-        }
-
-        indices->is_stack = false;
-    }
-
 #ifdef USE_SIMD
     int* restrict data = indices->data;
     const size_t vector_len = (len / BYTES) * BYTES;
@@ -392,6 +371,24 @@ align_nw(const char* restrict seq1, const int len1, const char* seq2, const int 
 #endif
 
     SeqIndices seq1_indices = { 0 };
+
+    if ((size_t)len1 > MAX_STACK_SEQUENCE_LENGTH)
+    {
+        seq1_indices.data = MALLOC(seq1_indices.data, (size_t)len1);
+        if (!seq1_indices.data)
+        {
+            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
+            exit(1);
+        }
+
+        seq1_indices.is_stack = false;
+        goto no_stack;
+    }
+
+    seq1_indices.data = ALLOCA(seq1_indices.data, (size_t)len1);
+    seq1_indices.is_stack = true;
+
+no_stack:
     seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
     FILL_LINEAR_GLOBAL(matrix, cols, gap_penalty);
@@ -421,6 +418,24 @@ align_ga(const char* restrict seq1, const int len1, const char* seq2, const int 
     INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
 
     SeqIndices seq1_indices = { 0 };
+
+    if ((size_t)len1 > MAX_STACK_SEQUENCE_LENGTH)
+    {
+        seq1_indices.data = MALLOC(seq1_indices.data, (size_t)len1);
+        if (!seq1_indices.data)
+        {
+            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
+            exit(1);
+        }
+
+        seq1_indices.is_stack = false;
+        goto no_stack;
+    }
+
+    seq1_indices.data = ALLOCA(seq1_indices.data, (size_t)len1);
+    seq1_indices.is_stack = true;
+
+no_stack:
     seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
     FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
@@ -463,6 +478,24 @@ align_sw(const char* restrict seq1, const int len1, const char* restrict seq2, c
 #endif
 
     SeqIndices seq1_indices = { 0 };
+
+    if ((size_t)len1 > MAX_STACK_SEQUENCE_LENGTH)
+    {
+        seq1_indices.data = MALLOC(seq1_indices.data, (size_t)len1);
+        if (!seq1_indices.data)
+        {
+            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
+            exit(1);
+        }
+
+        seq1_indices.is_stack = false;
+        goto no_stack;
+    }
+
+    seq1_indices.data = ALLOCA(seq1_indices.data, (size_t)len1);
+    seq1_indices.is_stack = true;
+
+no_stack:
     seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
     int score = 0;
