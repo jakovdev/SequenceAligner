@@ -23,5 +23,13 @@ extern void sequences_get_pair(size_t first_index,
                                char* restrict* second_sequence_out,
                                size_t* restrict second_length_out);
 
+#ifdef USE_CUDA
+#include "host_types.h"
+extern char* sequences_flattened(void);
+extern half_t* sequences_offsets(void);
+extern half_t* sequences_lengths(void);
+extern size_t sequences_total_length(void);
+extern size_t sequences_max_length(void);
+#endif
 
 #endif // SEQUENCE_H

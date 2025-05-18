@@ -27,6 +27,13 @@ static struct
     sequence_t* sequences;
     size_t sequence_count;
     size_t alignment_count;
+#ifdef USE_CUDA
+    char* flat_sequences;
+    half_t* flat_offsets;
+    half_t* flat_lengths;
+    size_t total_sequence_length;
+    size_t max_sequence_length;
+#endif
 } g_sequence_dataset = { 0 };
 
 static void
@@ -148,6 +155,29 @@ sequences_free(void)
 
     g_sequence_dataset.sequence_count = 0;
     g_sequence_dataset.alignment_count = 0;
+
+#ifdef USE_CUDA
+    if (g_sequence_dataset.flat_sequences)
+    {
+        free(g_sequence_dataset.flat_sequences);
+        g_sequence_dataset.flat_sequences = NULL;
+    }
+
+    if (g_sequence_dataset.flat_offsets)
+    {
+        free(g_sequence_dataset.flat_offsets);
+        g_sequence_dataset.flat_offsets = NULL;
+    }
+
+    if (g_sequence_dataset.flat_lengths)
+    {
+        free(g_sequence_dataset.flat_lengths);
+        g_sequence_dataset.flat_lengths = NULL;
+    }
+
+    g_sequence_dataset.total_sequence_length = 0;
+    g_sequence_dataset.max_sequence_length = 0;
+#endif
 }
 
 static void
@@ -231,6 +261,26 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
     size_t sequence_count_current = 0;
     size_t filtered_count = 0;
     size_t total_sequence_length = 0;
+#ifdef USE_CUDA
+#include "args.h"
+    const bool use_cuda = args_mode_cuda();
+    size_t max_sequence_length = 0;
+    half_t* temp_offsets = NULL;
+    half_t* temp_lengths = NULL;
+    if (use_cuda)
+    {
+        temp_offsets = MALLOC(temp_offsets, total);
+        temp_lengths = MALLOC(temp_lengths, total);
+        if (!temp_offsets || !temp_lengths)
+        {
+            free(temp_lengths);
+            free(temp_offsets);
+            free(sequences);
+            return;
+        }
+    }
+
+#endif
 
     char* temp_seq = NULL;
     size_t temp_seq_capacity = 0;
@@ -252,6 +302,14 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
             if (!new_buffer)
             {
                 free(temp_seq);
+#ifdef USE_CUDA
+                if (use_cuda)
+                {
+                    free(temp_lengths);
+                    free(temp_offsets);
+                }
+
+#endif
                 free(sequences);
                 return;
             }
@@ -265,6 +323,14 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
         {
             if (!temp_seq)
             {
+#ifdef USE_CUDA
+                if (use_cuda)
+                {
+                    free(temp_lengths);
+                    free(temp_offsets);
+                }
+
+#endif
                 free(sequences);
                 return;
             }
@@ -300,6 +366,17 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
         if (should_include)
         {
             sequence_init(&sequences[sequence_count_current], temp_seq, sequence_length);
+#ifdef USE_CUDA
+            if (use_cuda)
+            {
+                temp_offsets[sequence_count_current] = (half_t)total_sequence_length;
+                temp_lengths[sequence_count_current] = (half_t)sequence_length;
+                if (max_sequence_length < sequence_length)
+                {
+                    max_sequence_length = sequence_length;
+                }
+            }
+#endif
             total_sequence_length += sequence_length;
             sequence_count_current++;
         }
@@ -315,6 +392,14 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
     if (UNLIKELY(sequence_count > UINT32_MAX))
     {
         print(ERROR, MSG_LOC(LAST), "Too many sequences: %zu", sequence_count);
+#ifdef USE_CUDA
+        if (use_cuda)
+        {
+            free(temp_lengths);
+            free(temp_offsets);
+        }
+
+#endif
         free(sequences);
         return;
     }
@@ -327,6 +412,24 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
         {
             sequences = _sequences_new;
         }
+
+#ifdef USE_CUDA
+        if (use_cuda)
+        {
+            half_t* _offsets_new = REALLOC(temp_offsets, sequence_count);
+            if (_offsets_new)
+            {
+                temp_offsets = _offsets_new;
+            }
+
+            half_t* _lengths_new = REALLOC(temp_lengths, sequence_count);
+            if (_lengths_new)
+            {
+                temp_lengths = _lengths_new;
+            }
+        }
+
+#endif
     }
 
     if (apply_filtering)
@@ -343,6 +446,44 @@ sequences_alloc_from_file(char* start, char* end, size_t total, float filter, in
     g_sequence_dataset.sequences = sequences;
     g_sequence_dataset.sequence_count = sequence_count;
     g_sequence_dataset.alignment_count = alignment_count;
+
+#ifdef USE_CUDA
+    if (use_cuda)
+    {
+        g_sequence_dataset.total_sequence_length = total_sequence_length;
+        g_sequence_dataset.max_sequence_length = max_sequence_length;
+
+        char* flat_sequences = MALLOC(flat_sequences, total_sequence_length);
+        half_t* flat_offsets = MALLOC(flat_offsets, sequence_count);
+        half_t* flat_lengths = MALLOC(flat_lengths, sequence_count);
+
+        if (!flat_sequences || !flat_offsets || !flat_lengths)
+        {
+            free(flat_lengths);
+            free(flat_offsets);
+            free(flat_sequences);
+            free(temp_lengths);
+            free(temp_offsets);
+            free(sequences);
+            return;
+        }
+
+        for (size_t i = 0; i < sequence_count; i++)
+        {
+            flat_offsets[i] = temp_offsets[i];
+            flat_lengths[i] = temp_lengths[i];
+            memcpy(flat_sequences + flat_offsets[i], sequences[i].letters, sequences[i].length);
+        }
+
+        g_sequence_dataset.flat_sequences = flat_sequences;
+        g_sequence_dataset.flat_offsets = flat_offsets;
+        g_sequence_dataset.flat_lengths = flat_lengths;
+
+        free(temp_lengths);
+        free(temp_offsets);
+    }
+
+#endif
 
     return;
 }
@@ -381,3 +522,37 @@ sequences_alignment_count(void)
 {
     return g_sequence_dataset.alignment_count;
 }
+
+#ifdef USE_CUDA
+
+char*
+sequences_flattened(void)
+{
+    return g_sequence_dataset.flat_sequences;
+}
+
+half_t*
+sequences_offsets(void)
+{
+    return g_sequence_dataset.flat_offsets;
+}
+
+half_t*
+sequences_lengths(void)
+{
+    return g_sequence_dataset.flat_lengths;
+}
+
+size_t
+sequences_total_length(void)
+{
+    return g_sequence_dataset.total_sequence_length;
+}
+
+size_t
+sequences_max_length(void)
+{
+    return g_sequence_dataset.max_sequence_length;
+}
+
+#endif

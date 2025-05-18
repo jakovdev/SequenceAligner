@@ -21,6 +21,11 @@ static struct
 
     const char* file_path;
 
+#ifdef USE_CUDA
+    size_t* triangle_indices_64;
+    half_t* triangle_indices_32;
+#endif
+
     int* full_matrix;
     size_t full_matrix_b;
 
@@ -366,6 +371,121 @@ h5_close(int skip_flush)
     g_hdf5.is_init = false;
 }
 
+#ifdef USE_CUDA
+
+int*
+h5_matrix_data(void)
+{
+    if (!g_hdf5.mode_write)
+    {
+        return NULL;
+    }
+
+    return g_hdf5.memory_map_required ? g_hdf5.memory_map.matrix : g_hdf5.full_matrix;
+}
+
+size_t
+h5_matrix_bytes(void)
+{
+    if (!g_hdf5.mode_write)
+    {
+        return 0;
+    }
+
+    return g_hdf5.memory_map_required ? g_hdf5.memory_map.meta.bytes : g_hdf5.full_matrix_b;
+}
+
+bool
+h5_triangle_indices_64_bit(void)
+{
+    return g_hdf5.matrix_dim >= 92683; // (matrix_dim - 1) * (matrix_dim - 2) / 2 > UINT32_MAX
+}
+
+static bool h5_triangle_indices_calculate(void);
+
+half_t*
+h5_triangle_indices_32(void)
+{
+    if (!g_hdf5.mode_write || h5_triangle_indices_64_bit())
+    {
+        return NULL;
+    }
+
+    if (!g_hdf5.triangle_indices_32 && !h5_triangle_indices_calculate())
+    {
+        print(ERROR, MSG_NONE, "HDF5 | Failed to calculate result offsets");
+        return NULL;
+    }
+
+    return g_hdf5.triangle_indices_32;
+}
+
+size_t*
+h5_triangle_indices_64(void)
+{
+    if (!g_hdf5.mode_write || !h5_triangle_indices_64_bit())
+    {
+        return NULL;
+    }
+
+    if (!g_hdf5.triangle_indices_64 && !h5_triangle_indices_calculate())
+    {
+        print(ERROR, MSG_NONE, "HDF5 | Failed to calculate result offsets");
+        return NULL;
+    }
+
+    return g_hdf5.triangle_indices_64;
+}
+
+static bool
+h5_triangle_indices_calculate(void)
+{
+    if (!g_hdf5.mode_write || !g_hdf5.is_init)
+    {
+        return false;
+    }
+
+    if (g_hdf5.triangle_indices_64 || g_hdf5.triangle_indices_32)
+    {
+        return true;
+    }
+
+    size_t sequence_count = g_hdf5.matrix_dim;
+
+    if (h5_triangle_indices_64_bit())
+    {
+        if (!(g_hdf5.triangle_indices_64 = MALLOC(g_hdf5.triangle_indices_64, sequence_count)))
+        {
+            print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for result offsets");
+            return false;
+        }
+
+        for (size_t i = 0; i < sequence_count; i++)
+        {
+            g_hdf5.triangle_indices_64[i] = (i * (i - 1)) / 2;
+        }
+    }
+
+    else
+    {
+        half_t sequence_count_32 = (half_t)sequence_count;
+        if (!(g_hdf5.triangle_indices_32 = MALLOC(g_hdf5.triangle_indices_32, sequence_count_32)))
+        {
+            print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for result offsets");
+            return false;
+        }
+
+        for (half_t i = 0; i < sequence_count_32; i++)
+        {
+            g_hdf5.triangle_indices_32[i] = (i * (i - 1)) / 2;
+        }
+    }
+
+    return true;
+}
+
+#endif
+
 #define H5_MIN_CHUNK_SIZE 1 << 7
 #define H5_MAX_CHUNK_SIZE H5_MIN_CHUNK_SIZE << 7
 
@@ -505,6 +625,21 @@ h5_file_close(void)
 
         g_hdf5.full_matrix_b = 0;
     }
+
+#ifdef USE_CUDA
+    if (g_hdf5.triangle_indices_64)
+    {
+        free(g_hdf5.triangle_indices_64);
+        g_hdf5.triangle_indices_64 = NULL;
+    }
+
+    if (g_hdf5.triangle_indices_32)
+    {
+        free(g_hdf5.triangle_indices_32);
+        g_hdf5.triangle_indices_32 = NULL;
+    }
+
+#endif
 
     if (g_hdf5.sequences_id > 0)
     {
