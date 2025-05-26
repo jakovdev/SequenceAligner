@@ -1,12 +1,12 @@
 # Suppress make recursive messages + use all available CPU cores
 MAKEFLAGS += --no-print-directory -j$(shell nproc)
-.PHONY: release cuda help clean update setup debug cuda-debug all check-setup check-libraries check-cuda _x86-64 _avx2 _avx512
+.PHONY: native cuda help clean update setup debug cuda-debug all check-setup check-libraries check-cuda _x86-64-v1 _x86-64-v2 _x86-64-v3 _x86-64-v4
 
 # OS specific settings
 OS ?= $(shell uname -s)
 IS_WINDOWS := $(if $(filter Windows_NT,$(OS)),yes,)
 MAKE_CMD := $(if $(IS_WINDOWS), mingw32-make, make)
-.DEFAULT_GOAL := release
+.DEFAULT_GOAL := native
 
 help:
 	@echo "==============================================="
@@ -14,7 +14,7 @@ help:
 	@echo "==============================================="
 	@echo ""
 	@echo "Available commands:"
-	@echo "  $(MAKE_CMD) release      - Build the program"
+	@echo "  $(MAKE_CMD) native      - Build the program for your specific PC"
 	@echo "  $(MAKE_CMD) clean        - Remove built files"
 	@echo "  $(MAKE_CMD) setup        - Check if required tools exist"
 	@echo "  $(MAKE_CMD) update       - Update required tools"
@@ -61,9 +61,10 @@ SRCS := $(filter-out $(MAIN_SRC),$(wildcard $(SRC_DIR)/*.c))
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 # GCC files for various builds
 OBJS_DEBUG := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-debug.o,$(SRCS))
-OBJS_X86_64 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-x86-64.o,$(SRCS))
-OBJS_AVX2 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-avx2.o,$(SRCS))
-OBJS_AVX512 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-avx512.o,$(SRCS))
+OBJS_X86_64_V1 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-x86-64-v1.o,$(SRCS))
+OBJS_X86_64_V2 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-x86-64-v2.o,$(SRCS))
+OBJS_X86_64_V3 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-x86-64-v3.o,$(SRCS))
+OBJS_X86_64_V4 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-x86-64-v4.o,$(SRCS))
 
 # GCC flags
 HDF5_CFLAGS := $(if $(IS_WINDOWS),-I/ucrt64/include,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | head -n 1))
@@ -83,9 +84,10 @@ CC := gcc
 BIN_EXT := $(if $(IS_WINDOWS),.exe,)
 MAIN_BIN := $(BIN_DIR)/seqalign$(BIN_EXT)
 DEBUG_BIN := $(BIN_DIR)/seqalign-debug$(BIN_EXT)
-X86_64_BIN := $(BIN_DIR)/seqalign-x86-64$(BIN_EXT)
-AVX2_BIN := $(BIN_DIR)/seqalign-avx2$(BIN_EXT)
-AVX512_BIN := $(BIN_DIR)/seqalign-avx512$(BIN_EXT)
+X86_64_V1_BIN := $(BIN_DIR)/seqalign-x86-64-v1$(BIN_EXT)
+X86_64_V2_BIN := $(BIN_DIR)/seqalign-x86-64-v2$(BIN_EXT)
+X86_64_V3_BIN := $(BIN_DIR)/seqalign-x86-64-v3$(BIN_EXT)
+X86_64_V4_BIN := $(BIN_DIR)/seqalign-x86-64-v4$(BIN_EXT)
 
 # CUDA directories
 CUDA_OBJ_DIR := $(BIN_DIR)/cuda_obj
@@ -105,7 +107,6 @@ CUDA_C_OBJS := $(patsubst $(SRC_DIR)/%.c,$(CUDA_OBJ_DIR)/%.o,$(SRCS))
 # CUDA files for various builds
 CUDA_OBJS_DEBUG := $(patsubst $(CUDA_SRC_DIR)/%.cu,$(CUDA_OBJ_DIR)/%-debug.o,$(CUDA_SRCS))
 CUDA_C_OBJS_DEBUG := $(patsubst $(SRC_DIR)/%.c,$(CUDA_OBJ_DIR)/%-debug.o,$(SRCS))
-# TODO: Maybe add _x86-64 _avx2 _avx512 versions of the CUDA builds (though they wont make that much of a difference since it's now GPU bound)
 
 # CUDA flags and libraries
 CUDA_RELEASE_FLAGS := -std=c++20 -O3 -Xcompiler "-fPIC" -I$(CUDA_INCLUDE_DIR) -I$(CUDA_C_BINDINGS_DIR) -Wno-deprecated-gpu-targets
@@ -119,21 +120,30 @@ endif
 CUDA_BIN := $(BIN_DIR)/seqalign-cuda$(BIN_EXT)
 CUDA_DEBUG_BIN := $(BIN_DIR)/seqalign-cuda-debug$(BIN_EXT)
 
-release: CFLAGS := -march=native $(RELEASE_CFLAGS)
-release: $(MAIN_BIN)
-all: release # Only build release since it's probably what the user wants
+native: CFLAGS := -march=native $(RELEASE_CFLAGS)
+native: $(MAIN_BIN)
+all: native # Only build native since it's probably what the user wants
 
 debug: CFLAGS := -march=native $(DEBUG_CFLAGS)
 debug: $(DEBUG_BIN)
 
-_x86-64: CFLAGS := -march=x86-64 $(RELEASE_CFLAGS)
-_x86-64: $(X86_64_BIN)
+# See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels for more details
 
-_avx2: CFLAGS := -march=x86-64 -mavx2 $(RELEASE_CFLAGS)
-_avx2: $(AVX2_BIN)
+# baseline for all x86-64 CPUs, Intel Prescott (2004+) and AMD K8 (2003+)
+_x86-64-v1: CFLAGS := -march=x86-64 $(RELEASE_CFLAGS)
+_x86-64-v1: $(X86_64_V1_BIN)
 
-_avx512: CFLAGS := -march=x86-64 -mavx512f -mavx512bw $(RELEASE_CFLAGS)
-_avx512: $(AVX512_BIN)
+# Intel Nehalem (2008+) and (Atom) Silvermont (SoC) (2013+), AMD Bulldozer (2011+) and Jaguar (2013+)
+_x86-64-v2: CFLAGS := -march=x86-64-v2 $(RELEASE_CFLAGS)
+_x86-64-v2: $(X86_64_V2_BIN)
+
+# Intel Haswell (2013+) with AVX2 enabled models and (Atom) Gracemont (SoC) (2021+), AMD Excavator (2015+) and Zen 1+ (2017+)
+_x86-64-v3: CFLAGS := -march=x86-64-v3 $(RELEASE_CFLAGS)
+_x86-64-v3: $(X86_64_V3_BIN)
+
+# Intel Skylake (2015+) with AVX512 enabled models, AMD Zen 4+ (2022+)
+_x86-64-v4: CFLAGS := -march=x86-64-v4 $(RELEASE_CFLAGS)
+_x86-64-v4: $(X86_64_V4_BIN)
 
 cuda: CFLAGS := -march=native $(RELEASE_CFLAGS) $(CUDA_CFLAGS)
 cuda: CLIBS += $(CUDA_LIBS) -lstdc++
@@ -168,16 +178,20 @@ $(OBJ_DIR)/%-debug.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
 	@echo "Compiling debug $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%-x86-64.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
-	@echo "Compiling x86-64 $<..."
+$(OBJ_DIR)/%-x86-64-v1.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@echo "Compiling for x86-64-v1 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%-avx2.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
-	@echo "Compiling AVX2 $<..."
+$(OBJ_DIR)/%-x86-64-v2.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@echo "Compiling for x86-64-v2 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%-avx512.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
-	@echo "Compiling AVX512 $<..."
+$(OBJ_DIR)/%-x86-64-v3.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@echo "Compiling for x86-64-v3 $<..."
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%-x86-64-v4.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@echo "Compiling for x86-64-v4 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 # GCC build results
@@ -193,17 +207,21 @@ $(DEBUG_BIN): $(MAIN_SRC) $(OBJS_DEBUG) $(HEADERS) | $(BIN_DIR) check-setup chec
 	@echo "Compiling Debug Sequence Aligner..."
 	@$(CC) $(CFLAGS) $< $(OBJS_DEBUG) -o $@ $(CLIBS) && echo "Debug build complete! Run the program with: $@"
 
-$(X86_64_BIN): $(MAIN_SRC) $(OBJS_X86_64) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
-	@echo "Compiling x86-64 Sequence Aligner..."
-	@$(CC) $(CFLAGS) $< $(OBJS_X86_64) -o $@ $(CLIBS) && echo "x86-64 build complete!"
+$(X86_64_V1_BIN): $(MAIN_SRC) $(OBJS_X86_64_V1) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
+	@echo "Compiling x86-64-v1 Sequence Aligner..."
+	@$(CC) $(CFLAGS) $< $(OBJS_X86_64_V1) -o $@ $(CLIBS) && echo "x86-64-v1 build complete!"
 
-$(AVX2_BIN): $(MAIN_SRC) $(OBJS_AVX2) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
-	@echo "Compiling AVX2 Sequence Aligner..."
-	@$(CC) $(CFLAGS) $< $(OBJS_AVX2) -o $@ $(CLIBS) && echo "AVX2 build complete!"
+$(X86_64_V2_BIN): $(MAIN_SRC) $(OBJS_X86_64_V2) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
+	@echo "Compiling x86-64-v2 Sequence Aligner..."
+	@$(CC) $(CFLAGS) $< $(OBJS_X86_64_V2) -o $@ $(CLIBS) && echo "x86-64-v2 build complete!"
 
-$(AVX512_BIN): $(MAIN_SRC) $(OBJS_AVX512) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
-	@echo "Compiling AVX512 Sequence Aligner..."
-	@$(CC) $(CFLAGS) $< $(OBJS_AVX512) -o $@ $(CLIBS) && echo "AVX512 build complete!"
+$(X86_64_V3_BIN): $(MAIN_SRC) $(OBJS_X86_64_V3) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
+	@echo "Compiling x86-64-v3 Sequence Aligner..."
+	@$(CC) $(CFLAGS) $< $(OBJS_X86_64_V3) -o $@ $(CLIBS) && echo "x86-64-v3 build complete!"
+
+$(X86_64_V4_BIN): $(MAIN_SRC) $(OBJS_X86_64_V4) $(HEADERS) | $(BIN_DIR) check-setup check-libraries
+	@echo "Compiling x86-64-v4 Sequence Aligner..."
+	@$(CC) $(CFLAGS) $< $(OBJS_X86_64_V4) -o $@ $(CLIBS) && echo "x86-64-v4 build complete!"
 
 # CUDA object files
 $(CUDA_OBJ_DIR)/%.o: $(CUDA_SRC_DIR)/%.cu $(CUDA_HEADERS) | $(CUDA_OBJ_DIR)
@@ -239,9 +257,10 @@ clean:
 	@echo "Cleaning previous build..."
 	@$(RM) $(MAIN_BIN)
 	@$(RM) $(DEBUG_BIN)
-	@$(RM) $(X86_64_BIN)
-	@$(RM) $(AVX2_BIN)
-	@$(RM) $(AVX512_BIN)
+	@$(RM) $(X86_64_V1_BIN)
+	@$(RM) $(X86_64_V2_BIN)
+	@$(RM) $(X86_64_V3_BIN)
+	@$(RM) $(X86_64_V4_BIN)
 	@$(RM) -r $(OBJ_DIR)
 	@$(RM) $(CUDA_BIN)
 	@$(RM) $(CUDA_DEBUG_BIN)
