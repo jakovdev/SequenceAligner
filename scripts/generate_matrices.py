@@ -9,11 +9,11 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 if os.path.exists("scripts/generate_matrices.py"):
-    HEADER_FILE = "include/matrices.h"
-    SOURCE_FILE = "src/matrices.c"
+    HEADER_FILE = "code/include/matrices.h"
+    SOURCE_FILE = "code/src/matrices.c"
 else:
-    HEADER_FILE = "../include/matrices.h"
-    SOURCE_FILE = "../src/matrices.c"
+    HEADER_FILE = "../code/include/matrices.h"
+    SOURCE_FILE = "../code/src/matrices.c"
 
 AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYV"
 NUCLEOTIDES = "ACGT"
