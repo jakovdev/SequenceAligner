@@ -17,7 +17,7 @@ static struct
     int seq_type;
     int matrix_id;
     int gap_penalty;
-    int gap_start;
+    int gap_open;
     int gap_extend;
     long thread_num;
     unsigned int compression_level;
@@ -31,7 +31,7 @@ static struct
         unsigned seq_type_set : 1;
         unsigned matrix_set : 1;
         unsigned gap_penalty_set : 1;
-        unsigned gap_start_set : 1;
+        unsigned gap_open_set : 1;
         unsigned gap_extend_set : 1;
         unsigned mode_multithread : 1;
         unsigned mode_write : 1;
@@ -52,7 +52,7 @@ static struct option long_options[] = { { "input", required_argument, 0, 'i' },
                                         { "type", required_argument, 0, 't' },
                                         { "matrix", required_argument, 0, 'm' },
                                         { "gap-penalty", required_argument, 0, 'p' },
-                                        { "gap-start", required_argument, 0, 's' },
+                                        { "gap-open", required_argument, 0, 's' },
                                         { "gap-extend", required_argument, 0, 'e' },
                                         { "threads", required_argument, 0, 'T' },
                                         { "compression", required_argument, 0, 'z' },
@@ -78,7 +78,7 @@ static struct option long_options[] = { { "input", required_argument, 0, 'i' },
 GETTER(const char*, input, args.path_input)
 GETTER(const char*, output, args.path_output)
 GETTER(int, gap_penalty, args.gap_penalty)
-GETTER(int, gap_start, args.gap_start)
+GETTER(int, gap_open, args.gap_open)
 GETTER(int, gap_extend, args.gap_extend)
 GETTER(long, thread_num, args.thread_num)
 GETTER(int, align_method, args.method_id)
@@ -206,9 +206,9 @@ args_validate_required(void)
 
         else if (alignment_affine(args.method_id))
         {
-            if (!args.gap_start_set)
+            if (!args.gap_open_set)
             {
-                print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap start (-s, --gap-start)");
+                print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap open (-s, --gap-open)");
                 valid = false;
             }
 
@@ -256,7 +256,7 @@ args_print_usage(const char* program_name)
     printf("  -m, --matrix MATRIX    Scoring matrix\n");
     printf("                           Use --list-matrices or -l to see all available matrices\n");
     printf("  -p, --gap-penalty N    Linear gap penalty (for Needleman-Wunsch)\n");
-    printf("  -s, --gap-start N      Affine gap start penalty (for affine gap methods)\n");
+    printf("  -s, --gap-open N      Affine gap open penalty (for affine gap methods)\n");
     printf("  -e, --gap-extend N     Affine gap extend penalty (for affine gap methods)\n");
 
     printf("\nOptional arguments:\n");
@@ -312,12 +312,12 @@ args_print_config(void)
 
     if (alignment_linear(args.method_id) && args.gap_penalty_set)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Gap: %d", args.gap_penalty);
+        print(CONFIG, MSG_LOC(MIDDLE), "Gap penalty: %d", args.gap_penalty);
     }
 
-    else if (alignment_affine(args.method_id) && (args.gap_start_set && args.gap_extend_set))
+    else if (alignment_affine(args.method_id) && (args.gap_open_set && args.gap_extend_set))
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Gap open: %d, extend: %d", args.gap_start, args.gap_extend);
+        print(CONFIG, MSG_LOC(MIDDLE), "Gap open: %d, extend: %d", args.gap_open, args.gap_extend);
     }
 
     if (args.mode_filter)
@@ -426,8 +426,8 @@ args_parse(int argc, char* argv[])
                 break;
 
             case 's':
-                args.gap_start = atoi(optarg);
-                args.gap_start_set = 1;
+                args.gap_open = atoi(optarg);
+                args.gap_open_set = 1;
                 break;
 
             case 'e':
@@ -508,16 +508,16 @@ args_parse(int argc, char* argv[])
 
     args.mode_multithread = (args.thread_num > 1);
 
-    if (args.method_id == ALIGN_GOTOH_AFFINE && args.gap_start == args.gap_extend)
+    if (args.method_id == ALIGN_GOTOH_AFFINE && args.gap_open == args.gap_extend)
     {
         if (print_Yn("Equal gap penalties detected, switch to Needleman-Wunsch? (Y/n)"))
         {
             args.method_id = ALIGN_NEEDLEMAN_WUNSCH;
-            args.gap_penalty = args.gap_start;
+            args.gap_penalty = args.gap_open;
             args.gap_penalty_set = 1;
-            args.gap_start = PARAM_UNSET;
+            args.gap_open = PARAM_UNSET;
             args.gap_extend = PARAM_UNSET;
-            args.gap_start_set = 0;
+            args.gap_open_set = 0;
             args.gap_extend_set = 0;
         }
     }

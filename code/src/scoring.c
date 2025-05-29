@@ -7,7 +7,7 @@
 #ifdef USE_SIMD
 veci_t g_first_row_indices;
 veci_t g_gap_penalty_vec;
-veci_t g_gap_start_vec;
+veci_t g_gap_open_vec;
 veci_t g_gap_extend_vec;
 #endif
 
@@ -82,7 +82,7 @@ scoring_matrix_init()
 #ifdef USE_SIMD
     g_first_row_indices = set_row_indices();
     g_gap_penalty_vec = set1_epi32(args_gap_penalty());
-    g_gap_start_vec = set1_epi32(args_gap_start());
+    g_gap_open_vec = set1_epi32(args_gap_open());
     g_gap_extend_vec = set1_epi32(args_gap_extend());
 #endif
 }
