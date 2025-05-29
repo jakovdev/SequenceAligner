@@ -25,7 +25,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
   - Memory-mapped file I/O
   - Sequence memory pools
 - [Multiple configurable options](#usage)
-- Predefined scoring matrices
+- Predefined substitution matrices
 - HDF5 output format with optional compression
 
 </details>
@@ -154,7 +154,7 @@ mingw32-make help
 | `-D, --no-detail` | Disable detailed printing |
 | `-v, --verbose` | Enable verbose printing |
 | `-q, --quiet` | Suppress all non-error printing |
-| `-l, --list-matrices` | List all available scoring matrices |
+| `-l, --list-matrices` | List all available substitution matrices |
 | `-h, --help` | Display help message |
 
 </details>
@@ -186,7 +186,7 @@ mingw32-make help
 # Enable benchmarking mode with verbose output and without creating the HDF5 result
 ./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
 
-# List all available scoring matrices
+# List all available substitution matrices
 ./bin/seqalign --list-matrices
 
 # List all arguments

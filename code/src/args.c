@@ -192,7 +192,7 @@ args_validate_required(void)
 
     if (!args.matrix_set)
     {
-        print(ERROR, MSG_NONE, "ARGS | Missing parameter: scoring matrix (-m, --matrix)");
+        print(ERROR, MSG_NONE, "ARGS | Missing parameter: substitution matrix (-m, --matrix)");
         valid = false;
     }
 

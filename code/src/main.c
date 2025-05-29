@@ -106,7 +106,7 @@ main(int argc, char* argv[])
 
     bench_io_end();
 
-    print(VERBOSE, MSG_LOC(FIRST), "Initializing scoring matrix");
+    print(VERBOSE, MSG_LOC(FIRST), "Initializing substitution matrix");
     scoring_matrix_init();
 
     print(SECTION, MSG_NONE, "Performing Alignments");
