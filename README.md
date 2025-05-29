@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Sequence Aligner</h1>
-  <p><em>High performance pairwise sequence alignment tool</em></p>
+  <p><em>High performance all-vs-all pairwise sequence alignment tool</em></p>
   
   [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
@@ -9,7 +9,7 @@
 
 ## Overview
 
-SequenceAligner is a highly optimized tool for performing rapid pairwise sequence alignments on protein or DNA sequences. It leverages low level CPU optimizations like SIMD instructions (AVX/SSE), memory mapping, efficient cache utilization and optionally GPU acceleration through CUDA to achieve better performance.
+SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-against-all) pairwise sequence alignments on protein or DNA sequences. It leverages low level CPU optimizations like SIMD instructions (AVX/SSE), memory mapping, efficient cache utilization and optionally GPU acceleration through CUDA to achieve better performance.
 
 <details open>
 <summary><strong>Features</strong></summary>
