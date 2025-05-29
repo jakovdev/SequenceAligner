@@ -138,7 +138,7 @@ mingw32-make help
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see options) |
 | `-p, --gap-penalty N` | Linear gap penalty (required for Needleman-Wunsch) |
-| `-s, --gap-start N` | Affine gap start penalty (required for affine gap methods) |
+| `-s, --gap-open N` | Affine gap open penalty (required for affine gap methods) |
 | `-e, --gap-extend N` | Affine gap extend penalty (required for affine gap methods) |
 
 **Optional arguments:**

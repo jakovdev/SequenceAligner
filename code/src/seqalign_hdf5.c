@@ -359,8 +359,8 @@ h5_close(int skip_flush)
         if (!skip_flush)
         {
             print(SECTION, MSG_NONE, "Finalizing Results");
-            print(INFO, MSG_LOC(FIRST), "Writing results to %s", file_name_path(g_hdf5.file_path));
-            print(INFO, MSG_LOC(LAST), "Matrix checksum: %lld", g_hdf5.checksum);
+            print(INFO, MSG_LOC(FIRST), "Matrix checksum: %lld", g_hdf5.checksum);
+            print(INFO, MSG_LOC(LAST), "Writing results to %s", file_name_path(g_hdf5.file_path));
             h5_store_checksum();
             g_hdf5.memory_map_required ? h5_flush_memory_map() : h5_flush_full_matrix();
         }

@@ -10,7 +10,7 @@ extern void args_print_config(void);
 extern const char* args_input(void);
 extern const char* args_output(void);
 extern int args_gap_penalty(void);
-extern int args_gap_start(void);
+extern int args_gap_open(void);
 extern int args_gap_extend(void);
 extern long args_thread_num(void);
 extern int args_align_method(void);

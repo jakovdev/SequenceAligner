@@ -10,7 +10,7 @@
 #ifdef USE_SIMD
 extern veci_t g_first_row_indices;
 extern veci_t g_gap_penalty_vec;
-extern veci_t g_gap_start_vec;
+extern veci_t g_gap_open_vec;
 extern veci_t g_gap_extend_vec;
 #endif
 

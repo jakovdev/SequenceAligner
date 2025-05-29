@@ -18,9 +18,9 @@ extern "C"
         return Cuda::getInstance().uploadScoring(scoring_matrix, sequence_lookup);
     }
 
-    bool cuda_upload_penalties(int linear, int start, int extend)
+    bool cuda_upload_penalties(int linear, int open, int extend)
     {
-        return Cuda::getInstance().uploadPenalties(linear, start, extend);
+        return Cuda::getInstance().uploadPenalties(linear, open, extend);
     }
 
     bool cuda_upload_triangle_indices_32(half_t* indices, int* buffer, size_t buffer_size)

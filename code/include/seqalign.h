@@ -102,7 +102,7 @@ matrix_free(int* matrix, int* stack_matrix)
         }                                                                                          \
     } while (false)
 
-#define INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend)                       \
+#define INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_open, gap_extend)                        \
     do                                                                                             \
     {                                                                                              \
         match[0] = 0;                                                                              \
@@ -110,7 +110,7 @@ matrix_free(int* matrix, int* stack_matrix)
                                                                                                    \
         UNROLL(8) for (int j = 1; j <= len1; j++)                                                  \
         {                                                                                          \
-            gap_x[j] = MAX(match[j - 1] - gap_start, gap_x[j - 1] - gap_extend);                   \
+            gap_x[j] = MAX(match[j - 1] - gap_open, gap_x[j - 1] - gap_extend);                    \
             match[j] = gap_x[j];                                                                   \
             gap_y[j] = INT_MIN / 2;                                                                \
         }                                                                                          \
@@ -118,7 +118,7 @@ matrix_free(int* matrix, int* stack_matrix)
         UNROLL(8) for (int i = 1; i <= len2; i++)                                                  \
         {                                                                                          \
             int idx = i * cols;                                                                    \
-            gap_y[idx] = MAX(match[idx - cols] - gap_start, gap_y[idx - cols] - gap_extend);       \
+            gap_y[idx] = MAX(match[idx - cols] - gap_open, gap_y[idx - cols] - gap_extend);        \
             match[idx] = gap_y[idx];                                                               \
             gap_x[idx] = INT_MIN / 2;                                                              \
         }                                                                                          \
@@ -167,7 +167,7 @@ matrix_free(int* matrix, int* stack_matrix)
         }                                                                                          \
     } while (false)
 
-#define FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend)                       \
+#define FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_open, gap_extend)                        \
     do                                                                                             \
     {                                                                                              \
         for (int i = 1; i <= len2; ++i)                                                            \
@@ -192,11 +192,11 @@ matrix_free(int* matrix, int* stack_matrix)
                 int prev_match_y = match[prev_row_offset + j];                                     \
                 int prev_gap_y = gap_y[prev_row_offset + j];                                       \
                                                                                                    \
-                int open_x = prev_match_x - gap_start;                                             \
+                int open_x = prev_match_x - gap_open;                                              \
                 int extend_x = prev_gap_x - gap_extend;                                            \
                 gap_x[row_offset + j] = (open_x > extend_x) ? open_x : extend_x;                   \
                                                                                                    \
-                int open_y = prev_match_y - gap_start;                                             \
+                int open_y = prev_match_y - gap_open;                                              \
                 int extend_y = prev_gap_y - gap_extend;                                            \
                 gap_y[row_offset + j] = (open_y > extend_y) ? open_y : extend_y;                   \
                                                                                                    \
@@ -211,7 +211,7 @@ matrix_free(int* matrix, int* stack_matrix)
         }                                                                                          \
     } while (false)
 
-#define FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, score, max_i, max_j)   \
+#define FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_open, gap_extend, score, max_i, max_j)    \
     do                                                                                             \
     {                                                                                              \
         const int* restrict seq1_idx = seq1_indices.data;                                          \
@@ -238,9 +238,9 @@ matrix_free(int* matrix, int* stack_matrix)
                 int prev_match_y = match[prev_row_offset + j];                                     \
                 int prev_gap_y = gap_y[prev_row_offset + j];                                       \
                                                                                                    \
-                int open_x = prev_match_x - (gap_start);                                           \
+                int open_x = prev_match_x - (gap_open);                                            \
                 int extend_x = prev_gap_x - (gap_extend);                                          \
-                int open_y = prev_match_y - (gap_start);                                           \
+                int open_y = prev_match_y - (gap_open);                                            \
                 int extend_y = prev_gap_y - (gap_extend);                                          \
                                                                                                    \
                 gap_x[row_offset + j] = (open_x > extend_x) ? open_x : extend_x;                   \
@@ -412,10 +412,10 @@ align_ga(const char* restrict seq1, const int len1, const char* seq2, const int 
     int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
     int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
     const int cols = len1 + 1;
-    const int gap_start = args_gap_start();
+    const int gap_open = args_gap_open();
     const int gap_extend = args_gap_extend();
 
-    INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
+    INIT_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_open, gap_extend);
 
     SeqIndices seq1_indices = { 0 };
 
@@ -438,7 +438,7 @@ align_ga(const char* restrict seq1, const int len1, const char* seq2, const int 
 no_stack:
     seq_indices_precompute(&seq1_indices, seq1, (size_t)len1);
 
-    FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_start, gap_extend);
+    FILL_AFFINE_GLOBAL(match, gap_x, gap_y, cols, gap_open, gap_extend);
 
     int score = match[len2 * cols + len1];
 
@@ -459,7 +459,7 @@ align_sw(const char* restrict seq1, const int len1, const char* restrict seq2, c
     int* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
     int* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
     const int cols = len1 + 1;
-    const int gap_start = args_gap_start();
+    const int gap_open = args_gap_open();
     const int gap_extend = args_gap_extend();
 
 #ifdef USE_SIMD
@@ -500,7 +500,7 @@ no_stack:
 
     int score = 0;
     UNUSED int max_i = 0, max_j = 0; // For potential traceback
-    FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_start, gap_extend, score, max_i, max_j);
+    FILL_AFFINE_LOCAL(match, gap_x, gap_y, cols, gap_open, gap_extend, score, max_i, max_j);
 
     seq_indices_free(&seq1_indices);
     matrix_free(matrix, stack_matrix);

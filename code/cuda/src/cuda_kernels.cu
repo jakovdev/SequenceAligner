@@ -10,7 +10,7 @@ __constant__ int c_scoring_matrix[SCORING_MATRIX_DIM * SCORING_MATRIX_DIM];
 __constant__ int c_sequence_lookup[SEQUENCE_LOOKUP_SIZE];
 
 __constant__ int c_gap_penalty;
-__constant__ int c_gap_start;
+__constant__ int c_gap_open;
 __constant__ int c_gap_extend;
 
 __constant__ bool c_constant = false;
@@ -18,7 +18,7 @@ __constant__ bool c_triangular = false;
 __constant__ bool c_indices_64 = false;
 
 #define SCORING_B (sizeof(c_scoring_matrix) + sizeof(c_sequence_lookup))
-#define GAP_PENALTIES_B (sizeof(c_gap_penalty) + sizeof(c_gap_start) + sizeof(c_gap_extend))
+#define GAP_PENALTIES_B (sizeof(c_gap_penalty) + sizeof(c_gap_open) + sizeof(c_gap_extend))
 #define BOOLS_B (sizeof(c_constant) + sizeof(c_triangular) + sizeof(c_indices_64))
 #define ALWAYS_CONSTANT_B (SCORING_B + GAP_PENALTIES_B + BOOLS_B)
 
@@ -99,7 +99,7 @@ Cuda::uploadScoring(int* scoring_matrix, int* sequence_lookup)
 }
 
 bool
-Cuda::uploadPenalties(int linear, int start, int extend)
+Cuda::uploadPenalties(int linear, int open, int extend)
 {
     if (!m_initialized)
     {
@@ -110,7 +110,7 @@ Cuda::uploadPenalties(int linear, int start, int extend)
     cudaError_t err;
 
     CONSTANT_COPY(c_gap_penalty, &linear, sizeof(c_gap_penalty), "gap penalty");
-    CONSTANT_COPY(c_gap_start, &start, sizeof(c_gap_start), "gap start penalty");
+    CONSTANT_COPY(c_gap_open, &open, sizeof(c_gap_open), "gap open penalty");
     CONSTANT_COPY(c_gap_extend, &extend, sizeof(c_gap_extend), "gap extend penalty");
 
     return true;
@@ -366,7 +366,7 @@ k_ga(const Sequences seqs, int* R scores, ull* R progress, sll* R sum, size_t st
 
     for (half_t col = 1; col <= len2; col++)
     {
-        gap_x[col] = max(match[col - 1] - c_gap_start, gap_x[col - 1] - c_gap_extend);
+        gap_x[col] = max(match[col - 1] - c_gap_open, gap_x[col - 1] - c_gap_extend);
         match[col] = gap_x[col];
         gap_y[col] = INT_MIN / 2;
     }
@@ -384,7 +384,7 @@ k_ga(const Sequences seqs, int* R scores, ull* R progress, sll* R sum, size_t st
     {
         match[0] = row * -(c_gap_penalty);
         gap_x[0] = INT_MIN / 2;
-        gap_y[0] = max(prev_match[0] - c_gap_start, prev_gap_y[0] - c_gap_extend);
+        gap_y[0] = max(prev_match[0] - c_gap_open, prev_gap_y[0] - c_gap_extend);
         match[0] = gap_y[0];
 
         char c1 = d_sequence_char(&seqs, i, row - 1);
@@ -398,11 +398,11 @@ k_ga(const Sequences seqs, int* R scores, ull* R progress, sll* R sum, size_t st
 
             int diag_score = prev_match[col - 1] + similarity;
 
-            int open_x = match[col - 1] - c_gap_start;
+            int open_x = match[col - 1] - c_gap_open;
             int extend_x = gap_x[col - 1] - c_gap_extend;
             gap_x[col] = max(open_x, extend_x);
 
-            int open_y = prev_match[col] - c_gap_start;
+            int open_y = prev_match[col] - c_gap_open;
             int extend_y = prev_gap_y[col] - c_gap_extend;
             gap_y[col] = max(open_y, extend_y);
 
@@ -514,11 +514,11 @@ k_sw(const Sequences seqs, int* R scores, ull* R progress, sll* R sum, size_t st
 
             int diag_score = prev_match[col - 1] + similarity;
 
-            int open_x = match[col - 1] - c_gap_start;
+            int open_x = match[col - 1] - c_gap_open;
             int extend_x = gap_x[col - 1] - c_gap_extend;
             gap_x[col] = max(open_x, extend_x);
 
-            int open_y = prev_match[col] - c_gap_start;
+            int open_y = prev_match[col] - c_gap_open;
             int extend_y = prev_gap_y[col] - c_gap_extend;
             gap_y[col] = max(open_y, extend_y);
 

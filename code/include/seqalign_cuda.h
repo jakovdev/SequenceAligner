@@ -71,7 +71,7 @@ cuda_align(void)
         RETURN_CUDA_ERRORS();
     }
 
-    if (!cuda_upload_penalties(args_gap_penalty(), args_gap_start(), args_gap_extend()))
+    if (!cuda_upload_penalties(args_gap_penalty(), args_gap_open(), args_gap_extend()))
     {
         print(ERROR, MSG_LOC(FIRST), "CUDA | Failed uploading penalties");
         RETURN_CUDA_ERRORS();

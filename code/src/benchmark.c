@@ -14,7 +14,7 @@ static struct
 void
 bench_io_start(void)
 {
-    if (args_mode_benchmark() && args_mode_write())
+    if (args_mode_benchmark())
     {
         g_times.io_start = time_current();
     }
@@ -23,7 +23,7 @@ bench_io_start(void)
 void
 bench_io_end(void)
 {
-    if (args_mode_benchmark() && args_mode_write())
+    if (args_mode_benchmark())
     {
         g_times.io += time_current() - g_times.io_start;
     }
@@ -59,7 +59,7 @@ bench_print_align(void)
 void
 bench_print_io(void)
 {
-    if (args_mode_benchmark() && args_mode_write())
+    if (args_mode_benchmark())
     {
         print(TIMING, MSG_NONE, "I/O operations: %.3f sec", g_times.io);
     }
@@ -70,18 +70,15 @@ bench_print_total(size_t alignments)
 {
     if (args_mode_benchmark())
     {
-        double time_total = g_times.align + g_times.io * args_mode_write();
+        double time_total = g_times.align + g_times.io;
         print(SECTION, MSG_NONE, "Performance Summary");
         print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
 
         double align_percent = (g_times.align / time_total) * 100;
         print(TIMING, MSG_LOC(MIDDLE), "Compute: %.3f sec (%.1f%%)", g_times.align, align_percent);
 
-        if (args_mode_write())
-        {
-            double io_percent = (g_times.io / time_total) * 100;
-            print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", g_times.io, io_percent);
-        }
+        double io_percent = (g_times.io / time_total) * 100;
+        print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", g_times.io, io_percent);
 
         print(TIMING, MSG_LOC(LAST), "Total: %.3f sec", time_total, 100.0);
 
