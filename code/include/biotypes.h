@@ -9,7 +9,7 @@ typedef enum
     SEQ_TYPE_AMINO,
     SEQ_TYPE_NUCLEOTIDE,
     // NOTE: This enum is kept minimal by design. Only standard biological sequence types
-    //       are included as they're the only ones with established scoring matrices.
+    //       are included as they're the only ones with established substitution matrices.
     SEQ_TYPE_COUNT
 } SequenceType;
 
