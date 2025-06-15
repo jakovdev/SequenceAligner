@@ -7,6 +7,10 @@
 #include "seqalign_hdf5.h"
 #include "thread.h"
 
+#ifdef USE_CUDA
+#include "seqalign_cuda.h"
+#endif
+
 int
 main(int argc, char* argv[])
 {
@@ -70,6 +74,10 @@ main(int argc, char* argv[])
 
     sequence_count = sequences_count();
     size_t total_alignments = sequences_alignment_count();
+
+#ifdef USE_CUDA
+    cuda_init();
+#endif
 
     bench_io_start();
     if (!h5_open(args_output(), sequence_count, args_compression(), args_mode_write()))

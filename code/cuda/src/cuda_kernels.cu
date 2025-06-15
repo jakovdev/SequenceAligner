@@ -576,7 +576,7 @@ Cuda::switchKernel(int kernel_id)
         return true;
     }
 
-    if (m_results.h_triangular || m_results.d_triangular)
+    if (m_results.d_triangular)
     {
         offset = m_results.h_last_batch;
         if (offset + batch > m_results.h_total_count)

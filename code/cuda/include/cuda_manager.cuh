@@ -56,7 +56,6 @@ struct KernelResults
     bool use_batching{ false };
     bool h_after_first{ false };
     bool d_triangular{ false };
-    bool h_triangular{ false };
 };
 
 class Cuda
@@ -93,6 +92,7 @@ class Cuda
     }
 
     bool initialize();
+    bool hasEnoughMemory(size_t bytes);
 
     bool uploadSequences(char* seqs, half_t* offsets, half_t* lens, half_t n_seqs, size_t n_chars);
     bool uploadScoring(int* scoring_matrix, int* sequence_lookup);
@@ -125,11 +125,7 @@ class Cuda
         setDeviceError(cuda_error);
     }
 
-    bool hasEnoughMemory(size_t bytes);
     bool getMemoryStats(size_t* free, size_t* total);
-    template<typename T>
-    half_t find_sequence_column(const T* const indices, const half_t n, const size_t target) const;
-
     bool canUseConstantMemory();
     bool copyTriangularMatrixFlag(bool triangular);
     bool copySequencesToConstantMemory(char* seqs, half_t* offsets, half_t* lengths);

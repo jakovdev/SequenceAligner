@@ -1,6 +1,8 @@
 #include "cuda_manager.cuh"
 #include "host_types.h"
 
+constexpr size_t CUDA_BATCH_SIZE = 64ULL << 20;
+
 Cuda&
 Cuda::getInstance()
 {
@@ -51,7 +53,7 @@ Cuda::uploadSequences(char* seqs, half_t* offsets, half_t* lens, half_t n_seqs, 
     {
         if (!hasEnoughMemory(m_results.h_total_count * cell_size))
         {
-            if (!hasEnoughMemory(1024 * 1024 * 16 * cell_size))
+            if (!hasEnoughMemory(CUDA_BATCH_SIZE * cell_size))
             {
                 setHostError("Not enough memory for results");
                 return false;
@@ -114,7 +116,6 @@ Cuda::uploadTriangleIndices32(half_t* triangle_indices, int* buffer, size_t buff
     {
         if (buffer_size == expected_size)
         {
-            m_results.h_triangular = true;
             if (!copyTriangularMatrixFlag(true))
             {
                 return false;
@@ -164,7 +165,6 @@ Cuda::uploadTriangleIndices64(size_t* triangle_indices, int* buffer, size_t buff
     {
         if (buffer_size == expected_size)
         {
-            m_results.h_triangular = true;
             if (!copyTriangularMatrixFlag(true))
             {
                 return false;
@@ -207,10 +207,9 @@ Cuda::launchKernel(int kernel_id)
         cudaError_t err;
         size_t d_scores_size = 0;
 
-        if (m_results.h_triangular || m_results.d_triangular)
+        if (m_results.d_triangular)
         {
-            constexpr size_t default_batch_size = 1 << 24;
-            m_results.h_batch_size = std::min(default_batch_size, m_results.h_total_count);
+            m_results.h_batch_size = std::min(CUDA_BATCH_SIZE, m_results.h_total_count);
             d_scores_size = m_results.h_batch_size;
 
             DEVICE_MALLOC(m_results.d_scores0, d_scores_size, "scores");
@@ -240,37 +239,6 @@ Cuda::launchKernel(int kernel_id)
     return true;
 }
 
-template<typename T>
-half_t
-Cuda::find_sequence_column(const T* const indices, const half_t n, const size_t target) const
-{
-    half_t low = 1, high = n - 1;
-    half_t result = 1;
-
-    while (low <= high)
-    {
-        half_t mid = (low + high) / 2;
-
-        if (indices[mid] <= target)
-        {
-            if (mid + 1 >= n || indices[mid + 1] > target)
-            {
-                result = mid;
-                break;
-            }
-
-            low = mid + 1;
-        }
-
-        else
-        {
-            high = mid - 1;
-        }
-    }
-
-    return result;
-}
-
 bool
 Cuda::getResults()
 {
@@ -282,7 +250,7 @@ Cuda::getResults()
 
     cudaError_t err;
 
-    if (!m_results.h_triangular && !m_results.d_triangular)
+    if (!m_results.d_triangular)
     {
         static bool matrix_copied = false;
         if (!matrix_copied)
@@ -299,116 +267,40 @@ Cuda::getResults()
         return true;
     }
 
-    else if (m_results.h_triangular && m_results.d_triangular)
+    if (m_results.h_completed_batch >= m_results.h_total_count)
     {
-        if (m_results.h_completed_batch >= m_results.h_total_count)
-        {
-            return true;
-        }
-
-        if (!m_results.h_after_first && m_results.h_batch_size < m_results.h_total_count)
-        {
-            m_results.h_after_first = true;
-            return true;
-        }
-
-        size_t batch_offset = m_results.h_completed_batch;
-
-        int* buffer = nullptr;
-
-        if (m_results.h_after_first)
-        {
-            buffer = (m_results.h_active == 0) ? m_results.d_scores1 : m_results.d_scores0;
-        }
-
-        else
-        {
-            err = cudaDeviceSynchronize();
-            CUDA_ERROR_CHECK("Device synchronization failed");
-            DEVICE_HOST_COPY(&m_results.h_progress, m_results.d_progress, 1, "progress");
-            buffer = m_results.d_scores0;
-        }
-
-        size_t n_scores = std::min(m_results.h_batch_size, m_results.h_total_count - batch_offset);
-
-        if (n_scores > 0)
-        {
-            int* host_scores = m_results.h_scores + batch_offset;
-            DEVICE_HOST_COPY(host_scores, buffer, n_scores, "batch scores");
-            m_results.h_completed_batch += n_scores;
-        }
+        return true;
     }
 
-    else if (!m_results.h_triangular && m_results.d_triangular)
+    if (!m_results.h_after_first && m_results.h_batch_size < m_results.h_total_count)
     {
-        if (m_results.h_completed_batch >= m_results.h_total_count)
-        {
-            return true;
-        }
+        m_results.h_after_first = true;
+        return true;
+    }
 
-        if (!m_results.h_after_first && m_results.h_batch_size < m_results.h_total_count)
-        {
-            m_results.h_after_first = true;
-            return true;
-        }
+    size_t batch_offset = m_results.h_completed_batch;
+    int* buffer = nullptr;
 
-        size_t batch_offset = m_results.h_completed_batch;
+    if (m_results.h_after_first)
+    {
+        buffer = (m_results.h_active == 0) ? m_results.d_scores1 : m_results.d_scores0;
+    }
 
-        int* buffer = nullptr;
+    else
+    {
+        err = cudaDeviceSynchronize();
+        CUDA_ERROR_CHECK("Device synchronization failed");
+        DEVICE_HOST_COPY(&m_results.h_progress, m_results.d_progress, 1, "progress");
+        buffer = m_results.d_scores0;
+    }
 
-        if (m_results.h_after_first)
-        {
-            buffer = (m_results.h_active == 0) ? m_results.d_scores1 : m_results.d_scores0;
-        }
+    size_t n_scores = std::min(m_results.h_batch_size, m_results.h_total_count - batch_offset);
 
-        else
-        {
-            err = cudaDeviceSynchronize();
-            CUDA_ERROR_CHECK("Device synchronization failed");
-            DEVICE_HOST_COPY(&m_results.h_progress, m_results.d_progress, 1, "progress");
-            buffer = m_results.d_scores0;
-        }
-
-        size_t n_scores = std::min(m_results.h_batch_size, m_results.h_total_count - batch_offset);
-
-        if (n_scores > 0)
-        {
-            int* temp_scores = new int[n_scores];
-            if (!temp_scores)
-            {
-                setHostError("Failed to allocate temporary buffer for results");
-                return false;
-            }
-
-            DEVICE_HOST_COPY(temp_scores, buffer, n_scores, "batch scores");
-
-            size_t alignment = batch_offset;
-            half_t n = m_seqs.n_seqs;
-            if (m_seqs.indices_64)
-            {
-                for (size_t current = 0; current < n_scores; current++, alignment++)
-                {
-                    half_t j = find_sequence_column(m_results.h_indices_64, n, alignment);
-                    half_t i = alignment - m_results.h_indices_64[j];
-                    m_results.h_scores[i * n + j] = temp_scores[current];
-                    m_results.h_scores[j * n + i] = temp_scores[current];
-                }
-            }
-
-            else
-            {
-                for (size_t current = 0; current < n_scores; current++, alignment++)
-                {
-                    half_t j = find_sequence_column(m_results.h_indices_32, n, alignment);
-                    half_t i = alignment - m_results.h_indices_32[j];
-                    m_results.h_scores[i * n + j] = temp_scores[current];
-                    m_results.h_scores[j * n + i] = temp_scores[current];
-                }
-            }
-
-            delete[] temp_scores;
-            m_results.h_completed_batch += n_scores;
-        }
+    if (n_scores > 0)
+    {
+        int* host_scores = m_results.h_scores + batch_offset;
+        DEVICE_HOST_COPY(host_scores, buffer, n_scores, "batch scores");
+        m_results.h_completed_batch += n_scores;
     }
 
     return true;

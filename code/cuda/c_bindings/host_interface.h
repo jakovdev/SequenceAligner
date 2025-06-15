@@ -10,6 +10,7 @@ extern "C"
 #endif
 
     bool cuda_initialize(void);
+    bool cuda_triangular(size_t buffer_bytes);
 
     bool cuda_upload_sequences(char* seqs, half_t* offs, half_t* lens, half_t n_sqs, size_t n_chrs);
     bool cuda_upload_scoring(int* scoring_matrix, int* sequence_lookup);
