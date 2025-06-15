@@ -1,4 +1,3 @@
-
 #pragma once
 #ifndef SEQALIGN_CUDA_H
 #define SEQALIGN_CUDA_H
@@ -21,7 +20,7 @@
     } while (false)
 
 static inline bool
-cuda_align(void)
+cuda_init(void)
 {
     if (sequences_max_length() > 1024)
     {
@@ -43,7 +42,12 @@ cuda_align(void)
     }
 
     print(INFO, MSG_NONE, "Using CUDA device: %s", device_name);
+    return true;
+}
 
+static inline bool
+cuda_align(void)
+{
     char* sequences = sequences_flattened();
     half_t* offsets = sequences_offsets();
     half_t* lengths = sequences_lengths();

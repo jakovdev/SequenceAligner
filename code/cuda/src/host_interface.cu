@@ -8,6 +8,11 @@ extern "C"
         return Cuda::getInstance().initialize();
     }
 
+    bool cuda_triangular(size_t buffer_bytes)
+    {
+        return !Cuda::getInstance().hasEnoughMemory(buffer_bytes);
+    }
+
     bool cuda_upload_sequences(char* seqs, half_t* offs, half_t* lens, half_t n_sqs, size_t n_chrs)
     {
         return Cuda::getInstance().uploadSequences(seqs, offs, lens, n_sqs, n_chrs);
