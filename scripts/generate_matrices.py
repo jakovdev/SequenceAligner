@@ -15,8 +15,8 @@ else:
     HEADER_FILE = "../code/include/matrices.h"
     SOURCE_FILE = "../code/src/matrices.c"
 
-AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYV"
-NUCLEOTIDES = "ACGT"
+AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYVBZX*"
+NUCLEOTIDES = "ATGCSWRYKMBVHDN*"
 
 MATRIX_TYPES = {
     "amino": {
