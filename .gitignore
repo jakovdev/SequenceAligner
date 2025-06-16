@@ -5,3 +5,4 @@ results/
 .vscode/
 compile_commands.json
 .clangd
+benchmark_results/
