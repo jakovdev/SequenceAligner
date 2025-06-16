@@ -3,7 +3,7 @@
 
 #define KiB (1 << 10)
 
-#define SCORING_MATRIX_DIM (20)
+#define SCORING_MATRIX_DIM (24)
 #define SEQUENCE_LOOKUP_SIZE (128)
 
 __constant__ int c_scoring_matrix[SCORING_MATRIX_DIM * SCORING_MATRIX_DIM];

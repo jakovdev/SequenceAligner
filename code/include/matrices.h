@@ -3,10 +3,10 @@
 #define MATRICES_H
 // clang-format off
 
-#define AMINO_SIZE 20
+#define AMINO_SIZE 24
 extern const char AMINO_ALPHABET[];
 
-#define NUCLEOTIDE_SIZE 4
+#define NUCLEOTIDE_SIZE 16
 extern const char NUCLEOTIDE_ALPHABET[];
 
 #define MAX_MATRIX_DIM AMINO_SIZE
