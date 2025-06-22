@@ -1,6 +1,13 @@
 #include "cuda_manager.cuh"
 #include "host_types.h"
 
+/*
+Increase if needed, should be fine to increase, but I haven't tested it yet
+since I mostly work with sequences shorter than 64, and 1024 should be more
+than enough as a default limit
+*/
+#define MAX_SEQUENCE_LENGTH 1024
+
 #define KiB (1 << 10)
 
 #define SCORING_MATRIX_DIM (24)
@@ -214,8 +221,6 @@ find_sequence_column_binary_search_32(const Sequences* const seqs, const size_t 
 {
     return d_binary_search(c_constant ? c_indices : seqs->d_indices_32, seqs->n_seqs, alignment);
 }
-
-#define MAX_SEQUENCE_LENGTH 1024
 
 __global__ void
 k_nw(const Sequences seqs, int* R scores, ull* R progress, sll* R sum, size_t start, size_t batch)
