@@ -43,7 +43,7 @@ main(int argc, char* argv[])
         }
 
         bool headerless;
-        int seq_column;
+        size_t seq_column;
 
         char* file_cursor = input_file.text;
         char* file_end = input_file.text + input_file.meta.bytes;

@@ -11,7 +11,11 @@ typedef struct
     size_t length;
 } sequence_t;
 
-extern void sequences_alloc_from_file(char* start, char* end, size_t total, float filter, int col);
+extern void sequences_alloc_from_file(char* start,
+                                      char* end,
+                                      size_t total,
+                                      float filter,
+                                      size_t col);
 extern sequence_t* sequences_get(void);
 extern size_t sequences_count(void);
 extern size_t sequences_alignment_count(void);

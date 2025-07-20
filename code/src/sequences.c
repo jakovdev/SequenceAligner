@@ -244,7 +244,7 @@ similarity_pairwise(const char* restrict seq1, size_t len1, const char* restrict
 }
 
 void
-sequences_alloc_from_file(char* start, char* end, size_t total, float filter, int col)
+sequences_alloc_from_file(char* start, char* end, size_t total, float filter, size_t col)
 {
     seq_pool_init();
     sequence_t* sequences = MALLOC(sequences, total);
