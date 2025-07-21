@@ -36,20 +36,25 @@ Cuda::initialize()
 }
 
 bool
-Cuda::uploadSequences(char* seqs, half_t* offsets, half_t* lens, half_t n_seqs, size_t n_chars)
+Cuda::uploadSequences(char* sequences_letters,
+                      sequence_offset_t* sequences_offsets,
+                      sequence_length_t* sequences_lengths,
+                      sequence_count_t sequences_count,
+                      size_t total_sequences_length)
 {
-    if (!m_initialized || !seqs || !offsets || !lens || !n_seqs || !n_chars)
+    if (!m_initialized || !sequences_letters || !sequences_offsets || !sequences_lengths ||
+        !sequences_count || !total_sequences_length)
     {
         setHostError("Invalid parameters for sequence upload");
         return false;
     }
 
-    m_seqs.n_seqs = n_seqs;
-    m_seqs.n_letters = n_chars;
-    m_results.h_total_count = n_seqs * (n_seqs - 1) / 2;
+    m_seqs.n_seqs = sequences_count;
+    m_seqs.n_letters = total_sequences_length;
+    m_results.h_total_count = sequences_count * (sequences_count - 1) / 2;
     constexpr size_t cell_size = sizeof(*m_results.h_scores);
 
-    if (!hasEnoughMemory(n_seqs * n_seqs * cell_size))
+    if (!hasEnoughMemory(sequences_count * sequences_count * cell_size))
     {
         if (!hasEnoughMemory(m_results.h_total_count * cell_size))
         {
@@ -80,7 +85,7 @@ Cuda::uploadSequences(char* seqs, half_t* offsets, half_t* lens, half_t n_seqs, 
 
     if (m_seqs.constant)
     {
-        if (!copySequencesToConstantMemory(seqs, offsets, lens))
+        if (!copySequencesToConstantMemory(sequences_letters, sequences_offsets, sequences_lengths))
         {
             return false;
         }
@@ -89,32 +94,32 @@ Cuda::uploadSequences(char* seqs, half_t* offsets, half_t* lens, half_t n_seqs, 
     else
     {
         cudaError_t err;
-        DEVICE_MALLOC(m_seqs.d_letters, n_chars, "letter memory");
-        DEVICE_MALLOC(m_seqs.d_offsets, n_seqs, "offset memory");
-        DEVICE_MALLOC(m_seqs.d_lengths, n_seqs, "length memory");
+        DEVICE_MALLOC(m_seqs.d_letters, total_sequences_length, "letter memory");
+        DEVICE_MALLOC(m_seqs.d_offsets, sequences_count, "offset memory");
+        DEVICE_MALLOC(m_seqs.d_lengths, sequences_count, "length memory");
 
-        HOST_DEVICE_COPY(m_seqs.d_letters, seqs, n_chars, "letters");
-        HOST_DEVICE_COPY(m_seqs.d_offsets, offsets, n_seqs, "offsets");
-        HOST_DEVICE_COPY(m_seqs.d_lengths, lens, n_seqs, "lengths");
+        HOST_DEVICE_COPY(m_seqs.d_letters, sequences_letters, total_sequences_length, "letters");
+        HOST_DEVICE_COPY(m_seqs.d_offsets, sequences_offsets, sequences_count, "offsets");
+        HOST_DEVICE_COPY(m_seqs.d_lengths, sequences_lengths, sequences_count, "lengths");
     }
 
     return true;
 }
 
 bool
-Cuda::uploadTriangleIndices32(half_t* triangle_indices, int* buffer, size_t buffer_size)
+Cuda::uploadTriangleIndices32(half_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes)
 {
-    if (!m_initialized || !triangle_indices || !buffer || !buffer_size)
+    if (!m_initialized || !triangle_indices || !score_buffer || !buffer_bytes)
     {
         setHostError("Invalid parameters for storing results, or in --no-write mode");
         return false;
     }
 
-    const size_t expected_size = m_results.h_total_count * sizeof(*buffer);
+    const size_t expected_size = m_results.h_total_count * sizeof(*score_buffer);
 
-    if (buffer_size <= expected_size)
+    if (buffer_bytes <= expected_size)
     {
-        if (buffer_size == expected_size)
+        if (buffer_bytes == expected_size)
         {
             if (!copyTriangularMatrixFlag(true))
             {
@@ -129,7 +134,7 @@ Cuda::uploadTriangleIndices32(half_t* triangle_indices, int* buffer, size_t buff
         }
     }
 
-    m_results.h_scores = buffer;
+    m_results.h_scores = score_buffer;
     m_results.h_indices_32 = triangle_indices;
 
     if (m_seqs.constant)
@@ -151,19 +156,19 @@ Cuda::uploadTriangleIndices32(half_t* triangle_indices, int* buffer, size_t buff
 }
 
 bool
-Cuda::uploadTriangleIndices64(size_t* triangle_indices, int* buffer, size_t buffer_size)
+Cuda::uploadTriangleIndices64(size_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes)
 {
-    if (!m_initialized || !triangle_indices || !buffer || !buffer_size)
+    if (!m_initialized || !triangle_indices || !score_buffer || !buffer_bytes)
     {
         setHostError("Invalid parameters for storing results, or in --no-write mode");
         return false;
     }
 
-    const size_t expected_size = m_results.h_total_count * sizeof(*buffer);
+    const size_t expected_size = m_results.h_total_count * sizeof(*score_buffer);
 
-    if (buffer_size <= expected_size)
+    if (buffer_bytes <= expected_size)
     {
-        if (buffer_size == expected_size)
+        if (buffer_bytes == expected_size)
         {
             if (!copyTriangularMatrixFlag(true))
             {
@@ -178,7 +183,7 @@ Cuda::uploadTriangleIndices64(size_t* triangle_indices, int* buffer, size_t buff
         }
     }
 
-    m_results.h_scores = buffer;
+    m_results.h_scores = score_buffer;
     m_results.h_indices_64 = triangle_indices;
     m_seqs.indices_64 = true;
     if (!copyTriangleIndices64FlagToConstantMemory(m_seqs.indices_64))
@@ -205,7 +210,7 @@ Cuda::launchKernel(int kernel_id)
     if (!m_results.h_after_first)
     {
         cudaError_t err;
-        size_t d_scores_size = 0;
+        alignment_size_t d_scores_size = 0;
 
         if (m_results.d_triangular)
         {
@@ -259,7 +264,7 @@ Cuda::getResults()
             CUDA_ERROR_CHECK("Device synchronization failed");
             DEVICE_HOST_COPY(&m_results.h_progress, m_results.d_progress, 1, "progress");
 
-            const size_t n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
+            const alignment_size_t n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
             DEVICE_HOST_COPY(m_results.h_scores, m_results.d_scores0, n_scores, "full matrix");
             matrix_copied = true;
         }
@@ -278,8 +283,8 @@ Cuda::getResults()
         return true;
     }
 
-    size_t batch_offset = m_results.h_completed_batch;
-    int* buffer = nullptr;
+    alignment_size_t batch_offset = m_results.h_completed_batch;
+    score_t* buffer = nullptr;
 
     if (m_results.h_after_first)
     {
@@ -294,11 +299,12 @@ Cuda::getResults()
         buffer = m_results.d_scores0;
     }
 
-    size_t n_scores = std::min(m_results.h_batch_size, m_results.h_total_count - batch_offset);
+    alignment_size_t n_scores = std::min(m_results.h_batch_size,
+                                         m_results.h_total_count - batch_offset);
 
     if (n_scores > 0)
     {
-        int* host_scores = m_results.h_scores + batch_offset;
+        score_t* host_scores = m_results.h_scores + batch_offset;
         DEVICE_HOST_COPY(host_scores, buffer, n_scores, "batch scores");
         m_results.h_completed_batch += n_scores;
     }

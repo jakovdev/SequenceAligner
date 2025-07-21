@@ -13,11 +13,11 @@ struct Sequences
     Sequences() = default;
 
     char* d_letters{ nullptr };
-    half_t* d_offsets{ nullptr };
-    half_t* d_lengths{ nullptr };
+    sequence_offset_t* d_offsets{ nullptr };
+    sequence_length_t* d_lengths{ nullptr };
     half_t* d_indices_32{ nullptr };
     size_t* d_indices_64{ nullptr };
-    half_t n_seqs{ 0 };
+    sequence_count_t n_seqs{ 0 };
     size_t n_letters{ 0 };
     bool constant{ false };
     bool indices_64{ false };
@@ -39,18 +39,18 @@ struct KernelResults
         cudaFree(d_checksum);
     }
 
-    int* d_scores0{ nullptr };
-    int* d_scores1{ nullptr };
+    score_t* d_scores0{ nullptr };
+    score_t* d_scores1{ nullptr };
     ull* d_progress{ nullptr };
     sll* d_checksum{ nullptr };
 
-    int* h_scores{ nullptr };
+    score_t* h_scores{ nullptr };
     half_t* h_indices_32{ nullptr };
     size_t* h_indices_64{ nullptr };
-    size_t h_batch_size{ 0 };
-    size_t h_last_batch{ 0 };
-    size_t h_total_count{ 0 };
-    size_t h_completed_batch{ 0 };
+    alignment_size_t h_batch_size{ 0 };
+    alignment_size_t h_last_batch{ 0 };
+    alignment_size_t h_total_count{ 0 };
+    alignment_size_t h_completed_batch{ 0 };
     ull h_progress{ 0 };
     int h_active{ 0 };
     bool use_batching{ false };
@@ -94,11 +94,20 @@ class Cuda
     bool initialize();
     bool hasEnoughMemory(size_t bytes);
 
-    bool uploadSequences(char* seqs, half_t* offsets, half_t* lens, half_t n_seqs, size_t n_chars);
+    bool uploadSequences(char* sequences_letters,
+                         sequence_offset_t* sequences_offsets,
+                         sequence_length_t* sequences_lengths,
+                         sequence_count_t sequences_count,
+                         size_t total_sequences_length);
+
     bool uploadScoring(int* scoring_matrix, int* sequence_lookup);
     bool uploadPenalties(int linear, int start, int extend);
-    bool uploadTriangleIndices32(half_t* triangle_indices, int* buffer, size_t buffer_size);
-    bool uploadTriangleIndices64(size_t* triangle_indices, int* buffer, size_t buffer_size);
+    bool uploadTriangleIndices32(half_t* triangle_indices,
+                                 score_t* score_buffer,
+                                 size_t buffer_bytes);
+    bool uploadTriangleIndices64(size_t* triangle_indices,
+                                 score_t* score_buffer,
+                                 size_t buffer_bytes);
 
     bool launchKernel(int kernel_id);
     bool getResults();
@@ -128,7 +137,9 @@ class Cuda
     bool getMemoryStats(size_t* free, size_t* total);
     bool canUseConstantMemory();
     bool copyTriangularMatrixFlag(bool triangular);
-    bool copySequencesToConstantMemory(char* seqs, half_t* offsets, half_t* lengths);
+    bool copySequencesToConstantMemory(char* seqs,
+                                       sequence_offset_t* offsets,
+                                       sequence_length_t* lengths);
     bool copyTriangleIndicesToConstantMemory(half_t* indices);
     bool copyTriangleIndices64FlagToConstantMemory(bool indices_64);
 

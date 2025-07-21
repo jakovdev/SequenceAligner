@@ -1,9 +1,9 @@
 #include "seqalign_hdf5.h"
 
 #include "arch.h"
+#include "biotypes.h"
 #include "files.h"
 #include "print.h"
-#include "sequences.h"
 
 #include <hdf5.h>
 
@@ -30,12 +30,12 @@ static struct
     half_t* triangle_indices_32;
 #endif
 
-    int* full_matrix;
+    score_t* full_matrix;
     size_t full_matrix_b;
 
-    FileMatrix memory_map;
+    FileScoreMatrix memory_map;
 
-    size_t matrix_dim;
+    sequence_count_t matrix_dim;
 
     int64_t checksum;
 
@@ -50,14 +50,14 @@ static void h5_chunk_dimensions_calculate(void);
 static bool h5_file_setup(void);
 
 bool
-h5_open(const char* fname, size_t mat_dim, unsigned int compression, bool write)
+h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compression, bool write)
 {
     g_hdf5.matrix_dim = mat_dim;
     g_hdf5.file_id = H5I_INVALID_HID;
     g_hdf5.matrix_id = H5I_INVALID_HID;
     g_hdf5.sequences_id = H5I_INVALID_HID;
     g_hdf5.lengths_id = H5I_INVALID_HID;
-    g_hdf5.file_path = fname;
+    g_hdf5.file_path = file_path;
     g_hdf5.compression_level = compression;
     g_hdf5.mode_write = write;
 
@@ -123,7 +123,7 @@ h5_open(const char* fname, size_t mat_dim, unsigned int compression, bool write)
 #define H5_SEQUENCE_BATCH_SIZE 1 << 12
 
 bool
-h5_sequences_store(sequence_t* sequences, size_t seq_count)
+h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 {
     if (!g_hdf5.mode_write || !g_hdf5.is_init || g_hdf5.sequences_stored)
     {
@@ -163,7 +163,7 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
 
     g_hdf5.lengths_id = H5Dcreate2(g_hdf5.file_id,
                                    "/sequences/lengths",
-                                   H5T_STD_U64LE,
+                                   H5T_STD_U16LE,
                                    lengths_space,
                                    H5P_DEFAULT,
                                    H5P_DEFAULT,
@@ -177,7 +177,7 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
         return false;
     }
 
-    size_t* lengths = MALLOC(lengths, seq_count);
+    sequence_length_t* lengths = MALLOC(lengths, seq_count);
     if (!lengths)
     {
         print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for sequence lengths");
@@ -186,13 +186,13 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
         return false;
     }
 
-    for (size_t i = 0; i < seq_count; i++)
+    for (sequence_index_t i = 0; i < seq_count; i++)
     {
         lengths[i] = sequences[i].length;
     }
 
     herr_t status = H5Dwrite(g_hdf5.lengths_id,
-                             H5T_NATIVE_ULONG,
+                             H5T_NATIVE_USHORT,
                              H5S_ALL,
                              H5S_ALL,
                              H5P_DEFAULT,
@@ -239,11 +239,11 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
         return false;
     }
 
-    const size_t batch_size = H5_SEQUENCE_BATCH_SIZE;
-    for (size_t batch_start = 0; batch_start < seq_count; batch_start += batch_size)
+    const sequence_index_t batch_size = H5_SEQUENCE_BATCH_SIZE;
+    for (sequence_index_t batch_start = 0; batch_start < seq_count; batch_start += batch_size)
     {
-        size_t batch_end = MIN(batch_start + batch_size, seq_count);
-        size_t current_batch_size = batch_end - batch_start;
+        sequence_index_t batch_end = MIN(batch_start + batch_size, seq_count);
+        sequence_index_t current_batch_size = batch_end - batch_start;
 
         char** seq_data = MALLOC(seq_data, current_batch_size);
         if (!seq_data)
@@ -258,7 +258,7 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
             return false;
         }
 
-        for (size_t i = 0; i < current_batch_size; i++)
+        for (sequence_index_t i = 0; i < current_batch_size; i++)
         {
             seq_data[i] = sequences[batch_start + i].letters;
         }
@@ -319,7 +319,7 @@ h5_sequences_store(sequence_t* sequences, size_t seq_count)
 }
 
 void
-h5_matrix_set(size_t row, size_t col, int value)
+h5_matrix_set(sequence_index_t row, sequence_index_t col, score_t value)
 {
     if (!g_hdf5.mode_write)
     {
@@ -382,7 +382,7 @@ h5_close(int skip_flush)
 
 #ifdef USE_CUDA
 
-int*
+score_t*
 h5_matrix_data(void)
 {
     if (!g_hdf5.mode_write)
@@ -459,7 +459,7 @@ h5_triangle_indices_calculate(void)
         return true;
     }
 
-    size_t sequence_count = g_hdf5.matrix_dim;
+    sequence_count_t sequence_count = g_hdf5.matrix_dim;
 
     if (h5_triangle_indices_64_bit())
     {
@@ -469,7 +469,7 @@ h5_triangle_indices_calculate(void)
             return false;
         }
 
-        for (size_t i = 0; i < sequence_count; i++)
+        for (sequence_index_t i = 0; i < sequence_count; i++)
         {
             g_hdf5.triangle_indices_64[i] = (i * (i - 1)) / 2;
         }
@@ -477,14 +477,13 @@ h5_triangle_indices_calculate(void)
 
     else
     {
-        half_t sequence_count_32 = (half_t)sequence_count;
-        if (!(g_hdf5.triangle_indices_32 = MALLOC(g_hdf5.triangle_indices_32, sequence_count_32)))
+        if (!(g_hdf5.triangle_indices_32 = MALLOC(g_hdf5.triangle_indices_32, sequence_count)))
         {
             print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for result offsets");
             return false;
         }
 
-        for (half_t i = 0; i < sequence_count_32; i++)
+        for (sequence_index_t i = 0; i < sequence_count; i++)
         {
             g_hdf5.triangle_indices_32[i] = (i * (i - 1)) / 2;
         }
@@ -501,8 +500,8 @@ h5_triangle_indices_calculate(void)
 static void
 h5_chunk_dimensions_calculate(void)
 {
-    size_t matrix_dim = g_hdf5.matrix_dim;
-    size_t chunk_dim;
+    sequence_count_t matrix_dim = g_hdf5.matrix_dim;
+    sequence_count_t chunk_dim;
 
     if (matrix_dim <= H5_MIN_CHUNK_SIZE)
     {
@@ -511,7 +510,7 @@ h5_chunk_dimensions_calculate(void)
 
     else if (matrix_dim > H5_MAX_CHUNK_SIZE)
     {
-        size_t target_chunks = matrix_dim > 1 << 15 ? 1 << 4 : 1 << 5;
+        sequence_count_t target_chunks = matrix_dim > 1 << 15 ? 1 << 4 : 1 << 5;
         chunk_dim = matrix_dim / target_chunks;
         chunk_dim = ALIGN_POW2(chunk_dim, H5_MIN_CHUNK_SIZE);
         chunk_dim = MAX(chunk_dim, H5_MIN_CHUNK_SIZE);
@@ -520,18 +519,18 @@ h5_chunk_dimensions_calculate(void)
 
     else
     {
-        size_t chunk_candidates[] = { H5_MIN_CHUNK_SIZE,      H5_MIN_CHUNK_SIZE << 1,
-                                      H5_MIN_CHUNK_SIZE << 2, H5_MIN_CHUNK_SIZE << 3,
-                                      H5_MIN_CHUNK_SIZE << 4, H5_MIN_CHUNK_SIZE << 5,
-                                      H5_MIN_CHUNK_SIZE << 6, H5_MAX_CHUNK_SIZE };
+        sequence_count_t chunk_candidates[] = { H5_MIN_CHUNK_SIZE,      H5_MIN_CHUNK_SIZE << 1,
+                                                H5_MIN_CHUNK_SIZE << 2, H5_MIN_CHUNK_SIZE << 3,
+                                                H5_MIN_CHUNK_SIZE << 4, H5_MIN_CHUNK_SIZE << 5,
+                                                H5_MIN_CHUNK_SIZE << 6, H5_MAX_CHUNK_SIZE };
 
-        size_t num_candidates = sizeof(chunk_candidates) / sizeof(*chunk_candidates);
+        sequence_count_t num_candidates = sizeof(chunk_candidates) / sizeof(*chunk_candidates);
 
         chunk_dim = H5_MIN_CHUNK_SIZE;
 
-        for (size_t i = 0; i < num_candidates; i++)
+        for (sequence_index_t i = 0; i < num_candidates; i++)
         {
-            size_t candidate = chunk_candidates[i];
+            sequence_count_t candidate = chunk_candidates[i];
             if (candidate > H5_MAX_CHUNK_SIZE || candidate > matrix_dim)
             {
                 break;
@@ -745,7 +744,7 @@ h5_flush_full_matrix(void)
 static void
 h5_flush_memory_map(void)
 {
-    size_t matrix_dim = g_hdf5.matrix_dim;
+    sequence_count_t matrix_dim = g_hdf5.matrix_dim;
     size_t available_mem = available_memory();
     if (!available_mem)
     {
@@ -753,10 +752,10 @@ h5_flush_memory_map(void)
         return;
     }
 
-    size_t chunk_rows = g_hdf5.chunk_dims[0];
+    hsize_t chunk_rows = g_hdf5.chunk_dims[0];
     size_t row_bytes = matrix_dim * sizeof(*g_hdf5.memory_map.matrix);
-    size_t max_rows = available_mem / (4 * row_bytes);
-    size_t chunk_size = chunk_rows > 4 ? chunk_rows : 4;
+    sequence_count_t max_rows = (sequence_count_t)(available_mem / (4 * row_bytes));
+    sequence_count_t chunk_size = (sequence_count_t)(chunk_rows > 4 ? chunk_rows : 4);
     if (chunk_size > max_rows && max_rows > 4)
     {
         chunk_size = max_rows;
@@ -765,7 +764,7 @@ h5_flush_memory_map(void)
     const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
     print(VERBOSE, MSG_NONE, "Using %zu rows per chunk (%zu MiB buffer)", chunk_size, buffer_mib);
 
-    int* buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
+    score_t* buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
     if (!buffer)
     {
         print(WARNING, MSG_NONE, "Failed to allocate buffer of %zu bytes", chunk_size * row_bytes);
@@ -790,20 +789,20 @@ h5_flush_memory_map(void)
 
     print(INFO, MSG_NONE, "Converting memory-mapped matrix to HDF5 format");
 
-    for (size_t begin = 0; begin < matrix_dim; begin += chunk_size)
+    for (sequence_index_t begin = 0; begin < matrix_dim; begin += chunk_size)
     {
-        size_t end = MIN(begin + chunk_size, matrix_dim);
+        sequence_count_t end = MIN(begin + chunk_size, matrix_dim);
 
-        for (size_t i = begin; i < end; i++)
+        for (sequence_index_t i = begin; i < end; i++)
         {
-            size_t row_offset = (i - begin) * matrix_dim;
+            alignment_size_t row_offset = (i - begin) * matrix_dim;
 
-            for (size_t j = i + 1; j < matrix_dim; j++)
+            for (sequence_index_t j = i + 1; j < matrix_dim; j++)
             {
                 buffer[row_offset + j] = g_hdf5.memory_map.matrix[matrix_triangle_index(i, j)];
             }
 
-            for (size_t j = 0; j < i; j++)
+            for (sequence_index_t j = 0; j < i; j++)
             {
                 if (j >= begin)
                 {
@@ -817,7 +816,7 @@ h5_flush_memory_map(void)
             }
         }
 
-        size_t rows = end - begin;
+        sequence_count_t rows = end - begin;
         hsize_t start[2] = { begin, 0 };
         hsize_t count[2] = { rows, matrix_dim };
         H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL, count, NULL);

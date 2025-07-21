@@ -2,8 +2,6 @@
 #ifndef TYPES_H
 #define TYPES_H
 
-#include <stdbool.h>
-
 typedef enum
 {
     SEQ_TYPE_AMINO,
@@ -29,6 +27,57 @@ typedef enum
     GAP_TYPE_LINEAR,
     GAP_TYPE_AFFINE,
 } GapPenaltyType;
+
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef USE_CUDA
+#include "host_types.h"
+#else
+#if SIZE_MAX == UINT64_MAX
+typedef uint32_t HALF_OF_SIZE_T;
+typedef uint16_t HALF_OF_HALF_T;
+#define HALF_MAX (UINT32_MAX)
+#define QUAR_MAX (UINT16_MAX)
+#elif SIZE_MAX == UINT32_MAX
+typedef uint16_t HALF_OF_SIZE_T;
+typedef uint8_t HALF_OF_HALF_T;
+#define HALF_MAX (UINT16_MAX)
+#define QUAR_MAX (UINT8_MAX)
+#else
+#error "Unsupported platform: size_t width not 32 or 64 bits"
+#endif
+
+typedef HALF_OF_SIZE_T half_t;
+typedef HALF_OF_HALF_T quar_t;
+
+typedef quar_t sequence_length_t;
+#define MAX_SEQUENCE_LENGTH (QUAR_MAX)
+
+typedef half_t sequence_index_t;
+typedef half_t sequence_count_t;
+#define MAX_SEQUENCE_COUNT (HALF_MAX)
+
+typedef size_t alignment_size_t;
+
+typedef int score_t;
+
+#define SCORE_MIN (INT_MIN / 2)
+
+#endif
+
+typedef struct
+{
+    char* letters;
+    sequence_length_t length;
+} sequence_t;
+
+// Collection of sequences
+typedef sequence_t* sequences_t;
+
+// Pointer to a specific sequence
+typedef sequence_t* restrict sequence_ptr_t;
 
 extern const char* alignment_name(int method);
 extern bool alignment_linear(int method);

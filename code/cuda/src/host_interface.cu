@@ -1,5 +1,6 @@
 #include "cuda_manager.cuh"
 #include "host_interface.h"
+#include "host_types.h"
 
 extern "C"
 {
@@ -13,9 +14,17 @@ extern "C"
         return !Cuda::getInstance().hasEnoughMemory(buffer_bytes);
     }
 
-    bool cuda_upload_sequences(char* seqs, half_t* offs, half_t* lens, half_t n_sqs, size_t n_chrs)
+    bool cuda_upload_sequences(char* sequences_letters,
+                               sequence_offset_t* sequences_offsets,
+                               sequence_length_t* sequences_lengths,
+                               sequence_count_t sequences_count,
+                               size_t total_sequences_length)
     {
-        return Cuda::getInstance().uploadSequences(seqs, offs, lens, n_sqs, n_chrs);
+        return Cuda::getInstance().uploadSequences(sequences_letters,
+                                                   sequences_offsets,
+                                                   sequences_lengths,
+                                                   sequences_count,
+                                                   total_sequences_length);
     }
 
     bool cuda_upload_scoring(int* scoring_matrix, int* sequence_lookup)
@@ -28,14 +37,18 @@ extern "C"
         return Cuda::getInstance().uploadPenalties(linear, open, extend);
     }
 
-    bool cuda_upload_triangle_indices_32(half_t* indices, int* buffer, size_t buffer_size)
+    bool cuda_upload_triangle_indices_32(half_t* indices,
+                                         score_t* score_buffer,
+                                         size_t buffer_bytes)
     {
-        return Cuda::getInstance().uploadTriangleIndices32(indices, buffer, buffer_size);
+        return Cuda::getInstance().uploadTriangleIndices32(indices, score_buffer, buffer_bytes);
     }
 
-    bool cuda_upload_triangle_indices_64(size_t* indices, int* buffer, size_t buffer_size)
+    bool cuda_upload_triangle_indices_64(size_t* indices,
+                                         score_t* score_buffer,
+                                         size_t buffer_bytes)
     {
-        return Cuda::getInstance().uploadTriangleIndices64(indices, buffer, buffer_size);
+        return Cuda::getInstance().uploadTriangleIndices64(indices, score_buffer, buffer_bytes);
     }
 
     bool cuda_kernel_launch(int kernel_id)
