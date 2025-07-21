@@ -19,7 +19,7 @@ static struct
     int gap_penalty;
     int gap_open;
     int gap_extend;
-    long thread_num;
+    unsigned long thread_num;
     unsigned int compression_level;
     float filter;
 
@@ -80,7 +80,7 @@ GETTER(const char*, output, args.path_output)
 GETTER(int, gap_penalty, args.gap_penalty)
 GETTER(int, gap_open, args.gap_open)
 GETTER(int, gap_extend, args.gap_extend)
-GETTER(long, thread_num, args.thread_num)
+GETTER(unsigned long, thread_num, args.thread_num)
 GETTER(int, align_method, args.method_id)
 GETTER(int, sequence_type, args.seq_type)
 GETTER(int, scoring_matrix, args.matrix_id)
@@ -132,7 +132,7 @@ args_parse_filter_threshold(const char* arg)
     return threshold > 1.0f ? threshold / 100.0f : threshold;
 }
 
-static long
+static unsigned long
 args_parse_thread_num(const char* arg)
 {
     long threads = atol(arg);
@@ -141,7 +141,7 @@ args_parse_thread_num(const char* arg)
         return 0;
     }
 
-    return threads;
+    return (unsigned long)threads;
 }
 
 static unsigned int
@@ -343,7 +343,7 @@ args_print_config(void)
 
 #endif
 
-    print(CONFIG, MSG_LOC(LAST), "Threads: %ld", args.thread_num);
+    print(CONFIG, MSG_LOC(LAST), "Threads: %lu", args.thread_num);
 
     if (args.mode_benchmark)
     {
@@ -503,7 +503,8 @@ args_parse(int argc, char* argv[])
 
     if (args.thread_num == 0)
     {
-        args.thread_num = thread_count();
+        const long threads = thread_count();
+        args.thread_num = (threads > 0) ? (unsigned long)threads : 1;
     }
 
     args.mode_multithread = (args.thread_num > 1);

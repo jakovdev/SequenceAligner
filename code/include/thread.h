@@ -1,4 +1,5 @@
 #pragma once
+#include "biotypes.h"
 #ifndef THREAD_H
 #define THREAD_H
 
@@ -8,6 +9,7 @@
 #include "print.h"
 #include "seqalign.h"
 #include "seqalign_hdf5.h"
+#include "sequences.h"
 
 #include <stdatomic.h>
 
@@ -17,12 +19,12 @@
 
 typedef struct
 {
-    size_t thread_id;
+    unsigned long thread_id;
     int64_t local_checksum;
-    volatile size_t* current_row;
+    volatile sequence_index_t* current_row;
     pthread_mutex_t* row_mutex;
     atomic_size_t* shared_progress;
-    volatile size_t* threads_completed;
+    volatile unsigned long* threads_completed;
     pthread_mutex_t* completion_mutex;
 } ThreadStorage;
 
@@ -32,35 +34,36 @@ thread_worker(void* thread_arg)
     ThreadStorage* storage = CAST(storage)(thread_arg);
     PIN_THREAD(storage->thread_id);
 
-    const size_t sequence_count = sequences_count();
-    const size_t alignment_count = sequences_alignment_count();
+    const sequence_count_t sequence_count = sequences_count();
+    const alignment_size_t alignment_count = sequences_alignment_count();
 
-    size_t local_progress = 0;
+    alignment_size_t local_progress = 0;
 
-    const long thread_num = args_thread_num();
-    const size_t num_threads = (thread_num > 0) ? (size_t)thread_num : 1;
-    const size_t progress_update_interval = alignment_count / (num_threads * 100);
+    const unsigned long thread_num = args_thread_num();
+    const unsigned long num_threads = (thread_num > 0) ? thread_num : 1;
+    const alignment_size_t progress_update_interval = alignment_count / (num_threads * 100);
 
-    const size_t batch_size = num_threads;
+    const sequence_count_t batch_size = (sequence_count_t)num_threads;
 
-    const size_t batch_transition_tail = sequence_count * 9 / 10;
+    const sequence_count_t batch_transition_tail = sequence_count * 9 / 10;
 
-    const size_t batch_size_tail = batch_size / 2;
+    const sequence_count_t batch_size_tail = batch_size / 2;
 
     while (true)
     {
-        size_t current_batch_size;
-        size_t row;
+        sequence_count_t current_batch_size;
+        sequence_index_t row;
 
         pthread_mutex_lock(storage->row_mutex);
         row = *storage->current_row;
 
         current_batch_size = (row < batch_transition_tail) ? batch_size : batch_size_tail;
 
-        size_t remaining_rows = sequence_count - row;
+        sequence_count_t remaining_rows = sequence_count - row;
         if (remaining_rows < current_batch_size * num_threads / 2)
         {
-            current_batch_size = (remaining_rows + num_threads - 1) / num_threads;
+            current_batch_size = (sequence_count_t)((remaining_rows + num_threads - 1) /
+                                                    num_threads);
             if (current_batch_size == 0)
             {
                 current_batch_size = 1;
@@ -75,30 +78,28 @@ thread_worker(void* thread_arg)
             break;
         }
 
-        size_t end_row = row + current_batch_size;
+        sequence_count_t end_row = row + current_batch_size;
         if (end_row > sequence_count)
         {
             end_row = sequence_count;
         }
 
-        for (size_t i = row; i < end_row; i++)
+        for (sequence_index_t i = row; i < end_row; i++)
         {
-            char* seq1;
-            size_t len1;
+            sequence_ptr_t seq1;
 
-            for (size_t j = i + 1; j < sequence_count; j++)
+            for (sequence_index_t j = i + 1; j < sequence_count; j++)
             {
-                char* seq2;
-                size_t len2;
+                sequence_ptr_t seq2;
 
-                sequences_get_pair(i, &seq1, &len1, j, &seq2, &len2);
+                sequences_get_pair(i, &seq1, j, &seq2);
 
-                if (UNLIKELY(!seq1 || !seq2 || !len1 || !len2))
+                if (UNLIKELY(!seq1->letters || !seq2->letters || !seq1->length || !seq2->length))
                 {
                     continue;
                 }
 
-                int score = align_pairwise(seq1, (int)len1, seq2, (int)len2);
+                score_t score = align_pairwise(*seq1, *seq2);
 
                 storage->local_checksum += score;
 
@@ -139,14 +140,14 @@ thread_worker(void* thread_arg)
 static inline bool
 align_multithreaded(void)
 {
-    const long thread_num = args_thread_num();
-    const size_t num_threads = (thread_num > 0) ? (size_t)thread_num : 1;
+    const unsigned long thread_num = args_thread_num();
+    const unsigned long num_threads = (thread_num > 0) ? thread_num : 1;
 
-    volatile size_t current_row = 0;
+    volatile sequence_index_t current_row = 0;
     pthread_mutex_t row_mutex = PTHREAD_MUTEX_INITIALIZER;
     atomic_size_t shared_progress = 0;
 
-    volatile size_t threads_completed = 0;
+    volatile unsigned long threads_completed = 0;
     pthread_mutex_t completion_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_t* threads = MALLOC(threads, num_threads);
@@ -163,7 +164,7 @@ align_multithreaded(void)
 
     bench_align_start();
 
-    for (size_t t = 0; t < num_threads; t++)
+    for (unsigned long t = 0; t < num_threads; t++)
     {
         ThreadStorage* storage = &thread_storages[t];
         storage->thread_id = t;
@@ -180,10 +181,10 @@ align_multithreaded(void)
     int percentage = 0;
     print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
 
-    const size_t alignment_count = sequences_alignment_count();
+    const alignment_size_t alignment_count = sequences_alignment_count();
     const unsigned int update_interval_ms = 100;
 
-    for (size_t progress = atomic_load(&shared_progress); progress < alignment_count;
+    for (alignment_size_t progress = atomic_load(&shared_progress); progress < alignment_count;
          progress = atomic_load(&shared_progress))
     {
         usleep(update_interval_ms * 1000);
@@ -191,13 +192,13 @@ align_multithreaded(void)
         print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
     }
 
-    for (size_t t = 0; t < num_threads; t++)
+    for (unsigned long t = 0; t < num_threads; t++)
     {
         pthread_join(threads[t], NULL);
     }
 
     int64_t total_checksum = 0;
-    for (size_t t = 0; t < num_threads; t++)
+    for (unsigned long t = 0; t < num_threads; t++)
     {
         total_checksum += thread_storages[t].local_checksum;
     }
@@ -221,24 +222,23 @@ align_multithreaded(void)
 static inline void
 align_singlethreaded(void)
 {
-    const size_t sequence_count = sequences_count();
-    const size_t alignment_count = sequences_alignment_count();
+    const sequence_count_t sequence_count = sequences_count();
+    const alignment_size_t alignment_count = sequences_alignment_count();
     int64_t local_checksum = 0;
-    size_t progress = 0;
+    alignment_size_t progress = 0;
 
     bench_align_start();
 
-    UNROLL(8) for (size_t i = 0; i < sequence_count; i++)
+    UNROLL(8) for (sequence_count_t i = 0; i < sequence_count; i++)
     {
-        for (size_t j = i + 1; j < sequence_count; j++)
+        for (sequence_count_t j = i + 1; j < sequence_count; j++)
         {
-            char* seq1;
-            char* seq2;
-            size_t len1, len2;
+            sequence_t* seq1;
+            sequence_t* seq2;
 
-            sequences_get_pair(i, &seq1, &len1, j, &seq2, &len2);
+            sequences_get_pair(i, &seq1, j, &seq2);
 
-            int score = align_pairwise(seq1, (int)len1, seq2, (int)len2);
+            score_t score = align_pairwise(*seq1, *seq2);
 
             local_checksum += score;
 

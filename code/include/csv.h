@@ -2,6 +2,8 @@
 #ifndef CSV_H
 #define CSV_H
 
+#include <stddef.h>
+
 #include "arch.h"
 #include "print.h"
 
@@ -36,7 +38,8 @@ csv_column_count(const char* line)
 static inline char*
 csv_column_copy(const char* restrict file_start, const char* restrict file_end)
 {
-    size_t len = (size_t)(file_end - file_start);
+    ptrdiff_t delta = file_end - file_start;
+    size_t len = delta < 0 ? 0 : (size_t)delta;
     char* name = MALLOC(name, len + 1);
     if (name)
     {
@@ -304,68 +307,6 @@ csv_line_column_extract(char* restrict* restrict p_cursor,
         cursor++;
     }
 
-#ifdef USE_SIMD
-    const veci_t delim_vec = set1_epi8(',');
-    const veci_t nl_vec = set1_epi8('\n');
-    const veci_t cr_vec = set1_epi8('\r');
-
-    while (*cursor && *cursor != '\n' && *cursor != '\r')
-    {
-        if (column == target_column)
-        {
-            write_pos = output;
-            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
-            {
-                veci_t data = loadu((veci_t*)cursor);
-
-#if defined(__AVX512F__) && defined(__AVX512BW__)
-                num_t mask_delim = cmpeq_epi8(data, delim_vec);
-                num_t mask_nl = cmpeq_epi8(data, nl_vec);
-                num_t mask_cr = cmpeq_epi8(data, cr_vec);
-                num_t mask = or_mask(or_mask(mask_delim, mask_nl), mask_cr);
-#else
-                veci_t is_delim = or_si(
-                    or_si(cmpeq_epi8(data, delim_vec), cmpeq_epi8(data, nl_vec)),
-                    cmpeq_epi8(data, cr_vec));
-                num_t mask = movemask_epi8(is_delim);
-#endif
-
-                if (mask)
-                {
-                    num_t pos = ctz(mask);
-                    storeu((veci_t*)write_pos, data);
-                    write_pos[pos] = '\0';
-                    write_pos += pos;
-                    cursor += pos;
-                    break;
-                }
-
-                storeu((veci_t*)write_pos, data);
-                cursor += BYTES;
-                write_pos += BYTES;
-            }
-
-            *write_pos = '\0';
-            column_length = (size_t)(write_pos - output);
-        }
-
-        else
-        {
-            // Skip other columns
-            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
-            {
-                cursor++;
-            }
-        }
-
-        if (*cursor == ',')
-        {
-            cursor++;
-            column++;
-        }
-    }
-
-#else
     while (*cursor && *cursor != '\n' && *cursor != '\r')
     {
         if (column == target_column)
@@ -378,7 +319,8 @@ csv_line_column_extract(char* restrict* restrict p_cursor,
             }
 
             *write_pos = '\0';
-            column_length = (size_t)(write_pos - output);
+            ptrdiff_t delta = write_pos - output;
+            column_length = delta < 0 ? 0 : (size_t)delta;
         }
 
         else
@@ -397,14 +339,56 @@ csv_line_column_extract(char* restrict* restrict p_cursor,
         }
     }
 
-#endif
-
     while (*cursor && (*cursor == '\n' || *cursor == '\r'))
     {
         cursor++;
     }
 
     *p_cursor = cursor;
+    return column_length;
+}
+
+static inline size_t
+csv_line_column_length(char* cursor, size_t target_column)
+{
+    size_t column = 0;
+    size_t column_length = 0;
+
+    while (*cursor && (*cursor == ' ' || *cursor == '\r' || *cursor == '\n'))
+    {
+        cursor++;
+    }
+
+    while (*cursor && *cursor != '\n' && *cursor != '\r')
+    {
+        if (column == target_column)
+        {
+            char* col_start = cursor;
+            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
+            {
+                cursor++;
+            }
+
+            ptrdiff_t delta = cursor - col_start;
+            column_length = delta < 0 ? 0 : (size_t)delta;
+            break;
+        }
+
+        else
+        {
+            while (*cursor && *cursor != ',' && *cursor != '\n' && *cursor != '\r')
+            {
+                cursor++;
+            }
+        }
+
+        if (*cursor == ',')
+        {
+            cursor++;
+            column++;
+        }
+    }
+
     return column_length;
 }
 

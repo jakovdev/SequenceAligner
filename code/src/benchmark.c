@@ -66,7 +66,7 @@ bench_print_io(void)
 }
 
 void
-bench_print_total(size_t alignments)
+bench_print_total(alignment_size_t alignments)
 {
     if (args_mode_benchmark())
     {

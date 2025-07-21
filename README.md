@@ -268,7 +268,7 @@ CUDA acceleration provides substantial performance improvements with speedups ra
 > [!NOTE]
 > - For very large datasets where the Similarity Matrix exceeds available RAM/VRAM, alignments are performed in batches and written to disk before HDF5 conversion
 > - CPU implementations remain valuable for systems without GPU acceleration or specific memory constraints
-> - For datasets with sequences longer that 1024 amino acids or nucleotides, try editing cuda_kernels.cu to increase the `MAX_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
+> - For datasets with sequences longer that 1024 amino acids or nucleotides, try editing cuda_kernels.cu to increase the `MAX_CUDA_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
 
 ## Implementation Details
 

@@ -47,9 +47,9 @@ static inline bool
 cuda_align(void)
 {
     char* sequences = sequences_flattened();
-    half_t* offsets = sequences_offsets();
-    half_t* lengths = sequences_lengths();
-    half_t sequence_count = (half_t)sequences_count();
+    sequence_offset_t* offsets = sequences_offsets();
+    sequence_length_t* lengths = sequences_lengths();
+    sequence_count_t sequence_count = sequences_count();
     size_t total_length = sequences_total_length();
 
     if (!cuda_upload_sequences(sequences, offsets, lengths, sequence_count, total_length))
@@ -58,9 +58,9 @@ cuda_align(void)
     }
 
     int FLAT_SCORING_MATRIX[MAX_MATRIX_DIM * MAX_MATRIX_DIM] = { 0 };
-    for (size_t i = 0; i < MAX_MATRIX_DIM; i++)
+    for (int i = 0; i < MAX_MATRIX_DIM; i++)
     {
-        for (size_t j = 0; j < MAX_MATRIX_DIM; j++)
+        for (int j = 0; j < MAX_MATRIX_DIM; j++)
         {
             FLAT_SCORING_MATRIX[i * MAX_MATRIX_DIM + j] = SCORING_MATRIX[i][j];
         }
@@ -76,7 +76,7 @@ cuda_align(void)
         RETURN_CUDA_ERRORS("CUDA | Failed uploading penalties");
     }
 
-    int* matrix = h5_matrix_data();
+    score_t* matrix = h5_matrix_data();
     size_t matrix_bytes = h5_matrix_bytes();
 
     if (h5_triangle_indices_64_bit())
@@ -104,7 +104,7 @@ cuda_align(void)
         RETURN_CUDA_ERRORS("CUDA | Failed to launch alignment");
     }
 
-    const size_t alignment_count = sequences_alignment_count();
+    const alignment_size_t alignment_count = sequences_alignment_count();
     int percentage = 0;
 
     print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
@@ -116,7 +116,7 @@ cuda_align(void)
             RETURN_CUDA_ERRORS("CUDA | Failed to get results");
         }
 
-        size_t current_progress = cuda_results_progress();
+        ull current_progress = cuda_results_progress();
         percentage = (int)(100 * current_progress / alignment_count);
         print(PROGRESS, MSG_PERCENT(percentage), "Aligning sequences");
 

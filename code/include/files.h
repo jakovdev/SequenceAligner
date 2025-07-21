@@ -3,6 +3,7 @@
 #define FILES_H
 
 #include "arch.h"
+#include "biotypes.h"
 #include "print.h"
 
 typedef struct
@@ -25,8 +26,8 @@ typedef struct
 typedef struct
 {
     FileMetadata meta;
-    int* matrix;
-} FileMatrix;
+    score_t* matrix;
+} FileScoreMatrix;
 
 static inline void
 file_metadata_init(FileMetadata* meta)
@@ -125,6 +126,13 @@ file_text_open(FileText* file, const char* file_path)
         return;
     }
 
+    if (!S_ISREG(sb.st_mode) || sb.st_size < 0)
+    {
+        print(ERROR, MSG_NONE, "FILE | Invalid file type or size for '%s'", file_name);
+        file_metadata_close(&file->meta);
+        return;
+    }
+
     file->meta.bytes = (size_t)sb.st_size;
     file->text = (char*)mmap(NULL, file->meta.bytes, PROT_READ, MAP_PRIVATE, file->meta.fd, 0);
     if (file->text == MAP_FAILED)
@@ -160,13 +168,13 @@ file_text_close(FileText* file)
     file_metadata_close(&file->meta);
 }
 
-static inline FileMatrix
-file_matrix_open(const char* file_path, size_t matrix_dim)
+static inline FileScoreMatrix
+file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
 {
-    FileMatrix file = { 0 };
+    FileScoreMatrix file = { 0 };
     file_metadata_init(&file.meta);
 
-    size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
+    alignment_size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
     size_t bytes = triangle_elements * sizeof(*file.matrix);
     file.meta.bytes = bytes;
     const char* file_name = file_name_path(file_path);
@@ -202,7 +210,7 @@ file_matrix_open(const char* file_path, size_t matrix_dim)
         return matrix;
     }
 
-    file.matrix = (int*)MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    file.matrix = (score_t*)MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (file.matrix == NULL)
     {
         print(ERROR, MSG_NONE, "MATRIXFILE | Could not map view of file '%s'", file_name);
@@ -225,7 +233,7 @@ file_matrix_open(const char* file_path, size_t matrix_dim)
         return file;
     }
 
-    file.matrix = (int*)mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, file.meta.fd, 0);
+    file.matrix = (score_t*)mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, file.meta.fd, 0);
     if (file.matrix == MAP_FAILED)
     {
         print(ERROR, MSG_NONE, "MATRIXFILE | Could not memory map file '%s'", file_name);
@@ -240,7 +248,7 @@ file_matrix_open(const char* file_path, size_t matrix_dim)
 
 #endif
 
-    size_t check_indices[5] = {
+    const alignment_size_t check_indices[5] = {
         0,                         // First element
         triangle_elements / 4,     // First quarter
         triangle_elements / 2,     // Middle
@@ -248,8 +256,10 @@ file_matrix_open(const char* file_path, size_t matrix_dim)
         triangle_elements - 1      // Last element
     };
 
+    const alignment_size_t num_check_indices = sizeof(check_indices) / sizeof(*check_indices);
+
     bool is_zeroed = true;
-    for (size_t i = 0; i < (sizeof(check_indices) / sizeof(*check_indices)); i++)
+    for (alignment_size_t i = 0; i < num_check_indices; i++)
     {
         if (file.matrix[check_indices[i]] != 0)
         {
@@ -273,7 +283,7 @@ file_matrix_open(const char* file_path, size_t matrix_dim)
 }
 
 static inline void
-file_matrix_close(FileMatrix* matrix)
+file_matrix_close(FileScoreMatrix* matrix)
 {
     if (!matrix->matrix)
     {
@@ -290,8 +300,8 @@ file_matrix_close(FileMatrix* matrix)
     file_metadata_close(&matrix->meta);
 }
 
-static inline size_t
-matrix_triangle_index(size_t row, size_t col)
+static inline alignment_size_t
+matrix_triangle_index(sequence_index_t row, sequence_index_t col)
 {
     return (col * (col - 1)) / 2 + row;
 }
@@ -307,7 +317,8 @@ file_matrix_name(char* buffer, size_t buffer_size, const char* output_path)
         const char* last_slash = strrchr(output_path, '/');
         if (last_slash)
         {
-            size_t dir_len = (size_t)(last_slash - output_path + 1);
+            ptrdiff_t delta = last_slash - output_path + 1;
+            size_t dir_len = delta < 0 ? 0 : (size_t)delta;
             strncpy(dir, output_path, dir_len);
             dir[dir_len] = '\0';
             strncpy(base, last_slash + 1, MAX_PATH - 1);

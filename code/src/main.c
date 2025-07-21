@@ -28,7 +28,7 @@ main(int argc, char* argv[])
         PIN_THREAD(0);
     }
 
-    size_t sequence_count = 0;
+    sequence_count_t sequence_count = 0;
 
     {
         CLEANUP(file_text_close) FileText input_file = { 0 };
@@ -44,6 +44,7 @@ main(int argc, char* argv[])
 
         bool headerless;
         size_t seq_column;
+        size_t csv_lines = 0;
 
         char* file_cursor = input_file.text;
         char* file_end = input_file.text + input_file.meta.bytes;
@@ -51,7 +52,14 @@ main(int argc, char* argv[])
         file_cursor = headerless ? input_file.text : file_header_start;
 
         print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
-        sequence_count = csv_total_lines(file_cursor, file_end);
+        csv_lines = csv_total_lines(file_cursor, file_end);
+        if (csv_lines >= MAX_SEQUENCE_COUNT)
+        {
+            print(ERROR, MSG_NONE, "CSV | Too many lines in input file: %zu", csv_lines);
+            return 1;
+        }
+
+        sequence_count = (sequence_count_t)csv_lines;
 
         if (!sequence_count)
         {
@@ -59,7 +67,7 @@ main(int argc, char* argv[])
             return 1;
         }
 
-        print(DNA, MSG_NONE, "Found %zu sequences", sequence_count);
+        print(DNA, MSG_NONE, "Found %d sequences", sequence_count);
 
         bench_io_start();
         sequences_alloc_from_file(file_cursor, file_end, sequence_count, args_filter(), seq_column);
@@ -73,7 +81,7 @@ main(int argc, char* argv[])
     }
 
     sequence_count = sequences_count();
-    size_t total_alignments = sequences_alignment_count();
+    alignment_size_t total_alignments = sequences_alignment_count();
 
 #ifdef USE_CUDA
     cuda_init();
