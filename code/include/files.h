@@ -283,18 +283,14 @@ file_text_open(FileText* file, const char* file_path)
     switch (type)
     {
         case FILE_FORMAT_CSV:
-            file_format_csv_parse(file);
-            break;
+            return file_format_csv_parse(file);
         case FILE_FORMAT_FASTA:
-            file_format_fasta_parse(file);
-            break;
+            return file_format_fasta_parse(file);
         case FILE_FORMAT_UNKNOWN:
             print(ERROR, MSG_NONE, "FILE | Failed to parse file format");
             file_text_close(file);
             return false;
     }
-
-    return true;
 }
 
 static inline size_t
