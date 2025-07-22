@@ -1,6 +1,7 @@
 name: Controller
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 16 * * *'  # Run daily at 16:00 UTC
 
