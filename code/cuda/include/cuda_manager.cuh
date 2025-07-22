@@ -7,6 +7,7 @@
 #include <cuda_runtime.h>
 
 #define R __restrict__
+typedef quar_t sequence_length_t;
 
 struct Sequences
 {

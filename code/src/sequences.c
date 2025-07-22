@@ -31,7 +31,7 @@ static struct
 #ifdef USE_CUDA
     char* flat_sequences;
     sequence_offset_t* flat_offsets;
-    sequence_length_t* flat_lengths;
+    quar_t* flat_lengths;
     size_t total_sequence_length;
     sequence_length_t max_sequence_length;
 #endif
@@ -272,7 +272,7 @@ sequences_alloc_from_file(char* restrict file_start,
     const bool use_cuda = args_mode_cuda();
     sequence_length_t max_sequence_length = 0;
     sequence_offset_t* temp_offsets = NULL;
-    sequence_length_t* temp_lengths = NULL;
+    quar_t* temp_lengths = NULL;
     if (use_cuda)
     {
         temp_offsets = MALLOC(temp_offsets, total);
@@ -404,7 +404,7 @@ sequences_alloc_from_file(char* restrict file_start,
             if (use_cuda)
             {
                 temp_offsets[sequence_count_current] = (sequence_offset_t)total_sequence_length;
-                temp_lengths[sequence_count_current] = sequence_length;
+                temp_lengths[sequence_count_current] = (quar_t)sequence_length;
                 if (max_sequence_length < sequence_length)
                 {
                     max_sequence_length = sequence_length;
@@ -462,7 +462,7 @@ sequences_alloc_from_file(char* restrict file_start,
                 temp_offsets = _offsets_new;
             }
 
-            sequence_length_t* _lengths_new = REALLOC(temp_lengths, sequence_count);
+            quar_t* _lengths_new = REALLOC(temp_lengths, sequence_count);
             if (_lengths_new)
             {
                 temp_lengths = _lengths_new;
@@ -508,9 +508,7 @@ sequences_alloc_from_file(char* restrict file_start,
         memcpy(g_sequence_dataset.flat_offsets,
                temp_offsets,
                sequence_count * sizeof(sequence_offset_t));
-        memcpy(g_sequence_dataset.flat_lengths,
-               temp_lengths,
-               sequence_count * sizeof(sequence_length_t));
+        memcpy(g_sequence_dataset.flat_lengths, temp_lengths, sequence_count * sizeof(quar_t));
 
         size_t offset = 0;
         for (sequence_index_t i = 0; i < sequence_count; i++)
@@ -578,7 +576,7 @@ sequences_offsets(void)
     return g_sequence_dataset.flat_offsets;
 }
 
-sequence_length_t*
+quar_t*
 sequences_lengths(void)
 {
     return g_sequence_dataset.flat_lengths;

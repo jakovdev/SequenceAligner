@@ -2,6 +2,8 @@
 #ifndef HOST_INTERFACE_H
 #define HOST_INTERFACE_H
 
+#include <stdbool.h>
+
 #include "host_types.h"
 
 #ifdef __cplusplus
@@ -14,7 +16,7 @@ extern "C"
 
     bool cuda_upload_sequences(char* sequence_letters,
                                sequence_offset_t* sequence_offsets,
-                               sequence_length_t* sequence_lengths,
+                               quar_t* sequence_lengths,
                                sequence_count_t sequence_count,
                                size_t total_sequences_length);
     bool cuda_upload_scoring(int* scoring_matrix, int* sequence_lookup);

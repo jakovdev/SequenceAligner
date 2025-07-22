@@ -1,5 +1,4 @@
 #pragma once
-#include "biotypes.h"
 #ifndef THREAD_H
 #define THREAD_H
 

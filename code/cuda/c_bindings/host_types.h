@@ -28,7 +28,7 @@ typedef uint8_t HALF_OF_HALF_T;
 typedef HALF_OF_SIZE_T half_t;
 typedef HALF_OF_HALF_T quar_t;
 
-typedef quar_t sequence_length_t;
+// typedef quar_t sequence_length_t;
 #define MAX_SEQUENCE_LENGTH (QUAR_MAX)
 
 typedef half_t sequence_index_t;
