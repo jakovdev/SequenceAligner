@@ -13,8 +13,8 @@ static struct
 {
     char path_input[MAX_PATH];
     char path_output[MAX_PATH];
-    int method_id;
-    int seq_type;
+    AlignmentMethod method_id;
+    SequenceType seq_type;
     int matrix_id;
     int gap_penalty;
     int gap_open;
@@ -81,8 +81,8 @@ GETTER(int, gap_penalty, args.gap_penalty)
 GETTER(int, gap_open, args.gap_open)
 GETTER(int, gap_extend, args.gap_extend)
 GETTER(unsigned long, thread_num, args.thread_num)
-GETTER(int, align_method, args.method_id)
-GETTER(int, sequence_type, args.seq_type)
+GETTER(AlignmentMethod, align_method, args.method_id)
+GETTER(SequenceType, sequence_type, args.seq_type)
 GETTER(int, scoring_matrix, args.matrix_id)
 GETTER(unsigned int, compression, args.compression_level)
 GETTER(float, filter, args.filter)
@@ -97,7 +97,7 @@ GETTER(bool, mode_cuda, args.mode_cuda)
 #undef GETTER
 
 static int
-args_parse_scoring_matrix(const char* arg, int seq_type)
+args_parse_scoring_matrix(const char* arg, SequenceType seq_type)
 {
     if (seq_type < 0)
     {
@@ -374,7 +374,7 @@ args_parse(int argc, char* argv[])
 
             case 'a':
                 args.method_id = alignment_arg(optarg);
-                if (args.method_id != PARAM_UNSET)
+                if (args.method_id != ALIGN_INVALID)
                 {
                     args.method_id_set = 1;
                 }
@@ -388,7 +388,7 @@ args_parse(int argc, char* argv[])
 
             case 't':
                 args.seq_type = sequence_type_arg(optarg);
-                if (args.seq_type != PARAM_UNSET)
+                if (args.seq_type != SEQ_TYPE_INVALID)
                 {
                     args.seq_type_set = 1;
                 }
@@ -527,8 +527,8 @@ args_parse(int argc, char* argv[])
 void
 args_init(int argc, char* argv[])
 {
-    args.method_id = PARAM_UNSET;
-    args.seq_type = PARAM_UNSET;
+    args.method_id = ALIGN_INVALID;
+    args.seq_type = SEQ_TYPE_INVALID;
     args.matrix_id = PARAM_UNSET;
 
 #ifdef USE_CUDA

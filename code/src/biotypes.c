@@ -47,25 +47,25 @@ static struct
 };
 
 const char*
-alignment_name(int method)
+alignment_name(AlignmentMethod method)
 {
     return ALIGNMENT_METHODS[method].name;
 }
 
 bool
-alignment_linear(int method)
+alignment_linear(AlignmentMethod method)
 {
     return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
 }
 
 bool
-alignment_affine(int method)
+alignment_affine(AlignmentMethod method)
 {
     return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
 }
 
 const char*
-gap_type_name(int method)
+gap_type_name(AlignmentMethod method)
 {
     switch (ALIGNMENT_METHODS[method].gap_type)
     {
@@ -78,12 +78,12 @@ gap_type_name(int method)
     }
 }
 
-int
+AlignmentMethod
 alignment_arg(const char* arg)
 {
     if (!arg)
     {
-        return -1;
+        return ALIGN_INVALID;
     }
 
     // Check for numeric method
@@ -95,7 +95,7 @@ alignment_arg(const char* arg)
             return method;
         }
 
-        return -1;
+        return ALIGN_INVALID;
     }
 
     // Search by name/alias
@@ -110,7 +110,7 @@ alignment_arg(const char* arg)
         }
     }
 
-    return -1;
+    return ALIGN_INVALID;
 }
 
 void
@@ -127,7 +127,7 @@ alignment_list(void)
 }
 
 const char*
-matrix_id_name(int seq_type, int matrix_id)
+matrix_id_name(SequenceType seq_type, int matrix_id)
 {
     if (seq_type < 0 || matrix_id < 0)
     {
@@ -148,7 +148,7 @@ matrix_id_name(int seq_type, int matrix_id)
 }
 
 int
-matrix_name_id(int seq_type, const char* name)
+matrix_name_id(SequenceType seq_type, const char* name)
 {
     if (!name)
     {
@@ -198,7 +198,7 @@ matrix_name_id(int seq_type, const char* name)
 }
 
 void
-matrix_seq_type_list(int seq_type)
+matrix_seq_type_list(SequenceType seq_type)
 {
     if (seq_type == SEQ_TYPE_AMINO)
     {
@@ -226,17 +226,17 @@ matrix_seq_type_list(int seq_type)
 }
 
 const char*
-sequence_type_name(int type)
+sequence_type_name(int seq_type)
 {
-    return SEQUENCE_TYPES[type].name;
+    return SEQUENCE_TYPES[seq_type].name;
 }
 
-int
+SequenceType
 sequence_type_arg(const char* arg)
 {
     if (!arg)
     {
-        return -1;
+        return SEQ_TYPE_INVALID;
     }
 
     if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1])))
@@ -247,7 +247,7 @@ sequence_type_arg(const char* arg)
             return type;
         }
 
-        return -1;
+        return SEQ_TYPE_INVALID;
     }
 
     for (int i = 0; i < SEQ_TYPE_COUNT; i++)
@@ -261,7 +261,7 @@ sequence_type_arg(const char* arg)
         }
     }
 
-    return -1;
+    return SEQ_TYPE_INVALID;
 }
 
 void
