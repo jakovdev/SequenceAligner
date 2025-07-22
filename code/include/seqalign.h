@@ -9,7 +9,7 @@
 
 #define MAX_STACK_SEQUENCE_LENGTH (4 * KiB)
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
-#define MATRIX_SIZE(len1, len2) (((size_t)(len1) + 1) * ((size_t)(len2) + 1))
+#define MATRIX_SIZE(len1, len2) ((len1 + 1) * (len2 + 1))
 #define MATRIX_BYTES(len1, len2) (MATRIX_SIZE(len1, len2) * sizeof(score_t))
 #define MATRICES_3X_BYTES(len1, len2) (3 * MATRIX_BYTES(len1, len2))
 #define USE_STACK_MATRIX(bytes) ((bytes) <= STACK_MATRIX_THRESHOLD)
@@ -118,7 +118,7 @@ matrix_free(score_t* matrix, score_t* stack_matrix)
                                                                                                    \
         UNROLL(8) for (sequence_length_t i = 1; i <= len2; i++)                                    \
         {                                                                                          \
-            half_t idx = i * cols;                                                                 \
+            sequence_length_t idx = i * cols;                                                      \
             gap_y[idx] = MAX(match[idx - cols] - gap_open, gap_y[idx - cols] - gap_extend);        \
             match[idx] = gap_y[idx];                                                               \
             gap_x[idx] = SCORE_MIN;                                                                \
@@ -139,7 +139,7 @@ matrix_free(score_t* matrix, score_t* stack_matrix)
                                                                                                    \
         UNROLL(8) for (sequence_length_t i = 1; i <= len2; i++)                                    \
         {                                                                                          \
-            half_t idx = i * cols;                                                                 \
+            sequence_length_t idx = i * cols;                                                      \
             match[idx] = 0;                                                                        \
             gap_x[idx] = gap_y[idx] = SCORE_MIN;                                                   \
         }                                                                                          \
@@ -150,8 +150,8 @@ matrix_free(score_t* matrix, score_t* stack_matrix)
     {                                                                                              \
         for (sequence_length_t i = 1; i <= len2; ++i)                                              \
         {                                                                                          \
-            half_t row_offset = i * cols;                                                          \
-            half_t prev_row_offset = (i - 1) * cols;                                               \
+            sequence_length_t row_offset = i * cols;                                               \
+            sequence_length_t prev_row_offset = (i - 1) * cols;                                    \
             int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2_letters[i - 1]];                      \
                                                                                                    \
             prefetch(&matrix[row_offset + PREFETCH_DISTANCE]);                                     \
@@ -173,8 +173,8 @@ matrix_free(score_t* matrix, score_t* stack_matrix)
     {                                                                                              \
         for (sequence_length_t i = 1; i <= len2; ++i)                                              \
         {                                                                                          \
-            half_t row_offset = i * cols;                                                          \
-            half_t prev_row_offset = (i - 1) * cols;                                               \
+            sequence_length_t row_offset = i * cols;                                               \
+            sequence_length_t prev_row_offset = (i - 1) * cols;                                    \
             int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2_letters[i - 1]];                      \
                                                                                                    \
             prefetch(&match[row_offset + PREFETCH_DISTANCE]);                                      \
@@ -220,8 +220,8 @@ matrix_free(score_t* matrix, score_t* stack_matrix)
                                                                                                    \
         for (sequence_length_t i = 1; i <= len2; ++i)                                              \
         {                                                                                          \
-            half_t row_offset = i * cols;                                                          \
-            half_t prev_row_offset = (i - 1) * cols;                                               \
+            sequence_length_t row_offset = i * cols;                                               \
+            sequence_length_t prev_row_offset = (i - 1) * cols;                                    \
             int c2_idx = SEQUENCE_LOOKUP[(unsigned char)seq2_letters[i - 1]];                      \
                                                                                                    \
             prefetch(&match[row_offset + PREFETCH_DISTANCE]);                                      \
@@ -274,7 +274,7 @@ simd_linear_row_init(score_t* restrict matrix, sequence_length_t len1, int gap_p
 
     for (sequence_length_t j = 1; j <= len1; j += NUM_ELEMS)
     {
-        half_t remaining = len1 + 1U - j;
+        sequence_length_t remaining = len1 + 1U - j;
         if (remaining >= NUM_ELEMS)
         {
             veci_t values = mullo_epi32(indices, gap_penalty_vec);
@@ -305,7 +305,7 @@ simd_affine_local_row_init(score_t* restrict match,
 
     VECTORIZE for (sequence_length_t j = 0; j <= len1; j += NUM_ELEMS)
     {
-        half_t remaining = len1 + 1U - j;
+        sequence_length_t remaining = len1 + 1U - j;
         if (remaining >= NUM_ELEMS)
         {
             storeu((veci_t*)&match[j], zero_vec);
@@ -325,7 +325,7 @@ simd_affine_local_row_init(score_t* restrict match,
 
     VECTORIZE for (sequence_length_t i = 1; i <= len2; i++)
     {
-        half_t idx = i * (len1 + 1U);
+        sequence_length_t idx = i * (len1 + 1U);
         match[idx] = 0;
         gap_x[idx] = SCORE_MIN;
         gap_y[idx] = SCORE_MIN;
@@ -344,7 +344,7 @@ align_nw(const sequence_t seq1, const sequence_t seq2)
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
     score_t stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
     score_t* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
-    const half_t cols = len1 + 1;
+    const sequence_length_t cols = len1 + 1;
     const int gap_penalty = args_gap_penalty();
 
 #ifdef USE_SIMD
@@ -417,7 +417,7 @@ align_ga(const sequence_t seq1, const sequence_t seq2)
     score_t* restrict match = matrix;
     score_t* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
     score_t* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
-    const half_t cols = len1 + 1;
+    const sequence_length_t cols = len1 + 1;
     const int gap_open = args_gap_open();
     const int gap_extend = args_gap_extend();
 
@@ -468,7 +468,7 @@ align_sw(const sequence_t seq1, const sequence_t seq2)
     score_t* restrict match = matrix;
     score_t* restrict gap_x = matrix + MATRIX_SIZE(len1, len2);
     score_t* restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
-    const half_t cols = len1 + 1;
+    const sequence_length_t cols = len1 + 1;
     const int gap_open = args_gap_open();
     const int gap_extend = args_gap_extend();
 

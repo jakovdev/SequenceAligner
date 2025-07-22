@@ -48,7 +48,7 @@ cuda_align(void)
 {
     char* sequences = sequences_flattened();
     sequence_offset_t* offsets = sequences_offsets();
-    sequence_length_t* lengths = sequences_lengths();
+    quar_t* lengths = sequences_lengths();
     sequence_count_t sequence_count = sequences_count();
     size_t total_length = sequences_total_length();
 

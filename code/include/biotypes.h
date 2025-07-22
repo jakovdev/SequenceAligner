@@ -32,9 +32,6 @@ typedef enum
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef USE_CUDA
-#include "host_types.h"
-#else
 #if SIZE_MAX == UINT64_MAX
 typedef uint32_t HALF_OF_SIZE_T;
 typedef uint16_t HALF_OF_HALF_T;
@@ -52,20 +49,22 @@ typedef uint8_t HALF_OF_HALF_T;
 typedef HALF_OF_SIZE_T half_t;
 typedef HALF_OF_HALF_T quar_t;
 
-typedef quar_t sequence_length_t;
+// Keep at DWORD_PTR size
+typedef size_t sequence_length_t;
+// Can be up to ~ 2^32 - 1
 #define MAX_SEQUENCE_LENGTH (QUAR_MAX)
 
 typedef half_t sequence_index_t;
 typedef half_t sequence_count_t;
 #define MAX_SEQUENCE_COUNT (HALF_MAX)
 
+typedef half_t sequence_offset_t;
+
 typedef size_t alignment_size_t;
 
 typedef int score_t;
 
 #define SCORE_MIN (INT_MIN / 2)
-
-#endif
 
 typedef struct
 {
