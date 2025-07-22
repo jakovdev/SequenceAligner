@@ -1,6 +1,6 @@
 #pragma once
-#ifndef TYPES_H
-#define TYPES_H
+#ifndef BIOTYPES_H
+#define BIOTYPES_H
 
 typedef enum
 {
@@ -52,11 +52,11 @@ typedef HALF_OF_HALF_T quar_t;
 // Keep at DWORD_PTR size
 typedef size_t sequence_length_t;
 // Can be up to ~ 2^32 - 1
-#define MAX_SEQUENCE_LENGTH (QUAR_MAX)
+#define SEQUENCE_LENGTH_MAX (QUAR_MAX)
 
 typedef half_t sequence_index_t;
 typedef half_t sequence_count_t;
-#define MAX_SEQUENCE_COUNT (HALF_MAX)
+#define SEQUENCE_COUNT_MAX (HALF_MAX)
 
 typedef half_t sequence_offset_t;
 
@@ -91,4 +91,4 @@ extern const char* sequence_type_name(int type);
 extern int sequence_type_arg(const char* arg);
 extern void sequence_types_list(void);
 
-#endif // TYPES_H
+#endif // BIOTYPES_H

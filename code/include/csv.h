@@ -5,6 +5,7 @@
 #include <stddef.h>
 
 #include "arch.h"
+#include "benchmark.h"
 #include "print.h"
 
 static inline size_t
@@ -167,6 +168,7 @@ csv_header_parse(char* restrict file_cursor,
     // If auto-detection failed
     if (*seq_col == SIZE_MAX)
     {
+        bench_io_end();
         char** choices = MALLOC(choices, num_columns + 2);
         for (column = 0; column < num_columns; column++)
         {
@@ -181,15 +183,18 @@ csv_header_parse(char* restrict file_cursor,
         print(INFO, MSG_LOC(LAST), "Select the header name (this first line will be skipped!):");
 
         *seq_col = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
+        bench_io_start();
     }
 
     if (*seq_col == num_columns)
     {
+        bench_io_end();
         print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
         char** choices = headers;
         size_t choice_num = num_columns;
         *seq_col = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
         *no_header = true;
+        bench_io_start();
     }
 
     const char* sequence_column = headers[*seq_col];

@@ -29,11 +29,11 @@ typedef HALF_OF_SIZE_T half_t;
 typedef HALF_OF_HALF_T quar_t;
 
 // typedef quar_t sequence_length_t;
-#define MAX_SEQUENCE_LENGTH (QUAR_MAX)
+#define SEQUENCE_LENGTH_MAX (QUAR_MAX)
 
 typedef half_t sequence_index_t;
 typedef half_t sequence_count_t;
-#define MAX_SEQUENCE_COUNT (HALF_MAX)
+#define SEQUENCE_COUNT_MAX (HALF_MAX)
 
 typedef size_t alignment_size_t;
 
