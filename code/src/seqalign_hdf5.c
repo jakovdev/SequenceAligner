@@ -163,7 +163,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     g_hdf5.lengths_id = H5Dcreate2(g_hdf5.file_id,
                                    "/sequences/lengths",
-                                   H5T_STD_U16LE,
+                                   H5T_STD_U64LE,
                                    lengths_space,
                                    H5P_DEFAULT,
                                    H5P_DEFAULT,
@@ -192,7 +192,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
     }
 
     herr_t status = H5Dwrite(g_hdf5.lengths_id,
-                             H5T_NATIVE_USHORT,
+                             H5T_NATIVE_ULONG,
                              H5S_ALL,
                              H5S_ALL,
                              H5P_DEFAULT,
