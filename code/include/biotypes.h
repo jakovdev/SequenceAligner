@@ -4,6 +4,7 @@
 
 typedef enum
 {
+    SEQ_TYPE_INVALID = -1,
     SEQ_TYPE_AMINO,
     SEQ_TYPE_NUCLEOTIDE,
     // NOTE: This enum is kept minimal by design. Only standard biological sequence types
@@ -13,6 +14,7 @@ typedef enum
 
 typedef enum
 {
+    ALIGN_INVALID = -1,
     ALIGN_NEEDLEMAN_WUNSCH,
     ALIGN_GOTOH_AFFINE,
     ALIGN_SMITH_WATERMAN,
@@ -78,17 +80,17 @@ typedef sequence_t* sequences_t;
 // Pointer to a specific sequence
 typedef sequence_t* restrict sequence_ptr_t;
 
-extern const char* alignment_name(int method);
-extern bool alignment_linear(int method);
-extern bool alignment_affine(int method);
-extern const char* gap_type_name(int method);
-extern int alignment_arg(const char* arg);
+extern const char* alignment_name(AlignmentMethod method);
+extern bool alignment_linear(AlignmentMethod method);
+extern bool alignment_affine(AlignmentMethod method);
+extern const char* gap_type_name(AlignmentMethod method);
+extern AlignmentMethod alignment_arg(const char* arg);
 extern void alignment_list(void);
-extern const char* matrix_id_name(int seq_type, int matrix_id);
-extern int matrix_name_id(int seq_type, const char* name);
-extern void matrix_seq_type_list(int seq_type);
-extern const char* sequence_type_name(int type);
-extern int sequence_type_arg(const char* arg);
+extern const char* matrix_id_name(SequenceType seq_type, int matrix_id);
+extern int matrix_name_id(SequenceType seq_type, const char* name);
+extern void matrix_seq_type_list(SequenceType seq_type);
+extern const char* sequence_type_name(SequenceType seq_type);
+extern SequenceType sequence_type_arg(const char* arg);
 extern void sequence_types_list(void);
 
 #endif // BIOTYPES_H
