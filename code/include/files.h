@@ -161,7 +161,7 @@ file_format_csv_parse(FileText* file)
         return false;
     }
 
-    print(DNA, MSG_NONE, "Found %u sequences", file->data.total);
+    print(DNA, MSG_NONE, "Found %u potential sequences", file->data.total);
     return true;
 }
 

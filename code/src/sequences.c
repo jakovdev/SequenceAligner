@@ -1,8 +1,12 @@
 #include "sequences.h"
 
+#include <ctype.h>
+
 #include "arch.h"
+#include "args.h"
 #include "biotypes.h"
 #include "files.h"
+#include "matrices.h"
 #include "print.h"
 
 typedef struct SeqMemBlock
@@ -182,15 +186,15 @@ sequences_free(void)
 }
 
 static void
-sequence_init(sequence_ptr_t sequence, const char* letters, sequence_length_t sequence_length)
+sequence_init(sequence_ptr_t pooled_sequence, const sequence_ptr_t temporary_sequence)
 {
-    sequence->length = sequence_length;
+    pooled_sequence->length = temporary_sequence->length;
 
-    sequence->letters = seq_pool_alloc(sequence_length + 1);
-    if (sequence->letters)
+    pooled_sequence->letters = seq_pool_alloc(temporary_sequence->length + 1);
+    if (pooled_sequence->letters)
     {
-        memcpy(sequence->letters, letters, sequence_length);
-        sequence->letters[sequence_length] = '\0';
+        memcpy(pooled_sequence->letters, temporary_sequence->letters, temporary_sequence->length);
+        pooled_sequence->letters[temporary_sequence->length] = '\0';
     }
 }
 
@@ -244,6 +248,56 @@ similarity_pairwise(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
     return (float)matches / (float)min_len;
 }
 
+static bool
+validate_sequence(const sequence_ptr_t sequence, SequenceType sequence_type)
+{
+    if (!sequence->letters || !sequence->length)
+    {
+        return false;
+    }
+
+    const char* valid_alphabet = NULL;
+    size_t alphabet_size = 0;
+
+    switch (sequence_type)
+    {
+        case SEQ_TYPE_AMINO:
+            valid_alphabet = AMINO_ALPHABET;
+            alphabet_size = AMINO_SIZE;
+            break;
+        case SEQ_TYPE_NUCLEOTIDE:
+            valid_alphabet = NUCLEOTIDE_ALPHABET;
+            alphabet_size = NUCLEOTIDE_SIZE;
+            break;
+        default:
+            return false;
+    }
+
+    for (sequence_length_t i = 0; i < sequence->length; i++)
+    {
+        char c = (char)toupper(sequence->letters[i]);
+        bool found = false;
+
+        for (size_t j = 0; j < alphabet_size; j++)
+        {
+            if (c == valid_alphabet[j])
+            {
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            return false;
+        }
+
+        sequence->letters[i] = c;
+    }
+
+    return true;
+}
+
 bool
 sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
 {
@@ -263,6 +317,7 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
     }
 
     bool apply_filtering = filter_threshold > 0.0f;
+    const char* progress_msg = apply_filtering ? "Filtering sequences" : "Loading sequences";
 
     sequence_count_t sequence_count_current = 0;
     sequence_count_t filtered_count = 0;
@@ -270,9 +325,12 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
     size_t total_sequence_length = 0;
     bool skip_long_sequences = false;
     bool asked_user_about_skipping = false;
+    bool skip_invalid_sequences = false;
+    bool asked_user_about_invalid = false;
+    sequence_count_t invalid_count = 0;
+    SequenceType sequence_type = args_sequence_type();
 
 #ifdef USE_CUDA
-#include "args.h"
     const bool use_cuda = args_mode_cuda();
     sequence_length_t max_sequence_length = 0;
     sequence_offset_t* temp_offsets = NULL;
@@ -378,12 +436,50 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
                 free(sequences);
                 return false;
             }
-
-            current_sequence.length = (sequence_length_t)next_sequence_length;
         }
 
-        sequence_length_t sequence_length = (sequence_length_t)
-            file_extract_sequence(input_file, &file_cursor, current_sequence.letters);
+        current_sequence.length = (sequence_length_t)next_sequence_length;
+
+        file_extract_sequence(input_file, &file_cursor, current_sequence.letters);
+
+        if (!validate_sequence(&current_sequence, sequence_type))
+        {
+            if (!asked_user_about_invalid)
+            {
+                print(WARNING, MSG_LOC(FIRST), "Found sequence with invalid letters");
+                print(WARNING, MSG_LOC(LAST), "Sequence: %s is invalid", current_sequence.letters);
+                skip_invalid_sequences = print_yN("Skip sequences with invalid letters? [y/N]");
+                asked_user_about_invalid = true;
+            }
+
+            if (skip_invalid_sequences)
+            {
+                invalid_count++;
+                continue;
+            }
+
+            else
+            {
+                print(ERROR, MSG_NONE, "SEQUENCES | Found sequence with invalid letters");
+
+                if (current_sequence.letters)
+                {
+                    free(current_sequence.letters);
+                    current_sequence.letters = NULL;
+                }
+
+#ifdef USE_CUDA
+                if (use_cuda)
+                {
+                    free(temp_lengths);
+                    free(temp_offsets);
+                }
+
+#endif
+                free(sequences);
+                return false;
+            }
+        }
 
         bool should_include = true;
 
@@ -404,27 +500,25 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
 
         if (should_include)
         {
-            sequence_init(&sequences[sequence_count_current],
-                          current_sequence.letters,
-                          sequence_length);
+            sequence_init(&sequences[sequence_count_current], &current_sequence);
 #ifdef USE_CUDA
             if (use_cuda)
             {
                 temp_offsets[sequence_count_current] = (sequence_offset_t)total_sequence_length;
-                temp_lengths[sequence_count_current] = (quar_t)sequence_length;
-                if (max_sequence_length < sequence_length)
+                temp_lengths[sequence_count_current] = (quar_t)current_sequence.length;
+                if (max_sequence_length < current_sequence.length)
                 {
-                    max_sequence_length = sequence_length;
+                    max_sequence_length = current_sequence.length;
                 }
             }
 #endif
-            total_sequence_length += sequence_length;
+            total_sequence_length += current_sequence.length;
             sequence_count_current++;
         }
 
-        sequence_count_t actual_count = sequence_count_current + filtered_count + skipped_count;
+        sequence_count_t discarded_count = filtered_count + skipped_count + invalid_count;
+        sequence_count_t actual_count = sequence_count_current + discarded_count;
         int percentage = (int)(100 * actual_count / total);
-        const char* progress_msg = apply_filtering ? "Filtering sequences" : "Loading sequences";
         print(PROGRESS, MSG_PERCENT(percentage), progress_msg);
     }
 
@@ -449,6 +543,11 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
     if (skipped_count > 0)
     {
         print(INFO, MSG_NONE, "Skipped %u sequences that were too long", skipped_count);
+    }
+
+    if (invalid_count > 0)
+    {
+        print(INFO, MSG_NONE, "Skipped %u sequences with invalid letters", invalid_count);
     }
 
     if (apply_filtering && filtered_count > 0 && filtered_count >= total / 4)
