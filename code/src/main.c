@@ -1,7 +1,6 @@
 #include "arch.h"
 #include "args.h"
 #include "benchmark.h"
-#include "csv.h"
 #include "files.h"
 #include "print.h"
 #include "seqalign_hdf5.h"
@@ -28,59 +27,21 @@ main(int argc, char* argv[])
         PIN_THREAD(0);
     }
 
-    sequence_count_t sequence_count = 0;
+    bench_io_start();
 
     {
         CLEANUP(file_text_close) FileText input_file = { 0 };
 
-        bench_io_start();
-        file_text_open(&input_file, args_input());
-        bench_io_end();
-
-        if (!input_file.text)
+        if (!file_text_open(&input_file, args_input()) ||
+            !sequences_alloc_from_file(&input_file, args_filter()))
         {
             return 1;
         }
-
-        bool headerless;
-        size_t seq_column;
-        size_t csv_lines = 0;
-
-        char* file_cursor = input_file.text;
-        char* file_end = input_file.text + input_file.meta.bytes;
-        char* file_header_start = csv_header_parse(file_cursor, file_end, &headerless, &seq_column);
-        file_cursor = headerless ? input_file.text : file_header_start;
-
-        print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
-        csv_lines = csv_total_lines(file_cursor, file_end);
-        if (csv_lines >= MAX_SEQUENCE_COUNT)
-        {
-            print(ERROR, MSG_NONE, "CSV | Too many lines in input file: %zu", csv_lines);
-            return 1;
-        }
-
-        sequence_count = (sequence_count_t)csv_lines;
-
-        if (!sequence_count)
-        {
-            print(ERROR, MSG_NONE, "CSV | No sequences found in input file");
-            return 1;
-        }
-
-        print(DNA, MSG_NONE, "Found %d sequences", sequence_count);
-
-        bench_io_start();
-        sequences_alloc_from_file(file_cursor, file_end, sequence_count, args_filter(), seq_column);
-        bench_io_end();
     }
 
-    if (!sequences_get())
-    {
-        print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for sequences");
-        return 1;
-    }
+    bench_io_end();
 
-    sequence_count = sequences_count();
+    sequence_count_t sequence_count = sequences_count();
     alignment_size_t total_alignments = sequences_alignment_count();
 
 #ifdef USE_CUDA

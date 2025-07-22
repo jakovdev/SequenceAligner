@@ -3,12 +3,9 @@
 #define SEQUENCE_H
 
 #include "biotypes.h"
+#include "files.h"
 
-extern void sequences_alloc_from_file(char* start,
-                                      char* end,
-                                      sequence_count_t total,
-                                      float filter,
-                                      size_t col);
+extern bool sequences_alloc_from_file(FileTextPtr input_file, float filter);
 extern sequences_t sequences_get(void);
 extern sequence_count_t sequences_count(void);
 extern alignment_size_t sequences_alignment_count(void);

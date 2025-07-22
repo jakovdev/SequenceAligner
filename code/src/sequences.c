@@ -2,7 +2,7 @@
 
 #include "arch.h"
 #include "biotypes.h"
-#include "csv.h"
+#include "files.h"
 #include "print.h"
 
 typedef struct SeqMemBlock
@@ -244,18 +244,22 @@ similarity_pairwise(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
     return (float)matches / (float)min_len;
 }
 
-void
-sequences_alloc_from_file(char* restrict file_start,
-                          char* restrict file_end,
-                          sequence_count_t total,
-                          float filter_threshold,
-                          size_t sequence_column)
+bool
+sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
 {
+    if (!input_file || !input_file->text || !input_file->data.start)
+    {
+        print(ERROR, MSG_NONE, "SEQUENCES | Invalid file input");
+        return false;
+    }
+
     seq_pool_init();
+    sequence_count_t total = input_file->data.total;
     sequences_t sequences = MALLOC(sequences, total);
     if (!sequences)
     {
-        return;
+        print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for sequences");
+        return false;
     }
 
     bool apply_filtering = filter_threshold > 0.0f;
@@ -279,42 +283,45 @@ sequences_alloc_from_file(char* restrict file_start,
         temp_lengths = MALLOC(temp_lengths, total);
         if (!temp_offsets || !temp_lengths)
         {
+            print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for CUDA arrays");
             free(temp_lengths);
             free(temp_offsets);
             free(sequences);
-            return;
+            return false;
         }
     }
 
 #endif
 
     sequence_t current_sequence = { 0 };
+    char* file_cursor = input_file->data.start;
+    char* file_end = input_file->data.end;
 
-    while (file_start < file_end && *file_start)
+    while (file_cursor < file_end && *file_cursor)
     {
-        size_t sequence_length_in_column = csv_line_column_length(file_start, sequence_column);
+        size_t next_sequence_length = file_sequence_next_length(input_file, file_cursor);
 
-        if (!sequence_length_in_column)
+        if (!next_sequence_length)
         {
-            csv_line_next(&file_start);
+            file_sequence_next(input_file, &file_cursor);
             continue;
         }
 
-        if (sequence_length_in_column > MAX_SEQUENCE_LENGTH)
+        if (next_sequence_length > SEQUENCE_LENGTH_MAX)
         {
             if (!asked_user_about_skipping)
             {
                 print(WARNING,
                       MSG_NONE,
-                      "Found sequence longer than maximum allowed (%d characters)",
-                      MAX_SEQUENCE_LENGTH);
+                      "Found sequence longer than maximum allowed (%d letters)",
+                      SEQUENCE_LENGTH_MAX);
                 skip_long_sequences = print_yN("Skip sequences that are too long? [y/N]");
                 asked_user_about_skipping = true;
             }
 
             if (skip_long_sequences)
             {
-                csv_line_next(&file_start);
+                file_sequence_next(input_file, &file_cursor);
                 skipped_count++;
                 continue;
             }
@@ -323,9 +330,9 @@ sequences_alloc_from_file(char* restrict file_start,
             {
                 print(ERROR,
                       MSG_NONE,
-                      "SEQUENCES | Sequence too long: %zu characters (max: %d)",
-                      sequence_length_in_column,
-                      MAX_SEQUENCE_LENGTH);
+                      "SEQUENCES | Sequence too long: %zu letters (max: %d)",
+                      next_sequence_length,
+                      SEQUENCE_LENGTH_MAX);
 
                 if (current_sequence.letters)
                 {
@@ -342,13 +349,13 @@ sequences_alloc_from_file(char* restrict file_start,
 
 #endif
                 free(sequences);
-                return;
+                return false;
             }
         }
 
-        if (sequence_length_in_column > current_sequence.length || !current_sequence.letters)
+        if (next_sequence_length > current_sequence.length || !current_sequence.letters)
         {
-            size_t new_capacity = sequence_length_in_column + 1;
+            size_t new_capacity = next_sequence_length + 1;
 
             if (current_sequence.letters)
             {
@@ -369,14 +376,14 @@ sequences_alloc_from_file(char* restrict file_start,
 
 #endif
                 free(sequences);
-                return;
+                return false;
             }
 
-            current_sequence.length = (sequence_length_t)sequence_length_in_column;
+            current_sequence.length = (sequence_length_t)next_sequence_length;
         }
 
         sequence_length_t sequence_length = (sequence_length_t)
-            csv_line_column_extract(&file_start, current_sequence.letters, sequence_column);
+            file_extract_sequence(input_file, &file_cursor, current_sequence.letters);
 
         bool should_include = true;
 
@@ -424,7 +431,7 @@ sequences_alloc_from_file(char* restrict file_start,
     free(current_sequence.letters);
 
     sequence_count_t sequence_count = sequence_count_current;
-    if (UNLIKELY(sequence_count > MAX_SEQUENCE_COUNT))
+    if (UNLIKELY(sequence_count > SEQUENCE_COUNT_MAX))
     {
         print(ERROR, MSG_LOC(LAST), "Too many sequences: %zu", sequence_count);
 #ifdef USE_CUDA
@@ -436,7 +443,7 @@ sequences_alloc_from_file(char* restrict file_start,
 
 #endif
         free(sequences);
-        return;
+        return false;
     }
 
     if (skipped_count > 0)
@@ -468,7 +475,6 @@ sequences_alloc_from_file(char* restrict file_start,
                 temp_lengths = _lengths_new;
             }
         }
-
 #endif
     }
 
@@ -502,7 +508,7 @@ sequences_alloc_from_file(char* restrict file_start,
             free(temp_lengths);
             free(temp_offsets);
             free(sequences);
-            return;
+            return false;
         }
 
         memcpy(g_sequence_dataset.flat_offsets,
@@ -528,7 +534,7 @@ sequences_alloc_from_file(char* restrict file_start,
 
 #endif
 
-    return;
+    return true;
 }
 
 void

@@ -4,6 +4,7 @@
 
 #include "arch.h"
 #include "biotypes.h"
+#include "csv.h"
 #include "print.h"
 
 typedef struct
@@ -17,9 +18,38 @@ typedef struct
 #endif
 } FileMetadata;
 
+typedef enum
+{
+    FILE_FORMAT_CSV,
+    FILE_FORMAT_FASTA,
+    FILE_FORMAT_UNKNOWN
+} FileFormat;
+
 typedef struct
 {
+    sequence_count_t total;
+    FileFormat type;
+    char* start;
+    char* end;
+
+    union
+    {
+        struct
+        {
+            size_t sequence_column;
+            bool headerless;
+        } csv;
+
+        struct
+        {
+        } fasta;
+    } format;
+} FileFormatMetadata;
+
+typedef struct FileText
+{
     FileMetadata meta;
+    FileFormatMetadata data;
     char* text;
 } FileText;
 
@@ -28,6 +58,8 @@ typedef struct
     FileMetadata meta;
     score_t* matrix;
 } FileScoreMatrix;
+
+typedef struct FileText* restrict FileTextPtr;
 
 static inline void
 file_metadata_init(FileMetadata* meta)
@@ -68,83 +100,77 @@ file_metadata_close(FileMetadata* meta)
     meta->bytes = 0;
 }
 
-static inline void
-file_text_open(FileText* file, const char* file_path)
+static inline FileFormat
+file_format_detect(const char* file_path)
 {
-    file_metadata_init(&file->meta);
-    file->text = NULL;
-
-    const char* file_name = file_name_path(file_path);
-
-#ifdef _WIN32
-    file->meta.hFile = CreateFileA(file_path,
-                                   GENERIC_READ,
-                                   FILE_SHARE_READ,
-                                   NULL,
-                                   OPEN_EXISTING,
-                                   FILE_FLAG_SEQUENTIAL_SCAN,
-                                   NULL);
-
-    if (file->meta.hFile == INVALID_HANDLE_VALUE)
+    const char* ext = strrchr(file_path, '.');
+    if (!ext)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not open file '%s'", file_name);
-        return;
+        return FILE_FORMAT_UNKNOWN;
     }
 
-    file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
-    if (file->meta.hMapping == NULL)
+    ext++; // Skip the dot
+
+    if (strcasecmp(ext, "csv") == 0)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not create file mapping for '%s'", file_name);
-        file_metadata_close(&file->meta);
-        return;
+        return FILE_FORMAT_CSV;
     }
 
-    file->text = (char*)MapViewOfFile(file->meta.hMapping, FILE_MAP_READ, 0, 0, 0);
-    if (file->text == NULL)
+    else if (strcasecmp(ext, "fasta") == 0 || strcasecmp(ext, "fa") == 0 ||
+             strcasecmp(ext, "fas") == 0)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not map view of file '%s'", file_name);
-        file_metadata_close(&file->meta);
-        return;
+        return FILE_FORMAT_FASTA;
     }
 
-    LARGE_INTEGER file_size;
-    GetFileSizeEx(file->meta.hFile, &file_size);
-    file->meta.bytes = file_size.QuadPart;
-#else
-    file->meta.fd = open(file_path, O_RDONLY);
-    if (file->meta.fd == -1)
+    return FILE_FORMAT_UNKNOWN;
+}
+
+static inline void
+file_format_data_reset(FileFormatMetadata* data)
+{
+    memset(data, 0, sizeof(*data));
+}
+
+static inline bool
+file_format_csv_parse(FileText* file)
+{
+    if (!file->text)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not open input file '%s'", file_name);
-        return;
+        return false;
     }
 
-    struct stat sb;
-    if (fstat(file->meta.fd, &sb) == -1)
+    char* file_header_start = csv_header_parse(file->data.start,
+                                               file->data.end,
+                                               &file->data.format.csv.headerless,
+                                               &file->data.format.csv.sequence_column);
+
+    file->data.start = file->data.format.csv.headerless ? file->text : file_header_start;
+
+    print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
+    file->data.total = (sequence_count_t)csv_total_lines(file->data.start, file->data.end);
+
+    if (file->data.total >= SEQUENCE_COUNT_MAX)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not stat file '%s'", file_name);
-        file_metadata_close(&file->meta);
-        return;
+        print(ERROR, MSG_NONE, "CSV | Too many lines in input file: %zu", file->data.total);
+        return false;
     }
 
-    if (!S_ISREG(sb.st_mode) || sb.st_size < 0)
+    if (!file->data.total)
     {
-        print(ERROR, MSG_NONE, "FILE | Invalid file type or size for '%s'", file_name);
-        file_metadata_close(&file->meta);
-        return;
+        print(ERROR, MSG_NONE, "CSV | No sequences found in input file");
+        return false;
     }
 
-    file->meta.bytes = (size_t)sb.st_size;
-    file->text = (char*)mmap(NULL, file->meta.bytes, PROT_READ, MAP_PRIVATE, file->meta.fd, 0);
-    if (file->text == MAP_FAILED)
-    {
-        print(ERROR, MSG_NONE, "FILE | Could not memory map file '%s'", file_name);
-        file_metadata_close(&file->meta);
-        file->text = NULL;
-        return;
-    }
+    print(DNA, MSG_NONE, "Found %d sequences", file->data.total);
+    return true;
+}
 
-    madvise(file->text, file->meta.bytes, MADV_SEQUENTIAL);
-#endif
+static inline bool
+file_format_fasta_parse(FileText* file)
+{
+    // TODO
+    print(ERROR, MSG_NONE, "FILE | FASTA format not yet supported");
+    return false;
 }
 
 static inline void
@@ -166,6 +192,181 @@ file_text_close(FileText* file)
 
 #endif
     file_metadata_close(&file->meta);
+    file_format_data_reset(&file->data);
+}
+
+static inline bool
+file_text_open(FileText* file, const char* file_path)
+{
+    file_metadata_init(&file->meta);
+    file_format_data_reset(&file->data);
+    file->text = NULL;
+
+    const char* file_name = file_name_path(file_path);
+
+#ifdef _WIN32
+    file->meta.hFile = CreateFileA(file_path,
+                                   GENERIC_READ,
+                                   FILE_SHARE_READ,
+                                   NULL,
+                                   OPEN_EXISTING,
+                                   FILE_FLAG_SEQUENTIAL_SCAN,
+                                   NULL);
+
+    if (file->meta.hFile == INVALID_HANDLE_VALUE)
+    {
+        print(ERROR, MSG_NONE, "FILE | Could not open file '%s'", file_name);
+        return false;
+    }
+
+    file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
+    if (file->meta.hMapping == NULL)
+    {
+        print(ERROR, MSG_NONE, "FILE | Could not create file mapping for '%s'", file_name);
+        file_metadata_close(&file->meta);
+        return false;
+    }
+
+    file->text = (char*)MapViewOfFile(file->meta.hMapping, FILE_MAP_READ, 0, 0, 0);
+    if (file->text == NULL)
+    {
+        print(ERROR, MSG_NONE, "FILE | Could not map view of file '%s'", file_name);
+        file_metadata_close(&file->meta);
+        return false;
+    }
+
+    LARGE_INTEGER file_size;
+    GetFileSizeEx(file->meta.hFile, &file_size);
+    file->meta.bytes = file_size.QuadPart;
+#else
+    file->meta.fd = open(file_path, O_RDONLY);
+    if (file->meta.fd == -1)
+    {
+        print(ERROR, MSG_NONE, "FILE | Could not open input file '%s'", file_name);
+        return false;
+    }
+
+    struct stat sb;
+    if (fstat(file->meta.fd, &sb) == -1)
+    {
+        print(ERROR, MSG_NONE, "FILE | Could not stat file '%s'", file_name);
+        file_metadata_close(&file->meta);
+        return false;
+    }
+
+    if (!S_ISREG(sb.st_mode) || sb.st_size < 0)
+    {
+        print(ERROR, MSG_NONE, "FILE | Invalid file type or size for '%s'", file_name);
+        file_metadata_close(&file->meta);
+        return false;
+    }
+
+    file->meta.bytes = (size_t)sb.st_size;
+    file->text = (char*)mmap(NULL, file->meta.bytes, PROT_READ, MAP_PRIVATE, file->meta.fd, 0);
+    if (file->text == MAP_FAILED)
+    {
+        print(ERROR, MSG_NONE, "FILE | Could not memory map file '%s'", file_name);
+        file_metadata_close(&file->meta);
+        file->text = NULL;
+        return false;
+    }
+
+    madvise(file->text, file->meta.bytes, MADV_SEQUENTIAL);
+#endif
+
+    file->data.start = file->text;
+    file->data.end = file->text + file->meta.bytes;
+
+    FileFormat type = file_format_detect(file_path);
+    file->data.type = type;
+
+    switch (type)
+    {
+        case FILE_FORMAT_CSV:
+            file_format_csv_parse(file);
+            break;
+        case FILE_FORMAT_FASTA:
+            file_format_fasta_parse(file);
+            break;
+        case FILE_FORMAT_UNKNOWN:
+            print(ERROR, MSG_NONE, "FILE | Failed to parse file format");
+            file_text_close(file);
+            return false;
+    }
+
+    return true;
+}
+
+static inline size_t
+file_sequence_next_length(FileTextPtr file, char* cursor)
+{
+    if (!file || !cursor)
+    {
+        print(ERROR, MSG_NONE, "FILE | Invalid parameters for sequence column length");
+        exit(1);
+    }
+
+    switch (file->data.type)
+    {
+        case FILE_FORMAT_CSV:
+            return csv_line_column_length(cursor, file->data.format.csv.sequence_column);
+        case FILE_FORMAT_FASTA:
+            // TODO: Implement FASTA sequence length detection
+            print(ERROR, MSG_NONE, "FASTA format not yet supported");
+            exit(1);
+        case FILE_FORMAT_UNKNOWN:
+        default:
+            print(ERROR, MSG_NONE, "Unknown file format");
+            exit(1);
+    }
+}
+
+static inline bool
+file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor)
+{
+    if (!file || !p_cursor)
+    {
+        print(ERROR, MSG_NONE, "FILE | Invalid parameters for next sequence line");
+        exit(1);
+    }
+
+    switch (file->data.type)
+    {
+        case FILE_FORMAT_CSV:
+            return csv_line_next(p_cursor);
+        case FILE_FORMAT_FASTA:
+            // TODO: Implement FASTA line navigation
+            print(ERROR, MSG_NONE, "FASTA format not yet supported");
+            exit(1);
+        case FILE_FORMAT_UNKNOWN:
+        default:
+            print(ERROR, MSG_NONE, "Unknown file format");
+            exit(1);
+    }
+}
+
+static inline size_t
+file_extract_sequence(FileTextPtr file, char* restrict* restrict p_cursor, char* restrict output)
+{
+    if (!file || !p_cursor || !output)
+    {
+        print(ERROR, MSG_NONE, "FILE | Invalid parameters for sequence extraction");
+        exit(1);
+    }
+
+    switch (file->data.type)
+    {
+        case FILE_FORMAT_CSV:
+            return csv_line_column_extract(p_cursor, output, file->data.format.csv.sequence_column);
+        case FILE_FORMAT_FASTA:
+            // TODO
+            print(ERROR, MSG_NONE, "FASTA format not yet supported");
+            exit(1);
+        case FILE_FORMAT_UNKNOWN:
+        default:
+            print(ERROR, MSG_NONE, "Unknown file format");
+            exit(1);
+    }
 }
 
 static inline FileScoreMatrix
@@ -194,7 +395,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     if (file.meta.hFile == INVALID_HANDLE_VALUE)
     {
         print(ERROR, MSG_NONE, "MATRIXFILE | Could not create memory-mapped file '%s'", file_name);
-        return matrix;
+        return file;
     }
 
     LARGE_INTEGER file_size;
@@ -207,7 +408,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     {
         print(ERROR, MSG_NONE, "MATRIXFILE | Could not create file mapping for '%s'", file_name);
         file_metadata_close(&file.meta);
-        return matrix;
+        return file;
     }
 
     file.matrix = (score_t*)MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
@@ -215,7 +416,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     {
         print(ERROR, MSG_NONE, "MATRIXFILE | Could not map view of file '%s'", file_name);
         file_metadata_close(&file.meta);
-        return matrix;
+        return file;
     }
 
 #else
@@ -283,21 +484,20 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
 }
 
 static inline void
-file_matrix_close(FileScoreMatrix* matrix)
+file_matrix_close(FileScoreMatrix* file)
 {
-    if (!matrix->matrix)
+    if (!file->matrix)
     {
         return;
     }
 
 #ifdef _WIN32
-    UnmapViewOfFile(matrix->data);
-    matrix->data = NULL;
+    UnmapViewOfFile(file->matrix);
 #else
-    munmap(matrix->matrix, matrix->meta.bytes);
-    matrix->matrix = NULL;
+    munmap(file->matrix, file->meta.bytes);
 #endif
-    file_metadata_close(&matrix->meta);
+    file->matrix = NULL;
+    file_metadata_close(&file->meta);
 }
 
 static inline alignment_size_t
