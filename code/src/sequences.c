@@ -433,7 +433,7 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
     sequence_count_t sequence_count = sequence_count_current;
     if (UNLIKELY(sequence_count > SEQUENCE_COUNT_MAX))
     {
-        print(ERROR, MSG_LOC(LAST), "Too many sequences: %zu", sequence_count);
+        print(ERROR, MSG_LOC(LAST), "Too many sequences: %u", sequence_count);
 #ifdef USE_CUDA
         if (use_cuda)
         {
@@ -448,12 +448,12 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
 
     if (skipped_count > 0)
     {
-        print(INFO, MSG_NONE, "Skipped %d sequences that were too long", skipped_count);
+        print(INFO, MSG_NONE, "Skipped %u sequences that were too long", skipped_count);
     }
 
     if (apply_filtering && filtered_count > 0 && filtered_count >= total / 4)
     {
-        print(VERBOSE, MSG_NONE, "Reallocating memory to save %zu sequence slots", filtered_count);
+        print(VERBOSE, MSG_NONE, "Reallocating memory to save %u sequence slots", filtered_count);
         sequences_t _sequences_new = REALLOC(sequences, sequence_count);
         if (_sequences_new)
         {
@@ -480,7 +480,7 @@ sequences_alloc_from_file(FileTextPtr input_file, float filter_threshold)
 
     if (apply_filtering)
     {
-        print(DNA, MSG_NONE, "Loaded %zu sequences (filtered %zu)", sequence_count, filtered_count);
+        print(DNA, MSG_NONE, "Loaded %u sequences (filtered %u)", sequence_count, filtered_count);
     }
 
     float sequence_average_length = (float)total_sequence_length / (float)sequence_count;

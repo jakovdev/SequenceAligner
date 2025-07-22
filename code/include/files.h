@@ -151,7 +151,7 @@ file_format_csv_parse(FileText* file)
 
     if (file->data.total >= SEQUENCE_COUNT_MAX)
     {
-        print(ERROR, MSG_NONE, "CSV | Too many lines in input file: %zu", file->data.total);
+        print(ERROR, MSG_NONE, "CSV | Too many lines in input file: %u", file->data.total);
         return false;
     }
 
@@ -161,7 +161,7 @@ file_format_csv_parse(FileText* file)
         return false;
     }
 
-    print(DNA, MSG_NONE, "Found %d sequences", file->data.total);
+    print(DNA, MSG_NONE, "Found %u sequences", file->data.total);
     return true;
 }
 
