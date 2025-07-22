@@ -363,13 +363,10 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         }
     }
 
-    else if (type == ERROR && last_percentage != -1)
+    else if (last_percentage != -1 && style.flags.content_printed)
     {
-        if (style.flags.content_printed)
-        {
-            printf("\n");
-            last_percentage = -1;
-        }
+        printf("\n");
+        last_percentage = -1;
     }
 
     const int simple_format = style.flags.nodetail || (style.flags.quiet && is_required);
