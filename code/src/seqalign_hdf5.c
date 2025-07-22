@@ -73,7 +73,7 @@ h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compressio
         return false;
     }
 
-    const size_t bytes_needed = mat_dim * mat_dim * sizeof(*g_hdf5.full_matrix);
+    const size_t bytes_needed = sizeof(*g_hdf5.full_matrix) * mat_dim * mat_dim;
     const size_t safe_memory = available_memory() * 3 / 4;
 
 #ifdef USE_CUDA
@@ -95,7 +95,7 @@ h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compressio
 
     else
     {
-        size_t bytes = g_hdf5.matrix_dim * g_hdf5.matrix_dim * sizeof(*g_hdf5.full_matrix);
+        size_t bytes = sizeof(*g_hdf5.full_matrix) * g_hdf5.matrix_dim * g_hdf5.matrix_dim;
 
         if (!(g_hdf5.full_matrix = CAST(g_hdf5.full_matrix)(alloc_huge_page(bytes))))
         {
@@ -115,7 +115,7 @@ h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compressio
 
     g_hdf5.is_init = true;
     const char* file_type = g_hdf5.memory_map_required ? "Memory-mapped file" : "HDF5 file";
-    print(VERBOSE, MSG_LOC(LAST), "%s has matrix size: %zu x %zu", file_type, mat_dim, mat_dim);
+    print(VERBOSE, MSG_LOC(LAST), "%s has matrix size: %u x %u", file_type, mat_dim, mat_dim);
 
     return true;
 }
@@ -136,7 +136,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
         return false;
     }
 
-    print(INFO, MSG_NONE, "Storing %zu sequences in HDF5 file", seq_count);
+    print(INFO, MSG_NONE, "Storing %u sequences in HDF5 file", seq_count);
 
     hid_t seq_group = H5Gcreate2(g_hdf5.file_id,
                                  "/sequences",
@@ -546,7 +546,7 @@ h5_chunk_dimensions_calculate(void)
 
     g_hdf5.chunk_dims[0] = chunk_dim;
     g_hdf5.chunk_dims[1] = chunk_dim;
-    print(VERBOSE, MSG_LOC(FIRST), "HDF5 chunk size: %zu x %zu", chunk_dim, chunk_dim);
+    print(VERBOSE, MSG_LOC(FIRST), "HDF5 chunk size: %u x %u", chunk_dim, chunk_dim);
 }
 
 static bool
@@ -762,12 +762,12 @@ h5_flush_memory_map(void)
     }
 
     const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
-    print(VERBOSE, MSG_NONE, "Using %zu rows per chunk (%zu MiB buffer)", chunk_size, buffer_mib);
+    print(VERBOSE, MSG_NONE, "Using %u rows per chunk (%zu MiB buffer)", chunk_size, buffer_mib);
 
     score_t* buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
     if (!buffer)
     {
-        print(WARNING, MSG_NONE, "Failed to allocate buffer of %zu bytes", chunk_size * row_bytes);
+        print(WARNING, MSG_NONE, "Failed to allocate buffer of %zu bytes", row_bytes * chunk_size);
 
         chunk_size = 1;
         buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
@@ -795,7 +795,7 @@ h5_flush_memory_map(void)
 
         for (sequence_index_t i = begin; i < end; i++)
         {
-            alignment_size_t row_offset = (i - begin) * matrix_dim;
+            alignment_size_t row_offset = (alignment_size_t)(i - begin) * matrix_dim;
 
             for (sequence_index_t j = i + 1; j < matrix_dim; j++)
             {
