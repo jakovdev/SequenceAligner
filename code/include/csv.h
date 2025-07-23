@@ -397,4 +397,112 @@ csv_line_column_length(char* cursor, size_t target_column)
     return column_length;
 }
 
+static inline bool
+csv_validate(const char* restrict file_start, const char* restrict file_end)
+{
+    if (!file_start || !file_end || file_start >= file_end)
+    {
+        print(ERROR, MSG_NONE, "CSV | Invalid file bounds for validation");
+        return false;
+    }
+
+    const char* cursor = file_start;
+    size_t line_number = 0;
+    size_t expected_columns = 0;
+    bool first_line = true;
+
+    while (cursor < file_end)
+    {
+        const char* line_start = cursor;
+        while (cursor < file_end && (*cursor == ' ' || *cursor == '\t' || *cursor == '\r'))
+        {
+            cursor++;
+        }
+
+        if (cursor < file_end && *cursor == '\n')
+        {
+            cursor++;
+            line_number++;
+            continue;
+        }
+
+        if (cursor >= file_end)
+        {
+            break;
+        }
+
+        size_t current_columns = 0;
+        bool field_started = false;
+
+        while (cursor < file_end)
+        {
+            char ch = *cursor;
+
+            if (ch == ',' || ch == '\n' || ch == '\r')
+            {
+                current_columns++;
+                field_started = false;
+
+                if (ch == '\n' || ch == '\r')
+                {
+                    if (ch == '\r' && (cursor + 1 < file_end) && cursor[1] == '\n')
+                    {
+                        cursor++;
+                    }
+
+                    cursor++;
+                    line_number++;
+                    break;
+                }
+            }
+
+            else if (ch == '\0')
+            {
+                print(ERROR, MSG_NONE, "CSV | null character found on line %zu", line_number);
+                return false;
+            }
+
+            else
+            {
+                field_started = true;
+            }
+
+            cursor++;
+        }
+
+        if (field_started || (cursor > line_start && cursor > file_start && *(cursor - 1) == ','))
+        {
+            current_columns++;
+        }
+
+        if (first_line)
+        {
+            if (current_columns == 0)
+            {
+                print(ERROR, MSG_NONE, "CSV | header line has zero columns");
+                return false;
+            }
+
+            expected_columns = current_columns;
+            first_line = false;
+        }
+
+        else if (current_columns > 0)
+        {
+            if (current_columns != expected_columns)
+            {
+                print(ERROR,
+                      MSG_NONE,
+                      "CSV | Expected %zu columns, found %zu on line %zu",
+                      expected_columns,
+                      current_columns,
+                      line_number);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 #endif
