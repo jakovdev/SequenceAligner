@@ -139,6 +139,11 @@ file_format_csv_parse(FileText* file)
         return false;
     }
 
+    if (!csv_validate(file->data.start, file->data.end))
+    {
+        return false;
+    }
+
     char* file_header_start = csv_header_parse(file->data.start,
                                                file->data.end,
                                                &file->data.format.csv.headerless,
