@@ -32,8 +32,7 @@ main(int argc, char* argv[])
     {
         CLEANUP(file_text_close) FileText input_file = { 0 };
 
-        if (!file_text_open(&input_file, args_input()) ||
-            !sequences_alloc_from_file(&input_file, args_filter()))
+        if (!file_text_open(&input_file, args_input()) || !sequences_alloc_from_file(&input_file))
         {
             return 1;
         }
