@@ -25,12 +25,12 @@ typedef struct
     atomic_size_t* shared_progress;
     volatile unsigned long* threads_completed;
     pthread_mutex_t* completion_mutex;
-} ThreadStorage;
+} AlignThreadStorage;
 
 static inline T_Func
-thread_worker(void* thread_arg)
+align_thread_worker(void* thread_arg)
 {
-    ThreadStorage* storage = CAST(storage)(thread_arg);
+    AlignThreadStorage* storage = CAST(storage)(thread_arg);
     PIN_THREAD(storage->thread_id);
 
     const sequence_count_t sequence_count = sequences_count();
@@ -150,7 +150,7 @@ align_multithreaded(void)
     pthread_mutex_t completion_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     pthread_t* threads = MALLOC(threads, num_threads);
-    ThreadStorage* thread_storages = MALLOC(thread_storages, num_threads);
+    AlignThreadStorage* thread_storages = MALLOC(thread_storages, num_threads);
     if (!thread_storages || !threads)
     {
         print(ERROR, MSG_NONE, "Failed to allocate memory for multithreading");
@@ -165,7 +165,7 @@ align_multithreaded(void)
 
     for (unsigned long t = 0; t < num_threads; t++)
     {
-        ThreadStorage* storage = &thread_storages[t];
+        AlignThreadStorage* storage = &thread_storages[t];
         storage->thread_id = t;
         storage->local_checksum = 0;
         storage->current_row = &current_row;
@@ -174,7 +174,7 @@ align_multithreaded(void)
         storage->threads_completed = &threads_completed;
         storage->completion_mutex = &completion_mutex;
 
-        pthread_create(&threads[t], NULL, thread_worker, storage);
+        pthread_create(&threads[t], NULL, align_thread_worker, storage);
     }
 
     int percentage = 0;

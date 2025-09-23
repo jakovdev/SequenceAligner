@@ -5,7 +5,7 @@
 #include "biotypes.h"
 #include "files.h"
 
-extern bool sequences_alloc_from_file(FileTextPtr input_file, float filter);
+extern bool sequences_alloc_from_file(FileTextPtr input_file);
 extern sequences_t sequences_get(void);
 extern sequence_count_t sequences_count(void);
 extern alignment_size_t sequences_alignment_count(void);
