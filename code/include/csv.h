@@ -100,6 +100,8 @@ csv_header_parse(char* restrict file_cursor,
                  bool* no_header,
                  size_t* seq_col)
 {
+    print_error_prefix("CSV");
+
     char* header_start = file_cursor;
     *seq_col = SIZE_MAX;
     *no_header = false;
@@ -108,11 +110,11 @@ csv_header_parse(char* restrict file_cursor,
     char** headers = NULL;
 
     num_columns = csv_column_count(header_start);
-    print(VERBOSE, MSG_NONE, "Found %zu columns in input file", num_columns);
+    print(VERBOSE, MSG_NONE, "Found %zu column(s) in input file", num_columns);
 
     if (!num_columns)
     {
-        print(ERROR, MSG_NONE, "CSV | Invalid header (do you have an empty line or file?)");
+        print(ERROR, MSG_NONE, "Invalid header (do you have an empty line or file?)");
         exit(1);
     }
 
@@ -120,7 +122,7 @@ csv_header_parse(char* restrict file_cursor,
 
     if (!headers)
     {
-        print(ERROR, MSG_NONE, "CSV | Memory allocation failed for column headers");
+        print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
         exit(1);
     }
 
@@ -198,11 +200,7 @@ csv_header_parse(char* restrict file_cursor,
     }
 
     const char* sequence_column = headers[*seq_col];
-    print(VERBOSE,
-          MSG_NONE,
-          "Using column %zu ('%s') for sequences",
-          *seq_col + 1,
-          sequence_column);
+    print(VERBOSE, MSG_NONE, "Using column #%zu ('%s')", *seq_col + 1, sequence_column);
 
     if (headers)
     {
@@ -402,7 +400,7 @@ csv_validate(const char* restrict file_start, const char* restrict file_end)
 {
     if (!file_start || !file_end || file_start >= file_end)
     {
-        print(ERROR, MSG_NONE, "CSV | Invalid file bounds for validation");
+        print(ERROR, MSG_NONE, "Invalid file bounds for validation");
         return false;
     }
 
@@ -458,7 +456,7 @@ csv_validate(const char* restrict file_start, const char* restrict file_end)
 
             else if (ch == '\0')
             {
-                print(ERROR, MSG_NONE, "CSV | null character found on line %zu", line_number);
+                print(ERROR, MSG_NONE, "Null character found on line %zu", line_number);
                 return false;
             }
 
@@ -479,7 +477,7 @@ csv_validate(const char* restrict file_start, const char* restrict file_end)
         {
             if (current_columns == 0)
             {
-                print(ERROR, MSG_NONE, "CSV | header line has zero columns");
+                print(ERROR, MSG_NONE, "Header line has zero columns");
                 return false;
             }
 
@@ -493,7 +491,7 @@ csv_validate(const char* restrict file_start, const char* restrict file_end)
             {
                 print(ERROR,
                       MSG_NONE,
-                      "CSV | Expected %zu columns, found %zu on line %zu",
+                      "Expected %zu column(s), found %zu on line %zu",
                       expected_columns,
                       current_columns,
                       line_number);

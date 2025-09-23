@@ -9,6 +9,8 @@ static struct
     double io;
     double align_start;
     double align;
+    double filter_start;
+    double filter;
 } g_times = { 0 };
 
 void
@@ -48,6 +50,24 @@ bench_align_end(void)
 }
 
 void
+bench_filter_start(void)
+{
+    if (args_mode_benchmark())
+    {
+        g_times.filter_start = time_current();
+    }
+}
+
+void
+bench_filter_end(void)
+{
+    if (args_mode_benchmark())
+    {
+        g_times.filter += time_current() - g_times.filter_start;
+    }
+}
+
+void
 bench_print_align(void)
 {
     if (args_mode_benchmark())
@@ -66,11 +86,20 @@ bench_print_io(void)
 }
 
 void
+bench_print_filter(sequence_count_t filtered)
+{
+    if (args_mode_benchmark())
+    {
+        print(TIMING, MSG_NONE, "Filtered %zu sequences in %.3f seconds", filtered, g_times.filter);
+    }
+}
+
+void
 bench_print_total(alignment_size_t alignments)
 {
     if (args_mode_benchmark())
     {
-        double time_total = g_times.align + g_times.io;
+        double time_total = g_times.align + g_times.io + g_times.filter;
         print(SECTION, MSG_NONE, "Performance Summary");
         print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
 
@@ -79,6 +108,13 @@ bench_print_total(alignment_size_t alignments)
 
         double io_percent = (g_times.io / time_total) * 100;
         print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", g_times.io, io_percent);
+
+        if (g_times.filter > 0)
+        {
+            double filter_percent = (g_times.filter / time_total) * 100;
+            const char* filter_msg = "Filtering: %.3f sec (%.1f%%)";
+            print(TIMING, MSG_LOC(MIDDLE), filter_msg, g_times.filter, filter_percent);
+        }
 
         print(TIMING, MSG_LOC(LAST), "Total: %.3f sec", time_total, 100.0);
 

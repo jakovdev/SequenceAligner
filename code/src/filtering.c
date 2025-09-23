@@ -178,7 +178,6 @@ filter_sequences_multithreaded(sequences_t sequences,
                                bool* keep_flags,
                                sequence_count_t* filtered_count)
 {
-    double start_time = time_current();
     const unsigned long thread_num = args_thread_num();
     const unsigned long num_threads = (thread_num > 0) ? thread_num : 1;
 
@@ -194,7 +193,7 @@ filter_sequences_multithreaded(sequences_t sequences,
 
     if (!thread_storages || !threads)
     {
-        print(ERROR, MSG_NONE, "FILTERING | Failed to allocate memory for filtering threads");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for threads");
         free(thread_storages);
         free(threads);
         pthread_mutex_destroy(&index_mutex);
@@ -254,9 +253,6 @@ filter_sequences_multithreaded(sequences_t sequences,
         print(PROGRESS, MSG_PERCENT(percentage), "Filtering sequences");
     }
 
-    double elapsed = time_current() - start_time;
-    print(INFO, MSG_LOC(LAST), "Filtered %zu sequences in %.2f seconds", *filtered_count, elapsed);
-
     return true;
 }
 
@@ -267,7 +263,6 @@ filter_sequences_singlethreaded(sequences_t sequences,
                                 bool* keep_flags,
                                 sequence_count_t* filtered_count)
 {
-    double start_time = time_current();
     print(PROGRESS, MSG_PERCENT(0), "Filtering sequences");
 
     for (sequence_count_t i = 0; i < sequence_count; i++)
@@ -298,7 +293,4 @@ filter_sequences_singlethreaded(sequences_t sequences,
         int percentage = (int)(100 * i / sequence_count);
         print(PROGRESS, MSG_PERCENT(percentage), "Filtering sequences");
     }
-
-    double elapsed = time_current() - start_time;
-    print(INFO, MSG_LOC(LAST), "Filtered %zu sequences in %.2f seconds", *filtered_count, elapsed);
 }

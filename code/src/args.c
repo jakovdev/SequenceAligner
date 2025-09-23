@@ -156,14 +156,14 @@ args_validate_file_input(void)
 {
     if (!args.input_file_set)
     {
-        print(ERROR, MSG_NONE, "ARGS | Missing parameter: input file (-i, --input)");
+        print(ERROR, MSG_NONE, "Missing parameter: input file (-i, --input)");
         return false;
     }
 
     FILE* test = fopen(args.path_input, "r");
     if (!test)
     {
-        print(ERROR, MSG_NONE, "ARGS | Cannot open input file: %s", args.path_input);
+        print(ERROR, MSG_NONE, "Cannot open input file: %s", args.path_input);
         return false;
     }
 
@@ -180,19 +180,19 @@ args_validate_required(void)
 
     if (!args.seq_type_set)
     {
-        print(ERROR, MSG_NONE, "ARGS | Missing parameter: sequence type (-t, --type)");
+        print(ERROR, MSG_NONE, "Missing parameter: sequence type (-t, --type)");
         valid = false;
     }
 
     if (!args.method_id_set)
     {
-        print(ERROR, MSG_NONE, "ARGS | Missing parameter: alignment method (-a, --align)");
+        print(ERROR, MSG_NONE, "Missing parameter: alignment method (-a, --align)");
         valid = false;
     }
 
     if (!args.matrix_set)
     {
-        print(ERROR, MSG_NONE, "ARGS | Missing parameter: substitution matrix (-m, --matrix)");
+        print(ERROR, MSG_NONE, "Missing parameter: substitution matrix (-m, --matrix)");
         valid = false;
     }
 
@@ -200,7 +200,7 @@ args_validate_required(void)
     {
         if (alignment_linear(args.method_id) && !args.gap_penalty_set)
         {
-            print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap penalty (-p, --gap-penalty)");
+            print(ERROR, MSG_NONE, "Missing parameter: gap penalty (-p, --gap-penalty)");
             valid = false;
         }
 
@@ -208,13 +208,13 @@ args_validate_required(void)
         {
             if (!args.gap_open_set)
             {
-                print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap open (-s, --gap-open)");
+                print(ERROR, MSG_NONE, "Missing parameter: gap open (-s, --gap-open)");
                 valid = false;
             }
 
             if (!args.gap_extend_set)
             {
-                print(ERROR, MSG_NONE, "ARGS | Missing parameter: gap extend (-e, --gap-extend)");
+                print(ERROR, MSG_NONE, "Missing parameter: gap extend (-e, --gap-extend)");
                 valid = false;
             }
         }
@@ -381,7 +381,7 @@ args_parse(int argc, char* argv[])
 
                 else
                 {
-                    print(ERROR, MSG_NONE, "ARGS | Unknown alignment method: %s", optarg);
+                    print(ERROR, MSG_NONE, "Unknown alignment method: %s", optarg);
                 }
 
                 break;
@@ -395,7 +395,7 @@ args_parse(int argc, char* argv[])
 
                 else
                 {
-                    print(ERROR, MSG_NONE, "ARGS | Unknown sequence type: %s", optarg);
+                    print(ERROR, MSG_NONE, "Unknown sequence type: %s", optarg);
                 }
 
                 break;
@@ -403,7 +403,7 @@ args_parse(int argc, char* argv[])
             case 'm':
                 if (!args.seq_type_set)
                 {
-                    print(ERROR, MSG_NONE, "ARGS | Must specify sequence type (-t) before matrix");
+                    print(ERROR, MSG_NONE, "Must specify sequence type (-t) before matrix");
                     break;
                 }
 
@@ -415,7 +415,7 @@ args_parse(int argc, char* argv[])
 
                 else
                 {
-                    print(ERROR, MSG_NONE, "ARGS | Unknown scoring matrix: %s", optarg);
+                    print(ERROR, MSG_NONE, "Unknown scoring matrix: %s", optarg);
                 }
 
                 break;
@@ -452,7 +452,7 @@ args_parse(int argc, char* argv[])
 
                 else
                 {
-                    print(ERROR, MSG_NONE, "ARGS | Invalid filter threshold: %s", optarg);
+                    print(ERROR, MSG_NONE, "Invalid filter threshold: %s", optarg);
                 }
 
                 break;
@@ -495,7 +495,7 @@ args_parse(int argc, char* argv[])
                 exit(0);
 
             default:
-                print(ERROR, MSG_NONE, "ARGS | Unknown option: %c", opt);
+                print(ERROR, MSG_NONE, "Unknown option: %c", opt);
                 args_print_usage(argv[0]);
                 exit(1);
         }
@@ -534,6 +534,8 @@ args_init(int argc, char* argv[])
 #ifdef USE_CUDA
     args.mode_cuda = 1;
 #endif
+
+    print_error_prefix("ARGS");
 
     args_parse(argc, argv);
 

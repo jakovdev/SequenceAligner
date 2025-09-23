@@ -379,6 +379,7 @@ align_nw(const sequence_t seq1, const sequence_t seq2)
         seq1_indices.data = MALLOC(seq1_indices.data, len1);
         if (!seq1_indices.data)
         {
+            print_error_prefix("SEQALIGN - NW");
             print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
             exit(1);
         }
@@ -430,6 +431,7 @@ align_ga(const sequence_t seq1, const sequence_t seq2)
         seq1_indices.data = MALLOC(seq1_indices.data, len1);
         if (!seq1_indices.data)
         {
+            print_error_prefix("SEQALIGN - GA");
             print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
             exit(1);
         }
@@ -494,6 +496,7 @@ align_sw(const sequence_t seq1, const sequence_t seq2)
         seq1_indices.data = MALLOC(seq1_indices.data, len1);
         if (!seq1_indices.data)
         {
+            print_error_prefix("SEQALIGN - SW");
             print(ERROR, MSG_NONE, "Failed to allocate memory for sequence indices");
             exit(1);
         }

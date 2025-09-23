@@ -47,11 +47,13 @@ main(int argc, char* argv[])
     cuda_init();
 #endif
 
+    print_error_prefix("HDF5");
+
     bench_io_start();
     if (!h5_open(args_output(), sequence_count, args_compression(), args_mode_write()))
     {
         bench_io_end();
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create file, will use no-write mode");
+        print(ERROR, MSG_NONE, "Failed to create file, will use no-write mode");
 
         if (!print_yN("Do you want to continue? [y/N]"))
         {
@@ -67,7 +69,7 @@ main(int argc, char* argv[])
     if (!h5_sequences_store(sequences_get(), sequence_count))
     {
         bench_io_end();
-        print(ERROR, MSG_NONE, "HDF5 | Failed to store sequences, will use no-write mode");
+        print(ERROR, MSG_NONE, "Failed to store sequences, will use no-write mode");
 
         if (!print_yN("Do you want to continue? [y/N]"))
         {

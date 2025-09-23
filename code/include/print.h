@@ -154,6 +154,8 @@ typedef const union
 #define MSG_INPUT(result, rsize) ((MSG_ARG){ .input = { .ret = result, .rsz = (int)rsize } })
 #define MSG_NONE MSG_LOC(FIRST)
 
+extern void print_error_prefix(const char* prefix);
+
 typedef enum
 {
     HEADER,
