@@ -139,6 +139,8 @@ file_format_csv_parse(FileText* file)
         return false;
     }
 
+    print_error_prefix("CSV");
+
     if (!csv_validate(file->data.start, file->data.end))
     {
         return false;
@@ -151,18 +153,18 @@ file_format_csv_parse(FileText* file)
 
     file->data.start = file->data.format.csv.headerless ? file->text : file_header_start;
 
-    print(VERBOSE, MSG_LOC(LAST), "Counting sequences in input file");
+    print(VERBOSE, MSG_NONE, "Counting sequences in input file");
     file->data.total = (sequence_count_t)csv_total_lines(file->data.start, file->data.end);
 
     if (file->data.total >= SEQUENCE_COUNT_MAX)
     {
-        print(ERROR, MSG_NONE, "CSV | Too many lines in input file: %u", file->data.total);
+        print(ERROR, MSG_NONE, "Too many lines in input file: %u", file->data.total);
         return false;
     }
 
     if (!file->data.total)
     {
-        print(ERROR, MSG_NONE, "CSV | No sequences found in input file");
+        print(ERROR, MSG_NONE, "No sequences found in input file");
         return false;
     }
 
@@ -173,8 +175,8 @@ file_format_csv_parse(FileText* file)
 static inline bool
 file_format_fasta_parse(FileText* file)
 {
-    // TODO
-    print(ERROR, MSG_NONE, "FILE | FASTA format not yet supported");
+    print_error_prefix("FASTA");
+    print(ERROR, MSG_NONE, "Format not yet supported");
     return false;
 }
 
@@ -203,6 +205,8 @@ file_text_close(FileText* file)
 static inline bool
 file_text_open(FileText* file, const char* file_path)
 {
+    print_error_prefix("FILE");
+
     file_metadata_init(&file->meta);
     file_format_data_reset(&file->data);
     file->text = NULL;
@@ -220,14 +224,14 @@ file_text_open(FileText* file, const char* file_path)
 
     if (file->meta.hFile == INVALID_HANDLE_VALUE)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not open file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not open file '%s'", file_name);
         return false;
     }
 
     file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
     if (file->meta.hMapping == NULL)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not create file mapping for '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
         file_metadata_close(&file->meta);
         return false;
     }
@@ -235,7 +239,7 @@ file_text_open(FileText* file, const char* file_path)
     file->text = (char*)MapViewOfFile(file->meta.hMapping, FILE_MAP_READ, 0, 0, 0);
     if (file->text == NULL)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not map view of file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
         file_metadata_close(&file->meta);
         return false;
     }
@@ -247,21 +251,21 @@ file_text_open(FileText* file, const char* file_path)
     file->meta.fd = open(file_path, O_RDONLY);
     if (file->meta.fd == -1)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not open input file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not open input file '%s'", file_name);
         return false;
     }
 
     struct stat sb;
     if (fstat(file->meta.fd, &sb) == -1)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not stat file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not stat file '%s'", file_name);
         file_metadata_close(&file->meta);
         return false;
     }
 
     if (!S_ISREG(sb.st_mode) || sb.st_size < 0)
     {
-        print(ERROR, MSG_NONE, "FILE | Invalid file type or size for '%s'", file_name);
+        print(ERROR, MSG_NONE, "Invalid file type or size for '%s'", file_name);
         file_metadata_close(&file->meta);
         return false;
     }
@@ -270,7 +274,7 @@ file_text_open(FileText* file, const char* file_path)
     file->text = (char*)mmap(NULL, file->meta.bytes, PROT_READ, MAP_PRIVATE, file->meta.fd, 0);
     if (file->text == MAP_FAILED)
     {
-        print(ERROR, MSG_NONE, "FILE | Could not memory map file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not memory map file '%s'", file_name);
         file_metadata_close(&file->meta);
         file->text = NULL;
         return false;
@@ -292,7 +296,7 @@ file_text_open(FileText* file, const char* file_path)
         case FILE_FORMAT_FASTA:
             return file_format_fasta_parse(file);
         case FILE_FORMAT_UNKNOWN:
-            print(ERROR, MSG_NONE, "FILE | Failed to parse file format");
+            print(ERROR, MSG_NONE, "Failed to parse file format");
             file_text_close(file);
             return false;
     }
@@ -303,7 +307,7 @@ file_sequence_next_length(FileTextPtr file, char* cursor)
 {
     if (!file || !cursor)
     {
-        print(ERROR, MSG_NONE, "FILE | Invalid parameters for sequence column length");
+        print(ERROR, MSG_NONE, "Invalid parameters for sequence column length");
         exit(1);
     }
 
@@ -327,7 +331,7 @@ file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor)
 {
     if (!file || !p_cursor)
     {
-        print(ERROR, MSG_NONE, "FILE | Invalid parameters for next sequence line");
+        print(ERROR, MSG_NONE, "Invalid parameters for next sequence line");
         exit(1);
     }
 
@@ -351,7 +355,7 @@ file_extract_sequence(FileTextPtr file, char* restrict* restrict p_cursor, char*
 {
     if (!file || !p_cursor || !output)
     {
-        print(ERROR, MSG_NONE, "FILE | Invalid parameters for sequence extraction");
+        print(ERROR, MSG_NONE, "Invalid parameters for sequence extraction");
         exit(1);
     }
 
@@ -383,6 +387,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     const float mmap_size = (float)bytes / (float)GiB;
 
     print(INFO, MSG_LOC(LAST), "Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
+    print_error_prefix("MATRIXFILE");
 
 #ifdef _WIN32
     file.meta.hFile = CreateFileA(file_path,
@@ -395,7 +400,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
 
     if (file.meta.hFile == INVALID_HANDLE_VALUE)
     {
-        print(ERROR, MSG_NONE, "MATRIXFILE | Could not create memory-mapped file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create memory-mapped file '%s'", file_name);
         return file;
     }
 
@@ -407,7 +412,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     file.meta.hMapping = CreateFileMapping(file.meta.hFile, NULL, PAGE_READWRITE, 0, 0, NULL);
     if (file.meta.hMapping == NULL)
     {
-        print(ERROR, MSG_NONE, "MATRIXFILE | Could not create file mapping for '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
         file_metadata_close(&file.meta);
         return file;
     }
@@ -415,7 +420,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     file.matrix = (score_t*)MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if (file.matrix == NULL)
     {
-        print(ERROR, MSG_NONE, "MATRIXFILE | Could not map view of file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
         file_metadata_close(&file.meta);
         return file;
     }
@@ -424,13 +429,13 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     file.meta.fd = open(file_path, O_RDWR | O_CREAT | O_TRUNC, 0644);
     if (file.meta.fd == -1)
     {
-        print(ERROR, MSG_NONE, "MATRIXFILE | Could not create memory-mapped file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not create memory-mapped file '%s'", file_name);
         return file;
     }
 
     if (ftruncate(file.meta.fd, (off_t)bytes) == -1)
     {
-        print(ERROR, MSG_NONE, "MATRIXFILE | Could not set size for file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not set size for file '%s'", file_name);
         file_metadata_close(&file.meta);
         return file;
     }
@@ -438,7 +443,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     file.matrix = (score_t*)mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, file.meta.fd, 0);
     if (file.matrix == MAP_FAILED)
     {
-        print(ERROR, MSG_NONE, "MATRIXFILE | Could not memory map file '%s'", file_name);
+        print(ERROR, MSG_NONE, "Could not memory map file '%s'", file_name);
         file_metadata_close(&file.meta);
         file.matrix = NULL;
         return file;

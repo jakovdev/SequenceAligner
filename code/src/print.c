@@ -213,6 +213,8 @@ static struct
         unsigned is_init : 1;
     } flags;
 
+    char error_prefix[64];
+
 } style = {
 
     .chars = {
@@ -270,6 +272,7 @@ static struct
     },
     
     .total_width = TERMINAL_WIDTH,
+    .error_prefix = { 0 },
 };
 
 void
@@ -288,6 +291,18 @@ void
 print_detail_flip()
 {
     style.flags.nodetail = !style.flags.nodetail;
+}
+
+void
+print_error_prefix(const char* prefix)
+{
+    if (!prefix)
+    {
+        style.error_prefix[0] = '\0';
+        return;
+    }
+
+    snprintf(style.error_prefix, sizeof(style.error_prefix), "%s | ", prefix);
 }
 
 static void
@@ -391,12 +406,24 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
     if (format)
     {
-        p_buffer_size = vsnprintf(p_buffer, sizeof(p_buffer), format, args);
+        if (type == ERROR && style.error_prefix[0] != '\0')
+        {
+            char prefixed_format[BUFSIZ];
+            snprintf(prefixed_format, sizeof(prefixed_format), "%s%s", style.error_prefix, format);
+            p_buffer_size = vsnprintf(p_buffer, sizeof(p_buffer), prefixed_format, args);
+        }
+
+        else
+        {
+            p_buffer_size = vsnprintf(p_buffer, sizeof(p_buffer), format, args);
+        }
+
         if (p_buffer_size < 0)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
-            print(ERROR, MSG_NONE, "_TO_DEV_ | Failed to format string");
+            print_error_prefix("_TO_DEV_");
+            print(ERROR, MSG_NONE, "Failed to format string");
 #endif
             return PRINT_INVALID_FORMAT_ARGS__ERROR;
         }
@@ -608,7 +635,8 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
-            print(ERROR, MSG_NONE, "_TO_DEV_ | Not enough choices in choice collection (<2)");
+            print_error_prefix("_TO_DEV_");
+            print(ERROR, MSG_NONE, "Not enough choices in choice collection (<2)");
 #endif
             return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
         }
@@ -722,7 +750,8 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
         {
             va_end(args);
 #if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
-            print(ERROR, MSG_NONE, "_TO_DEV_ | Input buffer size is too small.");
+            print_error_prefix("_TO_DEV_");
+            print(ERROR, MSG_NONE, "Input buffer size is too small.");
 #endif
             return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
         }

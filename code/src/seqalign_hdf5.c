@@ -69,7 +69,7 @@ h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compressio
 
     if (g_hdf5.matrix_dim < 1)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Matrix size is too small");
+        print(ERROR, MSG_NONE, "Matrix size is too small");
         return false;
     }
 
@@ -132,7 +132,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     if (g_hdf5.file_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Cannot store sequences: HDF5 file not initialized");
+        print(ERROR, MSG_NONE, "Cannot store sequences: HDF5 file not initialized");
         return false;
     }
 
@@ -146,7 +146,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     if (seq_group < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create sequences group");
+        print(ERROR, MSG_NONE, "Failed to create sequences group");
         return false;
     }
 
@@ -157,7 +157,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     if (lengths_space < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create sequence lengths dataspace");
+        print(ERROR, MSG_NONE, "Failed to create sequence lengths dataspace");
         return false;
     }
 
@@ -173,14 +173,14 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     if (g_hdf5.lengths_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create sequence lengths dataset");
+        print(ERROR, MSG_NONE, "Failed to create sequence lengths dataset");
         return false;
     }
 
     sequence_length_t* lengths = MALLOC(lengths, seq_count);
     if (!lengths)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for sequence lengths");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for sequence lengths");
         H5Dclose(g_hdf5.lengths_id);
         g_hdf5.lengths_id = H5I_INVALID_HID;
         return false;
@@ -202,7 +202,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     if (status < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to write sequence lengths");
+        print(ERROR, MSG_NONE, "Failed to write sequence lengths");
         H5Dclose(g_hdf5.lengths_id);
         g_hdf5.lengths_id = H5I_INVALID_HID;
         return false;
@@ -214,7 +214,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
     hid_t seq_space = H5Screate_simple(1, g_hdf5.seq_dims, NULL);
     if (seq_space < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create sequences dataspace");
+        print(ERROR, MSG_NONE, "Failed to create sequences dataspace");
         H5Tclose(string_type);
         H5Dclose(g_hdf5.lengths_id);
         g_hdf5.lengths_id = H5I_INVALID_HID;
@@ -231,7 +231,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
     if (g_hdf5.sequences_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create sequences dataset");
+        print(ERROR, MSG_NONE, "Failed to create sequences dataset");
         H5Sclose(seq_space);
         H5Tclose(string_type);
         H5Dclose(g_hdf5.lengths_id);
@@ -248,7 +248,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
         char** seq_data = MALLOC(seq_data, current_batch_size);
         if (!seq_data)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for sequence batch");
+            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence batch");
             H5Sclose(seq_space);
             H5Tclose(string_type);
             H5Dclose(g_hdf5.sequences_id);
@@ -268,7 +268,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
         if (batch_mem_space < 0)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to create memory dataspace for sequence batch");
+            print(ERROR, MSG_NONE, "Failed to create memory dataspace for sequence batch");
             free(seq_data);
             H5Sclose(seq_space);
             H5Tclose(string_type);
@@ -298,7 +298,7 @@ h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
         if (status < 0)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to write sequence batch");
+            print(ERROR, MSG_NONE, "Failed to write sequence batch");
             H5Sclose(seq_space);
             H5Tclose(string_type);
             H5Dclose(g_hdf5.sequences_id);
@@ -370,6 +370,7 @@ h5_close(int skip_flush)
             print(SECTION, MSG_NONE, "Finalizing Results");
             print(INFO, MSG_LOC(FIRST), "Matrix checksum: %lld", g_hdf5.checksum);
             print(INFO, MSG_LOC(LAST), "Writing results to %s", file_name_path(g_hdf5.file_path));
+            print_error_prefix("HDF5");
             h5_store_checksum();
             g_hdf5.memory_map_required ? h5_flush_memory_map() : h5_flush_full_matrix();
         }
@@ -422,7 +423,7 @@ h5_triangle_indices_32(void)
 
     if (!g_hdf5.triangle_indices_32 && !h5_triangle_indices_calculate())
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to calculate result offsets");
+        print(ERROR, MSG_NONE, "Failed to calculate result offsets");
         return NULL;
     }
 
@@ -439,7 +440,7 @@ h5_triangle_indices_64(void)
 
     if (!g_hdf5.triangle_indices_64 && !h5_triangle_indices_calculate())
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to calculate result offsets");
+        print(ERROR, MSG_NONE, "Failed to calculate result offsets");
         return NULL;
     }
 
@@ -465,7 +466,7 @@ h5_triangle_indices_calculate(void)
     {
         if (!(g_hdf5.triangle_indices_64 = MALLOC(g_hdf5.triangle_indices_64, sequence_count)))
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for result offsets");
+            print(ERROR, MSG_NONE, "Failed to allocate memory for result offsets");
             return false;
         }
 
@@ -479,7 +480,7 @@ h5_triangle_indices_calculate(void)
     {
         if (!(g_hdf5.triangle_indices_32 = MALLOC(g_hdf5.triangle_indices_32, sequence_count)))
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to allocate memory for result offsets");
+            print(ERROR, MSG_NONE, "Failed to allocate memory for result offsets");
             return false;
         }
 
@@ -565,7 +566,7 @@ h5_file_setup(void)
 
     if (g_hdf5.file_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create HDF5 file: %s", g_hdf5.file_path);
+        print(ERROR, MSG_NONE, "Failed to create HDF5 file: %s", g_hdf5.file_path);
         h5_file_close();
         return false;
     }
@@ -576,7 +577,7 @@ h5_file_setup(void)
 
     if (matrix_space < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create matrix dataspace");
+        print(ERROR, MSG_NONE, "Failed to create matrix dataspace");
         h5_file_close();
         return false;
     }
@@ -606,7 +607,7 @@ h5_file_setup(void)
 
     if (g_hdf5.matrix_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create similarity matrix dataset");
+        print(ERROR, MSG_NONE, "Failed to create similarity matrix dataset");
         h5_file_close();
         return false;
     }
@@ -691,7 +692,7 @@ h5_store_checksum(void)
     hid_t attr_space = H5Screate(H5S_SCALAR);
     if (attr_space < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create dataspace for checksum attribute");
+        print(ERROR, MSG_NONE, "Failed to create dataspace for checksum attribute");
         return;
     }
 
@@ -704,7 +705,7 @@ h5_store_checksum(void)
 
     if (attr_id < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to create checksum attribute");
+        print(ERROR, MSG_NONE, "Failed to create checksum attribute");
         H5Sclose(attr_space);
         return;
     }
@@ -715,7 +716,7 @@ h5_store_checksum(void)
 
     if (status < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to write checksum attribute");
+        print(ERROR, MSG_NONE, "Failed to write checksum attribute");
         return;
     }
 
@@ -734,7 +735,7 @@ h5_flush_full_matrix(void)
 
     if (status < 0)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to write matrix data to HDF5");
+        print(ERROR, MSG_NONE, "Failed to write matrix data to HDF5");
         return;
     }
 
@@ -748,7 +749,7 @@ h5_flush_memory_map(void)
     size_t available_mem = available_memory();
     if (!available_mem)
     {
-        print(ERROR, MSG_NONE, "HDF5 | Failed to retrieve available memory");
+        print(ERROR, MSG_NONE, "Failed to retrieve available memory");
         return;
     }
 
@@ -773,7 +774,7 @@ h5_flush_memory_map(void)
         buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
         if (!buffer)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Cannot allocate even minimal buffer, aborting");
+            print(ERROR, MSG_NONE, "Cannot allocate even minimal buffer, aborting");
             return;
         }
 
@@ -826,7 +827,7 @@ h5_flush_memory_map(void)
 
         if (mem_space < 0)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to create memory dataspace for matrix chunk");
+            print(ERROR, MSG_NONE, "Failed to create memory dataspace for matrix chunk");
             H5Sclose(file_space);
             free(buffer);
             return;
@@ -843,7 +844,7 @@ h5_flush_memory_map(void)
 
         if (status < 0)
         {
-            print(ERROR, MSG_NONE, "HDF5 | Failed to write chunk to HDF5");
+            print(ERROR, MSG_NONE, "Failed to write chunk to HDF5");
             H5Sclose(file_space);
             free(buffer);
             return;

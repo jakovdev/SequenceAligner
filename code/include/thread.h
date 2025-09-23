@@ -153,6 +153,7 @@ align_multithreaded(void)
     AlignThreadStorage* thread_storages = MALLOC(thread_storages, num_threads);
     if (!thread_storages || !threads)
     {
+        print_error_prefix("THREAD");
         print(ERROR, MSG_NONE, "Failed to allocate memory for multithreading");
         free(thread_storages);
         free(threads);

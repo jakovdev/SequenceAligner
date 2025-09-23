@@ -4,6 +4,7 @@
 
 #include "arch.h"
 #include "args.h"
+#include "benchmark.h"
 #include "biotypes.h"
 #include "files.h"
 #include "filtering.h"
@@ -309,9 +310,10 @@ compact_sequences(sequences_t sequences,
 bool
 sequences_alloc_from_file(FileTextPtr input_file)
 {
+    print_error_prefix("SEQUENCES");
     if (!input_file || !input_file->text || !input_file->data.start)
     {
-        print(ERROR, MSG_NONE, "SEQUENCES | Invalid file input");
+        print(ERROR, MSG_NONE, "Invalid file input");
         return false;
     }
 
@@ -320,7 +322,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
     sequences_t sequences = MALLOC(sequences, total);
     if (!sequences)
     {
-        print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for sequences");
+        print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
         return false;
     }
 
@@ -348,7 +350,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
         temp_lengths = MALLOC(temp_lengths, total);
         if (!temp_offsets || !temp_lengths)
         {
-            print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate memory for CUDA arrays");
+            print(ERROR, MSG_NONE, "Failed to allocate memory for CUDA arrays");
             goto cleanup_sequences;
         }
     }
@@ -360,6 +362,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
     char* file_end = input_file->data.end;
 
     print(PROGRESS, MSG_PERCENT(0), "Loading sequences");
+    print_error_prefix("FILE");
 
     while (file_cursor < file_end && *file_cursor)
     {
@@ -375,10 +378,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
         {
             if (!asked_user_about_skipping)
             {
-                print(WARNING,
-                      MSG_NONE,
-                      "Found sequence longer than maximum allowed (%d letters)",
-                      SEQUENCE_LENGTH_MAX);
+                print(WARNING, MSG_NONE, "Found very large sequence (>%d)", SEQUENCE_LENGTH_MAX);
                 skip_long_sequences = print_yN("Skip sequences that are too long? [y/N]");
                 asked_user_about_skipping = true;
             }
@@ -392,11 +392,8 @@ sequences_alloc_from_file(FileTextPtr input_file)
 
             else
             {
-                print(ERROR,
-                      MSG_NONE,
-                      "SEQUENCES | Sequence too long: %zu letters (max: %d)",
-                      next_sequence_length,
-                      SEQUENCE_LENGTH_MAX);
+                print_error_prefix("SEQUENCES");
+                print(ERROR, MSG_NONE, "Sequence too long: %zu letters", next_sequence_length);
                 goto cleanup_sequence_current;
             }
         }
@@ -414,7 +411,8 @@ sequences_alloc_from_file(FileTextPtr input_file)
 
             if (!sequence_current.letters)
             {
-                print(ERROR, MSG_NONE, "SEQUENCES | Failed to allocate sequence buffer");
+                print_error_prefix("SEQUENCES");
+                print(ERROR, MSG_NONE, "Failed to allocate sequence buffer");
                 goto cleanup_sequences;
             }
         }
@@ -441,7 +439,8 @@ sequences_alloc_from_file(FileTextPtr input_file)
 
             else
             {
-                print(ERROR, MSG_NONE, "SEQUENCES | Found sequence with invalid letters");
+                print_error_prefix("SEQUENCES");
+                print(ERROR, MSG_NONE, "Found sequence with invalid letters");
                 goto cleanup_sequence_current;
             }
         }
@@ -467,19 +466,18 @@ sequences_alloc_from_file(FileTextPtr input_file)
 
     free(sequence_current.letters);
 
+    print_error_prefix("SEQUENCES");
+
     sequence_count_t sequence_count = sequence_count_current;
     if (UNLIKELY(sequence_count > SEQUENCE_COUNT_MAX))
     {
-        print(ERROR, MSG_LOC(LAST), "Too many sequences: %u", sequence_count);
+        print(ERROR, MSG_NONE, "Too many sequences: %u", sequence_count);
         goto cleanup_sequences;
     }
 
     if (sequence_count < 2)
     {
-        print(ERROR,
-              MSG_NONE,
-              "SEQUENCES | At least 2 sequences are required for pairwise alignment (found: %u)",
-              sequence_count);
+        print(ERROR, MSG_NONE, "At least 2 sequences are required (found: %u)", sequence_count);
         goto cleanup_sequences;
     }
 
@@ -496,6 +494,10 @@ sequences_alloc_from_file(FileTextPtr input_file)
     sequence_count_t filtered_count = 0;
     if (apply_filtering)
     {
+        bench_io_end();
+        bench_filter_start();
+        print_error_prefix("FILTERING");
+
         bool* keep_flags = MALLOC(keep_flags, sequence_count);
         if (!keep_flags)
         {
@@ -527,6 +529,12 @@ sequences_alloc_from_file(FileTextPtr input_file)
                                             &filtered_count);
         }
 
+        bench_filter_end();
+
+        bench_print_filter(filtered_count);
+
+        bench_io_start();
+
         compact_sequences(sequences,
                           sequence_count,
                           keep_flags,
@@ -544,16 +552,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
 
         if (sequence_count < 2)
         {
-            print(ERROR,
-                  MSG_NONE,
-                  "SEQUENCES | Filtering removed too many sequences - only %u remain (need at "
-                  "least 2)",
-                  sequence_count);
-            print(ERROR,
-                  MSG_NONE,
-                  "SEQUENCES | Try reducing the filter threshold (current: %.2f) or disable "
-                  "filtering",
-                  filter_threshold);
+            print(ERROR, MSG_NONE, "Filtering removed too many sequences");
             goto cleanup_sequences;
         }
     }
@@ -603,6 +602,8 @@ sequences_alloc_from_file(FileTextPtr input_file)
 #ifdef USE_CUDA
     if (use_cuda)
     {
+        print_error_prefix("CUDA");
+
         g_sequence_dataset.flat_sequences = MALLOC(g_sequence_dataset.flat_sequences,
                                                    total_sequence_length);
         g_sequence_dataset.flat_offsets = MALLOC(g_sequence_dataset.flat_offsets, sequence_count);
@@ -611,7 +612,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
         if (!g_sequence_dataset.flat_sequences || !g_sequence_dataset.flat_offsets ||
             !g_sequence_dataset.flat_lengths)
         {
-            print(ERROR, MSG_NONE, "CUDA | Failed to allocate flattened arrays");
+            print(ERROR, MSG_NONE, "Failed to allocate flattened arrays");
             goto cleanup_sequences;
         }
 
