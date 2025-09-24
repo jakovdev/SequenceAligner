@@ -661,12 +661,12 @@ Cuda::switchKernel(int kernel_id)
         default:
             setHostError("Invalid kernel ID");
             return false;
-        case 0: // Needleman-Wunsch
-            k_nw<<<gridDim, blockDim>>>(m_seqs, d_buffer, d_progress, d_checksum, offset, batch);
+        case 0: // Gotoh Affine
+            k_ga<<<gridDim, blockDim>>>(m_seqs, d_buffer, d_progress, d_checksum, offset, batch);
             break;
 
-        case 1: // Gotoh Affine
-            k_ga<<<gridDim, blockDim>>>(m_seqs, d_buffer, d_progress, d_checksum, offset, batch);
+        case 1: // Needleman-Wunsch
+            k_nw<<<gridDim, blockDim>>>(m_seqs, d_buffer, d_progress, d_checksum, offset, batch);
             break;
 
         case 2: // Smith-Waterman
