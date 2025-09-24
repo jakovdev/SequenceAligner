@@ -5,8 +5,8 @@
 #define INTERFACE_SEQALIGN_CUDA_H
 
 #include "core/app/args.h"
-#include "core/biology/score/scoring.h"
-#include "core/biology/sequence/sequences.h"
+#include "core/bio/score/scoring.h"
+#include "core/bio/sequence/sequences.h"
 #include "seqalign_hdf5.h"
 #include "util/benchmark.h"
 #include "util/print.h"

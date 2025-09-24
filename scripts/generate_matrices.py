@@ -9,11 +9,11 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 if os.path.exists("scripts/generate_matrices.py"):
-    HEADER_FILE = "code/include/core/biology/score/matrices.h"
-    SOURCE_FILE = "code/src/core/biology/score/matrices.c"
+    HEADER_FILE = "code/include/core/bio/score/matrices.h"
+    SOURCE_FILE = "code/src/core/bio/score/matrices.c"
 else:
-    HEADER_FILE = "../code/include/core/biology/score/matrices.h"
-    SOURCE_FILE = "../code/src/core/biology/score/matrices.c"
+    HEADER_FILE = "../code/include/core/bio/score/matrices.h"
+    SOURCE_FILE = "../code/src/core/bio/score/matrices.c"
 
 AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYVBZX*"
 NUCLEOTIDES = "ATGCSWRYKMBVHDN*"
@@ -202,7 +202,7 @@ def generate_header_file(matrix_types):
 def generate_source_file(matrix_types):
     source_content = [
         "// clang-format off",
-        '#include "core/biology/score/matrices.h"',
+        '#include "core/bio/score/matrices.h"',
         "",
     ]
 

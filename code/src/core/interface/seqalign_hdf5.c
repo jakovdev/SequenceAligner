@@ -2,7 +2,7 @@
 
 #include <hdf5.h>
 
-#include "core/biology/types.h"
+#include "core/bio/types.h"
 #include "core/io/files.h"
 #include "system/arch.h"
 #include "util/print.h"
