@@ -212,6 +212,12 @@ Cuda::launchKernel(int kernel_id)
         cudaError_t err;
         alignment_size_t d_scores_size = 0;
 
+        err = cudaStreamCreate(&m_results.stream0);
+        CUDA_ERROR_CHECK("Failed to create compute stream");
+
+        err = cudaStreamCreate(&m_results.stream1);
+        CUDA_ERROR_CHECK("Failed to create copy stream");
+
         if (m_results.d_triangular)
         {
             m_results.h_batch_size = std::min(CUDA_BATCH_SIZE, m_results.h_total_count);
@@ -260,8 +266,8 @@ Cuda::getResults()
         static bool matrix_copied = false;
         if (!matrix_copied)
         {
-            err = cudaDeviceSynchronize();
-            CUDA_ERROR_CHECK("Device synchronization failed");
+            err = cudaStreamSynchronize(m_results.stream0);
+            CUDA_ERROR_CHECK("Compute stream synchronization failed");
             DEVICE_HOST_COPY(&m_results.h_progress, m_results.d_progress, 1, "progress");
 
             const alignment_size_t n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
@@ -274,7 +280,30 @@ Cuda::getResults()
 
     if (m_results.h_completed_batch >= m_results.h_total_count)
     {
+        if (m_results.copy_in_progress)
+        {
+            err = cudaStreamSynchronize(m_results.stream1);
+            CUDA_ERROR_CHECK("Copy stream synchronization failed");
+            m_results.copy_in_progress = false;
+        }
+
         return true;
+    }
+
+    if (m_results.copy_in_progress)
+    {
+        err = cudaStreamQuery(m_results.stream1);
+        if (err == cudaErrorNotReady)
+        {
+            return true;
+        }
+
+        else if (err != cudaSuccess)
+        {
+            CUDA_ERROR_CHECK("Copy stream query failed");
+        }
+
+        m_results.copy_in_progress = false;
     }
 
     if (!m_results.h_after_first && m_results.h_batch_size < m_results.h_total_count)
@@ -293,8 +322,8 @@ Cuda::getResults()
 
     else
     {
-        err = cudaDeviceSynchronize();
-        CUDA_ERROR_CHECK("Device synchronization failed");
+        err = cudaStreamSynchronize(m_results.stream0);
+        CUDA_ERROR_CHECK("Compute stream synchronization failed");
         DEVICE_HOST_COPY(&m_results.h_progress, m_results.d_progress, 1, "progress");
         buffer = m_results.d_scores0;
     }
@@ -305,7 +334,22 @@ Cuda::getResults()
     if (n_scores > 0)
     {
         score_t* host_scores = m_results.h_scores + batch_offset;
-        DEVICE_HOST_COPY(host_scores, buffer, n_scores, "batch scores");
+
+        if (m_results.h_after_first)
+        {
+            DEVICE_HOST_COPY_ASYNC(host_scores,
+                                   buffer,
+                                   n_scores,
+                                   "batch scores",
+                                   m_results.stream1);
+            m_results.copy_in_progress = true;
+        }
+
+        else
+        {
+            DEVICE_HOST_COPY(host_scores, buffer, n_scores, "batch scores");
+        }
+
         m_results.h_completed_batch += n_scores;
     }
 
@@ -334,6 +378,14 @@ Cuda::getChecksum()
     sll checksum = 0;
 
     cudaError_t err;
+
+    err = cudaStreamSynchronize(m_results.stream0);
+    if (err != cudaSuccess)
+    {
+        setError("Failed to synchronize compute stream", err);
+        return 0;
+    }
+
     DEVICE_HOST_COPY(&checksum, m_results.d_checksum, 1, "checksum");
 
     return checksum;
