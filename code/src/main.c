@@ -1,5 +1,6 @@
 #include "core/app/args.h"
 #include "core/app/thread.h"
+#include "core/biology/score/scoring.h"
 #include "core/interface/seqalign_hdf5.h"
 #include "core/io/files.h"
 #include "system/arch.h"
@@ -44,7 +45,11 @@ main(int argc, char* argv[])
     alignment_size_t total_alignments = sequences_alignment_count();
 
 #ifdef USE_CUDA
-    cuda_init();
+    if (args_mode_cuda())
+    {
+        cuda_init();
+    }
+
 #endif
 
     print_error_prefix("HDF5");
