@@ -227,7 +227,7 @@ matrix_seq_type_list(SequenceType seq_type)
 }
 
 const char*
-sequence_type_name(int seq_type)
+sequence_type_name(SequenceType seq_type)
 {
     return SEQUENCE_TYPES[seq_type].name;
 }
