@@ -1,3 +1,5 @@
+#ifdef USE_CUDA
+
 #pragma once
 #ifndef INTERFACE_SEQALIGN_CUDA_H
 #define INTERFACE_SEQALIGN_CUDA_H
@@ -159,3 +161,5 @@ cuda_align(void)
 #undef RETURN_CUDA_ERRORS
 
 #endif // INTERFACE_SEQALIGN_CUDA_H
+
+#endif // USE_CUDA
