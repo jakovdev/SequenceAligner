@@ -38,12 +38,25 @@ struct KernelResults
 
         cudaFree(d_progress);
         cudaFree(d_checksum);
+
+        if (stream0 != nullptr)
+        {
+            cudaStreamDestroy(stream0);
+        }
+
+        if (stream1 != nullptr)
+        {
+            cudaStreamDestroy(stream1);
+        }
     }
 
     score_t* d_scores0{ nullptr };
     score_t* d_scores1{ nullptr };
     ull* d_progress{ nullptr };
     sll* d_checksum{ nullptr };
+
+    cudaStream_t stream0{ nullptr };
+    cudaStream_t stream1{ nullptr };
 
     score_t* h_scores{ nullptr };
     half_t* h_indices_32{ nullptr };
@@ -57,6 +70,7 @@ struct KernelResults
     bool use_batching{ false };
     bool h_after_first{ false };
     bool d_triangular{ false };
+    bool copy_in_progress{ false };
 };
 
 class Cuda
@@ -208,6 +222,14 @@ class Cuda
     {                                                                                              \
         err = cudaMemcpyToSymbol(symbol, src, size);                                               \
         CUDA_ERROR_CHECK("Failed to copy " name " to GPU constant memory");                        \
+    } while (0)
+
+#define DEVICE_HOST_COPY_ASYNC(dst, src, size, name, stream)                                       \
+    do                                                                                             \
+    {                                                                                              \
+        static_assert(sizeof(*dst) == sizeof(*src), "Pointer types must match");                   \
+        err = cudaMemcpyAsync(dst, src, size * sizeof(*dst), cudaMemcpyDeviceToHost, stream);      \
+        CUDA_ERROR_CHECK("Failed to copy " name " from GPU asynchronously");                       \
     } while (0)
 
 #endif // CUDA_MANAGER_HPP
