@@ -3,8 +3,8 @@
 #include <ctype.h>
 #include <getopt.h>
 
-#include "core/biology/score/matrices.h"
-#include "core/biology/types.h"
+#include "core/bio/score/matrices.h"
+#include "core/bio/types.h"
 #include "system/arch.h"
 #include "util/print.h"
 

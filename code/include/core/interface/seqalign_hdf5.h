@@ -2,7 +2,7 @@
 #ifndef INTERFACE_SEQALIGN_HDF5_H
 #define INTERFACE_SEQALIGN_HDF5_H
 
-#include "core/biology/types.h"
+#include "core/bio/types.h"
 
 extern bool h5_open(const char* file_path,
                     sequence_count_t mat_dim,

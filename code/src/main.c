@@ -1,6 +1,6 @@
 #include "core/app/args.h"
 #include "core/app/thread.h"
-#include "core/biology/score/scoring.h"
+#include "core/bio/score/scoring.h"
 #include "core/interface/seqalign_cuda.h"
 #include "core/interface/seqalign_hdf5.h"
 #include "core/io/files.h"

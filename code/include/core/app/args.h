@@ -2,7 +2,7 @@
 #ifndef CORE_APP_ARGS_H
 #define CORE_APP_ARGS_H
 
-#include "core/biology/types.h"
+#include "core/bio/types.h"
 
 extern void args_init(int argc, char* argv[]);
 extern void args_print_config(void);

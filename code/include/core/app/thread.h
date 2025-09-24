@@ -5,8 +5,8 @@
 #include <stdatomic.h>
 
 #include "args.h"
-#include "core/biology/algorithm/alignment.h"
-#include "core/biology/sequence/sequences.h"
+#include "core/bio/algorithm/alignment.h"
+#include "core/bio/sequence/sequences.h"
 #include "core/interface/seqalign_cuda.h"
 #include "core/interface/seqalign_hdf5.h"
 #include "system/arch.h"

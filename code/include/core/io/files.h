@@ -2,7 +2,7 @@
 #ifndef CORE_IO_FILES_H
 #define CORE_IO_FILES_H
 
-#include "core/biology/types.h"
+#include "core/bio/types.h"
 
 typedef struct
 {
