@@ -32,9 +32,24 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 
 ## Installation
 
+### System Requirements
+
+#### CPU Version
+- Any x86-64 processor
+- Enough RAM to store sequences from a dataset
+- Disk space for output files (varies with dataset size)
+
+#### CUDA Version
+- NVIDIA GPU with compute capability 3.5 or higher
+- CUDA toolkit 10.0 or newer
+- Appropriate NVIDIA drivers
+
 ### Releases
 
-- Download the latest release from [Releases](https://github.com/jakovdev/SequenceAligner/releases/latest)
+- ~~Download the latest release from [Releases](https://github.com/jakovdev/SequenceAligner/releases/latest)~~
+
+> [!NOTE]
+> Will release once it's more user friendly (GUI instead of command line)
 
 
 ### Building from source
@@ -110,7 +125,7 @@ mingw32-make help
 ```
 
 > [!NOTE]
-> CUDA support is currently not yet available in the Windows build.
+> CUDA support is currently not yet available in the Windows build due to lack of MSVC compiler support in the codebase / MSYS2 compiler CUDA support.
 
 </details>
 
@@ -195,10 +210,6 @@ mingw32-make help
 
 ## Performance Benchmarks
 
-### Experimental Setup
-
-Performance evaluation was conducted using three carefully selected datasets representing different scales of bioinformatics analysis. These datasets were chosen to benchmark performance with respect to dataset size and average sequence length.
-
 **Test Hardware:**
 - **CPU**: AMD Ryzen 7 5700X3D (Zen 3 architecture, x86-64-v3)
 - **RAM**: 2x16GB DDR4-3200 CL16
@@ -212,21 +223,7 @@ Performance evaluation was conducted using three carefully selected datasets rep
 | AMP | 9,409 | 30.5 | 44,259,936 | Medium |
 | Drosophila | 58,746 | 17.9 | 1,725,516,885 | Large |
 
-### Dataset Scale and Sequence Length Impact
-
-Average sequence length significantly impacts per-alignment computational cost. The following table shows throughput (alignments per second) using 16 CPU threads with the Needleman-Wunsch algorithm:
-
-| **Dataset** | **Average Sequence Length** | **Throughput (Alignments/sec)** |
-|-------------|------------------------------|----------------------------------|
-| AVPPred | 21.6 (baseline) | 22,948,508 (baseline) |
-| AMP | 30.5 (+41.2%) | 12,616,052 (-45.0%) |
-| Drosophila | 17.9 (-17.1%) | 33,609,530 (+46.5%) |
-
-Despite AMP requiring 81× more alignments than AVPPred, it achieves only 55% of the throughput due to its 41% longer average sequence length. Conversely, Drosophila achieves 46% higher throughput with 17% shorter sequences, despite requiring 3,182× more alignments.
-
-### CPU Threading Performance
-
-Threading efficiency varies significantly by algorithm complexity on the AMP dataset (44.26M alignments):
+### CPU Threading Performance (AMP dataset)
 
 | **Algorithm** | **1 Thread** | **4 Threads** | **8 Threads** | **16 Threads** |
 |---------------|--------------|---------------|---------------|----------------|
@@ -234,13 +231,7 @@ Threading efficiency varies significantly by algorithm complexity on the AMP dat
 | Gotoh Affine | 166.204s | 42.118s (3.95×) | 21.244s (7.82×) | 13.305s (12.45×) |
 | Smith-Waterman | 174.372s | 44.692s (3.90×) | 22.253s (7.84×) | 13.757s (12.68×) |
 
-*Values in parentheses show speedup relative to single-thread performance*
-
-The Needleman-Wunsch algorithm achieves 7.91× speedup with 16 threads, while the more computationally intensive Gotoh and Smith-Waterman algorithms achieve superior scaling with 12.45× and 12.68× speedups respectively.
-
 ### CUDA Acceleration Performance
-
-CUDA implementation demonstrates exceptional performance improvements across all datasets and algorithms:
 
 | **Dataset** | **Algorithm** | **CPU 16T Time (s) \| APS (M)** | **CUDA Time (s) \| APS (M)** | **Speedup** |
 |-------------|---------------|------------------------------|-------------------------------|-------------|
@@ -256,14 +247,17 @@ CUDA implementation demonstrates exceptional performance improvements across all
 
 *APS = Alignments per second (millions)*
 
-CUDA acceleration provides substantial performance improvements with speedups ranging from 2.40× to 8.59×. The Gotoh and Smith-Waterman algorithms consistently achieve strong GPU acceleration (5.12× to 8.59×), while Needleman-Wunsch shows varied results (2.40× to 5.24×) depending on dataset characteristics.
+> [!NOTE]
+> For a large dataset like Drosophila, there was an issue during benchmark which lead to ~50% GPU utilization. After fixing it, the actual APS should be around 120-125M for NW, with times around 13-14 seconds.
+> The issue was related to the double buffer implementation which was erroneously blocking processing when copying results from the GPU, which halved the processing speed. This has been fixed in the latest code with asynchronous copying.
+> The table will be updated soon with new times soon(tm).
 
 ### Performance Summary
 
 - **Sequence Length Impact**: Shorter sequences significantly improve throughput due to reduced computational complexity per alignment
 - **Algorithm Scaling**: Complex algorithms (Gotoh, Smith-Waterman) benefit more from both CPU threading and GPU acceleration
 - **CUDA Advantages**: GPU acceleration is most effective for affine gap penalty algorithms and datasets with moderate to long sequences in an all-vs-all context where "long" is 30+ average amino acids or nucleotides
-- **Optimal Performance**: Drosophila dataset achieves highest absolute throughput (80.82M alignments/sec) with CUDA Needleman-Wunsch due to optimal combination of short sequences and massive scale
+- **Optimal Performance**: Drosophila dataset achieves highest absolute throughput (~~80.82M~~ 124.9M alignments/sec) with CUDA Needleman-Wunsch due to optimal combination of short sequences and massive scale
 
 > [!NOTE]
 > - For very large datasets where the Similarity Matrix exceeds available RAM/VRAM, alignments are performed in batches and written to disk before HDF5 conversion
@@ -281,6 +275,7 @@ CUDA acceleration provides substantial performance improvements with speedups ra
 
 All implementations use dynamic programming with optimized matrix operations.
 
+> [!NOTE]
 > Parasail python equivalents
 > - parasail.nw() is actually the Gotoh algorithm with affine gaps in SequenceAligner
 > - To get actual linear gaps in Parasail you need to set the `open` and `extend` parameters to the same value
@@ -327,6 +322,9 @@ All implementations use dynamic programming with optimized matrix operations.
   - For protein sequences: standard one-letter amino acid codes (ACDEFGHIKLMNPQRSTVWY)
   - For nucleotide sequences: standard DNA/RNA bases (ACGT)
 
+> [!NOTE]
+> FASTA support is coming soon(tm).
+
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format
 - **Content**:
@@ -339,18 +337,6 @@ All implementations use dynamic programming with optimized matrix operations.
 - **Viewing Results**:
   - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
   - Many programming languages have libraries to read HDF5 (Python: h5py, R: rhdf5)
-
-## System Requirements
-
-### CPU Version
-- Any x86-64 processor
-- Enough RAM to store sequences from a dataset
-- Disk space for output files (varies with dataset size)
-
-### CUDA Version
-- NVIDIA GPU with compute capability 3.5 or higher
-- CUDA toolkit 10.0 or newer
-- Appropriate NVIDIA drivers
 
 ## License
 
