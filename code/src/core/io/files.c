@@ -118,6 +118,8 @@ file_format_csv_parse(FileText* file)
 static bool
 file_format_fasta_parse(FileText* file)
 {
+    file->data.format.fasta.temp1 = 0;
+    file->data.format.fasta.temp2 = false;
     print_error_prefix("FASTA");
     print(ERROR, MSG_NONE, "Format not yet supported");
     return false;
@@ -239,6 +241,7 @@ file_text_open(FileText* file, const char* file_path)
         case FILE_FORMAT_FASTA:
             return file_format_fasta_parse(file);
         case FILE_FORMAT_UNKNOWN:
+        default:
             print(ERROR, MSG_NONE, "Failed to parse file format");
             file_text_close(file);
             return false;

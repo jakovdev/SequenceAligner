@@ -32,13 +32,13 @@ align_nw(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
     {
         for (sequence_length_t j = 1; j <= len1; j++)
         {
-            matrix[j] = j * (-gap_penalty);
+            matrix[j] = (score_t)j * (-gap_penalty);
         }
     }
 
     for (sequence_length_t i = 1; i <= len2; i++)
     {
-        matrix[i * cols] = i * (-gap_penalty);
+        matrix[i * cols] = (score_t)i * (-gap_penalty);
     }
 
 #else

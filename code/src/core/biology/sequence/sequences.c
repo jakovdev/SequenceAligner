@@ -221,6 +221,8 @@ validate_sequence(const sequence_ptr_t sequence, SequenceType sequence_type)
             valid_alphabet = NUCLEOTIDE_ALPHABET;
             alphabet_size = NUCLEOTIDE_SIZE;
             break;
+        case SEQ_TYPE_INVALID:
+        case SEQ_TYPE_COUNT:
         default:
             return false;
     }

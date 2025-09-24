@@ -85,7 +85,7 @@ filter_thread_worker(void* thread_arg)
     const unsigned long thread_num = args_thread_num();
     const unsigned long num_threads = (thread_num > 0) ? thread_num : 1;
     const sequence_count_t batch_size = (sequence_count_t)num_threads;
-    const sequence_count_t progress_update_interval = sequence_count / (num_threads * 100);
+    const sequence_count_t progress_update_interval = sequence_count / (batch_size * 100);
 
     sequence_count_t local_progress = 0;
     sequence_count_t local_filtered = 0;
@@ -229,7 +229,7 @@ filter_sequences_multithreaded(sequences_t sequences,
     const unsigned int update_interval_ms = 100;
     const sequence_count_t expected_progress = sequence_count > 1 ? sequence_count - 1 : 0;
 
-    for (sequence_count_t progress = atomic_load(&shared_progress); progress < expected_progress;
+    for (size_t progress = atomic_load(&shared_progress); progress < expected_progress;
          progress = atomic_load(&shared_progress))
     {
         usleep(update_interval_ms * 1000);

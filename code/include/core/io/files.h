@@ -39,6 +39,8 @@ typedef struct
 
         struct
         {
+            size_t temp1;
+            bool temp2;
         } fasta;
     } format;
 } FileFormatMetadata;

@@ -126,6 +126,11 @@ csv_header_parse(char* restrict file_cursor,
         exit(1);
     }
 
+    for (size_t i = 0; i < num_columns; i++)
+    {
+        headers[i] = NULL;
+    }
+
     const char* col_start = header_start;
     size_t column = 0;
 
@@ -172,6 +177,25 @@ csv_header_parse(char* restrict file_cursor,
     {
         bench_io_end();
         char** choices = MALLOC(choices, num_columns + 2);
+
+        if (!choices)
+        {
+            print(ERROR, MSG_NONE, "Memory allocation failed for choices array");
+            if (headers)
+            {
+                for (size_t i = 0; i < num_columns; i++)
+                {
+                    if (headers[i])
+                    {
+                        free(headers[i]);
+                    }
+                }
+                free(headers);
+            }
+
+            exit(1);
+        }
+
         for (column = 0; column < num_columns; column++)
         {
             choices[column] = headers[column];
@@ -185,6 +209,7 @@ csv_header_parse(char* restrict file_cursor,
         print(INFO, MSG_LOC(LAST), "Select the header name (this first line will be skipped!):");
 
         *seq_col = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
+        free(choices);
         bench_io_start();
     }
 

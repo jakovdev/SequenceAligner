@@ -21,6 +21,8 @@ align_pairwise(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
         case ALIGN_SMITH_WATERMAN:
             return align_sw(seq1, seq2);
 
+        case ALIGN_INVALID:
+        case ALIGN_COUNT:
         default:
             UNREACHABLE();
     }
