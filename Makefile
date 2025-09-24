@@ -57,7 +57,8 @@ OBJ_DIR := $(BIN_DIR)/obj
 # GCC files
 MAIN_SRC := $(SRC_DIR)/main.c
 HEADERS := $(wildcard $(INCLUDE_DIR)/*.h)
-SRCS := $(filter-out $(MAIN_SRC),$(wildcard $(SRC_DIR)/*.c))
+rwildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call rwildcard,$d/,$2))
+SRCS := $(filter-out $(MAIN_SRC),$(call rwildcard,$(SRC_DIR)/,*.c))
 OBJS := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRCS))
 # GCC files for various builds
 OBJS_DEBUG := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-debug.o,$(SRCS))
@@ -171,26 +172,32 @@ $(META_DIR):
 
 # GCC object files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%-debug.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling debug $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%-x86-64-v1.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling for x86-64-v1 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%-x86-64-v2.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling for x86-64-v2 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%-x86-64-v3.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling for x86-64-v3 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR)/%-x86-64-v4.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling for x86-64-v4 $<..."
 	@$(CC) $(CFLAGS) -c $< -o $@
 
@@ -233,10 +240,12 @@ $(CUDA_OBJ_DIR)/%-debug.o: $(CUDA_SRC_DIR)/%.cu $(CUDA_HEADERS) | $(CUDA_OBJ_DIR
 	@$(NVCC) $(CUDA_DEBUG_FLAGS) -c $< -o $@
 # CUDA C object files
 $(CUDA_OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(CUDA_OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling CUDA C source: $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 $(CUDA_OBJ_DIR)/%-debug.o: $(SRC_DIR)/%.c $(HEADERS) | $(CUDA_OBJ_DIR)
+	@$(MKDIR) $(dir $@)
 	@echo "Compiling CUDA C debug source: $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
@@ -249,9 +258,9 @@ $(CUDA_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS) $(CUDA_C_OBJS) $(CUDA_HEADERS) 
         ln -sf $(notdir $(CUDA_BIN)) $(MAIN_BIN); \
     fi
 
-$(CUDA_DEBUG_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS) $(CUDA_HEADERS) | $(BIN_DIR) check-cuda check-libraries
+$(CUDA_DEBUG_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS_DEBUG) $(CUDA_HEADERS) | $(BIN_DIR) check-cuda check-libraries
 	@echo "Compiling Debug Sequence Aligner with CUDA..."
-	@$(CC) $(CFLAGS) $< $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS) -o $@ $(CLIBS) && echo "CUDA debug build complete! Run the program with: $@"
+	@$(CC) $(CFLAGS) $< $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS_DEBUG) -o $@ $(CLIBS) && echo "CUDA debug build complete! Run the program with: $@"
 
 clean:
 	@echo "Cleaning previous build..."
