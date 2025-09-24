@@ -30,16 +30,16 @@ static struct
     const char** aliases;
     GapPenaltyType gap_type;
 } ALIGNMENT_METHODS[] = { //
-    { ALIGN_NEEDLEMAN_WUNSCH,
-      "Needleman-Wunsch",
-      "global alignment",
-      (const char*[]){ "nw", "needleman", NULL },
-      GAP_TYPE_LINEAR },
     { ALIGN_GOTOH_AFFINE,
       "Gotoh (affine)",
       "global alignment",
       (const char*[]){ "ga", "gotoh", NULL },
       GAP_TYPE_AFFINE },
+    { ALIGN_NEEDLEMAN_WUNSCH,
+      "Needleman-Wunsch",
+      "global alignment",
+      (const char*[]){ "nw", "needleman", NULL },
+      GAP_TYPE_LINEAR },
     { ALIGN_SMITH_WATERMAN,
       "Smith-Waterman",
       "local alignment",
