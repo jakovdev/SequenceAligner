@@ -17,12 +17,12 @@ linear_global_init(score_t* restrict matrix, const sequence_ptr_t seq1, const se
     matrix[0] = 0;
     VECTORIZE UNROLL(8) for (sequence_length_t j = 1; j <= len1; j++)
     {
-        matrix[j] = j * (-gap_penalty);
+        matrix[j] = (score_t)j * (-gap_penalty);
     }
 
     VECTORIZE UNROLL(8) for (sequence_length_t i = 1; i <= len2; i++)
     {
-        matrix[i * cols] = i * (-gap_penalty);
+        matrix[i * cols] = (score_t)i * (-gap_penalty);
     }
 }
 
@@ -83,7 +83,7 @@ simd_linear_global_row_init(score_t* restrict matrix, const sequence_ptr_t seq1)
         {
             for (sequence_length_t k = 0; k < remaining; k++)
             {
-                matrix[j + k] = (j + k) * (-gap_penalty);
+                matrix[j + k] = (score_t)(j + k) * (-gap_penalty);
             }
         }
 
