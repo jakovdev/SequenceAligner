@@ -250,25 +250,63 @@ validate_sequence(const sequence_ptr_t sequence, SequenceType sequence_type)
     return true;
 }
 
+#ifdef USE_CUDA
+static bool
+calculate_cuda_arrays_and_stats(sequences_t sequences, sequence_count_t sequence_count)
+{
+    size_t total_sequence_length = 0;
+    sequence_length_t max_sequence_length = 0;
+
+    for (sequence_index_t i = 0; i < sequence_count; i++)
+    {
+        total_sequence_length += sequences[i].length;
+        if (max_sequence_length < sequences[i].length)
+        {
+            max_sequence_length = sequences[i].length;
+        }
+    }
+
+    g_sequence_dataset.flat_sequences = MALLOC(g_sequence_dataset.flat_sequences,
+                                               total_sequence_length);
+    g_sequence_dataset.flat_offsets = MALLOC(g_sequence_dataset.flat_offsets, sequence_count);
+    g_sequence_dataset.flat_lengths = MALLOC(g_sequence_dataset.flat_lengths, sequence_count);
+
+    if (!g_sequence_dataset.flat_sequences || !g_sequence_dataset.flat_offsets ||
+        !g_sequence_dataset.flat_lengths)
+    {
+        print_error_prefix("CUDA");
+        print(ERROR, MSG_NONE, "Failed to allocate flattened arrays");
+        return false;
+    }
+
+    sequence_offset_t offset = 0;
+    for (sequence_index_t i = 0; i < sequence_count; i++)
+    {
+        g_sequence_dataset.flat_offsets[i] = offset;
+        g_sequence_dataset.flat_lengths[i] = (quar_t)sequences[i].length;
+        memcpy(g_sequence_dataset.flat_sequences + offset,
+               sequences[i].letters,
+               sequences[i].length);
+        offset += (sequence_offset_t)sequences[i].length;
+    }
+
+    g_sequence_dataset.total_sequence_length = total_sequence_length;
+    g_sequence_dataset.max_sequence_length = max_sequence_length;
+
+    return true;
+}
+
+#endif
+
 static void
 compact_sequences(sequences_t sequences,
                   sequence_count_t original_count,
                   bool* keep_flags,
                   sequence_count_t* final_count,
-                  size_t* total_sequence_length
-#ifdef USE_CUDA
-                  ,
-                  sequence_offset_t* temp_offsets,
-                  quar_t* temp_lengths,
-                  sequence_length_t* max_sequence_length
-#endif
-)
+                  size_t* total_sequence_length)
 {
     sequence_count_t write_index = 0;
     *total_sequence_length = 0;
-#ifdef USE_CUDA
-    *max_sequence_length = 0;
-#endif
 
     for (sequence_count_t read_index = 0; read_index < original_count; read_index++)
     {
@@ -277,28 +315,8 @@ compact_sequences(sequences_t sequences,
             if (write_index != read_index)
             {
                 sequences[write_index] = sequences[read_index];
-#ifdef USE_CUDA
-                if (temp_offsets && temp_lengths)
-                {
-                    temp_offsets[write_index] = (sequence_offset_t)(*total_sequence_length);
-                    temp_lengths[write_index] = temp_lengths[read_index];
-                }
-
-#endif
             }
 
-#ifdef USE_CUDA
-            else if (temp_offsets && temp_lengths)
-            {
-                temp_offsets[write_index] = (sequence_offset_t)(*total_sequence_length);
-            }
-
-            if (temp_lengths && *max_sequence_length < temp_lengths[write_index])
-            {
-                *max_sequence_length = temp_lengths[write_index];
-            }
-
-#endif
             *total_sequence_length += sequences[write_index].length;
             write_index++;
         }
@@ -338,24 +356,6 @@ sequences_alloc_from_file(FileTextPtr input_file)
     bool asked_user_about_invalid = false;
     sequence_count_t invalid_count = 0;
     SequenceType sequence_type = args_sequence_type();
-
-#ifdef USE_CUDA
-    const bool use_cuda = args_mode_cuda();
-    sequence_length_t max_sequence_length = 0;
-    sequence_offset_t* temp_offsets = NULL;
-    quar_t* temp_lengths = NULL;
-    if (use_cuda)
-    {
-        temp_offsets = MALLOC(temp_offsets, total);
-        temp_lengths = MALLOC(temp_lengths, total);
-        if (!temp_offsets || !temp_lengths)
-        {
-            print(ERROR, MSG_NONE, "Failed to allocate memory for CUDA arrays");
-            goto cleanup_sequences;
-        }
-    }
-
-#endif
 
     sequence_t sequence_current = { 0 };
     char* file_cursor = input_file->data.start;
@@ -446,16 +446,6 @@ sequences_alloc_from_file(FileTextPtr input_file)
         }
 
         sequence_init(&sequences[sequence_count_current], &sequence_current);
-#ifdef USE_CUDA
-        if (use_cuda)
-        {
-            temp_lengths[sequence_count_current] = (quar_t)sequence_current.length;
-            if (max_sequence_length < sequence_current.length)
-            {
-                max_sequence_length = sequence_current.length;
-            }
-        }
-#endif
         total_sequence_length += sequence_current.length;
         sequence_count_current++;
 
@@ -539,14 +529,7 @@ sequences_alloc_from_file(FileTextPtr input_file)
                           sequence_count,
                           keep_flags,
                           &sequence_count,
-                          &total_sequence_length
-#ifdef USE_CUDA
-                          ,
-                          temp_offsets,
-                          temp_lengths,
-                          &max_sequence_length
-#endif
-        );
+                          &total_sequence_length);
 
         free(keep_flags);
 
@@ -565,23 +548,6 @@ sequences_alloc_from_file(FileTextPtr input_file)
         {
             sequences = _sequences_new;
         }
-
-#ifdef USE_CUDA
-        if (use_cuda)
-        {
-            sequence_offset_t* _offsets_new = REALLOC(temp_offsets, sequence_count);
-            if (_offsets_new)
-            {
-                temp_offsets = _offsets_new;
-            }
-
-            quar_t* _lengths_new = REALLOC(temp_lengths, sequence_count);
-            if (_lengths_new)
-            {
-                temp_lengths = _lengths_new;
-            }
-        }
-#endif
     }
 
     if (apply_filtering)
@@ -600,43 +566,13 @@ sequences_alloc_from_file(FileTextPtr input_file)
     g_sequence_dataset.alignment_count = alignment_count;
 
 #ifdef USE_CUDA
-    if (use_cuda)
+    if (args_mode_cuda())
     {
-        print_error_prefix("CUDA");
-
-        g_sequence_dataset.flat_sequences = MALLOC(g_sequence_dataset.flat_sequences,
-                                                   total_sequence_length);
-        g_sequence_dataset.flat_offsets = MALLOC(g_sequence_dataset.flat_offsets, sequence_count);
-        g_sequence_dataset.flat_lengths = MALLOC(g_sequence_dataset.flat_lengths, sequence_count);
-
-        if (!g_sequence_dataset.flat_sequences || !g_sequence_dataset.flat_offsets ||
-            !g_sequence_dataset.flat_lengths)
+        if (!calculate_cuda_arrays_and_stats(sequences, sequence_count))
         {
-            print(ERROR, MSG_NONE, "Failed to allocate flattened arrays");
             goto cleanup_sequences;
         }
-
-        memcpy(g_sequence_dataset.flat_offsets,
-               temp_offsets,
-               sequence_count * sizeof(sequence_offset_t));
-        memcpy(g_sequence_dataset.flat_lengths, temp_lengths, sequence_count * sizeof(quar_t));
-
-        size_t offset = 0;
-        for (sequence_index_t i = 0; i < sequence_count; i++)
-        {
-            memcpy(g_sequence_dataset.flat_sequences + offset,
-                   sequences[i].letters,
-                   sequences[i].length);
-            offset += sequences[i].length;
-        }
-
-        g_sequence_dataset.total_sequence_length = total_sequence_length;
-        g_sequence_dataset.max_sequence_length = max_sequence_length;
-
-        free(temp_lengths);
-        free(temp_offsets);
     }
-
 #endif
 
     return true;
@@ -648,14 +584,6 @@ cleanup_sequence_current:
     }
 
 cleanup_sequences:
-#ifdef USE_CUDA
-    if (use_cuda)
-    {
-        free(temp_lengths);
-        free(temp_offsets);
-    }
-
-#endif
     free(sequences);
     return false;
 }
