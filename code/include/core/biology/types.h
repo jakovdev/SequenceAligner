@@ -15,8 +15,8 @@ typedef enum
 typedef enum
 {
     ALIGN_INVALID = -1,
-    ALIGN_NEEDLEMAN_WUNSCH,
     ALIGN_GOTOH_AFFINE,
+    ALIGN_NEEDLEMAN_WUNSCH,
     ALIGN_SMITH_WATERMAN,
     // NOTE: Additional alignment methods can be added here if needed.
     //       However, this requires implementing the corresponding algorithm.
