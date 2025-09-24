@@ -2,8 +2,8 @@
 #ifndef HOST_TYPES_H
 #define HOST_TYPES_H
 
-// CUDA version of biotypes.h
-// This file gets used over biotypes.h when compiling with CUDA
+// CUDA version of types.h
+// This file gets used over types.h when compiling with CUDA
 
 #include <stddef.h>
 #include <stdint.h>

@@ -1,13 +1,13 @@
-#include "arch.h"
-#include "args.h"
-#include "benchmark.h"
-#include "files.h"
-#include "print.h"
-#include "seqalign_hdf5.h"
-#include "thread.h"
+#include "core/app/args.h"
+#include "core/app/thread.h"
+#include "core/interface/seqalign_hdf5.h"
+#include "core/io/files.h"
+#include "system/arch.h"
+#include "util/benchmark.h"
+#include "util/print.h"
 
 #ifdef USE_CUDA
-#include "seqalign_cuda.h"
+#include "core/interface/seqalign_cuda.h"
 #endif
 
 int
