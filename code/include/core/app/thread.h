@@ -98,7 +98,7 @@ align_thread_worker(void* thread_arg)
                     continue;
                 }
 
-                score_t score = align_pairwise(*seq1, *seq2);
+                score_t score = align_pairwise(seq1, seq2);
 
                 storage->local_checksum += score;
 
@@ -238,7 +238,7 @@ align_singlethreaded(void)
 
             sequences_get_pair(i, &seq1, j, &seq2);
 
-            score_t score = align_pairwise(*seq1, *seq2);
+            score_t score = align_pairwise(seq1, seq2);
 
             local_checksum += score;
 
