@@ -14,7 +14,7 @@ help:
 	@echo "==============================================="
 	@echo ""
 	@echo "Available commands:"
-	@echo "  $(MAKE_CMD) native      - Build the program for your specific PC"
+	@echo "  $(MAKE_CMD) native       - Build the program for your specific PC"
 	@echo "  $(MAKE_CMD) clean        - Remove built files"
 	@echo "  $(MAKE_CMD) setup        - Check if required tools exist"
 	@echo "  $(MAKE_CMD) update       - Update required tools"
