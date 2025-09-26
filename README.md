@@ -148,7 +148,7 @@ mingw32-make help
 **Required arguments:**
 | Argument | Description |
 |--------|-------------|
-| `-i, --input FILE` | Input CSV file path |
+| `-i, --input FILE` | Input FASTA or CSV file path |
 | `-t, --type TYPE` | Sequence type: amino (protein), nucleotide (DNA/RNA) |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see options) |
@@ -313,17 +313,14 @@ All implementations use dynamic programming with optimized matrix operations.
 ## File Formats
 
 ### Input Format
-- **File Type**: Simple CSV (comma-separated values) text file
-- **Content Requirements**:
+- **File Type**: FASTA or CSV format
+- **Sequences**:
+  - For protein sequences: IUPAC amino acid single letter codes (ARNDCQEGHILKMFPSTWYVBZX*)
+  - For nucleotide sequences: IUPAC nucleotide single letter codes (ATGCSWRYKMBVHDN*)
+- **CSV Requirements**:
   - Must contain one column with biological sequence data (amino acids or nucleotides)
   - No specific header requirements - the program will scan and identify the sequence column
   - The program will prompt you to select the correct one if it can't find one automatically
-- **Sequence Format**:
-  - For protein sequences: standard one-letter amino acid codes (ACDEFGHIKLMNPQRSTVWY)
-  - For nucleotide sequences: standard DNA/RNA bases (ACGT)
-
-> [!NOTE]
-> FASTA support is coming soon(tm).
 
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format
@@ -333,7 +330,7 @@ All implementations use dynamic programming with optimized matrix operations.
 - **Size Considerations**:
   - The matrix grows with the square of the sequence count (1,000 sequences = 1 million cells = 4 MB)
     > Each score number (cell) is 4 bytes
-  - For very large datasets, the program will automatically use disk-based storage when needed, so check if you have enough free disk storage if aligning a dataset with hundreds of thousands of sequences (50 to 100+ GB)
+  - For very large datasets, the program will automatically use disk-based storage when needed, so check if you have enough free disk storage if aligning a dataset with hundreds of thousands of sequences (100+ GB simlarity matrix!)
 - **Viewing Results**:
   - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
   - Many programming languages have libraries to read HDF5 (Python: h5py, R: rhdf5)
