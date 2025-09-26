@@ -1,6 +1,7 @@
 #include "core/io/files.h"
 
 #include "core/io/format/csv.h"
+#include "core/io/format/fasta.h"
 #include "system/arch.h"
 #include "util/print.h"
 
@@ -101,7 +102,7 @@ file_format_csv_parse(FileText* file)
 
     if (file->data.total >= SEQUENCE_COUNT_MAX)
     {
-        print(ERROR, MSG_NONE, "Too many lines in input file: %u", file->data.total);
+        print(ERROR, MSG_NONE, "Too many sequences in input file: %u", file->data.total);
         return false;
     }
 
@@ -111,18 +112,42 @@ file_format_csv_parse(FileText* file)
         return false;
     }
 
-    print(DNA, MSG_NONE, "Found %u potential sequences", file->data.total);
+    print(DNA, MSG_NONE, "Found %u sequences", file->data.total);
     return true;
 }
 
 static bool
 file_format_fasta_parse(FileText* file)
 {
-    file->data.format.fasta.temp1 = 0;
-    file->data.format.fasta.temp2 = false;
+    if (!file->text)
+    {
+        return false;
+    }
+
     print_error_prefix("FASTA");
-    print(ERROR, MSG_NONE, "Format not yet supported");
-    return false;
+
+    if (!fasta_validate(file->data.start, file->data.end))
+    {
+        return false;
+    }
+
+    print(VERBOSE, MSG_NONE, "Counting sequences in input file");
+    file->data.total = (sequence_count_t)fasta_total_entries(file->data.start, file->data.end);
+
+    if (file->data.total >= SEQUENCE_COUNT_MAX)
+    {
+        print(ERROR, MSG_NONE, "Too many sequences in input file: %u", file->data.total);
+        return false;
+    }
+
+    if (!file->data.total)
+    {
+        print(ERROR, MSG_NONE, "No sequences found in input file");
+        return false;
+    }
+
+    print(DNA, MSG_NONE, "Found %u sequences", file->data.total);
+    return true;
 }
 
 void
@@ -262,9 +287,7 @@ file_sequence_next_length(FileTextPtr file, char* cursor)
         case FILE_FORMAT_CSV:
             return csv_line_column_length(cursor, file->data.format.csv.sequence_column);
         case FILE_FORMAT_FASTA:
-            // TODO: Implement FASTA sequence length detection
-            print(ERROR, MSG_NONE, "FASTA format not yet supported");
-            exit(1);
+            return fasta_entry_length(cursor, file->data.end);
         case FILE_FORMAT_UNKNOWN:
         default:
             print(ERROR, MSG_NONE, "Unknown file format");
@@ -286,9 +309,7 @@ file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor)
         case FILE_FORMAT_CSV:
             return csv_line_next(p_cursor);
         case FILE_FORMAT_FASTA:
-            // TODO: Implement FASTA line navigation
-            print(ERROR, MSG_NONE, "FASTA format not yet supported");
-            exit(1);
+            return fasta_entry_next(p_cursor);
         case FILE_FORMAT_UNKNOWN:
         default:
             print(ERROR, MSG_NONE, "Unknown file format");
@@ -310,9 +331,7 @@ file_extract_sequence(FileTextPtr file, char* restrict* restrict p_cursor, char*
         case FILE_FORMAT_CSV:
             return csv_line_column_extract(p_cursor, output, file->data.format.csv.sequence_column);
         case FILE_FORMAT_FASTA:
-            // TODO
-            print(ERROR, MSG_NONE, "FASTA format not yet supported");
-            exit(1);
+            return fasta_entry_extract(p_cursor, file->data.end, output);
         case FILE_FORMAT_UNKNOWN:
         default:
             print(ERROR, MSG_NONE, "Unknown file format");
