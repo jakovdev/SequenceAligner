@@ -380,9 +380,11 @@ sequences_alloc_from_file(FileTextPtr input_file)
         {
             if (!asked_user_about_skipping)
             {
+                bench_io_end();
                 print(WARNING, MSG_NONE, "Found very large sequence (>%d)", SEQUENCE_LENGTH_MAX);
                 skip_long_sequences = print_yN("Skip sequences that are too long? [y/N]");
                 asked_user_about_skipping = true;
+                bench_io_start();
             }
 
             if (skip_long_sequences)
@@ -427,10 +429,12 @@ sequences_alloc_from_file(FileTextPtr input_file)
         {
             if (!asked_user_about_invalid)
             {
+                bench_io_end();
                 print(WARNING, MSG_LOC(FIRST), "Found sequence with invalid letters");
                 print(WARNING, MSG_LOC(LAST), "Sequence: %s is invalid", sequence_current.letters);
                 skip_invalid_sequences = print_yN("Skip sequences with invalid letters? [y/N]");
                 asked_user_about_invalid = true;
+                bench_io_start();
             }
 
             if (skip_invalid_sequences)
