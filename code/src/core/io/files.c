@@ -61,7 +61,9 @@ file_format_detect(const char* file_path)
     }
 
     else if (strcasecmp(ext, "fasta") == 0 || strcasecmp(ext, "fa") == 0 ||
-             strcasecmp(ext, "fas") == 0)
+             strcasecmp(ext, "fas") == 0 || strcasecmp(ext, "fna") == 0 ||
+             strcasecmp(ext, "ffn") == 0 || strcasecmp(ext, "faa") == 0 ||
+             strcasecmp(ext, "frn") == 0 || strcasecmp(ext, "mpfa") == 0)
     {
         return FILE_FORMAT_FASTA;
     }
