@@ -3,7 +3,6 @@
 #include "core/bio/score/scoring.h"
 #include "core/interface/seqalign_cuda.h"
 #include "core/interface/seqalign_hdf5.h"
-#include "core/io/files.h"
 #include "system/arch.h"
 #include "util/benchmark.h"
 #include "util/print.h"
@@ -27,13 +26,9 @@ main(int argc, char* argv[])
 
     bench_io_start();
 
+    if (!sequences_load_from_file())
     {
-        CLEANUP(file_text_close) FileText input_file = { 0 };
-
-        if (!file_text_open(&input_file, args_input()) || !sequences_alloc_from_file(&input_file))
-        {
-            return 1;
-        }
+        return 1;
     }
 
     bench_io_end();
