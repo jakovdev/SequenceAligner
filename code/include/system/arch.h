@@ -40,7 +40,12 @@
 
 #ifdef _WIN32
 
+#if __has_include(<Shlwapi.h>)
 #include <Shlwapi.h>
+#else
+#include <shlwapi.h>
+#endif
+
 #include <conio.h>
 #include <io.h>
 #include <malloc.h>
@@ -54,6 +59,10 @@
 
 #ifdef OPTIONAL
 #undef OPTIONAL
+#endif
+
+#ifdef REQUIRED
+#undef REQUIRED
 #endif
 
 typedef HANDLE pthread_t;

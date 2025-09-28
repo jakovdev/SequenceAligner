@@ -10,6 +10,17 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#ifdef ERROR
+#undef ERROR
+#endif
+
+#ifdef OPTIONAL
+#undef OPTIONAL
+#endif
+
+#ifdef REQUIRED
+#undef REQUIRED
+#endif
 #else
 #include <termios.h>
 #include <unistd.h>

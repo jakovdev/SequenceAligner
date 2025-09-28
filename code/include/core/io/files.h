@@ -4,6 +4,10 @@
 
 #include "core/bio/types.h"
 
+#ifdef _WIN32
+#include "system/arch.h"
+#endif
+
 typedef struct
 {
     size_t bytes;
