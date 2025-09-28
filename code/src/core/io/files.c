@@ -98,6 +98,7 @@ file_format_csv_parse(FileText* file)
                                                &file->data.format.csv.sequence_column);
 
     file->data.start = file->data.format.csv.headerless ? file->text : file_header_start;
+    file->data.cursor = file->data.start;
 
     print(VERBOSE, MSG_NONE, "Counting sequences in input file");
     file->data.total = (sequence_count_t)csv_total_lines(file->data.start, file->data.end);
@@ -257,6 +258,7 @@ file_text_open(FileText* file, const char* file_path)
 
     file->data.start = file->text;
     file->data.end = file->text + file->meta.bytes;
+    file->data.cursor = file->data.start;
 
     FileFormat type = file_format_detect(file_path);
     file->data.type = type;
@@ -275,10 +277,22 @@ file_text_open(FileText* file, const char* file_path)
     }
 }
 
-size_t
-file_sequence_next_length(FileTextPtr file, char* cursor)
+sequence_count_t
+file_sequence_total(FileText* file)
 {
-    if (!file || !cursor)
+    if (!file)
+    {
+        print(ERROR, MSG_NONE, "Invalid parameters for total sequence count");
+        exit(1);
+    }
+
+    return file->data.total;
+}
+
+size_t
+file_sequence_next_length(FileText* file)
+{
+    if (!file)
     {
         print(ERROR, MSG_NONE, "Invalid parameters for sequence column length");
         exit(1);
@@ -287,9 +301,9 @@ file_sequence_next_length(FileTextPtr file, char* cursor)
     switch (file->data.type)
     {
         case FILE_FORMAT_CSV:
-            return csv_line_column_length(cursor, file->data.format.csv.sequence_column);
+            return csv_line_column_length(file->data.cursor, file->data.format.csv.sequence_column);
         case FILE_FORMAT_FASTA:
-            return fasta_entry_length(cursor, file->data.end);
+            return fasta_entry_length(file->data.cursor, file->data.end);
         case FILE_FORMAT_UNKNOWN:
         default:
             print(ERROR, MSG_NONE, "Unknown file format");
@@ -298,9 +312,9 @@ file_sequence_next_length(FileTextPtr file, char* cursor)
 }
 
 bool
-file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor)
+file_sequence_next(FileText* file)
 {
-    if (!file || !p_cursor)
+    if (!file)
     {
         print(ERROR, MSG_NONE, "Invalid parameters for next sequence line");
         exit(1);
@@ -309,9 +323,9 @@ file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor)
     switch (file->data.type)
     {
         case FILE_FORMAT_CSV:
-            return csv_line_next(p_cursor);
+            return csv_line_next(&file->data.cursor);
         case FILE_FORMAT_FASTA:
-            return fasta_entry_next(p_cursor);
+            return fasta_entry_next(&file->data.cursor);
         case FILE_FORMAT_UNKNOWN:
         default:
             print(ERROR, MSG_NONE, "Unknown file format");
@@ -320,9 +334,9 @@ file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor)
 }
 
 size_t
-file_extract_sequence(FileTextPtr file, char* restrict* restrict p_cursor, char* restrict output)
+file_extract_sequence(FileText* restrict file, char* restrict output)
 {
-    if (!file || !p_cursor || !output)
+    if (!file || !output)
     {
         print(ERROR, MSG_NONE, "Invalid parameters for sequence extraction");
         exit(1);
@@ -331,9 +345,11 @@ file_extract_sequence(FileTextPtr file, char* restrict* restrict p_cursor, char*
     switch (file->data.type)
     {
         case FILE_FORMAT_CSV:
-            return csv_line_column_extract(p_cursor, output, file->data.format.csv.sequence_column);
+            return csv_line_column_extract(&file->data.cursor,
+                                           output,
+                                           file->data.format.csv.sequence_column);
         case FILE_FORMAT_FASTA:
-            return fasta_entry_extract(p_cursor, file->data.end, output);
+            return fasta_entry_extract(&file->data.cursor, file->data.end, output);
         case FILE_FORMAT_UNKNOWN:
         default:
             print(ERROR, MSG_NONE, "Unknown file format");

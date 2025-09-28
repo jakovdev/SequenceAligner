@@ -3,9 +3,8 @@
 #define CORE_BIO_SEQUENCE_SEQUENCES_H
 
 #include "core/bio/types.h"
-#include "core/io/files.h"
 
-extern bool sequences_alloc_from_file(FileTextPtr input_file);
+extern bool sequences_load_from_file(void);
 extern sequences_t sequences_get(void);
 extern sequence_count_t sequences_count(void);
 extern alignment_size_t sequences_alignment_count(void);

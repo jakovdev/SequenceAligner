@@ -32,6 +32,7 @@ typedef struct
     FileFormat type;
     char* start;
     char* end;
+    char* cursor;
 
     union
     {
@@ -49,7 +50,7 @@ typedef struct
     } format;
 } FileFormatMetadata;
 
-typedef struct FileText
+typedef struct
 {
     FileMetadata meta;
     FileFormatMetadata data;
@@ -62,15 +63,12 @@ typedef struct
     score_t* matrix;
 } FileScoreMatrix;
 
-typedef struct FileText* restrict FileTextPtr;
-
-bool file_text_open(FileText* file, const char* file_path);
+bool file_text_open(FileText* restrict file, const char* restrict file_path);
 void file_text_close(FileText* file);
-size_t file_sequence_next_length(FileTextPtr file, char* cursor);
-bool file_sequence_next(FileTextPtr file, char* restrict* restrict p_cursor);
-size_t file_extract_sequence(FileTextPtr file,
-                             char* restrict* restrict p_cursor,
-                             char* restrict output);
+sequence_count_t file_sequence_total(FileText* file);
+size_t file_sequence_next_length(FileText* file);
+bool file_sequence_next(FileText* file);
+size_t file_extract_sequence(FileText* restrict file, char* restrict output);
 FileScoreMatrix file_matrix_open(const char* file_path, sequence_count_t matrix_dim);
 void file_matrix_close(FileScoreMatrix* file);
 alignment_size_t matrix_triangle_index(sequence_index_t row, sequence_index_t col);
