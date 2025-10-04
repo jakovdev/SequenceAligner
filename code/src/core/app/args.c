@@ -504,7 +504,10 @@ args_parse(int argc, char* argv[])
 
     if (args.thread_num == 0)
     {
-        const long threads = thread_count();
+        long threads = thread_count();
+#ifdef _WIN32
+        threads = (threads > 2) ? threads - 2 : threads;
+#endif
         args.thread_num = (threads > 0) ? (unsigned long)threads : 1;
     }
 

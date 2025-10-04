@@ -10,6 +10,7 @@
 #endif
 
 // GCC/Clang specific macros
+#if defined(__GNUC__) || defined(__clang__)
 #define LIKELY(x) __builtin_expect(!!(x), 1)
 #define UNLIKELY(x) __builtin_expect(!!(x), 0)
 #define UNREACHABLE() __builtin_unreachable()
@@ -17,14 +18,47 @@
 #define ALLOC __attribute__((malloc, alloc_size(1)))
 #define UNUSED __attribute__((unused))
 #define DESTRUCTOR __attribute__((destructor))
-#define CLEANUP(function) __attribute__((cleanup(function)))
 #define PRAGMA(n) _Pragma(#n)
 #if defined(__clang__)
 #define UNROLL(n) PRAGMA(unroll n)
 #define VECTORIZE PRAGMA(clang loop vectorize(assume_safety))
-#else
+#else // GCC
 #define UNROLL(n) PRAGMA(GCC unroll n)
 #define VECTORIZE PRAGMA(GCC ivdep)
+#endif // clang
+#elif defined(_MSC_VER)
+#define LIKELY(x) (x)
+#define UNLIKELY(x) (x)
+#define UNREACHABLE() __assume(0)
+#define ALIGN __declspec(align(CACHE_LINE))
+#define ALLOC
+#define UNUSED
+#define DESTRUCTOR
+#define PRAGMA(n) __pragma(n)
+#define UNROLL(n)
+#define VECTORIZE PRAGMA(loop(ivdep))
+
+#define strcasecmp _stricmp
+#include <intrin.h>
+#define __builtin_popcount(x) ((int)__popcnt(x))
+#define __builtin_popcountll(x) ((int)__popcnt64(x))
+
+static inline int
+__builtin_ctz(unsigned int x)
+{
+    unsigned long index;
+    _BitScanForward(&index, x);
+    return (int)index;
+}
+
+static inline int
+__builtin_ctzll(unsigned long long x)
+{
+    unsigned long index;
+    _BitScanForward64(&index, x);
+    return (int)index;
+}
+
 #endif
 
 // System and memory-related constants

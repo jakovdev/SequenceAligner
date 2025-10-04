@@ -8,3 +8,4 @@ compile_commands.json
 benchmark_results/
 .stignore
 .stfolder/
+vcpkg_installed/

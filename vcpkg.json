@@ -1,0 +1,6 @@
+{
+  "dependencies": [
+    "getopt",
+    "hdf5"
+  ]
+}
