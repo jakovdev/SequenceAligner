@@ -43,6 +43,31 @@ static struct
 #endif
 } g_sequence_dataset = { 0 };
 
+DESTRUCTOR static void
+seq_pool_free(void)
+{
+    if (!g_pool.head)
+    {
+        return;
+    }
+
+    SeqMemBlock* curr = g_pool.head;
+    while (curr)
+    {
+        SeqMemBlock* next = curr->next;
+        aligned_free(curr->block);
+        curr->block = NULL;
+        free(curr);
+        curr = next;
+    }
+
+    g_pool.head = NULL;
+    g_pool.current = NULL;
+    g_pool.total_bytes = 0;
+    g_pool.total_allocated = 0;
+    g_pool.block_count = 0;
+}
+
 static void
 seq_pool_init(void)
 {
@@ -72,6 +97,10 @@ seq_pool_init(void)
     g_pool.total_bytes = SB_SIZE;
     g_pool.total_allocated = 0;
     g_pool.block_count = 1;
+
+#ifdef _MSC_VER
+    atexit(seq_pool_free);
+#endif
 }
 
 static char*
@@ -124,31 +153,6 @@ seq_pool_alloc(size_t size)
     g_pool.total_allocated += size;
 
     return result;
-}
-
-DESTRUCTOR static void
-seq_pool_free(void)
-{
-    if (!g_pool.head)
-    {
-        return;
-    }
-
-    SeqMemBlock* curr = g_pool.head;
-    while (curr)
-    {
-        SeqMemBlock* next = curr->next;
-        aligned_free(curr->block);
-        curr->block = NULL;
-        free(curr);
-        curr = next;
-    }
-
-    g_pool.head = NULL;
-    g_pool.current = NULL;
-    g_pool.total_bytes = 0;
-    g_pool.total_allocated = 0;
-    g_pool.block_count = 0;
 }
 
 DESTRUCTOR static void
@@ -257,7 +261,7 @@ sequences_load_from_file(void)
 {
     print_error_prefix("SEQUENCES");
 
-    CLEANUP(file_text_close) FileText input_file = { 0 };
+    FileText input_file = { 0 };
     if (!file_text_open(&input_file, args_input()))
     {
         return false;
@@ -269,6 +273,7 @@ sequences_load_from_file(void)
     if (!sequences)
     {
         print(ERROR, MSG_NONE, "Failed to allocate memory for sequences");
+        file_text_close(&input_file);
         return false;
     }
 
@@ -511,6 +516,10 @@ already_printed:;
     g_sequence_dataset.sequence_count = sequence_count;
     g_sequence_dataset.alignment_count = alignment_count;
 
+#ifdef _MSC_VER
+    atexit(sequences_free);
+#endif
+
 #ifdef USE_CUDA
     if (!args_mode_cuda())
     {
@@ -559,6 +568,7 @@ already_printed:;
 skip_cuda:
 #endif
 
+    file_text_close(&input_file);
     return true;
 
 cleanup_sequence_current:
@@ -569,6 +579,7 @@ cleanup_sequence_current:
 
 cleanup_sequences:
     free(sequences);
+    file_text_close(&input_file);
     return false;
 }
 

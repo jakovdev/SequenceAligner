@@ -124,8 +124,7 @@ mingw32-make
 mingw32-make help
 ```
 
-> [!NOTE]
-> CUDA support is currently not yet available in the Windows build due to lack of MSVC compiler support in the codebase / MSYS2 compiler CUDA support.
+> While compiling and running the program on Windows is possible, it is not recommended. For any serious usage, use the Linux version instead.
 
 </details>
 
@@ -275,7 +274,6 @@ mingw32-make help
 
 All implementations use dynamic programming with optimized matrix operations.
 
-> [!NOTE]
 > Parasail python equivalents
 > - parasail.nw() is actually the Gotoh algorithm with affine gaps in SequenceAligner
 > - To get actual linear gaps in Parasail you need to set the `open` and `extend` parameters to the same value

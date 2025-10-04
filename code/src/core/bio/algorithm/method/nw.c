@@ -13,7 +13,11 @@ align_nw(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
     const sequence_length_t len2 = seq2->length;
 
     size_t matrix_bytes = MATRIX_BYTES(len1, len2);
+#ifdef _MSC_VER
+    score_t* stack_matrix = USE_STACK_MATRIX(matrix_bytes) ? (score_t*)_alloca(matrix_bytes) : NULL;
+#else
     score_t stack_matrix[USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1];
+#endif
     score_t* restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
 
 #ifdef USE_SIMD

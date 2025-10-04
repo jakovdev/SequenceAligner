@@ -12,7 +12,12 @@ align_sw(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
     const sequence_length_t len2 = seq2->length;
 
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
+#ifdef _MSC_VER
+    score_t* stack_matrix = USE_STACK_MATRIX(matrices_bytes) ? (score_t*)_alloca(matrices_bytes)
+                                                             : NULL;
+#else
     score_t stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
+#endif
     score_t* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
 
     score_t* restrict match = matrix;
