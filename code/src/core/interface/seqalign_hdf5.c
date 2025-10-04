@@ -8,6 +8,7 @@
 #include "util/print.h"
 
 #ifdef USE_CUDA
+#include "core/app/args.h"
 #include "host_interface.h"
 #endif
 
@@ -77,7 +78,8 @@ h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compressio
     const size_t safe_memory = available_memory() * 3 / 4;
 
 #ifdef USE_CUDA
-    g_hdf5.memory_map_required = (bytes_needed > safe_memory) || cuda_triangular(bytes_needed);
+    g_hdf5.memory_map_required = (bytes_needed > safe_memory) ||
+                                 (args_mode_cuda() && cuda_triangular(bytes_needed));
 #else
     g_hdf5.memory_map_required = bytes_needed > safe_memory;
 #endif
