@@ -37,9 +37,9 @@ main(int argc, char* argv[])
     alignment_size_t total_alignments = sequences_alignment_count();
 
 #ifdef USE_CUDA
-    if (args_mode_cuda())
+    if (args_mode_cuda() && !cuda_init())
     {
-        cuda_init();
+        return 1;
     }
 
 #endif
