@@ -47,6 +47,9 @@ static void
 terminal_init(void)
 {
 #ifdef _WIN32
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE)
     {
@@ -342,7 +345,7 @@ print_context_init()
 #endif
 
 DESTRUCTOR static void
-print_end_section()
+print_end_section(void)
 {
     if (style.flags.section_open)
     {
@@ -357,7 +360,7 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
     {
         print_context_init();
 #ifdef _MSC_VER
-        atexit(print_end_section)
+        atexit(print_end_section);
 #endif
     }
 
