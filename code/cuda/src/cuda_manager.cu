@@ -15,7 +15,7 @@ Cuda::initialize()
 {
     int device_count = 0;
     cudaError_t err = cudaGetDeviceCount(&device_count);
-    CUDA_ERROR_CHECK("Failed to get device count");
+    CUDA_ERROR_CHECK("Failed to get device count or no CUDA devices available");
 
     if (device_count == 0)
     {
