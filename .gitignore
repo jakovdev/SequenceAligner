@@ -6,3 +6,5 @@ results/
 compile_commands.json
 .clangd
 benchmark_results/
+.stignore
+.stfolder/
