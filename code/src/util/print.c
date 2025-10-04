@@ -4,7 +4,6 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 
 #define TERMINAL_WIDTH 80
 
