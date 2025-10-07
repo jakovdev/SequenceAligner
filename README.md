@@ -40,9 +40,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 - Disk space for output files (varies with dataset size)
 
 #### CUDA Version
-- NVIDIA GPU with compute capability 3.5 or higher
-- CUDA toolkit 10.0 or newer
-- Appropriate NVIDIA drivers
+- NVIDIA GPU and drivers
 
 ### Releases
 
@@ -58,8 +56,8 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 <summary><strong>Linux</strong></summary>
 
 #### Dependencies
-- GCC with C99 support or later
-- GNU Make
+- GCC, GNU Make (Linux)
+- Visual Studio Build Tools (Windows)
 - HDF5 library
 - CUDA toolkit (optional, for GPU acceleration)
 
@@ -98,6 +96,30 @@ make help
 
 #### Prerequisite
 
+##### (RECOMMENDED) Windows MSVC (CUDA support)
+
+0. Install (optional) [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
+  - Required components: Runtime, Development
+
+1. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
+  - Standalone packages: latest x64/x86 MSVC, vcpkg, any Windows 10/11 SDK
+  - In the start menu, search for `x64 Native Tools Command Prompt for VS 2022` and open it:
+```bat
+cd C:\path\to\SequenceAligner
+
+vcpkg install
+
+nmake /F NMakefile
+```
+  - This will build the project, you now have an executable in the `bin` folder
+  - Run with:
+```bat
+bin\seqalign.exe
+```
+  - Linux (both CUDA and CPU) provides the best and most consistent performance. The Windows CUDA build (MSVC) is supported and should run just as well. Windows CPU-only mode (MSVC) is not recommended - try the MSYS2 version below instead, but no guarantees.
+
+##### Windows MSYS2 GCC (no CUDA support)
+
 1. Install MSYS2 from https://www.msys2.org/
 2. Open the MSYS2 UCRT64 terminal
 3. Navigate to the folder you downloaded the project using:
@@ -124,7 +146,7 @@ mingw32-make
 mingw32-make help
 ```
 
-> While compiling and running the program on Windows is possible, it is not recommended. For any serious usage, use the Linux version instead.
+> While this has faster CPU-only version than MSVC, for any serious usage, you should use the Linux version instead
 
 </details>
 
@@ -132,13 +154,13 @@ mingw32-make help
 
 ```bash
 # Linux (CPU only version)
-./bin/seqalign [ARGUMENTS]
+bin/seqalign [ARGUMENTS]
 
 # Linux (CUDA+CPU version)
-./bin/seqalign-cuda [ARGUMENTS]
+bin/seqalign-cuda [ARGUMENTS]
 
 # Windows
-./bin/seqalign.exe [ARGUMENTS]
+bin\seqalign.exe [ARGUMENTS]
 ```
 
 <details open>
