@@ -56,8 +56,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 <summary><strong>Linux</strong></summary>
 
 #### Dependencies
-- GCC, GNU Make (Linux)
-- Visual Studio Build Tools (Windows)
+- GCC, GNU Make
 - HDF5 library
 - CUDA toolkit (optional, for GPU acceleration)
 
@@ -85,46 +84,51 @@ make
 
 # Build with CUDA support (if available)
 make cuda
-
-# Other build profiles
-make help
 ```
 </details>
 
 <details>
 <summary><strong>Windows</strong></summary>
 
-#### Prerequisite
+0. Download the project files using the green "Code" button on GitHub and select "Download ZIP". Extract the ZIP file to a folder of your choice. Take note of its location.
 
-##### (RECOMMENDED) Windows MSVC (CUDA support)
+#### (RECOMMENDED) Windows MSVC (CUDA support)
 
-0. Install (optional) [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
+1. Install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) (optional)
   - Required components: Runtime, Development
 
-1. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
+2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
   - Standalone packages: latest x64/x86 MSVC, vcpkg, any Windows 10/11 SDK
-  - In the start menu, search for `x64 Native Tools Command Prompt for VS 2022` and open it:
+  - In the start menu, search for `x64 Native Tools Command Prompt for VS 2022` and open it
+
+3. Navigate to the folder you downloaded the project using:
 ```bat
-cd C:\path\to\SequenceAligner
+# Example:
+cd C:\Users\John\Downloads\SequenceAligner
+```
 
+4. Install required libraries using vcpkg:
+```bat
 vcpkg install
+```
 
+5. Build the project using:
+```bat
 nmake /F NMakefile
 ```
-  - This will build the project, you now have an executable in the `bin` folder
-  - Run with:
+6. You now have an executable in the `bin` folder, run with:
 ```bat
 bin\seqalign.exe
 ```
-  - Linux (both CUDA and CPU) provides the best and most consistent performance. The Windows CUDA build (MSVC) is supported and should run just as well. Windows CPU-only mode (MSVC) is not recommended - try the MSYS2 version below instead, but no guarantees.
+> - Linux (both CUDA and CPU) provides the best and most consistent performance. The Windows CUDA build (MSVC) is supported and should run just as well. Windows CPU-only mode (MSVC) is not recommended - try the MSYS2 version below instead if you want to stay on Windows, but no guarantees.
 
-##### Windows MSYS2 GCC (no CUDA support)
+#### Windows MSYS2 GCC (no CUDA support)
 
 1. Install MSYS2 from https://www.msys2.org/
 2. Open the MSYS2 UCRT64 terminal
 3. Navigate to the folder you downloaded the project using:
-
 ```bash
+# Example:
 cd /c/Users/John/Downloads/SequenceAligner
 ```
 
@@ -136,17 +140,12 @@ cd /c/Users/John/Downloads/SequenceAligner
 ./scripts/msys2_setup.sh
 ```
 
-#### Building
-
+5. Build the project using:
 ```bash
-# Build the program
 mingw32-make
-
-# All available commands
-mingw32-make help
 ```
 
-> While this has faster CPU-only version than MSVC, for any serious usage, you should use the Linux version instead
+> - While this has faster CPU-only version than MSVC, for any serious usage, you should use the Linux version instead
 
 </details>
 
@@ -202,6 +201,7 @@ bin\seqalign.exe [ARGUMENTS]
 > - This means all arguments are ones which work for that dataset (like sequence type)
 > - You should change the arguments to match your dataset
 > - Also, for relative file paths they should be relative to your current directory, not the binary location
+> - Add `.exe` suffix on Windows to `seqalign`
 
 ```bash
 # Run with all required parameters
