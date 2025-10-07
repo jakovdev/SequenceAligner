@@ -221,6 +221,24 @@ filter_sequences_multithreaded(sequences_t sequences,
         storage->filtered_count_mutex = &filtered_count_mutex;
 
         pthread_create(&threads[t], NULL, filter_thread_worker, storage);
+        if (!threads[t])
+        {
+            print(ERROR, MSG_NONE, "Failed to create thread %lu", t);
+
+            for (unsigned long j = 0; j < t; j++)
+            {
+                if (threads[j])
+                {
+                    pthread_join(threads[j], NULL);
+                }
+            }
+
+            free(threads);
+            free(thread_storages);
+            pthread_mutex_destroy(&index_mutex);
+            pthread_mutex_destroy(&filtered_count_mutex);
+            return false;
+        }
     }
 
     int percentage = 0;

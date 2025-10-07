@@ -645,7 +645,7 @@ Cuda::switchKernel(int kernel_id)
     }
 
     const int blockDim = m_device_prop.maxThreadsPerBlock;
-    const int gridDim = (batch + blockDim - 1) / blockDim;
+    const int gridDim = (int)((batch + blockDim - 1) / blockDim);
 
     if (gridDim <= 0 || gridDim > m_device_prop.maxGridSize[0])
     {

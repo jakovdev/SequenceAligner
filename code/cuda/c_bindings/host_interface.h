@@ -31,7 +31,7 @@ extern "C"
                                          size_t buffer_bytes);
 
     bool cuda_kernel_launch(int kernel_id);
-    bool cuda_results_get();
+    bool cuda_results_get(void);
 
     ull cuda_results_progress(void);
     sll cuda_results_checksum(void);
