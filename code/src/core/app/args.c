@@ -87,12 +87,12 @@ GETTER(SequenceType, sequence_type, args.seq_type)
 GETTER(int, scoring_matrix, args.matrix_id)
 GETTER(unsigned int, compression, args.compression_level)
 GETTER(float, filter, args.filter)
-GETTER(bool, mode_multithread, args.mode_multithread)
-GETTER(bool, mode_benchmark, args.mode_benchmark)
-GETTER(bool, mode_write, args.mode_write)
+GETTER(bool, mode_multithread, (bool)args.mode_multithread)
+GETTER(bool, mode_benchmark, (bool)args.mode_benchmark)
+GETTER(bool, mode_write, (bool)args.mode_write)
 
 #ifdef USE_CUDA
-GETTER(bool, mode_cuda, args.mode_cuda)
+GETTER(bool, mode_cuda, (bool)args.mode_cuda)
 #endif
 
 #undef GETTER
@@ -505,7 +505,7 @@ args_parse(int argc, char* argv[])
     if (args.thread_num == 0)
     {
         long threads = thread_count();
-#ifdef _WIN32
+#ifdef _MSC_VER
         threads = (threads > 2) ? threads - 2 : threads;
 #endif
         args.thread_num = (threads > 0) ? (unsigned long)threads : 1;

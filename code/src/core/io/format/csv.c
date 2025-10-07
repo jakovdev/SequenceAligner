@@ -224,17 +224,28 @@ csv_header_parse(char* restrict file_cursor,
         bench_io_start();
     }
 
-    const char* sequence_column = headers[*seq_col];
-    print(VERBOSE, MSG_NONE, "Using column #%zu ('%s')", *seq_col + 1, sequence_column);
+    if (*seq_col < num_columns && headers && headers[*seq_col])
+    {
+        const char* sequence_column = headers[*seq_col];
+        print(VERBOSE, MSG_NONE, "Using column #%zu ('%s')", *seq_col + 1, sequence_column);
+    }
 
     if (headers)
     {
         for (column = 0; column < num_columns; column++)
         {
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 6001)
+#endif
             if (headers[column])
             {
                 free(headers[column]);
             }
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
         }
 
         free(headers);

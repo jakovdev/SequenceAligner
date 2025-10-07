@@ -511,12 +511,14 @@ file_matrix_name(char* buffer, size_t buffer_size, const char* output_path)
             strncpy(dir, output_path, dir_len);
             dir[dir_len] = '\0';
             strncpy(base, last_slash + 1, MAX_PATH - 1);
+            base[MAX_PATH - 1] = '\0';
         }
 
         else
         {
             strcpy(dir, "./");
             strncpy(base, output_path, MAX_PATH - 1);
+            base[MAX_PATH - 1] = '\0';
         }
 
         char* dot = strrchr(base, '.');

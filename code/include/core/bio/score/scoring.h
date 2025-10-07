@@ -17,6 +17,6 @@ extern veci_t g_gap_extend_vec;
 extern int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
 extern int SCORING_MATRIX[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
 
-void scoring_matrix_init();
+void scoring_matrix_init(void);
 
 #endif // CORE_BIO_SCORE_SCORING_H

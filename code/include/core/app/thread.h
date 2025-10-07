@@ -173,6 +173,25 @@ align_multithreaded(void)
         storage->completion_mutex = &completion_mutex;
 
         pthread_create(&threads[t], NULL, align_thread_worker, storage);
+        if (!threads[t])
+        {
+            print_error_prefix("THREAD");
+            print(ERROR, MSG_NONE, "Failed to create thread %lu", t);
+
+            for (unsigned long j = 0; j < t; j++)
+            {
+                if (threads[j])
+                {
+                    pthread_join(threads[j], NULL);
+                }
+            }
+
+            free(threads);
+            free(thread_storages);
+            pthread_mutex_destroy(&row_mutex);
+            pthread_mutex_destroy(&completion_mutex);
+            return false;
+        }
     }
 
     int percentage = 0;
