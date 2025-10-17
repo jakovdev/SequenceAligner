@@ -14,7 +14,7 @@ int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
 int SCORING_MATRIX[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
 
 void
-scoring_matrix_init()
+scoring_matrix_init(void)
 {
     int matrix_id = args_scoring_matrix();
     int sequence_type = args_sequence_type();

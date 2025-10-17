@@ -67,7 +67,7 @@ X86_64_V3_BIN := $(BIN_DIR)/seqalign-x86-64-v3$(BIN_EXT)
 X86_64_V4_BIN := $(BIN_DIR)/seqalign-x86-64-v4$(BIN_EXT)
 
 HDF5_CFLAGS := $(if $(IS_WINDOWS),-I/ucrt64/include,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | head -n 1))
-BASE_CFLAGS := -pthread -I$(INCLUDE_DIR) $(HDF5_CFLAGS) 
+BASE_CFLAGS := -I$(INCLUDE_DIR) $(HDF5_CFLAGS) -std=c23 -D_GNU_SOURCE -pthread
 RELEASE_CFLAGS := $(BASE_CFLAGS) -O3 \
                   -funroll-loops -fprefetch-loop-arrays \
                   -fdata-sections -ffunction-sections \
@@ -116,6 +116,7 @@ CUDA_DEBUG_BIN := $(BIN_DIR)/seqalign-cuda-debug$(BIN_EXT)
 native: CFLAGS := -march=native $(RELEASE_CFLAGS)
 native: LDFLAGS := $(RELEASE_LDFLAGS)
 native: $(MAIN_BIN)
+all: native
 
 debug: CFLAGS := -march=native $(DEBUG_CFLAGS)
 debug: LDFLAGS :=
@@ -237,18 +238,8 @@ $(CUDA_DEBUG_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS_DEBUG
 	@$(CC) $(CFLAGS) $< $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS_DEBUG) -o $@ $(CLIBS) $(LDFLAGS) && echo "CUDA debug build complete! Run the program with: $@"
 
 clean:
-	@echo "Cleaning previous build..."
-	@$(RM) $(MAIN_BIN)
-	@$(RM) $(DEBUG_BIN)
-	@$(RM) $(X86_64_V1_BIN)
-	@$(RM) $(X86_64_V2_BIN)
-	@$(RM) $(X86_64_V3_BIN)
-	@$(RM) $(X86_64_V4_BIN)
-	@$(RM) -r $(OBJ_DIR)
-	@$(RM) $(CUDA_BIN)
-	@$(RM) $(CUDA_DEBUG_BIN)
-	@$(RM) -r $(CUDA_OBJ_DIR)
-	@$(if $(IS_WINDOWS),, $(RM) $(patsubst %,%.exe,$(MAIN_BIN)))
+	@echo "Cleaning build files..."
+	@$(RM) -rf $(BIN_DIR) $(META_DIR)
 
 check-setup: $(DLL_COMPLETE)
 ifeq ($(IS_WINDOWS),yes)

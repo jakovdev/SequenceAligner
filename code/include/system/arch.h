@@ -3,9 +3,7 @@
 #define SYSTEM_ARCH_H
 
 // Language features
-#if (defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L) &&                                  \
-    (!(defined(__APPLE__) || defined(__FreeBSD__)) ||                                              \
-     (defined(__GLIBC__) && (__GLIBC__ > 2 || (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 16))))
+#if __STDC_VERSION__ >= 201112L || defined(_WIN32)
 #define ALIGNED_ALLOC_AVAILABLE
 #endif
 
@@ -74,33 +72,22 @@ __builtin_ctzll(unsigned long long x)
 
 #ifdef _WIN32
 
-#if __has_include(<Shlwapi.h>)
-#include <Shlwapi.h>
-#else
-#include <shlwapi.h>
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
 
-#include <conio.h>
-#include <io.h>
-#include <malloc.h>
-#include <synchapi.h>
 #include <windows.h>
-#include <winioctl.h>
+#if __has_include(<Shlwapi.h>)
+#include <Shlwapi.h>
+#else // MinGW
+#include <shlwapi.h>
+#endif
 
 #ifdef ERROR
 #undef ERROR
 #endif
 
-#ifdef OPTIONAL
-#undef OPTIONAL
-#endif
-
-#ifdef REQUIRED
-#undef REQUIRED
-#endif
-
 typedef HANDLE pthread_t;
-typedef HANDLE sem_t;
 typedef HANDLE pthread_mutex_t;
 
 #define T_Func DWORD WINAPI
@@ -112,15 +99,9 @@ typedef HANDLE pthread_mutex_t;
 #define pthread_mutex_unlock(mutex) ReleaseMutex(mutex)
 #define PTHREAD_MUTEX_INITIALIZER CreateMutex(NULL, FALSE, NULL)
 #define pthread_mutex_destroy(mutex) CloseHandle(mutex)
-
 #define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
-#define sem_init(sem, _, value) *sem = CreateSemaphore(NULL, value, LONG_MAX, NULL)
-#define sem_post(sem) ReleaseSemaphore(*sem, 1, NULL)
-#define sem_wait(sem) WaitForSingleObject(*sem, INFINITE)
-#define sem_destroy(sem) CloseHandle(*sem)
 
 #define PIN_THREAD(thread_id) SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << thread_id)
-#define SET_HIGH_CLASS() SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS)
 
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
 #define aligned_free(ptr) _aligned_free(ptr)
@@ -133,26 +114,15 @@ typedef HANDLE pthread_mutex_t;
 
 #else // POSIX/Linux
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#ifndef __USE_GNU
-#define __USE_GNU
-#endif
 #define MAX_PATH (260)
 
+#include <alloca.h>
 #include <fcntl.h>
 #include <pthread.h>
-#include <sched.h>
-#include <semaphore.h>
-#include <strings.h>
-#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
-#include <sys/types.h>
-#include <time.h>
 #include <unistd.h>
 
 #define T_Func void*
@@ -166,8 +136,6 @@ typedef HANDLE pthread_mutex_t;
         CPU_SET(thread_id, &cpuset);                                                               \
         pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);                        \
     } while (false)
-
-#define SET_HIGH_CLASS()
 
 #define aligned_free(ptr) free(ptr)
 

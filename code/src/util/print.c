@@ -8,6 +8,9 @@
 #define TERMINAL_WIDTH 80
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <windows.h>
 #ifdef ERROR
 #undef ERROR
@@ -289,19 +292,19 @@ static struct
 };
 
 void
-print_verbose_flip()
+print_verbose_flip(void)
 {
     style.flags.verbose = !style.flags.verbose;
 }
 
 void
-print_quiet_flip()
+print_quiet_flip(void)
 {
     style.flags.quiet = !style.flags.quiet;
 }
 
 void
-print_detail_flip()
+print_detail_flip(void)
 {
     style.flags.nodetail = !style.flags.nodetail;
 }
@@ -319,7 +322,7 @@ print_error_prefix(const char* prefix)
 }
 
 static void
-print_context_init()
+print_context_init(void)
 {
     terminal_init();
     if (!terminal_environment())

@@ -24,25 +24,22 @@ static struct
     unsigned int compression_level;
     float filter;
 
-    struct
-    {
-        unsigned input_file_set : 1;
-        unsigned output_file_set : 1;
-        unsigned method_id_set : 1;
-        unsigned seq_type_set : 1;
-        unsigned matrix_set : 1;
-        unsigned gap_penalty_set : 1;
-        unsigned gap_open_set : 1;
-        unsigned gap_extend_set : 1;
-        unsigned mode_multithread : 1;
-        unsigned mode_write : 1;
-        unsigned mode_benchmark : 1;
-        unsigned mode_filter : 1;
+    unsigned input_file_set : 1;
+    unsigned output_file_set : 1;
+    unsigned method_id_set : 1;
+    unsigned seq_type_set : 1;
+    unsigned matrix_set : 1;
+    unsigned gap_penalty_set : 1;
+    unsigned gap_open_set : 1;
+    unsigned gap_extend_set : 1;
+    unsigned mode_multithread : 1;
+    unsigned mode_write : 1;
+    unsigned mode_benchmark : 1;
+    unsigned mode_filter : 1;
 #ifdef USE_CUDA
-        unsigned mode_cuda : 1;
+    unsigned mode_cuda : 1;
 #endif
-        unsigned quiet : 1;
-    };
+    unsigned quiet : 1;
 } args = { 0 };
 
 static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWClvqDh";
@@ -505,9 +502,6 @@ args_parse(int argc, char* argv[])
     if (args.thread_num == 0)
     {
         long threads = thread_count();
-#ifdef _MSC_VER
-        threads = (threads > 2) ? threads - 2 : threads;
-#endif
         args.thread_num = (threads > 0) ? (unsigned long)threads : 1;
     }
 

@@ -74,7 +74,7 @@ CUDA_OBJS = $(CUDA_SRCS:.cu=.obj)
 CUDA_OBJS = $(CUDA_OBJS:code\cuda\src\=bin\cuda_obj\)
 
 CC = cl
-BASE_CFLAGS = /I$(INCLUDE_DIR) /I$(CUDA_C_BINDINGS_DIR) /std:c11 /experimental:c11atomics /TC /nologo $(VCPKG_INCLUDE) $(HDF5_CFLAGS) /DUSE_CUDA
+BASE_CFLAGS = /I$(INCLUDE_DIR) /I$(CUDA_C_BINDINGS_DIR) /std:clatest /experimental:c11atomics /Zc:preprocessor /utf-8 /TC /nologo $(VCPKG_INCLUDE) $(HDF5_CFLAGS) /DUSE_CUDA
 RELEASE_CFLAGS = $(BASE_CFLAGS) /Ox /GL /DNDEBUG /Gy /MD
 DEBUG_CFLAGS = $(BASE_CFLAGS) /Od /Zi /MDd /W4 /RTC1 /analyze /wd28301 /D_CRT_SECURE_NO_WARNINGS
 
@@ -85,7 +85,7 @@ NVCC_DEBUG_FLAGS = -g -G -O0 -Xcompiler="/W4 /MDd" -I$(CUDA_INCLUDE_DIR) -I$(CUD
 LINK = link
 LINKFLAGS_RELEASE = /MACHINE:X64 /NOLOGO /LTCG /OPT:REF /OPT:ICF
 LINKFLAGS_DEBUG = /MACHINE:X64 /NOLOGO /DEBUG
-LIBS = $(HDF5_LIBS) $(CUDA_LIBPATH) cudart.lib getopt.lib kernel32.lib user32.lib advapi32.lib Shlwapi.lib
+LIBS = $(HDF5_LIBS) $(CUDA_LIBPATH) cudart.lib getopt.lib Shlwapi.lib
 
 !IF "$(DEBUG)" == "1"
 CFLAGS = $(DEBUG_CFLAGS)

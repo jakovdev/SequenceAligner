@@ -18,7 +18,6 @@ main(int argc, char* argv[])
 
     print(SECTION, MSG_NONE, "Setting Up Alignment");
 
-    SET_HIGH_CLASS();
     if (!args_mode_multithread())
     {
         PIN_THREAD(0);
