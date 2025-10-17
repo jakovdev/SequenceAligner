@@ -85,22 +85,10 @@ cuda_align(void)
     score_t* matrix = h5_matrix_data();
     size_t matrix_bytes = h5_matrix_bytes();
 
-    if (h5_triangle_indices_64_bit())
+    size_t* result_offsets = h5_triangle_indices();
+    if (!cuda_upload_triangle_indices(result_offsets, matrix, matrix_bytes))
     {
-        size_t* result_offsets = h5_triangle_indices_64();
-        if (!cuda_upload_triangle_indices_64(result_offsets, matrix, matrix_bytes))
-        {
-            RETURN_CUDA_ERRORS("Failed uploading results storage");
-        }
-    }
-
-    else
-    {
-        half_t* result_offsets = h5_triangle_indices_32();
-        if (!cuda_upload_triangle_indices_32(result_offsets, matrix, matrix_bytes))
-        {
-            RETURN_CUDA_ERRORS("Failed uploading results storage");
-        }
+        RETURN_CUDA_ERRORS("Failed uploading results storage");
     }
 
     bench_align_start();

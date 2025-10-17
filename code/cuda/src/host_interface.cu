@@ -37,18 +37,9 @@ extern "C"
         return Cuda::getInstance().uploadPenalties(linear, open, extend);
     }
 
-    bool cuda_upload_triangle_indices_32(half_t* indices,
-                                         score_t* score_buffer,
-                                         size_t buffer_bytes)
+    bool cuda_upload_triangle_indices(size_t* indices, score_t* score_buffer, size_t buffer_bytes)
     {
-        return Cuda::getInstance().uploadTriangleIndices32(indices, score_buffer, buffer_bytes);
-    }
-
-    bool cuda_upload_triangle_indices_64(size_t* indices,
-                                         score_t* score_buffer,
-                                         size_t buffer_bytes)
-    {
-        return Cuda::getInstance().uploadTriangleIndices64(indices, score_buffer, buffer_bytes);
+        return Cuda::getInstance().uploadTriangleIndices(indices, score_buffer, buffer_bytes);
     }
 
     bool cuda_kernel_launch(int kernel_id)

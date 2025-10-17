@@ -16,7 +16,6 @@ since it's only used for small datasets that are already fast to process (milise
 #define LENGTH_AVG (24)
 
 #define KiB (1 << 10)
-#define AVAILABLE_CONSTANT_MEMORY (64 * KiB)
 
 #define SCORING_MATRIX_DIM (24)
 #define SEQUENCE_LOOKUP_SIZE (128)
@@ -28,63 +27,9 @@ __constant__ int c_gap_penalty;
 __constant__ int c_gap_open;
 __constant__ int c_gap_extend;
 
-__constant__ bool c_constant = false;
 __constant__ bool c_triangular = false;
-__constant__ bool c_indices_64 = false;
-
-#define SCORING_B (sizeof(c_scoring_matrix) + sizeof(c_sequence_lookup))
-#define GAP_PENALTIES_B (sizeof(c_gap_penalty) + sizeof(c_gap_open) + sizeof(c_gap_extend))
-#define BOOLS_B (sizeof(c_constant) + sizeof(c_triangular) + sizeof(c_indices_64))
-#define ALWAYS_CONSTANT_B (SCORING_B + GAP_PENALTIES_B + BOOLS_B)
-#define AVAILABLE_FOR_SEQUENCES_B (AVAILABLE_CONSTANT_MEMORY - ALWAYS_CONSTANT_B)
-
-#define OFFSET_TYPE_SIZE sizeof(sequence_offset_t)
-#define LENGTH_TYPE_SIZE sizeof(sequence_length_t)
-#define INDEX_TYPE_SIZE sizeof(half_t)
-#define PER_SEQUENCE_META_B (OFFSET_TYPE_SIZE + LENGTH_TYPE_SIZE + INDEX_TYPE_SIZE)
-
-#define MAX_CONST_SEQUENCE_NUM (AVAILABLE_FOR_SEQUENCES_B / (LENGTH_AVG + PER_SEQUENCE_META_B))
-#define MAX_CONST_LETTERS (MAX_CONST_SEQUENCE_NUM * LENGTH_AVG)
-
-__constant__ sequence_offset_t c_offsets[MAX_CONST_SEQUENCE_NUM];
-__constant__ sequence_length_t c_lengths[MAX_CONST_SEQUENCE_NUM];
-__constant__ half_t c_indices[MAX_CONST_SEQUENCE_NUM];
-__constant__ char c_letters[MAX_CONST_LETTERS];
-
-#define CONSTANT_ARRAYS_B (sizeof(c_offsets) + sizeof(c_lengths) + sizeof(c_indices))
-#define CONSTANT_LETTERS_B (sizeof(c_letters))
-#define USED_CONSTANT_MEMORY (CONSTANT_LETTERS_B + CONSTANT_ARRAYS_B + ALWAYS_CONSTANT_B)
-static_assert(USED_CONSTANT_MEMORY <= AVAILABLE_CONSTANT_MEMORY,
-              "Constant memory size exceeds the 64KiB limit");
-
-bool
-Cuda::canUseConstantMemory()
-{
-    return (m_seqs.n_letters <= MAX_CONST_LETTERS && m_seqs.n_seqs <= MAX_CONST_SEQUENCE_NUM);
-}
 
 #undef KiB
-
-bool
-Cuda::copySequencesToConstantMemory(char* seqs,
-                                    sequence_offset_t* offsets,
-                                    sequence_length_t* lengths)
-{
-    if (!m_initialized)
-    {
-        setHostError("CUDA not initialized");
-        return false;
-    }
-
-    cudaError_t err;
-
-    CONSTANT_COPY(c_constant, &m_seqs.constant, sizeof(c_constant), "constant flag");
-    CONSTANT_COPY(c_letters, seqs, m_seqs.n_letters * sizeof(*c_letters), "letters");
-    CONSTANT_COPY(c_offsets, offsets, m_seqs.n_seqs * sizeof(*c_offsets), "offsets");
-    CONSTANT_COPY(c_lengths, lengths, m_seqs.n_seqs * sizeof(*c_lengths), "lengths");
-
-    return true;
-}
 
 bool
 Cuda::copyTriangularMatrixFlag(bool triangular)
@@ -137,60 +82,22 @@ Cuda::uploadPenalties(int linear, int open, int extend)
     return true;
 }
 
-bool
-Cuda::copyTriangleIndicesToConstantMemory(half_t* indices)
-{
-    if (!m_initialized)
-    {
-        setHostError("CUDA not initialized");
-        return false;
-    }
-
-    cudaError_t err;
-
-    CONSTANT_COPY(c_indices, indices, sizeof(c_indices), "triangle indices");
-
-    return true;
-}
-
-bool
-Cuda::copyTriangleIndices64FlagToConstantMemory(bool indices_64)
-{
-    if (!m_initialized)
-    {
-        setHostError("CUDA not initialized");
-        return false;
-    }
-
-    cudaError_t err;
-
-    CONSTANT_COPY(c_indices_64, &indices_64, sizeof(c_indices_64), "64-bit triangle indices flag");
-
-    return true;
-}
-
 __forceinline__ __device__ char
 d_sequence_char(const Sequences* const seqs, const sequence_index_t ij, const sequence_index_t pos)
 {
-    return c_constant ? c_letters[c_offsets[ij] + pos] : seqs->d_letters[seqs->d_offsets[ij] + pos];
+    return seqs->d_letters[seqs->d_offsets[ij] + pos];
 }
 
 __forceinline__ __device__ sequence_length_t
 d_sequence_length(const Sequences* const seqs, const sequence_index_t ij)
 {
-    return c_constant ? c_lengths[ij] : seqs->d_lengths[ij];
-}
-
-__forceinline__ __device__ half_t
-d_triangle_indices_32(const Sequences* const seqs, const sequence_index_t j)
-{
-    return c_constant ? c_indices[j] : seqs->d_indices_32[j];
+    return seqs->d_lengths[ij];
 }
 
 __forceinline__ __device__ size_t
-d_triangle_indices_64(const Sequences* const seqs, const sequence_index_t j)
+d_triangle_indices(const Sequences* const seqs, const sequence_index_t j)
 {
-    return seqs->d_indices_64[j];
+    return seqs->d_indices[j];
 }
 
 template<typename T>
@@ -225,15 +132,9 @@ d_binary_search(const T* const elements, const half_t length, const size_t targe
 }
 
 __forceinline__ __device__ sequence_index_t
-find_sequence_column_binary_search_64(const Sequences* const seqs, const alignment_size_t alignment)
+find_sequence_column_binary_search(const Sequences* const seqs, const alignment_size_t alignment)
 {
-    return d_binary_search(seqs->d_indices_64, seqs->n_seqs, alignment);
-}
-
-__forceinline__ __device__ sequence_index_t
-find_sequence_column_binary_search_32(const Sequences* const seqs, const alignment_size_t alignment)
-{
-    return d_binary_search(c_constant ? c_indices : seqs->d_indices_32, seqs->n_seqs, alignment);
+    return d_binary_search(seqs->d_indices, seqs->n_seqs, alignment);
 }
 
 __global__ void
@@ -254,17 +155,8 @@ k_nw(const Sequences seqs,
     const sequence_count_t n = seqs.n_seqs;
 
     sequence_index_t i = 0, j = 0;
-    if (c_indices_64)
-    {
-        j = find_sequence_column_binary_search_64(&seqs, alignment);
-        i = alignment - d_triangle_indices_64(&seqs, j);
-    }
-
-    else
-    {
-        j = find_sequence_column_binary_search_32(&seqs, alignment);
-        i = alignment - d_triangle_indices_32(&seqs, j);
-    }
+    j = find_sequence_column_binary_search(&seqs, alignment);
+    i = alignment - d_triangle_indices(&seqs, j);
 
     if (i >= n || j >= n || i >= j)
     {
@@ -355,17 +247,8 @@ k_ga(const Sequences seqs,
     const sequence_count_t n = seqs.n_seqs;
 
     sequence_index_t i = 0, j = 0;
-    if (c_indices_64)
-    {
-        j = find_sequence_column_binary_search_64(&seqs, alignment);
-        i = alignment - d_triangle_indices_64(&seqs, j);
-    }
-
-    else
-    {
-        j = find_sequence_column_binary_search_32(&seqs, alignment);
-        i = alignment - d_triangle_indices_32(&seqs, j);
-    }
+    j = find_sequence_column_binary_search(&seqs, alignment);
+    i = alignment - d_triangle_indices(&seqs, j);
 
     if (i >= n || j >= n || i >= j)
     {
@@ -480,17 +363,8 @@ k_sw(const Sequences seqs,
     const sequence_count_t n = seqs.n_seqs;
 
     sequence_index_t i = 0, j = 0;
-    if (c_indices_64)
-    {
-        j = find_sequence_column_binary_search_64(&seqs, alignment);
-        i = alignment - d_triangle_indices_64(&seqs, j);
-    }
-
-    else
-    {
-        j = find_sequence_column_binary_search_32(&seqs, alignment);
-        i = alignment - d_triangle_indices_32(&seqs, j);
-    }
+    j = find_sequence_column_binary_search(&seqs, alignment);
+    i = alignment - d_triangle_indices(&seqs, j);
 
     if (i >= n || j >= n || i >= j)
     {

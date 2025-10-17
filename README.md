@@ -36,8 +36,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 
 #### CPU Version
 - Any x86-64 (x64, AMD64, Intel 64 or "64-bit") processor and Operating System (Linux or Windows)
-- Enough RAM to store sequences from a dataset
-- Disk space for output files (varies with dataset size)
+- Disk space for output files and enough RAM for results (varies with dataset size, see [File Formats](#file-formats))
 
 #### CUDA Version
 - NVIDIA GPU and drivers
@@ -322,7 +321,6 @@ All implementations use dynamic programming with optimized matrix operations.
 <details>
 <summary><strong>CUDA GPU Optimization Techniques</strong></summary>
 
-- Constant memory usage for frequently accessed data and smaller datasets
 - Device-specific tuning of thread and block dimensions
 - Efficient data transfer to and from GPU memory
 - Memory-mapped matrix storage for large datasets
