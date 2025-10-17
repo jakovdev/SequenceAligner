@@ -17,6 +17,7 @@ help:
 ifneq ($(IS_WINDOWS),yes)
 	@echo "  $(MAKE_CMD) cuda         - Build with CUDA support and for your specific PC"
 endif
+	@echo "  $(MAKE_CMD) cross        - Build the program for Windows from another OS"
 	@echo "  $(MAKE_CMD) clean        - Remove built files"
 	@echo ""
 	@echo "After building, run the program with: $(MAIN_BIN)"
@@ -29,14 +30,12 @@ RM := rm -f
 MKDIR := mkdir -p
 check_dir_exists = $(if $(wildcard $1),,$(error Error: $2 directory ($1) not found! Please don't move the Makefile without the required directories))
 
-# Windows DLL copying
-ifeq ($(IS_WINDOWS),yes)
-META_DIR := .meta
-DLL_COMPLETE := $(META_DIR)/dll_complete
+ifneq ($(filter cross cross-debug,$(MAKECMDGOALS)),)
+IS_CROSS_COMPILE := yes
 endif
 
 BIN_DIR := bin
-OBJ_DIR := $(BIN_DIR)/obj
+OBJ_DIR := $(BIN_DIR)/obj$(if $(IS_CROSS_COMPILE),-cross,)
 
 SRC_DIR := code/src
 $(call check_dir_exists,$(SRC_DIR),Source)
@@ -58,7 +57,13 @@ OBJS_X86_64_V4 := $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%-x86-64-v4.o,$(SRCS))
 
 
 CC := gcc
-BIN_EXT := $(if $(IS_WINDOWS),.exe,)
+ifeq ($(IS_WINDOWS),yes)
+CC := mingw32-gcc
+else ifeq ($(IS_CROSS_COMPILE),yes)
+CC := x86_64-w64-mingw32-gcc
+MINGW_PKG_CONFIG := x86_64-w64-mingw32-pkg-config
+endif
+BIN_EXT := $(if $(IS_WINDOWS),.exe,$(if $(IS_CROSS_COMPILE),.exe,))
 MAIN_BIN := $(BIN_DIR)/seqalign$(BIN_EXT)
 DEBUG_BIN := $(BIN_DIR)/seqalign-debug$(BIN_EXT)
 X86_64_V1_BIN := $(BIN_DIR)/seqalign-x86-64-v1$(BIN_EXT)
@@ -66,8 +71,8 @@ X86_64_V2_BIN := $(BIN_DIR)/seqalign-x86-64-v2$(BIN_EXT)
 X86_64_V3_BIN := $(BIN_DIR)/seqalign-x86-64-v3$(BIN_EXT)
 X86_64_V4_BIN := $(BIN_DIR)/seqalign-x86-64-v4$(BIN_EXT)
 
-HDF5_CFLAGS := $(if $(IS_WINDOWS),-I/ucrt64/include,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | head -n 1))
-BASE_CFLAGS := -I$(INCLUDE_DIR) $(HDF5_CFLAGS) -std=c23 -D_GNU_SOURCE -pthread
+HDF5_CFLAGS := $(if $(IS_WINDOWS),-I/ucrt64/include,$(if $(IS_CROSS_COMPILE),$(shell $(MINGW_PKG_CONFIG) --cflags hdf5),$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | head -n 1)))
+BASE_CFLAGS := -I$(INCLUDE_DIR) $(HDF5_CFLAGS) -std=c23 $(if $(filter yes,$(IS_WINDOWS) $(IS_CROSS_COMPILE)),-DWIN32_LEAN_AND_MEAN,-D_GNU_SOURCE -pthread)
 RELEASE_CFLAGS := $(BASE_CFLAGS) -O3 \
                   -funroll-loops -fprefetch-loop-arrays \
                   -fdata-sections -ffunction-sections \
@@ -77,10 +82,10 @@ DEBUG_CFLAGS := $(BASE_CFLAGS) -g -O0 -Wall -Wextra -Werror \
                 -Wshadow -Wconversion -Wmissing-declarations \
                 -Wundef -Wfloat-equal -Wcast-align \
                 -Wstrict-prototypes -Wswitch-enum -pedantic \
-                -fstack-protector-strong -fsanitize=address -fanalyzer
+                -fstack-protector-strong -fanalyzer $(if $(filter yes,$(IS_WINDOWS) $(IS_CROSS_COMPILE)),,-fsanitize=address)
 
 
-HDF5_CLIBS := $(if $(IS_WINDOWS),-L/ucrt64/lib -lhdf5 -lz,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | tail -n 1))
+HDF5_CLIBS := $(if $(IS_WINDOWS),-L/ucrt64/lib -lhdf5 -lz,$(if $(IS_CROSS_COMPILE),$(shell $(MINGW_PKG_CONFIG) --libs hdf5) -lz,$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | tail -n 1)))
 CLIBS := $(HDF5_CLIBS) $(if $(IS_WINDOWS),-lShlwapi,)
 
 
@@ -116,11 +121,13 @@ CUDA_DEBUG_BIN := $(BIN_DIR)/seqalign-cuda-debug$(BIN_EXT)
 native: CFLAGS := -march=native $(RELEASE_CFLAGS)
 native: LDFLAGS := $(RELEASE_LDFLAGS)
 native: $(MAIN_BIN)
+cross: native
 all: native
 
 debug: CFLAGS := -march=native $(DEBUG_CFLAGS)
 debug: LDFLAGS :=
 debug: $(DEBUG_BIN)
+cross-debug: debug
 
 # See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels for more details
 
@@ -154,7 +161,7 @@ cuda-debug: LDFLAGS :=
 cuda-debug: CLIBS += $(CUDA_LIBS) -lstdc++
 cuda-debug: $(CUDA_DEBUG_BIN)
 
-$(BIN_DIR) $(OBJ_DIR) $(CUDA_OBJ_DIR) $(META_DIR):
+$(BIN_DIR) $(OBJ_DIR) $(CUDA_OBJ_DIR):
 	@$(MKDIR) $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(HEADERS) | $(OBJ_DIR)
@@ -239,18 +246,13 @@ $(CUDA_DEBUG_BIN): $(MAIN_SRC) $(HEADERS) $(CUDA_OBJS_DEBUG) $(CUDA_C_OBJS_DEBUG
 
 clean:
 	@echo "Cleaning build files..."
-	@$(RM) -rf $(BIN_DIR) $(META_DIR)
+	@$(RM) -rf $(BIN_DIR)
 
-check-setup: $(DLL_COMPLETE)
+check-setup:
 ifeq ($(IS_WINDOWS),yes)
-	@if [ -z "$$MSYSTEM" ] || [ "$$MSYSTEM" != "UCRT64" ]; then \
-        echo "Error: Please run this from the UCRT64 MSYS2 shell"; \
-        exit 1; \
-    fi
-	@if [ ! -f "/ucrt64/include/hdf5.h" ]; then \
-        echo "Required tools not found. Installing..."; \
-        bash $(SCRIPTS_DIR)/msys2_setup.sh; \
-    fi
+	@bash $(SCRIPTS_DIR)/check_msys2.sh
+else ifeq ($(IS_CROSS_COMPILE),yes)
+	@bash $(SCRIPTS_DIR)/check_cross.sh
 else
 	@which $(CC) >/dev/null 2>&1 || (echo "Error: Compiler not found. Please install GCC." && exit 1)
 	@which pkg-config >/dev/null 2>&1 || (echo "Error: pkg-config not found. Please install pkg-config." && exit 1)
@@ -262,10 +264,4 @@ ifeq ($(IS_WINDOWS),yes)
 	@echo "Error: Use MSVC NMakefile to compile with CUDA support." && exit 1
 else
 	@which nvcc > /dev/null 2>&1 || (echo "Error: CUDA toolkit not found. Please install CUDA toolkit." && exit 1)
-endif
-
-$(DLL_COMPLETE): | $(META_DIR) $(BIN_DIR)
-ifeq ($(IS_WINDOWS),yes)
-	@bash $(SCRIPTS_DIR)/copy_dlls.sh
-	@touch $@
 endif

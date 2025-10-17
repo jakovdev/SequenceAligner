@@ -1,6 +1,9 @@
 #!/bin/bash
 
-echo "Setting up required program files..."
+if [ -z "$MSYSTEM" ] || [ "$MSYSTEM" != "UCRT64" ]; then
+    echo "Error: Please run this from the UCRT64 MSYS2 shell"
+    exit 1
+fi
 
 UCRT64_BIN="/ucrt64/bin"
 
@@ -8,6 +11,18 @@ if [ ! -d "$UCRT64_BIN" ]; then
     echo "Error: Required files not found at $UCRT64_BIN"
     echo "Please make sure you're running from the MSYS2 UCRT64 environment"
     exit 1
+fi
+
+if [ ! -f "/ucrt64/include/hdf5.h" ]; then
+    echo "Required tools not found. Installing..."
+    pacman -S --needed --noconfirm \
+        mingw-w64-ucrt-x86_64-gcc \
+        mingw-w64-ucrt-x86_64-make \
+        mingw-w64-ucrt-x86_64-hdf5
+    if [ $? -ne 0 ]; then
+        echo "Installation failed. Please try running 'pacman -Syu' first to update your system."
+        exit 1
+    fi
 fi
 
 mkdir -p bin 2>/dev/null
@@ -36,5 +51,3 @@ DLLS=(
 for dll in "${DLLS[@]}"; do
     cp -f "$UCRT64_BIN/$dll" bin/ 2>/dev/null
 done
-
-echo "Setup complete."
