@@ -36,7 +36,7 @@ static struct
 
     FileScoreMatrix memory_map;
 
-    sequence_count_t matrix_dim;
+    size_t matrix_dim;
 
     int64_t checksum;
 
@@ -51,7 +51,7 @@ static void h5_chunk_dimensions_calculate(void);
 static bool h5_file_setup(void);
 
 bool
-h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compression, bool write)
+h5_open(const char* file_path, size_t mat_dim, unsigned int compression, bool write)
 {
     g_hdf5.matrix_dim = mat_dim;
     g_hdf5.file_id = H5I_INVALID_HID;
@@ -68,7 +68,7 @@ h5_open(const char* file_path, sequence_count_t mat_dim, unsigned int compressio
         return true;
     }
 
-    if (g_hdf5.matrix_dim < 1)
+    if (g_hdf5.matrix_dim < 2)
     {
         print(ERROR, MSG_NONE, "Matrix size is too small");
         return false;
@@ -335,8 +335,8 @@ h5_matrix_set(sequence_index_t row, sequence_index_t col, score_t value)
 
     else
     {
-        g_hdf5.full_matrix[row * g_hdf5.matrix_dim + col] = value;
-        g_hdf5.full_matrix[col * g_hdf5.matrix_dim + row] = value;
+        g_hdf5.full_matrix[g_hdf5.matrix_dim * row + col] = value;
+        g_hdf5.full_matrix[g_hdf5.matrix_dim * col + row] = value;
     }
 }
 
@@ -503,7 +503,7 @@ h5_triangle_indices_calculate(void)
 static void
 h5_chunk_dimensions_calculate(void)
 {
-    sequence_count_t matrix_dim = g_hdf5.matrix_dim;
+    sequence_count_t matrix_dim = (sequence_count_t)g_hdf5.matrix_dim;
     sequence_count_t chunk_dim;
 
     if (matrix_dim <= H5_MIN_CHUNK_SIZE)
@@ -747,7 +747,7 @@ h5_flush_full_matrix(void)
 static void
 h5_flush_memory_map(void)
 {
-    sequence_count_t matrix_dim = g_hdf5.matrix_dim;
+    size_t matrix_dim = g_hdf5.matrix_dim;
     size_t available_mem = available_memory();
     if (!available_mem)
     {
@@ -791,14 +791,15 @@ h5_flush_memory_map(void)
     }
 
     print(INFO, MSG_NONE, "Converting memory-mapped matrix to HDF5 format");
+    print(PROGRESS, MSG_PERCENT(0), "Converting to HDF5");
 
     for (sequence_index_t begin = 0; begin < matrix_dim; begin += chunk_size)
     {
-        sequence_count_t end = MIN(begin + chunk_size, matrix_dim);
+        sequence_count_t end = MIN(begin + chunk_size, (sequence_count_t)matrix_dim);
 
         for (sequence_index_t i = begin; i < end; i++)
         {
-            alignment_size_t row_offset = (alignment_size_t)(i - begin) * matrix_dim;
+            alignment_size_t row_offset = matrix_dim * (i - begin);
 
             for (sequence_index_t j = i + 1; j < matrix_dim; j++)
             {
@@ -809,7 +810,7 @@ h5_flush_memory_map(void)
             {
                 if (j >= begin)
                 {
-                    buffer[row_offset + j] = buffer[(j - begin) * matrix_dim + i];
+                    buffer[row_offset + j] = buffer[matrix_dim * (j - begin) + i];
                 }
 
                 else

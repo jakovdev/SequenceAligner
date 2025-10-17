@@ -101,20 +101,21 @@ file_format_csv_parse(FileText* file)
     file->data.cursor = file->data.start;
 
     print(VERBOSE, MSG_NONE, "Counting sequences in input file");
-    file->data.total = (sequence_count_t)csv_total_lines(file->data.start, file->data.end);
+    size_t total = csv_total_lines(file->data.start, file->data.end);
 
-    if (file->data.total >= SEQUENCE_COUNT_MAX)
+    if (total >= SEQUENCE_COUNT_MAX)
     {
-        print(ERROR, MSG_NONE, "Too many sequences in input file: %u", file->data.total);
+        print(ERROR, MSG_NONE, "Too many sequences in input file: %zu", total);
         return false;
     }
 
-    if (!file->data.total)
+    if (!total)
     {
         print(ERROR, MSG_NONE, "No sequences found in input file");
         return false;
     }
 
+    file->data.total = (sequence_count_t)total;
     print(DNA, MSG_NONE, "Found %u sequences", file->data.total);
     return true;
 }
@@ -364,12 +365,12 @@ file_extract_sequence(FileText* restrict file, char* restrict output)
 }
 
 FileScoreMatrix
-file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
+file_matrix_open(const char* file_path, size_t matrix_dim)
 {
     FileScoreMatrix file = { 0 };
     file_metadata_init(&file.meta);
 
-    alignment_size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
+    size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
     size_t bytes = triangle_elements * sizeof(*file.matrix);
     file.meta.bytes = bytes;
     const char* file_name = file_name_path(file_path);
@@ -441,10 +442,11 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     madvise(file.matrix, bytes, MADV_RANDOM);
     madvise(file.matrix, bytes, MADV_HUGEPAGE);
     madvise(file.matrix, bytes, MADV_DONTFORK);
+    madvise(file.matrix, bytes, MADV_DONTDUMP);
 
 #endif
 
-    const alignment_size_t check_indices[5] = {
+    const size_t check_indices[5] = {
         0,                         // First element
         triangle_elements / 4,     // First quarter
         triangle_elements / 2,     // Middle
@@ -452,10 +454,10 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
         triangle_elements - 1      // Last element
     };
 
-    const alignment_size_t num_check_indices = sizeof(check_indices) / sizeof(*check_indices);
+    const size_t num_check_indices = sizeof(check_indices) / sizeof(*check_indices);
 
     bool is_zeroed = true;
-    for (alignment_size_t i = 0; i < num_check_indices; i++)
+    for (size_t i = 0; i < num_check_indices; i++)
     {
         if (file.matrix[check_indices[i]] != 0)
         {
@@ -498,7 +500,7 @@ file_matrix_close(FileScoreMatrix* file)
 alignment_size_t
 matrix_triangle_index(sequence_index_t row, sequence_index_t col)
 {
-    return (col * (col - 1)) / 2 + row;
+    return ((size_t)col * (col - 1)) / 2 + row;
 }
 
 void

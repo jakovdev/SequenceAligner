@@ -324,8 +324,8 @@ k_nw(const Sequences seqs,
 
     if (!c_triangular)
     {
-        scores[i * n + j] = score;
-        scores[j * n + i] = score;
+        scores[(size_t)i * n + j] = score;
+        scores[(size_t)j * n + i] = score;
     }
 
     else
@@ -449,8 +449,8 @@ k_ga(const Sequences seqs,
 
     if (!c_triangular)
     {
-        scores[i * n + j] = score;
-        scores[j * n + i] = score;
+        scores[(size_t)i * n + j] = score;
+        scores[(size_t)j * n + i] = score;
     }
 
     else
@@ -576,8 +576,8 @@ k_sw(const Sequences seqs,
 
     if (!c_triangular)
     {
-        scores[i * n + j] = score;
-        scores[j * n + i] = score;
+        scores[(size_t)i * n + j] = score;
+        scores[(size_t)j * n + i] = score;
     }
 
     else

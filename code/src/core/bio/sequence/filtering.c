@@ -99,9 +99,9 @@ filter_thread_worker(void* thread_arg)
         start_index = *storage->current_index;
 
         sequence_count_t remaining = sequence_count - start_index;
-        if (remaining < current_batch_size * num_threads / 2)
+        if (remaining < current_batch_size * batch_size / 2)
         {
-            current_batch_size = (sequence_count_t)((remaining + num_threads - 1) / num_threads);
+            current_batch_size = (remaining + batch_size - 1) / batch_size;
             if (current_batch_size == 0)
             {
                 current_batch_size = 1;

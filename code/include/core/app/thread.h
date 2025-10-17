@@ -56,10 +56,9 @@ align_thread_worker(void* thread_arg)
         current_batch_size = (row < batch_transition_tail) ? batch_size : batch_size_tail;
 
         sequence_count_t remaining_rows = sequence_count - row;
-        if (remaining_rows < current_batch_size * num_threads / 2)
+        if (remaining_rows < current_batch_size * batch_size / 2)
         {
-            current_batch_size = (sequence_count_t)((remaining_rows + num_threads - 1) /
-                                                    num_threads);
+            current_batch_size = (remaining_rows + batch_size - 1) / batch_size;
             if (current_batch_size == 0)
             {
                 current_batch_size = 1;
