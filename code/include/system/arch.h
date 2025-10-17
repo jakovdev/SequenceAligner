@@ -271,17 +271,24 @@ static inline double
 time_current(void)
 {
 #ifdef _WIN32
-    static double freq_inv = 0.0;
-    if (freq_inv == 0.0)
-    {
-        LARGE_INTEGER freq;
-        QueryPerformanceFrequency(&freq);
-        freq_inv = 1.0 / (double)freq.QuadPart;
-    }
+    // TODO: Check
 
-    LARGE_INTEGER count;
+    // static double freq_inv = 0.0;
+    // if (freq_inv == 0.0)
+    // {
+    //     LARGE_INTEGER freq;
+    //     QueryPerformanceFrequency(&freq);
+    //     freq_inv = 1.0 / (double)freq.QuadPart;
+    // }
+
+    // LARGE_INTEGER count;
+    // QueryPerformanceCounter(&count);
+    // return (double)count.QuadPart * freq_inv;
+
+    LARGE_INTEGER freq, count;
+    QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&count);
-    return (double)count.QuadPart * freq_inv;
+    return (double)count.QuadPart / (double)freq.QuadPart;
 #else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

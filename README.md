@@ -35,7 +35,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 ### System Requirements
 
 #### CPU Version
-- Any x86-64 processor
+- Any x86-64 (x64, AMD64, Intel 64 or "64-bit") processor and Operating System (Linux or Windows)
 - Enough RAM to store sequences from a dataset
 - Disk space for output files (varies with dataset size)
 
