@@ -122,7 +122,7 @@ bench_print_total(size_t alignments)
         double alignments_per_sec = (double)alignments / g_times.align;
         print(TIMING, MSG_LOC(FIRST), "Alignments per second: %.2f", alignments_per_sec);
 
-        if (args_thread_num() > 1)
+        if ((args_thread_num() > 1) && (!args_mode_cuda()))
         {
             double time_thread = g_times.align / (double)args_thread_num();
             double time_thread_sec = alignments_per_sec / (double)args_thread_num();

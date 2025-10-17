@@ -36,9 +36,7 @@ static struct
     unsigned mode_write : 1;
     unsigned mode_benchmark : 1;
     unsigned mode_filter : 1;
-#ifdef USE_CUDA
     unsigned mode_cuda : 1;
-#endif
     unsigned quiet : 1;
 } args = { 0 };
 
@@ -87,10 +85,7 @@ GETTER(float, filter, args.filter)
 GETTER(bool, mode_multithread, (bool)args.mode_multithread)
 GETTER(bool, mode_benchmark, (bool)args.mode_benchmark)
 GETTER(bool, mode_write, (bool)args.mode_write)
-
-#ifdef USE_CUDA
 GETTER(bool, mode_cuda, (bool)args.mode_cuda)
-#endif
 
 #undef GETTER
 
