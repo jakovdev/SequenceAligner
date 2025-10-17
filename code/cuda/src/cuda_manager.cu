@@ -81,33 +81,20 @@ Cuda::uploadSequences(char* sequences_letters,
         setHostError("No errors in program");
     }
 
-    m_seqs.constant = canUseConstantMemory();
+    cudaError_t err;
+    DEVICE_MALLOC(m_seqs.d_letters, total_sequences_length, "letter memory");
+    DEVICE_MALLOC(m_seqs.d_offsets, sequences_count, "offset memory");
+    DEVICE_MALLOC(m_seqs.d_lengths, sequences_count, "length memory");
 
-    if (m_seqs.constant)
-    {
-        if (!copySequencesToConstantMemory(sequences_letters, sequences_offsets, sequences_lengths))
-        {
-            return false;
-        }
-    }
-
-    else
-    {
-        cudaError_t err;
-        DEVICE_MALLOC(m_seqs.d_letters, total_sequences_length, "letter memory");
-        DEVICE_MALLOC(m_seqs.d_offsets, sequences_count, "offset memory");
-        DEVICE_MALLOC(m_seqs.d_lengths, sequences_count, "length memory");
-
-        HOST_DEVICE_COPY(m_seqs.d_letters, sequences_letters, total_sequences_length, "letters");
-        HOST_DEVICE_COPY(m_seqs.d_offsets, sequences_offsets, sequences_count, "offsets");
-        HOST_DEVICE_COPY(m_seqs.d_lengths, sequences_lengths, sequences_count, "lengths");
-    }
+    HOST_DEVICE_COPY(m_seqs.d_letters, sequences_letters, total_sequences_length, "letters");
+    HOST_DEVICE_COPY(m_seqs.d_offsets, sequences_offsets, sequences_count, "offsets");
+    HOST_DEVICE_COPY(m_seqs.d_lengths, sequences_lengths, sequences_count, "lengths");
 
     return true;
 }
 
 bool
-Cuda::uploadTriangleIndices32(half_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes)
+Cuda::uploadTriangleIndices(size_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes)
 {
     if (!m_initialized || !triangle_indices || !score_buffer || !buffer_bytes)
     {
@@ -135,65 +122,11 @@ Cuda::uploadTriangleIndices32(half_t* triangle_indices, score_t* score_buffer, s
     }
 
     m_results.h_scores = score_buffer;
-    m_results.h_indices_32 = triangle_indices;
-
-    if (m_seqs.constant)
-    {
-        if (!copyTriangleIndicesToConstantMemory(triangle_indices))
-        {
-            return false;
-        }
-    }
-
-    else
-    {
-        cudaError_t err;
-        DEVICE_MALLOC(m_seqs.d_indices_32, m_seqs.n_seqs, "offsets");
-        HOST_DEVICE_COPY(m_seqs.d_indices_32, triangle_indices, m_seqs.n_seqs, "offsets");
-    }
-
-    return true;
-}
-
-bool
-Cuda::uploadTriangleIndices64(size_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes)
-{
-    if (!m_initialized || !triangle_indices || !score_buffer || !buffer_bytes)
-    {
-        setHostError("Invalid parameters for storing results, or in --no-write mode");
-        return false;
-    }
-
-    const size_t expected_size = m_results.h_total_count * sizeof(*score_buffer);
-
-    if (buffer_bytes <= expected_size)
-    {
-        if (buffer_bytes == expected_size)
-        {
-            if (!copyTriangularMatrixFlag(true))
-            {
-                return false;
-            }
-        }
-
-        else
-        {
-            setHostError("Buffer size is too small for results");
-            return false;
-        }
-    }
-
-    m_results.h_scores = score_buffer;
-    m_results.h_indices_64 = triangle_indices;
-    m_seqs.indices_64 = true;
-    if (!copyTriangleIndices64FlagToConstantMemory(m_seqs.indices_64))
-    {
-        return false;
-    }
+    m_results.h_indices = triangle_indices;
 
     cudaError_t err;
-    DEVICE_MALLOC(m_seqs.d_indices_64, m_seqs.n_seqs, "offsets");
-    HOST_DEVICE_COPY(m_seqs.d_indices_64, triangle_indices, m_seqs.n_seqs, "offsets");
+    DEVICE_MALLOC(m_seqs.d_indices, m_seqs.n_seqs, "offsets");
+    HOST_DEVICE_COPY(m_seqs.d_indices, triangle_indices, m_seqs.n_seqs, "offsets");
 
     return true;
 }

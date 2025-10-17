@@ -16,12 +16,10 @@ struct Sequences
     char* d_letters{ nullptr };
     sequence_offset_t* d_offsets{ nullptr };
     sequence_length_t* d_lengths{ nullptr };
-    half_t* d_indices_32{ nullptr };
-    size_t* d_indices_64{ nullptr };
+    size_t* d_indices{ nullptr };
     sequence_count_t n_seqs{ 0 };
     size_t n_letters{ 0 };
     bool constant{ false };
-    bool indices_64{ false };
 };
 
 struct KernelResults
@@ -59,8 +57,7 @@ struct KernelResults
     cudaStream_t stream1{ nullptr };
 
     score_t* h_scores{ nullptr };
-    half_t* h_indices_32{ nullptr };
-    size_t* h_indices_64{ nullptr };
+    size_t* h_indices{ nullptr };
     alignment_size_t h_batch_size{ 0 };
     alignment_size_t h_last_batch{ 0 };
     alignment_size_t h_total_count{ 0 };
@@ -86,22 +83,10 @@ class Cuda
     {
         if (m_initialized)
         {
-            if (!m_seqs.constant)
-            {
-                cudaFree(m_seqs.d_letters);
-                cudaFree(m_seqs.d_offsets);
-                cudaFree(m_seqs.d_lengths);
-                if (m_seqs.indices_64)
-                {
-                    cudaFree(m_seqs.d_indices_64);
-                }
-
-                else
-                {
-                    cudaFree(m_seqs.d_indices_32);
-                }
-            }
-
+            cudaFree(m_seqs.d_letters);
+            cudaFree(m_seqs.d_offsets);
+            cudaFree(m_seqs.d_lengths);
+            cudaFree(m_seqs.d_indices);
             cudaDeviceReset();
         }
     }
@@ -117,12 +102,7 @@ class Cuda
 
     bool uploadScoring(int* scoring_matrix, int* sequence_lookup);
     bool uploadPenalties(int linear, int start, int extend);
-    bool uploadTriangleIndices32(half_t* triangle_indices,
-                                 score_t* score_buffer,
-                                 size_t buffer_bytes);
-    bool uploadTriangleIndices64(size_t* triangle_indices,
-                                 score_t* score_buffer,
-                                 size_t buffer_bytes);
+    bool uploadTriangleIndices(size_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes);
 
     bool launchKernel(int kernel_id);
     bool getResults();
@@ -150,13 +130,7 @@ class Cuda
     }
 
     bool getMemoryStats(size_t* free, size_t* total);
-    bool canUseConstantMemory();
     bool copyTriangularMatrixFlag(bool triangular);
-    bool copySequencesToConstantMemory(char* seqs,
-                                       sequence_offset_t* offsets,
-                                       sequence_length_t* lengths);
-    bool copyTriangleIndicesToConstantMemory(half_t* indices);
-    bool copyTriangleIndices64FlagToConstantMemory(bool indices_64);
 
     bool switchKernel(int kernel_id);
 
