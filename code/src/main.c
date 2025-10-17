@@ -46,7 +46,7 @@ main(int argc, char* argv[])
     print_error_prefix("HDF5");
 
     bench_io_start();
-    if (!h5_open(args_output(), sequence_count, args_compression(), args_mode_write()))
+    if (!h5_open(args_output(), (size_t)sequence_count, args_compression(), args_mode_write()))
     {
         bench_io_end();
         print(ERROR, MSG_NONE, "Failed to create file, will use no-write mode");

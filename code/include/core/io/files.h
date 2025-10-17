@@ -69,7 +69,7 @@ sequence_count_t file_sequence_total(FileText* file);
 size_t file_sequence_next_length(FileText* file);
 bool file_sequence_next(FileText* file);
 size_t file_extract_sequence(FileText* restrict file, char* restrict output);
-FileScoreMatrix file_matrix_open(const char* file_path, sequence_count_t matrix_dim);
+FileScoreMatrix file_matrix_open(const char* file_path, size_t matrix_dim);
 void file_matrix_close(FileScoreMatrix* file);
 alignment_size_t matrix_triangle_index(sequence_index_t row, sequence_index_t col);
 void file_matrix_name(char* buffer, size_t buffer_size, const char* output_path);

@@ -510,11 +510,9 @@ already_printed:;
 
     print(INFO, MSG_NONE, "Average sequence length: %.2f", sequence_average_length);
 
-    alignment_size_t alignment_count = (sequence_count * (sequence_count - 1)) / 2;
-
     g_sequence_dataset.sequences = sequences;
     g_sequence_dataset.sequence_count = sequence_count;
-    g_sequence_dataset.alignment_count = alignment_count;
+    g_sequence_dataset.alignment_count = ((size_t)sequence_count * (sequence_count - 1)) / 2;
 
 #ifdef _MSC_VER
     atexit(sequences_free);
@@ -526,20 +524,19 @@ already_printed:;
         goto skip_cuda;
     }
 
-    size_t cuda_total_length = 0;
+    size_t total_length = 0;
     sequence_length_t cuda_max_length = 0;
 
     for (sequence_index_t i = 0; i < sequence_count; i++)
     {
-        cuda_total_length += sequences[i].length;
+        total_length += sequences[i].length;
         if (cuda_max_length < sequences[i].length)
         {
             cuda_max_length = sequences[i].length;
         }
     }
 
-    g_sequence_dataset.flat_sequences = MALLOC(g_sequence_dataset.flat_sequences,
-                                               cuda_total_length);
+    g_sequence_dataset.flat_sequences = MALLOC(g_sequence_dataset.flat_sequences, total_length);
     g_sequence_dataset.flat_offsets = MALLOC(g_sequence_dataset.flat_offsets, sequence_count);
     g_sequence_dataset.flat_lengths = MALLOC(g_sequence_dataset.flat_lengths, sequence_count);
 
@@ -562,7 +559,7 @@ already_printed:;
         offset += (sequence_offset_t)sequences[i].length;
     }
 
-    g_sequence_dataset.total_sequence_length = cuda_total_length;
+    g_sequence_dataset.total_sequence_length = total_length;
     g_sequence_dataset.max_sequence_length = cuda_max_length;
 
 skip_cuda:

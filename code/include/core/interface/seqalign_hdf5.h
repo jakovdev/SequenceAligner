@@ -4,11 +4,7 @@
 
 #include "core/bio/types.h"
 
-extern bool h5_open(const char* file_path,
-                    sequence_count_t mat_dim,
-                    unsigned int compression,
-                    bool write);
-
+extern bool h5_open(const char* file_path, size_t mat_dim, unsigned int compression, bool write);
 extern bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count);
 extern void h5_matrix_set(sequence_index_t row, sequence_index_t col, score_t value);
 extern void h5_checksum_set(int64_t checksum);

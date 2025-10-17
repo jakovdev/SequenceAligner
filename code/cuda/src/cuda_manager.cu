@@ -51,10 +51,10 @@ Cuda::uploadSequences(char* sequences_letters,
 
     m_seqs.n_seqs = sequences_count;
     m_seqs.n_letters = total_sequences_length;
-    m_results.h_total_count = sequences_count * (sequences_count - 1) / 2;
+    m_results.h_total_count = (size_t)sequences_count * (sequences_count - 1) / 2;
     constexpr size_t cell_size = sizeof(*m_results.h_scores);
 
-    if (!hasEnoughMemory(sequences_count * sequences_count * cell_size))
+    if (!hasEnoughMemory(cell_size * sequences_count * sequences_count))
     {
         if (!hasEnoughMemory(m_results.h_total_count * cell_size))
         {
