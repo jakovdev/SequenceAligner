@@ -73,8 +73,11 @@ terminal_mode_raw(void)
 #ifdef _WIN32
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
     DWORD mode;
-    GetConsoleMode(hStdin, &mode);
-    SetConsoleMode(hStdin, mode & ~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    if (GetConsoleMode(hStdin, &mode))
+    {
+        SetConsoleMode(hStdin, mode & ~(DWORD)(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+    }
+
 #else
     struct termios term;
     tcgetattr(STDIN_FILENO, &term);

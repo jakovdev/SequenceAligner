@@ -39,13 +39,8 @@ typedef uint32_t HALF_OF_SIZE_T;
 typedef uint16_t HALF_OF_HALF_T;
 #define HALF_MAX (UINT32_MAX)
 #define QUAR_MAX (UINT16_MAX)
-#elif SIZE_MAX == UINT32_MAX
-typedef uint16_t HALF_OF_SIZE_T;
-typedef uint8_t HALF_OF_HALF_T;
-#define HALF_MAX (UINT16_MAX)
-#define QUAR_MAX (UINT8_MAX)
 #else
-#error "Unsupported platform: size_t width not 32 or 64 bits"
+#error "Unsupported platform: size_t width not 64 bits"
 #endif
 
 typedef HALF_OF_SIZE_T half_t;

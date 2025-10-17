@@ -202,7 +202,7 @@ file_text_open(FileText* file, const char* file_path)
     }
 
     file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL, PAGE_READONLY, 0, 0, NULL);
-    if (file->meta.hMapping == NULL)
+    if (!file->meta.hMapping)
     {
         print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
         file_metadata_close(&file->meta);
@@ -210,7 +210,7 @@ file_text_open(FileText* file, const char* file_path)
     }
 
     file->text = (char*)MapViewOfFile(file->meta.hMapping, FILE_MAP_READ, 0, 0, 0);
-    if (file->text == NULL)
+    if (!file->text)
     {
         print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
         file_metadata_close(&file->meta);
@@ -218,8 +218,14 @@ file_text_open(FileText* file, const char* file_path)
     }
 
     LARGE_INTEGER file_size;
-    GetFileSizeEx(file->meta.hFile, &file_size);
-    file->meta.bytes = file_size.QuadPart;
+    if (!GetFileSizeEx(file->meta.hFile, &file_size))
+    {
+        print(ERROR, MSG_NONE, "Could not get file size for '%s'", file_name);
+        file_text_close(file);
+        return false;
+    }
+
+    file->meta.bytes = (size_t)file_size.QuadPart;
 #else
     file->meta.fd = open(file_path, O_RDONLY);
     if (file->meta.fd == -1)
@@ -388,12 +394,12 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     }
 
     LARGE_INTEGER file_size;
-    file_size.QuadPart = bytes;
+    file_size.QuadPart = (LONGLONG)bytes;
     SetFilePointerEx(file.meta.hFile, file_size, NULL, FILE_BEGIN);
     SetEndOfFile(file.meta.hFile);
 
     file.meta.hMapping = CreateFileMapping(file.meta.hFile, NULL, PAGE_READWRITE, 0, 0, NULL);
-    if (file.meta.hMapping == NULL)
+    if (!file.meta.hMapping)
     {
         print(ERROR, MSG_NONE, "Could not create file mapping for '%s'", file_name);
         file_metadata_close(&file.meta);
@@ -401,7 +407,7 @@ file_matrix_open(const char* file_path, sequence_count_t matrix_dim)
     }
 
     file.matrix = (score_t*)MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-    if (file.matrix == NULL)
+    if (!file.matrix)
     {
         print(ERROR, MSG_NONE, "Could not map view of file '%s'", file_name);
         file_metadata_close(&file.meta);
