@@ -8,3 +8,4 @@ benchmark_results/
 .stignore
 .stfolder/
 vcpkg_installed/
+*.pdb
