@@ -88,20 +88,13 @@ __builtin_ctzll(unsigned long long x)
 #endif
 
 typedef HANDLE pthread_t;
-typedef HANDLE pthread_mutex_t;
 
 #define T_Func DWORD WINAPI
 #define T_Ret(x) return (DWORD)(size_t)(x)
 
 #define pthread_create(threads, _, function, arg)                                                  \
     (void)(*threads = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)function, arg, 0, NULL))
-#define pthread_mutex_lock(mutex) WaitForSingleObject(mutex, INFINITE)
-#define pthread_mutex_unlock(mutex) ReleaseMutex(mutex)
-#define PTHREAD_MUTEX_INITIALIZER CreateMutex(NULL, FALSE, NULL)
-#define pthread_mutex_destroy(mutex) CloseHandle(mutex)
 #define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
-
-#define PIN_THREAD(thread_id) SetThreadAffinityMask(GetCurrentThread(), (DWORD_PTR)1 << thread_id)
 
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
 #define aligned_free(ptr) _aligned_free(ptr)
@@ -127,16 +120,6 @@ typedef HANDLE pthread_mutex_t;
 
 #define T_Func void*
 #define T_Ret(x) return (x)
-
-#define PIN_THREAD(thread_id)                                                                      \
-    do                                                                                             \
-    {                                                                                              \
-        cpu_set_t cpuset;                                                                          \
-        CPU_ZERO(&cpuset);                                                                         \
-        CPU_SET(thread_id, &cpuset);                                                               \
-        pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);                        \
-    } while (false)
-
 #define aligned_free(ptr) free(ptr)
 
 #endif

@@ -18,7 +18,6 @@ extern SequenceType args_sequence_type(void);
 extern int args_scoring_matrix(void);
 extern unsigned int args_compression(void);
 extern float args_filter(void);
-extern bool args_mode_multithread(void);
 extern bool args_mode_benchmark(void);
 extern bool args_mode_write(void);
 extern bool args_mode_cuda(void);

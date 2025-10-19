@@ -433,33 +433,11 @@ sequences_load_from_file(void)
         goto cleanup_sequences;
     }
 
-    const unsigned long thread_num = args_thread_num();
-    const unsigned long num_threads = (thread_num > 0) ? thread_num : 1;
-
-    if (num_threads <= 1)
-    {
-        filter_sequences_singlethreaded(sequences,
-                                        sequence_count,
-                                        filter_threshold,
-                                        keep_flags,
-                                        &filtered_count);
-    }
-
-    else if (!filter_sequences_multithreaded(sequences,
-                                             sequence_count,
-                                             filter_threshold,
-                                             keep_flags,
-                                             &filtered_count))
+    if (!filter_sequences(sequences, sequence_count, filter_threshold, keep_flags, &filtered_count))
     {
         free(keep_flags);
         goto cleanup_sequences;
     }
-
-    bench_filter_end();
-
-    bench_print_filter(filtered_count);
-
-    bench_io_start();
 
     sequence_count_t write_index = 0;
     total_sequence_length = 0;
@@ -482,6 +460,10 @@ sequences_load_from_file(void)
 
     sequence_count = write_index;
     free(keep_flags);
+
+    bench_filter_end();
+    bench_print_filter(filtered_count);
+    bench_io_start();
 
     if (sequence_count < 2)
     {

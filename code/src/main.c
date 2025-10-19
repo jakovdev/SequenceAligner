@@ -1,9 +1,9 @@
 #include "core/app/args.h"
-#include "core/app/thread.h"
+#include "core/bio/algorithm/alignment.h"
 #include "core/bio/score/scoring.h"
+#include "core/bio/sequence/sequences.h"
 #include "core/interface/seqalign_cuda.h"
 #include "core/interface/seqalign_hdf5.h"
-#include "system/arch.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -17,11 +17,6 @@ main(int argc, char* argv[])
     args_print_config();
 
     print(SECTION, MSG_NONE, "Setting Up Alignment");
-
-    if (!args_mode_multithread())
-    {
-        PIN_THREAD(0);
-    }
 
     bench_io_start();
 
@@ -87,7 +82,21 @@ main(int argc, char* argv[])
 
     print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
 
-    if (!align())
+    bool alignment_success = false;
+
+#ifdef USE_CUDA
+    if (args_mode_cuda())
+    {
+        alignment_success = cuda_align();
+    }
+
+    else
+#endif
+    {
+        alignment_success = align();
+    }
+
+    if (!alignment_success)
     {
         print(ERROR, MSG_NONE, "Failed to perform alignments");
         h5_close(1);

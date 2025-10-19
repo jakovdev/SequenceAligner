@@ -72,7 +72,7 @@ X86_64_V3_BIN := $(BIN_DIR)/seqalign-x86-64-v3$(BIN_EXT)
 X86_64_V4_BIN := $(BIN_DIR)/seqalign-x86-64-v4$(BIN_EXT)
 
 HDF5_CFLAGS := $(if $(IS_WINDOWS),-I/ucrt64/include,$(if $(IS_CROSS_COMPILE),$(shell $(MINGW_PKG_CONFIG) --cflags hdf5),$(shell bash $(SCRIPTS_DIR)/check_hdf5.sh --parseable | head -n 1)))
-BASE_CFLAGS := -I$(INCLUDE_DIR) $(HDF5_CFLAGS) -std=c2x $(if $(filter yes,$(IS_WINDOWS) $(IS_CROSS_COMPILE)),-DWIN32_LEAN_AND_MEAN,-D_GNU_SOURCE -pthread)
+BASE_CFLAGS := -I$(INCLUDE_DIR) $(HDF5_CFLAGS) -fopenmp -std=c2x $(if $(filter yes,$(IS_WINDOWS) $(IS_CROSS_COMPILE)),-DWIN32_LEAN_AND_MEAN,-D_GNU_SOURCE -pthread)
 RELEASE_CFLAGS := $(BASE_CFLAGS) -O3 \
                   -funroll-loops -fprefetch-loop-arrays \
                   -fdata-sections -ffunction-sections \
