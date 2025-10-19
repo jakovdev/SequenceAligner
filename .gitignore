@@ -1,11 +1,41 @@
-bin/
+# Program outputs
 results/
-.cache/
+benchmark_results/
+
+# Build outputs
+bin/
+build/
+out/
+
+# Compiler specific files
+*.pdb
+
+# Dependencies
+vcpkg_installed/
+
+# IDE and editor files
 .vscode/
+
+# External tool files
 compile_commands.json
 .clangd
-benchmark_results/
+.cache/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.egg-info/
+*.pyc
+*.pyo
+
+# Syncthing
 .stignore
 .stfolder/
-vcpkg_installed/
-*.pdb
+
+# OS-specific
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
