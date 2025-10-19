@@ -102,7 +102,9 @@ class Cuda
 
     bool uploadScoring(int* scoring_matrix, int* sequence_lookup);
     bool uploadPenalties(int linear, int start, int extend);
-    bool uploadTriangleIndices(size_t* triangle_indices, score_t* score_buffer, size_t buffer_bytes);
+    bool uploadTriangleIndices(size_t* triangle_indices,
+                               score_t* score_buffer,
+                               size_t buffer_bytes);
 
     bool launchKernel(int kernel_id);
     bool getResults();
