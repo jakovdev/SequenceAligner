@@ -24,29 +24,11 @@ bench_io_start(void)
 }
 
 void
-bench_io_end(void)
-{
-    if (args_mode_benchmark())
-    {
-        g_times.io += time_current() - g_times.io_start;
-    }
-}
-
-void
 bench_align_start(void)
 {
     if (args_mode_benchmark())
     {
         g_times.align_start = time_current();
-    }
-}
-
-void
-bench_align_end(void)
-{
-    if (args_mode_benchmark())
-    {
-        g_times.align += time_current() - g_times.align_start;
     }
 }
 
@@ -60,6 +42,24 @@ bench_filter_start(void)
 }
 
 void
+bench_io_end(void)
+{
+    if (args_mode_benchmark())
+    {
+        g_times.io += time_current() - g_times.io_start;
+    }
+}
+
+void
+bench_align_end(void)
+{
+    if (args_mode_benchmark())
+    {
+        g_times.align += time_current() - g_times.align_start;
+    }
+}
+
+void
 bench_filter_end(void)
 {
     if (args_mode_benchmark())
@@ -69,16 +69,7 @@ bench_filter_end(void)
 }
 
 void
-bench_print_align(void)
-{
-    if (args_mode_benchmark())
-    {
-        print(TIMING, MSG_NONE, "Computation: %.3f sec", g_times.align);
-    }
-}
-
-void
-bench_print_io(void)
+bench_io_print(void)
 {
     if (args_mode_benchmark())
     {
@@ -87,7 +78,16 @@ bench_print_io(void)
 }
 
 void
-bench_print_filter(size_t filtered)
+bench_align_print(void)
+{
+    if (args_mode_benchmark())
+    {
+        print(TIMING, MSG_NONE, "Computation: %.3f sec", g_times.align);
+    }
+}
+
+void
+bench_filter_print(size_t filtered)
 {
     if (args_mode_benchmark())
     {
@@ -96,7 +96,7 @@ bench_print_filter(size_t filtered)
 }
 
 void
-bench_print_total(size_t alignments)
+bench_total_print(size_t alignments)
 {
     if (args_mode_benchmark())
     {
