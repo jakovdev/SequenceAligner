@@ -1,6 +1,7 @@
 #include "core/bio/types.h"
 
 #include <ctype.h>
+#include <stdio.h>
 
 #include "core/bio/algorithm/method/ga.h"
 #include "core/bio/algorithm/method/nw.h"

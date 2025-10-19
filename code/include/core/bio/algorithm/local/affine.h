@@ -4,7 +4,7 @@
 
 #include "core/bio/algorithm/indices.h"
 #include "core/bio/types.h"
-#include "system/arch.h"
+#include "system/simd.h"
 
 void affine_local_init(score_t* restrict match,
                        score_t* restrict gap_x,

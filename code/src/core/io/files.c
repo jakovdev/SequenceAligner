@@ -1,5 +1,7 @@
 #include "core/io/files.h"
 
+#include <stdio.h>
+
 #include "core/io/format/csv.h"
 #include "core/io/format/fasta.h"
 #include "system/arch.h"

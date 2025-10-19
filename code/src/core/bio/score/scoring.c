@@ -1,5 +1,7 @@
 #include "core/bio/score/scoring.h"
 
+#include <string.h>
+
 #include "core/app/args.h"
 #include "core/bio/types.h"
 

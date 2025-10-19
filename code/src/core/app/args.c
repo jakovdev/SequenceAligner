@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <getopt.h>
 #include <omp.h>
+#include <stdio.h>
 
 #include "core/bio/score/matrices.h"
 #include "core/bio/types.h"
