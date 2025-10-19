@@ -463,7 +463,7 @@ sequences_load_from_file(void)
     free(keep_flags);
 
     bench_filter_end();
-    bench_print_filter(filtered_count);
+    bench_filter_print(filtered_count);
     bench_io_start();
 
     if (sequence_count < 2)

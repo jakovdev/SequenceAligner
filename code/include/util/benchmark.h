@@ -12,9 +12,10 @@ extern void bench_io_end(void);
 extern void bench_align_end(void);
 extern void bench_filter_end(void);
 
-extern void bench_print_align(void);
-extern void bench_print_io(void);
-extern void bench_print_filter(size_t filtered);
-extern void bench_print_total(size_t alignments);
+extern void bench_io_print(void);
+extern void bench_align_print(void);
+extern void bench_filter_print(size_t filtered);
+
+extern void bench_total_print(size_t alignments);
 
 #endif // UTIL_BENCHMARK_H

@@ -108,14 +108,14 @@ main(int argc, char* argv[])
         print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_checksum());
     }
 
-    bench_print_align();
+    bench_align_print();
 
     bench_io_start();
     h5_close(0);
     bench_io_end();
 
-    bench_print_io();
+    bench_io_print();
 
-    bench_print_total(total_alignments);
+    bench_total_print(total_alignments);
     return 0;
 }
