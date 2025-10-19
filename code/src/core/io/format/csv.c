@@ -234,18 +234,10 @@ csv_header_parse(char* restrict file_cursor,
     {
         for (column = 0; column < num_columns; column++)
         {
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 6001)
-#endif
             if (headers[column])
             {
                 free(headers[column]);
             }
-
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
         }
 
         free(headers);

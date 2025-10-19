@@ -9,6 +9,7 @@
 
 #define STACK_MATRIX_THRESHOLD (128 * KiB)
 #define MATRIX_SIZE(len1, len2) ((len1 + 1U) * (len2 + 1U))
+#define MATRICES_3X_SIZE(len1, len2) (3 * MATRIX_SIZE(len1, len2))
 #define MATRIX_BYTES(len1, len2) (MATRIX_SIZE(len1, len2) * sizeof(score_t))
 #define MATRICES_3X_BYTES(len1, len2) (3 * MATRIX_BYTES(len1, len2))
 #define USE_STACK_MATRIX(bytes) ((bytes) <= STACK_MATRIX_THRESHOLD)

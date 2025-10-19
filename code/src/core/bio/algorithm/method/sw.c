@@ -12,14 +12,11 @@ align_sw(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
     const sequence_length_t len2 = seq2->length;
 
     size_t matrices_bytes = MATRICES_3X_BYTES(len1, len2);
+    size_t matrices_size = USE_STACK_MATRIX(matrices_bytes) ? MATRICES_3X_SIZE(len1, len2) : 1;
 #ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 6255)
-    score_t* stack_matrix = USE_STACK_MATRIX(matrices_bytes) ? (score_t*)_alloca(matrices_bytes)
-                                                             : NULL;
-#pragma warning(pop)
+    score_t* stack_matrix = ALLOCA(stack_matrix, matrices_size);
 #else
-    score_t stack_matrix[USE_STACK_MATRIX(matrices_bytes) ? 3 * MATRIX_SIZE(len1, len2) : 1];
+    score_t stack_matrix[matrices_size];
 #endif
     score_t* restrict matrix = matrix_alloc(stack_matrix, matrices_bytes);
 
@@ -55,14 +52,7 @@ align_sw(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
         goto no_stack;
     }
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable : 6255)
-#endif
     seq1_indices.data = ALLOCA(seq1_indices.data, len1);
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
     seq1_indices.is_stack = true;
 
 no_stack:
