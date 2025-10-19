@@ -2,6 +2,9 @@
 
 #include <ctype.h>
 
+#include "core/bio/algorithm/method/ga.h"
+#include "core/bio/algorithm/method/nw.h"
+#include "core/bio/algorithm/method/sw.h"
 #include "core/bio/score/matrices.h"
 #include "system/arch.h"
 
@@ -46,6 +49,27 @@ static struct
       (const char*[]){ "sw", "smith", NULL },
       GAP_TYPE_AFFINE }
 };
+
+align_func_t
+align_function(AlignmentMethod method)
+{
+    switch (method)
+    {
+        case ALIGN_GOTOH_AFFINE:
+            return align_ga;
+
+        case ALIGN_NEEDLEMAN_WUNSCH:
+            return align_nw;
+
+        case ALIGN_SMITH_WATERMAN:
+            return align_sw;
+
+        case ALIGN_INVALID:
+        case ALIGN_COUNT:
+        default:
+            return NULL;
+    }
+}
 
 const char*
 alignment_name(AlignmentMethod method)

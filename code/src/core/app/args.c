@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <getopt.h>
+#include <omp.h>
 
 #include "core/bio/score/matrices.h"
 #include "core/bio/types.h"
@@ -32,7 +33,6 @@ static struct
     unsigned gap_penalty_set : 1;
     unsigned gap_open_set : 1;
     unsigned gap_extend_set : 1;
-    unsigned mode_multithread : 1;
     unsigned mode_write : 1;
     unsigned mode_benchmark : 1;
     unsigned mode_filter : 1;
@@ -82,7 +82,6 @@ GETTER(SequenceType, sequence_type, args.seq_type)
 GETTER(int, scoring_matrix, args.matrix_id)
 GETTER(unsigned int, compression, args.compression_level)
 GETTER(float, filter, args.filter)
-GETTER(bool, mode_multithread, (bool)args.mode_multithread)
 GETTER(bool, mode_benchmark, (bool)args.mode_benchmark)
 GETTER(bool, mode_write, (bool)args.mode_write)
 GETTER(bool, mode_cuda, (bool)args.mode_cuda)
@@ -494,13 +493,18 @@ args_parse(int argc, char* argv[])
         }
     }
 
-    if (args.thread_num == 0)
+    if (!args.thread_num)
     {
-        long threads = thread_count();
-        args.thread_num = (threads > 0) ? (unsigned long)threads : 1;
+        args.thread_num = (unsigned long)omp_get_max_threads();
     }
 
-    args.mode_multithread = (args.thread_num > 1);
+    else if (args.thread_num > INT_MAX)
+    {
+        print(ERROR, MSG_NONE, "Thread count exceeds maximum of %d", INT_MAX);
+        exit(1);
+    }
+
+    omp_set_num_threads((int)args.thread_num);
 
     if (args.method_id == ALIGN_GOTOH_AFFINE && args.gap_open == args.gap_extend)
     {

@@ -21,7 +21,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 - GPU acceleration with CUDA support
 - CPU optimizations:
   - SIMD vectorization (AVX512/AVX2/SSE)
-  - Efficient multithreading with minimal overhead
+  - Efficient OpenMP multithreading with minimal overhead
   - Memory-mapped file I/O
   - Sequence memory pools
 - [Multiple configurable options](#usage)
@@ -233,7 +233,7 @@ bin\seqalign.exe [ARGUMENTS]
 **Test Hardware:**
 - **CPU**: AMD Ryzen 7 5700X3D (Zen 3 architecture, x86-64-v3)
 - **RAM**: 2x16GB DDR4-3200 CL16
-- **GPU**: NVIDIA GeForce RTX 4060 8GB with 1024 CUDA threads
+- **GPU**: NVIDIA GeForce RTX 4060 8GB
 
 ### Dataset Characteristics
 
@@ -311,7 +311,7 @@ All implementations use dynamic programming with optimized matrix operations.
 - SIMD vectorization using AVX/SSE instructions
 - Cache friendly memory access patterns
 - Memory prefetching
-- Mutex-based thread work allocation with dynamic batch sizing
+- Low overhead OpenMP multithreading 
 - Huge pages for large memory allocations
 - Efficient matrix allocation with stack fallback for small sequences
 - Memory mapped input file reading and storage for large matrices

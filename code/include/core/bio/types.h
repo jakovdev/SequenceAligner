@@ -74,7 +74,9 @@ typedef sequence_t* sequences_t;
 
 // Pointer to a specific sequence
 typedef sequence_t* restrict sequence_ptr_t;
+typedef score_t (*align_func_t)(const sequence_ptr_t, const sequence_ptr_t);
 
+extern align_func_t align_function(AlignmentMethod method);
 extern const char* alignment_name(AlignmentMethod method);
 extern bool alignment_linear(AlignmentMethod method);
 extern bool alignment_affine(AlignmentMethod method);
