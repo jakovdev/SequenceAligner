@@ -5,7 +5,7 @@
 #include <limits.h>
 
 #include "matrices.h"
-#include "system/arch.h"
+#include "system/simd.h"
 
 #ifdef USE_SIMD
 extern veci_t g_first_row_indices;

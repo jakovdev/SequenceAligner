@@ -4,7 +4,7 @@
 
 #include "core/bio/algorithm/indices.h"
 #include "core/bio/types.h"
-#include "system/arch.h"
+#include "system/simd.h"
 
 void linear_global_init(score_t* restrict matrix,
                         const sequence_ptr_t seq1,

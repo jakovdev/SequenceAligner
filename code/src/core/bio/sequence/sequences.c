@@ -8,6 +8,7 @@
 #include "core/bio/types.h"
 #include "core/io/files.h"
 #include "system/arch.h"
+#include "system/simd.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 

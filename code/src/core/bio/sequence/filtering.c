@@ -5,6 +5,7 @@
 #include "core/app/args.h"
 #include "core/bio/types.h"
 #include "system/arch.h"
+#include "system/simd.h"
 #include "util/print.h"
 #include "util/progress.h"
 

@@ -3,6 +3,7 @@
 #define UTIL_FSTRING_H
 
 #include "system/arch.h"
+#include "system/simd.h"
 
 /*
 Potential usages that need exploring:

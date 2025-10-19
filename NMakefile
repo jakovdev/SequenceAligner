@@ -60,6 +60,8 @@ SRCS = \
     $(SRC_DIR)\core\io\files.c \
     $(SRC_DIR)\core\io\format\csv.c \
     $(SRC_DIR)\core\io\format\fasta.c \
+    $(SRC_DIR)\system\simd.c \
+    $(SRC_DIR)\system\arch.c \
     $(SRC_DIR)\util\benchmark.c \
     $(SRC_DIR)\util\print.c \
     $(SRC_DIR)\util\progress.c
@@ -166,6 +168,10 @@ copy-dlls:
     @$(CC) $(CFLAGS) /c $< /Fo$@
 
 {$(SRC_DIR)\util}.c{$(BIN_DIR)\obj\util}.obj:
+    @if not exist $(@D) mkdir $(@D)
+    @$(CC) $(CFLAGS) /c $< /Fo$@
+
+{$(SRC_DIR)\system}.c{$(BIN_DIR)\obj\system}.obj:
     @if not exist $(@D) mkdir $(@D)
     @$(CC) $(CFLAGS) /c $< /Fo$@
 

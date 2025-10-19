@@ -1,10 +1,10 @@
 #include "core/io/format/csv.h"
 
-#include <stddef.h>
-#include <stdlib.h>
-#include <string.h>
+#include <limits.h>
+#include <stdint.h>
 
 #include "system/arch.h"
+#include "system/simd.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
