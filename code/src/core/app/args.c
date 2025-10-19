@@ -43,28 +43,18 @@ static struct
 
 static const char* optstring = "i:o:a:t:m:p:s:e:T:z:f:BWClvqDh";
 
-static struct option long_options[] = { { "input", required_argument, 0, 'i' },
-                                        { "output", required_argument, 0, 'o' },
-                                        { "align", required_argument, 0, 'a' },
-                                        { "type", required_argument, 0, 't' },
-                                        { "matrix", required_argument, 0, 'm' },
-                                        { "gap-penalty", required_argument, 0, 'p' },
-                                        { "gap-open", required_argument, 0, 's' },
-                                        { "gap-extend", required_argument, 0, 'e' },
-                                        { "threads", required_argument, 0, 'T' },
-                                        { "compression", required_argument, 0, 'z' },
-                                        { "filter", required_argument, 0, 'f' },
-                                        { "benchmark", no_argument, 0, 'B' },
-#ifdef USE_CUDA
-                                        { "no-cuda", no_argument, 0, 'C' },
-#endif
-                                        { "no-write", no_argument, 0, 'W' },
-                                        { "no-detail", no_argument, 0, 'D' },
-                                        { "verbose", no_argument, 0, 'v' },
-                                        { "quiet", no_argument, 0, 'q' },
-                                        { "help", no_argument, 0, 'h' },
-                                        { "list-matrices", no_argument, 0, 'l' },
-                                        { 0, 0, 0, 0 } };
+static struct option long_options[] = {
+    { "input", required_argument, 0, 'i' },    { "output", required_argument, 0, 'o' },
+    { "align", required_argument, 0, 'a' },    { "type", required_argument, 0, 't' },
+    { "matrix", required_argument, 0, 'm' },   { "gap-penalty", required_argument, 0, 'p' },
+    { "gap-open", required_argument, 0, 's' }, { "gap-extend", required_argument, 0, 'e' },
+    { "threads", required_argument, 0, 'T' },  { "compression", required_argument, 0, 'z' },
+    { "filter", required_argument, 0, 'f' },   { "benchmark", no_argument, 0, 'B' },
+    { "no-cuda", no_argument, 0, 'C' },        { "no-write", no_argument, 0, 'W' },
+    { "no-detail", no_argument, 0, 'D' },      { "verbose", no_argument, 0, 'v' },
+    { "quiet", no_argument, 0, 'q' },          { "help", no_argument, 0, 'h' },
+    { "list-matrices", no_argument, 0, 'l' },  { 0, 0, 0, 0 }
+};
 
 #define GETTER(type, name, field)                                                                  \
     type args_##name(void)                                                                         \
