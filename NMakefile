@@ -56,6 +56,7 @@ SRCS = \
     $(SRC_DIR)\core\bio\sequence\filtering.c \
     $(SRC_DIR)\core\bio\sequence\sequences.c \
     $(SRC_DIR)\core\interface\seqalign_hdf5.c \
+    $(SRC_DIR)\core\interface\seqalign_cuda.c \
     $(SRC_DIR)\core\io\files.c \
     $(SRC_DIR)\core\io\format\csv.c \
     $(SRC_DIR)\core\io\format\fasta.c \
