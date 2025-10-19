@@ -196,6 +196,7 @@ def generate_header_file(matrix_types):
     header_content.append("")
     header_content.append("// clang-format on")
     header_content.append("#endif // MATRICES_H")
+    header_content.append("")
     return "\n".join(header_content)
 
 
@@ -258,6 +259,7 @@ def generate_source_file(matrix_types):
         source_content.append("")
 
     source_content.append("// clang-format on")
+    source_content.append("")
     return "\n".join(source_content)
 
 
