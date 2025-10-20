@@ -39,6 +39,7 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 - Disk space for output files and enough RAM for results (varies with dataset size, see [File Formats](#file-formats))
 
 #### CUDA Version
+- Same as CPU version, plus:
 - NVIDIA GPU and drivers
 
 ### Releases
@@ -81,7 +82,7 @@ cd SequenceAligner
 # Build the project
 make
 
-# Build with CUDA support (if available)
+# Build with CUDA support (if cuda toolkit is installed)
 make cuda
 ```
 </details>
@@ -93,7 +94,7 @@ make cuda
 
 #### (RECOMMENDED) Windows MSVC (CUDA support)
 
-1. Install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) (optional)
+1. Install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
   - Required components: Runtime, Development
 
 2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
@@ -119,7 +120,7 @@ nmake /F NMakefile
 ```bat
 bin\seqalign.exe
 ```
-> - Linux (both CUDA and CPU) provides the best and most consistent performance. The Windows CUDA build (MSVC) is supported and should run just as well. Windows CPU-only mode (MSVC) is not recommended - try the MSYS2 version below instead if you want to stay on Windows, but no guarantees.
+This executable defaults to the CUDA version. Pass the `-C` argument to disable CUDA if you don't have a compatible GPU to run the program on CPU only. You still need Cuda Toolkit to build this version from source even if you don't have a compatible GPU or plan on disabling CUDA with that argument. See the below MSYS2 section for a CPU-only build without CUDA dependency.
 
 #### Windows MSYS2 GCC (no CUDA support)
 
@@ -131,7 +132,7 @@ bin\seqalign.exe
 cd /c/Users/John/Downloads/SequenceAligner
 ```
 
-> - Replace the folder path to the location you downloaded the project files
+Replace the folder path to the location you downloaded the project files
 > - MSYS2 uses `/c/...` instead of `C:\...`
 
 4. Install required tools by running:
@@ -144,7 +145,7 @@ cd /c/Users/John/Downloads/SequenceAligner
 mingw32-make
 ```
 
-> - While this has faster CPU-only version than MSVC, for any serious usage, you should use the Linux version instead
+While this has faster CPU-only version than MSVC, this version does not support CUDA at all.
 
 </details>
 
@@ -195,12 +196,11 @@ bin\seqalign.exe [ARGUMENTS]
 
 ### Examples
 
+Below are example commands to run the program. Adjust as needed, see [Usage](#usage) for full argument list and their descriptions.
+
 > [!NOTE]
-> - The input file is my own testing dataset provided with the codebase
-> - This means all arguments are ones which work for that dataset (like sequence type)
-> - You should change the arguments to match your dataset
-> - Also, for relative file paths they should be relative to your current directory, not the binary location
-> - Add `.exe` suffix on Windows to `seqalign`
+> - File paths should be relative to your current directory, not the binary location
+> - On Windows, change `/` to `\` in file paths, and use `bin\seqalign.exe` instead of `./bin/seqalign`
 
 ```bash
 # Run with all required parameters
@@ -242,6 +242,12 @@ bin\seqalign.exe [ARGUMENTS]
 | AVPPred | 1,042 | 21.6 | 542,361 | Small |
 | AMP | 9,409 | 30.5 | 44,259,936 | Medium |
 | Drosophila | 58,746 | 17.9 | 1,725,516,885 | Large |
+
+> [!NOTE]
+> - To get these datasets, clone the repository with `--recurse-submodules`:
+> ```bash
+> git clone --recurse-submodules https://github.com/user/SequenceAligner.git
+> ```
 
 ### CPU Threading Performance (AMP dataset)
 
@@ -286,7 +292,7 @@ bin\seqalign.exe [ARGUMENTS]
 
 ## Implementation Details
 
-<details>
+<details open>
 <summary><strong>Algorithm Implementations</strong></summary>
 
 - **Needleman-Wunsch**: Global alignment with linear gap penalties
@@ -295,13 +301,16 @@ bin\seqalign.exe [ARGUMENTS]
 
 All implementations use dynamic programming with optimized matrix operations.
 
-> Parasail python equivalents
-> - parasail.nw() is actually the Gotoh algorithm with affine gaps in SequenceAligner
-> - To get actual linear gaps in Parasail you need to set the `open` and `extend` parameters to the same value
-> - This also applies to the Gotoh algorithm in SequenceAligner, but you should use NW since it is faster and takes one value
-> - **Needleman-Wunsch**: **Parasail:** `parasail.nw(..., open=gap, extend=gap, ...)`,  **SequenceAligner:** `-a nw -p gap`
-> - **Smith-Waterman**: **Parasail:** `parasail.sw(..., open=gap_open, extend=gap_extend, ...)`, **SequenceAligner:** `-a sw -s gap_open -e gap_extend`
-> - **Gotoh Algorithm**: **Parasail:** `parasail.nw(..., open=gap_open, extend=gap_extend, ...)`, **SequenceAligner:** `-a ga -s gap_open -e gap_extend`
+### Parasail python equivalents
+- parasail.nw() is actually the Gotoh algorithm with affine gaps in SequenceAligner
+- To get actual linear gaps in Parasail you need to set the `open` and `extend` parameters to the same value
+- This also applies to the Gotoh algorithm in SequenceAligner, but you should use NW since it is faster and takes one value
+
+| Algorithm | Parasail | SequenceAligner |
+|---|---|---|
+| Needleman-Wunsch | `parasail.nw(..., open=gap, extend=gap, ...)` | `-a nw -p gap` |
+| Smith-Waterman | `parasail.sw(..., open=gap_open, extend=gap_extend, ...)` | `-a sw -s gap_open -e gap_extend` |
+| Gotoh (affine gaps) | `parasail.nw(..., open=gap_open, extend=gap_extend, ...)` | `-a ga -s gap_open -e gap_extend` |
 
 </details>
 
