@@ -104,7 +104,7 @@ filter_sequences(sequences_t sequences,
 
 #ifdef _MSC_VER
         int64_t si;
-#pragma omp parallel for schedule(dynamic)
+#pragma omp for schedule(dynamic)
         for (si = 1; si < (int64_t)sequence_count; si++)
         {
             sequence_count_t i = (sequence_count_t)si;
