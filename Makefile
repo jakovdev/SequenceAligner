@@ -110,7 +110,7 @@ CUDA_RELEASE_FLAGS := -std=c++20 \
     --extra-device-vectorization \
     -Xcompiler="-O3 -fPIC -fno-plt" \
     -I$(CUDA_INCLUDE_DIR) -I$(CUDA_C_BINDINGS_DIR)
-CUDA_DEBUG_FLAGS := -g -G -O0 -Xcompiler "-Wall -Wextra" -I$(CUDA_INCLUDE_DIR) -I$(CUDA_C_BINDINGS_DIR) -Wno-deprecated-gpu-targets
+CUDA_DEBUG_FLAGS := -std=c++20 -g -G -O0 -Xcompiler "-Wall -Wextra" -I$(CUDA_INCLUDE_DIR) -I$(CUDA_C_BINDINGS_DIR) -Wno-deprecated-gpu-targets
 
 CUDA_LIBS := $(shell pkg-config --libs cuda) -lcudart
 CUDA_CFLAGS := -DUSE_CUDA -I$(CUDA_C_BINDINGS_DIR)
