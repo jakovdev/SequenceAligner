@@ -200,27 +200,38 @@ csv_header_parse(char* restrict file_cursor,
             choices[column] = headers[column];
         }
 
-        choices[num_columns] = "My csv file does not have a header! Do not skip it!";
-        size_t choice_num = num_columns + 1;
+        char headerless_choice[] = "My csv file does not have a header! Do not skip it!";
+        choices[num_columns] = headerless_choice;
+        size_t choice_n = num_columns + 1;
 
         print(INFO, MSG_LOC(FIRST), "Could not automatically detect the sequence column.");
         print(INFO, MSG_LOC(MIDDLE), "Which column contains your sequences?");
         print(INFO, MSG_LOC(LAST), "Select the header name (this first line will be skipped!):");
 
-        *seq_col = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
+        *seq_col = (size_t)print(CHOICE, MSG_CHOICE(choices, choice_n), "Enter column number");
         free(choices);
         bench_io_start();
     }
 
     if (*seq_col == num_columns)
     {
-        bench_io_end();
-        print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
-        char** choices = headers;
-        size_t choice_num = num_columns;
-        *seq_col = print(CHOICE, MSG_CHOICE(choices, choice_num), "Enter column number");
-        *no_header = true;
-        bench_io_start();
+        if (num_columns >= 2)
+        {
+            bench_io_end();
+            print(INFO, MSG_LOC(LAST), "OK, select the column that displays a sequence");
+            char** choices = headers;
+            size_t choice_n = num_columns;
+            *seq_col = (size_t)print(CHOICE, MSG_CHOICE(choices, choice_n), "Enter column number");
+            *no_header = true;
+            bench_io_start();
+        }
+
+        else
+        {
+            print(INFO, MSG_LOC(LAST), "Only one column present; using it as the sequence column.");
+            *seq_col = 0;
+            *no_header = true;
+        }
     }
 
     if (*seq_col < num_columns && headers && headers[*seq_col])
