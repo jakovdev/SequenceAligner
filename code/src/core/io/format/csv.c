@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "system/arch.h"
-#include "system/simd.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -263,40 +262,10 @@ csv_line_next(char* restrict* restrict p_cursor)
         return false;
     }
 
-#ifdef USE_SIMD
-    const veci_t nl_vec = set1_epi8('\n');
-    const veci_t cr_vec = set1_epi8('\r');
-
-    while (*cursor)
-    {
-        veci_t data = loadu((veci_t*)cursor);
-
-#if defined(__AVX512F__) && defined(__AVX512BW__)
-        num_t mask_nl = cmpeq_epi8(data, nl_vec);
-        num_t mask_cr = cmpeq_epi8(data, cr_vec);
-        num_t mask = or_mask(mask_nl, mask_cr);
-#else
-        veci_t is_newline = or_si(cmpeq_epi8(data, nl_vec), cmpeq_epi8(data, cr_vec));
-        num_t mask = movemask_epi8(is_newline);
-#endif
-
-        if (mask)
-        {
-            num_t pos = ctz(mask);
-            cursor += pos;
-            break;
-        }
-
-        cursor += BYTES;
-    }
-
-#else
     while (*cursor && *cursor != '\n' && *cursor != '\r')
     {
         cursor++;
     }
-
-#endif
 
     while (*cursor && (*cursor == '\n' || *cursor == '\r'))
     {
