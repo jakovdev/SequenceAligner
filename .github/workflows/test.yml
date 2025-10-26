@@ -1,6 +1,7 @@
 name: Test for errors
 
 on:
+  workflow_dispatch:
   repository_dispatch:
     types: [run-daily-workflows]
 
@@ -10,18 +11,26 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Set up apt cache
-        uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: libhdf5-dev
-          version: 1.0
-      
+          submodules: 'recursive'
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential libhdf5-dev
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DUSE_CUDA=OFF \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DARCH_LEVEL=native
+
       - name: Build
-        run: make
-      
+        run: cmake --build build --config RelWithDebInfo -- -j$(nproc)
+
       - name: Run test
-        run: bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v -D
+        run: ./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v -D
