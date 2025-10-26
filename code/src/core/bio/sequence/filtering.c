@@ -6,6 +6,7 @@
 #include "core/bio/types.h"
 #include "system/arch.h"
 #include "system/simd.h"
+#include "util/benchmark.h"
 #include "util/print.h"
 #include "util/progress.h"
 
@@ -148,7 +149,11 @@ filter_sequences(sequences_t sequences,
         total_filtered += local_filtered;
     }
 
+    bench_filter_end();
+
     progress_end();
+
+    bench_filter_start();
 
     *filtered_count = total_filtered;
 
