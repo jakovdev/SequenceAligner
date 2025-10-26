@@ -47,7 +47,7 @@
                 "linux-base"
             ],
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "ARCH_LEVEL": "native",
                 "USE_CUDA": "ON"
             }
