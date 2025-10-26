@@ -1,0 +1,110 @@
+{
+    "version": 4,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "linux-base",
+            "hidden": true,
+            "inherits": [
+                "base"
+            ],
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "windows-base",
+            "hidden": true,
+            "inherits": [
+                "base"
+            ],
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            },
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+        },
+        {
+            "name": "linux-relwithdebinfo-cuda",
+            "displayName": "Linux (RelWithDebInfo, CUDA)",
+            "inherits": [
+                "linux-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ARCH_LEVEL": "native",
+                "USE_CUDA": "ON"
+            }
+        },
+        {
+            "name": "linux-debug-cuda",
+            "displayName": "Linux (Debug, CUDA)",
+            "inherits": [
+                "linux-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ARCH_LEVEL": "native",
+                "USE_CUDA": "ON"
+            }
+        },
+        {
+            "name": "windows-relwithdebinfo-cuda",
+            "displayName": "Windows (RelWithDebInfo, CUDA)",
+            "inherits": [
+                "windows-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "ARCH_LEVEL": "native",
+                "USE_CUDA": "ON"
+            }
+        },
+        {
+            "name": "windows-debug-cuda",
+            "displayName": "Windows (Debug, CUDA)",
+            "inherits": [
+                "windows-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ARCH_LEVEL": "native",
+                "USE_CUDA": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "build-linux-relwithdebinfo-cuda",
+            "configurePreset": "linux-relwithdebinfo-cuda"
+        },
+        {
+            "name": "build-linux-debug-cuda",
+            "configurePreset": "linux-debug-cuda"
+        },
+        {
+            "name": "build-windows-relwithdebinfo-cuda",
+            "configurePreset": "windows-relwithdebinfo-cuda"
+        },
+        {
+            "name": "build-windows-debug-cuda",
+            "configurePreset": "windows-debug-cuda"
+        }
+    ]
+}

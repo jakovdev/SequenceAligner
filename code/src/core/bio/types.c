@@ -118,7 +118,7 @@ alignment_arg(const char* arg)
         int method = atoi(arg);
         if (method >= 0 && method < ALIGN_COUNT)
         {
-            return method;
+            return (AlignmentMethod)method;
         }
 
         return ALIGN_INVALID;
@@ -148,7 +148,7 @@ alignment_list(void)
                ALIGNMENT_METHODS[i].aliases[0],
                ALIGNMENT_METHODS[i].name,
                ALIGNMENT_METHODS[i].description,
-               gap_type_name(i));
+               gap_type_name((AlignmentMethod)i));
     }
 }
 
@@ -270,7 +270,7 @@ sequence_type_arg(const char* arg)
         int type = atoi(arg);
         if (type >= 0 && type < SEQ_TYPE_COUNT)
         {
-            return type;
+            return (SequenceType)type;
         }
 
         return SEQ_TYPE_INVALID;

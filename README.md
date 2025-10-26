@@ -50,41 +50,26 @@ SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-
 > Will release once it's more user friendly (GUI instead of command line)
 
 
-### Building from source
+## Building from source
 
 <details>
 <summary><strong>Linux</strong></summary>
 
-#### Dependencies
-- GCC, GNU Make
+### Dependencies
+- GCC, GNU Make, Ninja, CMake
 - HDF5 library
 - CUDA toolkit (optional, for GPU acceleration)
 
-```bash
-# Debian/Ubuntu
-sudo apt install build-essential libhdf5-dev
-# For CUDA support, install CUDA toolkit
-sudo apt install nvidia-cuda-toolkit
-
-# Arch Linux
-sudo pacman -S gcc make hdf5
-# For CUDA support
-sudo pacman -S cuda
-```
-
-#### Building
+### Building
 
 ```bash
-# Clone the repository
-git clone https://github.com/user/SequenceAligner.git
-cd SequenceAligner
-
-# Build the project
-make
-
-# Build with CUDA support (if cuda toolkit is installed)
-make cuda
+./script/build_all.sh
 ```
+
+See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
+
+You will find the executable inside the `release` folder once you `tar -xf` it. See [Usage](#usage) for details on running the program and available arguments.
+
 </details>
 
 <details>
@@ -92,37 +77,31 @@ make cuda
 
 0. Download the project files using the green "Code" button on GitHub and select "Download ZIP". Extract the ZIP file to a folder of your choice. Take note of its location.
 
-#### (RECOMMENDED) Windows MSVC (CUDA support)
+### (RECOMMENDED) Windows MSVC (CUDA support)
 
 1. Install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
   - Required components: Runtime, Development
 
 2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
-  - Standalone packages: latest x64/x86 MSVC, vcpkg, any Windows 10/11 SDK
+  - Standalone packages: MSVC (latest x64/x86), vcpkg, any Windows 10/11 SDK, cmake
   - In the start menu, search for `x64 Native Tools Command Prompt for VS 2022` and open it
 
-3. Navigate to the folder you downloaded the project using:
+3. Navigate to the folder you downloaded and extracted the project using (example):
 ```bat
-# Example:
 cd C:\Users\John\Downloads\SequenceAligner
 ```
 
-4. Install required libraries using vcpkg:
+4. Building from source:
+
 ```bat
-vcpkg install
+.\script\build_all.bat
 ```
 
-5. Build the project using:
-```bat
-nmake /F NMakefile
-```
-6. You now have an executable in the `bin` folder, run with:
-```bat
-bin\seqalign.exe
-```
-This executable defaults to the CUDA version. Pass the `-C` argument to disable CUDA if you don't have a compatible GPU to run the program on CPU only. You still need Cuda Toolkit to build this version from source even if you don't have a compatible GPU or plan on disabling CUDA with that argument. See the below MSYS2 section for a CPU-only build without CUDA dependency.
+See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
 
-#### Windows MSYS2 GCC (no CUDA support)
+You will find the executable inside the `release` folder once you uzip it. See [Usage](#usage) for details on running the program and available arguments.
+
+### Windows MSYS2 GCC (no CUDA support)
 
 1. Install MSYS2 from https://www.msys2.org/
 2. Open the MSYS2 UCRT64 terminal
@@ -137,13 +116,21 @@ Replace the folder path to the location you downloaded the project files
 
 4. Install required tools by running:
 ```bash
-./scripts/msys2_setup.sh
+# Update package database and core system packages
+pacman -Syu
+
+# Install build tools and HDF5
+pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hdf5
 ```
 
 5. Build the project using:
 ```bash
-mingw32-make
+./script/build_all_cross.sh
 ```
+
+See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
+
+- Executable will be inside the `release` folder. Unzip it to get the executable. See [Usage](#usage) for details on running the program and available arguments.
 
 While this has faster CPU-only version than MSVC, this version does not support CUDA at all.
 
@@ -152,14 +139,15 @@ While this has faster CPU-only version than MSVC, this version does not support 
 ## Usage
 
 ```bash
-# Linux (CPU only version)
-bin/seqalign [ARGUMENTS]
+# Linux
+cd path/to/where/you/unzipped/release
+./seqalign [ARGUMENTS]
+```
 
-# Linux (CUDA+CPU version)
-bin/seqalign-cuda [ARGUMENTS]
-
+```bat
 # Windows
-bin\seqalign.exe [ARGUMENTS]
+cd path\to\where\you\unzipped\release
+.\seqalign.exe [ARGUMENTS]
 ```
 
 <details open>
@@ -200,32 +188,26 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 
 > [!NOTE]
 > - File paths should be relative to your current directory, not the binary location
-> - On Windows, change `/` to `\` in file paths, and use `bin\seqalign.exe` instead of `./bin/seqalign`
+> - On Windows use `.\seqalign.exe` instead of `./seqalign` and change `/` to `\` in file paths
 
 ```bash
 # Run with all required parameters
-./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4
+./seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4
 
-# Using Smith-Waterman algorithm (requires affine gap parameters) with 8 threads
-./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a sw -m blosum62 -s 10 -e 1 -T 8
-
-# Run with CUDA
-./bin/seqalign-cuda -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4
-
-# Run with CUDA but disable it (equivalent to CPU version)
-./bin/seqalign-cuda -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4 -C
+# Using Smith-Waterman algorithm with 8 threads and CUDA disabled
+./seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a sw -m blosum62 -s 10 -e 1 -T 8 -C
 
 # Gotoh algorithm with affine gaps
-./bin/seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a ga -m pam250 -s 12 -e 2
+./seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a ga -m pam250 -s 12 -e 2
 
 # Enable benchmarking mode with verbose output and without creating the HDF5 result
-./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
+./seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
 
 # List all available substitution matrices
-./bin/seqalign --list-matrices
+./seqalign --list-matrices
 
 # List all arguments
-./bin/seqalign --help
+./seqalign --help
 ```
 
 ## Performance Benchmarks

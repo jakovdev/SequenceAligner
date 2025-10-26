@@ -81,7 +81,7 @@ filter_sequences(sequences_t sequences,
     const unsigned long num_threads = args_thread_num();
     const size_t expected_progress = sequence_count - 1;
 
-    _Alignas(CACHE_LINE) _Atomic size_t global_progress = 0;
+    _Alignas(CACHE_LINE) _Atomic(size_t) global_progress = 0;
     const size_t progress_update_interval = expected_progress / (num_threads * 100);
 
     for (sequence_count_t i = 0; i < sequence_count; i++)

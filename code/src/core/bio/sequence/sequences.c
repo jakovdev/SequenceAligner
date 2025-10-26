@@ -83,7 +83,7 @@ seq_pool_init(void)
         return;
     }
 
-    g_pool.head->block = CAST(g_pool.head->block)(alloc_huge_page(SB_SIZE));
+    g_pool.head->block = alloc_huge_page(SB_SIZE);
     if (!g_pool.head->block)
     {
         free(g_pool.head);

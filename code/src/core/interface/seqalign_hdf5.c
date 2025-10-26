@@ -98,7 +98,7 @@ h5_open(const char* file_path, size_t mat_dim, unsigned int compression, bool wr
     {
         size_t bytes = sizeof(*g_hdf5.full_matrix) * g_hdf5.matrix_dim * g_hdf5.matrix_dim;
 
-        if (!(g_hdf5.full_matrix = CAST(g_hdf5.full_matrix)(alloc_huge_page(bytes))))
+        if (!(g_hdf5.full_matrix = alloc_huge_page(bytes)))
         {
             return false;
         }
@@ -718,13 +718,13 @@ h5_flush_memory_map(void)
     const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
     print(VERBOSE, MSG_NONE, "Using %u rows per chunk (%zu MiB buffer)", chunk_size, buffer_mib);
 
-    score_t* buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
+    score_t* buffer = calloc(chunk_size, row_bytes);
     if (!buffer)
     {
         print(WARNING, MSG_NONE, "Failed to allocate buffer of %zu bytes", row_bytes * chunk_size);
 
         chunk_size = 1;
-        buffer = CAST(buffer)(calloc(chunk_size, row_bytes));
+        buffer = calloc(chunk_size, row_bytes);
         if (!buffer)
         {
             print(ERROR, MSG_NONE, "Cannot allocate even minimal buffer, aborting");

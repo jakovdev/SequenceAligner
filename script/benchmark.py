@@ -24,7 +24,7 @@ except ImportError:
     PLOTLY_AVAILABLE = False
 
 BINARY = "bin/seqalign"
-# BINARY = "scripts/seqalign_parasail.py" Remember to uncomment "CUDA" in EXECUTION_MODES
+# BINARY = "script/seqalign_parasail.py" Remember to uncomment "CUDA" in EXECUTION_MODES
 
 NUM_RUNS = 1  # if > 1, statistical analysis is performed
 NUM_CUDA_THREADS = 1024
@@ -497,7 +497,7 @@ class BenchmarkManager:
 def in_project_root():
     current_dir = Path.cwd()
 
-    if current_dir.name == "scripts":
+    if current_dir.name == "script":
         os.chdir(current_dir.parent)
 
     if not (Path("bin").exists() and Path("datasets").exists()):

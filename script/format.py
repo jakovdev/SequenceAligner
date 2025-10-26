@@ -17,7 +17,7 @@
 #     "commands": [
 #         {
 #             "match": "\\.(?:c|h|cpp|hpp)$",
-#             "cmd": "python3 /path/to/scripts/format.py \"${file}\""
+#             "cmd": "python3 /path/to/script/format.py \"${file}\""
 #         }
 #     ]
 # },

@@ -8,7 +8,7 @@ import re
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-if os.path.exists("scripts/generate_matrices.py"):
+if os.path.exists("script/generate_matrices.py"):
     HEADER_FILE = "code/include/core/bio/score/matrices.h"
     SOURCE_FILE = "code/src/core/bio/score/matrices.c"
 else:

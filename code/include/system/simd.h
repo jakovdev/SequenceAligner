@@ -4,7 +4,9 @@
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 #include <immintrin.h>
+#ifndef _MSC_VER
 #include <x86intrin.h>
+#endif
 #define USE_SIMD
 #define USE_AVX512
 typedef __m512i veci_t;

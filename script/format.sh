@@ -18,7 +18,7 @@
 #     "commands": [
 #         {
 #             "match": "\\.(?:c|h|cpp|hpp)$",
-#             "cmd": "bash /path/to/scripts/format.sh \"${file}\""
+#             "cmd": "bash /path/to/script/format.sh \"${file}\""
 #         }
 #     ]
 # },

@@ -19,7 +19,7 @@ align(void)
     const align_func_t align_func = align_function(args_align_method());
 
     int64_t global_checksum = 0;
-    _Alignas(CACHE_LINE) _Atomic alignment_size_t global_progress = 0;
+    _Alignas(CACHE_LINE) _Atomic(alignment_size_t) global_progress = 0;
     const alignment_size_t progress_update_interval = MAX(1, alignment_count / (num_threads * 100));
 
     bench_align_start();

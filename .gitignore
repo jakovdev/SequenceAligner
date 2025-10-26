@@ -6,6 +6,8 @@ benchmark_results/
 bin/
 build/
 out/
+release/
+archive/
 
 # Compiler specific files
 *.pdb
@@ -14,12 +16,10 @@ out/
 vcpkg_installed/
 
 # IDE and editor files
-.vscode/
-
-# External tool files
 compile_commands.json
-.clangd
+.vscode/
 .cache/
+.vs/
 
 # Python
 .venv/

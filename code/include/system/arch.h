@@ -100,17 +100,14 @@ typedef HANDLE pthread_t;
 #include <string.h>
 
 #ifdef __cplusplus
-#define restrict __restrict
-#define CAST(ptr) static_cast<decltype(ptr)>
-#else
-#define CAST(ptr)
+#error "This project is C only"
 #endif
 
-#define ALLOCATION(ptr, count, func) CAST(ptr)(func((count) * sizeof(*(ptr))))
+#define ALLOCATION(ptr, count, func) (func((count) * sizeof(*(ptr))))
 
 #define MALLOC(ptr, count) ALLOCATION(ptr, count, malloc)
 #define ALLOCA(ptr, count) ALLOCATION(ptr, count, alloca)
-#define REALLOC(ptr, count) CAST(ptr)(realloc(ptr, (count) * sizeof(*(ptr))))
+#define REALLOC(ptr, count) (realloc(ptr, (count) * sizeof(*(ptr))))
 
 double time_current(void);
 ALLOC void* alloc_huge_page(size_t size);

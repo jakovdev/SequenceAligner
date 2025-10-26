@@ -3,8 +3,8 @@
 #include "system/arch.h"
 #include "util/print.h"
 
-static _Atomic bool p_running = false;
-static _Atomic size_t* p_progress = NULL;
+static _Atomic(bool) p_running = false;
+static _Atomic(size_t)* p_progress = NULL;
 static const char* p_message = NULL;
 static size_t p_total = 0;
 static pthread_t p_thread = 0;
@@ -32,7 +32,7 @@ progress_monitor_worker(void* arg)
 }
 
 bool
-progress_start(_Atomic size_t* progress, size_t total, const char* message)
+progress_start(_Atomic(size_t)* progress, size_t total, const char* message)
 {
     if (atomic_load(&p_running))
     {
