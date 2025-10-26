@@ -1,7 +1,8 @@
 CompileFlags:
   Remove:
+    - "-fanalyzer"
     - "-forward-unknown-to-host-compiler"
     - "--generate-code=*"
-    - "--extra-device-vectorization"
+    - "-extra-device-vectorization"
     - "-Xcompiler=*"
     - "-G"

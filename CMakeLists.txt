@@ -47,6 +47,12 @@ if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TY
     else()
         set(PREFETCH_LOOP_ARRAYS_FLAG "")
     endif()
+    check_c_compiler_flag("-fanalyzer" HAS_FANALYZER)
+    if(HAS_FANALYZER)
+        set(FANALYZER_FLAG "-fanalyzer")
+    else()
+        set(FANALYZER_FLAG "")
+    endif()
 endif()
 
 if(IS_GCC_LIKE)
@@ -142,7 +148,6 @@ function(set_c_compiler_options target)
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wswitch-enum>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-pedantic>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fanalyzer>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-funroll-loops>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fdata-sections>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-ffunction-sections>
@@ -152,6 +157,9 @@ function(set_c_compiler_options target)
         )
         if(HAS_PREFETCH_LOOP_ARRAYS)
             target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:${PREFETCH_LOOP_ARRAYS_FLAG}>)
+        endif()
+        if(HAS_FANALYZER)
+            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:${FANALYZER_FLAG}>)
         endif()
         if(PLATFORM_TYPE STREQUAL "GCC" AND NOT USE_CUDA)
             target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
