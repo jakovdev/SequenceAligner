@@ -158,8 +158,8 @@ cd path\to\where\you\unzipped\release
 |--------|-------------|
 | `-i, --input FILE` | Input FASTA or CSV file path |
 | `-t, --type TYPE` | Sequence type: amino (protein), nucleotide (DNA/RNA) |
-| `-a, --align METHOD` | Alignment method: nw, ga, sw |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see options) |
+| `-a, --align METHOD` | Alignment method: nw, ga, sw |
 | `-p, --gap-penalty N` | Linear gap penalty (required for Needleman-Wunsch) |
 | `-s, --gap-open N` | Affine gap open penalty (required for affine gap methods) |
 | `-e, --gap-extend N` | Affine gap extend penalty (required for affine gap methods) |
@@ -168,9 +168,9 @@ cd path\to\where\you\unzipped\release
 | Argument | Description |
 |--------|-------------|
 | `-o, --output FILE` | Output HDF5 file path (required if writing results) |
+| `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold |
 | `-T, --threads N` | Number of threads (0 = auto) [default: auto] |
 | `-z, --compression N` | HDF5 compression level (0-9) [default: 0 (no compression)] |
-| `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold |
 | `-B, --benchmark` | Enable benchmarking mode |
 | `-C, --no-cuda` | Disable CUDA |
 | `-W, --no-write` | Disable writing to output file |
@@ -192,16 +192,16 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 
 ```bash
 # Run with all required parameters
-./seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a nw -m blosum50 -p 4
+./seqalign -i datasets/avppred.csv -t amino -m blosum50 -a nw -p 4 -o results/avppred.h5
 
 # Using Smith-Waterman algorithm with 8 threads and CUDA disabled
-./seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a sw -m blosum62 -s 10 -e 1 -T 8 -C
+./seqalign -i datasets/avppred.csv -t amino -m blosum62 -a sw -s 10 -e 1 -o results/avppred.h5 -T 8 -C
 
 # Gotoh algorithm with affine gaps
-./seqalign -i datasets/avppred.csv -o results/avppred.h5 -t amino -a ga -m pam250 -s 12 -e 2
+./seqalign -i datasets/avppred.csv -t amino -m pam250 -a ga -s 12 -e 2 -o results/avppred.h5
 
 # Enable benchmarking mode with verbose output and without creating the HDF5 result
-./seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v
+./seqalign -i datasets/avppred.csv -t amino -m blosum62 -a nw -p 4 -B -v
 
 # List all available substitution matrices
 ./seqalign --list-matrices
