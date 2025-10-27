@@ -41,6 +41,18 @@
             "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
         },
         {
+            "name": "linux-release-cuda",
+            "displayName": "Linux (Release, CUDA)",
+            "inherits": [
+                "linux-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "ARCH_LEVEL": "native",
+                "USE_CUDA": "ON"
+            }
+        },
+        {
             "name": "linux-relwithdebinfo-cuda",
             "displayName": "Linux (RelWithDebInfo, CUDA)",
             "inherits": [
@@ -60,6 +72,18 @@
             ],
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
+                "ARCH_LEVEL": "native",
+                "USE_CUDA": "ON"
+            }
+        },
+        {
+            "name": "windows-release-cuda",
+            "displayName": "Windows (Release, CUDA)",
+            "inherits": [
+                "windows-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
                 "ARCH_LEVEL": "native",
                 "USE_CUDA": "ON"
             }
@@ -91,12 +115,20 @@
     ],
     "buildPresets": [
         {
+            "name": "build-linux-release-cuda",
+            "configurePreset": "linux-release-cuda"
+        },
+        {
             "name": "build-linux-relwithdebinfo-cuda",
             "configurePreset": "linux-relwithdebinfo-cuda"
         },
         {
             "name": "build-linux-debug-cuda",
             "configurePreset": "linux-debug-cuda"
+        },
+        {
+            "name": "build-windows-release-cuda",
+            "configurePreset": "windows-release-cuda"
         },
         {
             "name": "build-windows-relwithdebinfo-cuda",

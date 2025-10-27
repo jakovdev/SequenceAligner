@@ -153,7 +153,6 @@ function(set_c_compiler_options target)
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-ffunction-sections>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fno-pie>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fno-plt>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:RelWithDebInfo>>:-O3> # Overwrite -O2
         )
         if(HAS_PREFETCH_LOOP_ARRAYS)
             target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:${PREFETCH_LOOP_ARRAYS_FLAG}>)
@@ -190,7 +189,6 @@ function(set_cuda_compiler_options target)
         $<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-O0>
-        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-O3> # Overwrite -O2
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-extra-device-vectorization>
     )
     if(PLATFORM_TYPE STREQUAL "MSVC")
@@ -222,8 +220,8 @@ function(set_cuda_compiler_options target)
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wswitch-enum>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wno-pedantic>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fstack-protector-strong>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fanalyzer>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-O3>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=-O2>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-DNDEBUG>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-funroll-loops>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fdata-sections>
@@ -231,6 +229,12 @@ function(set_cuda_compiler_options target)
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fno-pie>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fno-plt>
         )
+        if(HAS_PREFETCH_LOOP_ARRAYS)
+            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=${PREFETCH_LOOP_ARRAYS_FLAG}>)
+        endif()
+        if(HAS_FANALYZER)
+            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=${FANALYZER_FLAG}>)
+        endif()
     endif()
 endfunction()
 
