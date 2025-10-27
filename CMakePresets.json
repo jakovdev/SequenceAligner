@@ -77,6 +77,18 @@
             }
         },
         {
+            "name": "linux-debug-asan",
+            "displayName": "Linux (Debug+ASAN)",
+            "inherits": [
+                "linux-base"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "ARCH_LEVEL": "native",
+                "USE_ASAN": "ON"
+            }
+        },
+        {
             "name": "windows-release-cuda",
             "displayName": "Windows (Release, CUDA)",
             "inherits": [
@@ -125,6 +137,10 @@
         {
             "name": "build-linux-debug-cuda",
             "configurePreset": "linux-debug-cuda"
+        },
+        {
+            "name": "build-linux-debug-asan",
+            "configurePreset": "linux-debug-asan"
         },
         {
             "name": "build-windows-release-cuda",

@@ -133,7 +133,7 @@ terminal_read_input(char* input_buffer, int input_buffer_size)
             continue;
         }
 
-        if (input_character_index < input_buffer_size - 1)
+        if (input_character_index + 1 < input_buffer_size)
         {
             input_buffer[input_character_index++] = (char)input_character;
             input_buffer[input_character_index] = '\0';

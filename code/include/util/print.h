@@ -149,7 +149,7 @@ typedef const union
 
 #define MSG_LOC(location) ((MSG_ARG){ .loc = (location) })
 #define MSG_PROPORTION(proportion) ((MSG_ARG){ .percent = ((int)(proportion * 100)) })
-#define MSG_PERCENT(percentage) ((MSG_ARG){ .percent = ((int)(percentage)) })
+#define MSG_PERCENT(percentage) ((MSG_ARG){ .percent = (percentage) })
 #define MSG_CHOICE(choices, cnum) ((MSG_ARG){ .choice_coll = { .chs = choices, .n = (int)cnum } })
 #define MSG_INPUT(result, rsize) ((MSG_ARG){ .input = { .ret = result, .rsz = (int)rsize } })
 #define MSG_NONE MSG_LOC(FIRST)

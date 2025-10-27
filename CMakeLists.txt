@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 option(USE_CUDA "Enable CUDA support" OFF)
+option(USE_ASAN "Enable AddressSanitizer (ASAN) support (GCC|Clang only, no CUDA)" OFF)
 
 set(SEQALIGN_LANGUAGES "C")
 if(USE_CUDA)
@@ -41,18 +42,21 @@ endif()
 if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TYPE STREQUAL "MSYS2")
     set(IS_GCC_LIKE TRUE)
     include(CheckCCompilerFlag)
-    check_c_compiler_flag("-fprefetch-loop-arrays" HAS_PREFETCH_LOOP_ARRAYS)
-    if(HAS_PREFETCH_LOOP_ARRAYS)
-        set(PREFETCH_LOOP_ARRAYS_FLAG "-fprefetch-loop-arrays")
-    else()
-        set(PREFETCH_LOOP_ARRAYS_FLAG "")
-    endif()
-    check_c_compiler_flag("-fanalyzer" HAS_FANALYZER)
-    if(HAS_FANALYZER)
-        set(FANALYZER_FLAG "-fanalyzer")
-    else()
-        set(FANALYZER_FLAG "")
-    endif()
+    set(SUPPORTS_GCC_FLAGS TRUE)
+    foreach(flag
+        "-fprefetch-loop-arrays"
+        "-fanalyzer"
+        "-Wuseless-cast"
+        "-Warith-conversion"
+        "-Wduplicated-branches"
+        "-Wduplicated-cond"
+        "-Wlogical-op"
+    )
+        check_c_compiler_flag(${flag} Flag${flag})
+        if(NOT Flag${flag})
+            set(SUPPORTS_GCC_FLAGS FALSE)
+        endif()
+    endforeach()
 endif()
 
 if(IS_GCC_LIKE)
@@ -134,42 +138,57 @@ function(set_c_compiler_options target)
     elseif(IS_GCC_LIKE)
         target_compile_options(${target} PRIVATE
             $<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL}>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-O0>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wall>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wextra>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Werror>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wshadow>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wconversion>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wmissing-declarations>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wundef>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wfloat-equal>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wcast-align>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wstrict-prototypes>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Wswitch-enum>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-pedantic>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-funroll-loops>
+            $<$<COMPILE_LANGUAGE:C>:-pedantic-errors>
+            $<$<COMPILE_LANGUAGE:C>:-Wall>
+            $<$<COMPILE_LANGUAGE:C>:-Wcast-qual>
+            $<$<COMPILE_LANGUAGE:C>:-Wconversion>
+            $<$<COMPILE_LANGUAGE:C>:-Wdisabled-optimization>
+            $<$<COMPILE_LANGUAGE:C>:-Wdouble-promotion>
+            $<$<COMPILE_LANGUAGE:C>:-Werror>
+            $<$<COMPILE_LANGUAGE:C>:-Wextra>
+            $<$<COMPILE_LANGUAGE:C>:-Wfloat-equal>
+            $<$<COMPILE_LANGUAGE:C>:-Winit-self>
+            $<$<COMPILE_LANGUAGE:C>:-Wmissing-declarations>
+            $<$<COMPILE_LANGUAGE:C>:-Wmissing-include-dirs>
+            $<$<COMPILE_LANGUAGE:C>:-Wopenmp>
+            $<$<COMPILE_LANGUAGE:C>:-Wshadow>
+            $<$<COMPILE_LANGUAGE:C>:-Wstrict-prototypes>
+            $<$<COMPILE_LANGUAGE:C>:-Wswitch-default>
+            $<$<COMPILE_LANGUAGE:C>:-Wswitch-enum>
+            $<$<COMPILE_LANGUAGE:C>:-Wundef>
+            $<$<COMPILE_LANGUAGE:C>:-Wuninitialized>
+            $<$<COMPILE_LANGUAGE:C>:-Wwrite-strings>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fdata-sections>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-ffunction-sections>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fno-pie>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fno-plt>
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-funroll-loops>
         )
-        if(HAS_PREFETCH_LOOP_ARRAYS)
-            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:${PREFETCH_LOOP_ARRAYS_FLAG}>)
+        if(SUPPORTS_GCC_FLAGS)
+            target_compile_options(${target} PRIVATE
+                $<$<COMPILE_LANGUAGE:C>:-fanalyzer>
+                $<$<COMPILE_LANGUAGE:C>:-Warith-conversion>
+                $<$<COMPILE_LANGUAGE:C>:-Wduplicated-branches>
+                $<$<COMPILE_LANGUAGE:C>:-Wduplicated-cond>
+                $<$<COMPILE_LANGUAGE:C>:-Wlogical-op>
+                $<$<COMPILE_LANGUAGE:C>:-Wuseless-cast>
+                $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fprefetch-loop-arrays>
+            )
         endif()
-        if(HAS_FANALYZER)
-            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:${FANALYZER_FLAG}>)
+        if(NOT USE_ASAN)
+            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>)
         endif()
-        if(PLATFORM_TYPE STREQUAL "GCC" AND NOT USE_CUDA)
+        if(PLATFORM_TYPE STREQUAL "GCC" AND NOT USE_CUDA AND USE_ASAN)
             target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
             target_link_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
         endif()
         target_link_options(${target} PRIVATE
+            $<$<CONFIG:Release>:-Wl,-O3>
+            $<$<CONFIG:RelWithDebInfo>:-Wl,-O2>
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-flto>
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-no-pie>
-            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-Wl,--gc-sections>
-            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-Wl,-O3>
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-Wl,--as-needed>
+            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-Wl,--gc-sections>
         )
         if(WIN32)
             target_compile_definitions(${target} PRIVATE WIN32_LEAN_AND_MEAN)
@@ -188,7 +207,6 @@ function(set_cuda_compiler_options target)
     target_compile_options(${target} PRIVATE
         $<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
-        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-O0>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-extra-device-vectorization>
     )
     if(PLATFORM_TYPE STREQUAL "MSVC")
@@ -207,33 +225,46 @@ function(set_cuda_compiler_options target)
         )
     elseif(PLATFORM_TYPE STREQUAL "GCC")
         target_compile_options(${target} PRIVATE
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-O0>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wall>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wextra>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Werror>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wshadow>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wconversion>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wmissing-declarations>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wundef>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wfloat-equal>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wcast-align>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wswitch-enum>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-Wno-pedantic>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-pedantic>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wall>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wcast-align>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wcast-qual>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wconversion>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wdisabled-optimization>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wdouble-promotion>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Werror>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wextra>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wfloat-equal>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Winit-self>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wmissing-declarations>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wmissing-include-dirs>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wshadow>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wstrict-overflow=5>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wswitch-default>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wswitch-enum>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wundef>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wuninitialized>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wwrite-strings>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fstack-protector-strong>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=-O2>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-DNDEBUG>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-funroll-loops>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fdata-sections>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-ffunction-sections>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fno-pie>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fno-plt>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-funroll-loops>
         )
-        if(HAS_PREFETCH_LOOP_ARRAYS)
-            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=${PREFETCH_LOOP_ARRAYS_FLAG}>)
-        endif()
-        if(HAS_FANALYZER)
-            target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=${FANALYZER_FLAG}>)
+        if(SUPPORTS_GCC_FLAGS)
+            target_compile_options(${target} PRIVATE
+                $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fanalyzer>
+                $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Warith-conversion>
+                $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wduplicated-branches>
+                $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wduplicated-cond>
+                $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wlogical-op>
+                $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wuseless-cast>
+                $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fprefetch-loop-arrays>
+            )
         endif()
     endif()
 endfunction()

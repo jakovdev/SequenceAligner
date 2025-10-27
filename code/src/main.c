@@ -30,13 +30,10 @@ main(int argc, char* argv[])
     sequence_count_t sequence_count = sequences_count();
     alignment_size_t total_alignments = sequences_alignment_count();
 
-#ifdef USE_CUDA
     if (args_mode_cuda() && !cuda_init())
     {
         return 1;
     }
-
-#endif
 
     print_error_prefix("HDF5");
 

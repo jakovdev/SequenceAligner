@@ -351,7 +351,7 @@ sequences_load_from_file(void)
             }
         }
 
-        sequence_current.length = (sequence_length_t)next_sequence_length;
+        sequence_current.length = next_sequence_length;
 
         file_extract_sequence(&input_file, sequence_current.letters);
 
@@ -489,8 +489,7 @@ skip_filtering:
     print(DNA, MSG_NONE, "Loaded %u sequences", sequence_count);
 
 already_printed:;
-    float sequence_average_length = (float)total_sequence_length / (float)sequence_count;
-
+    double sequence_average_length = (double)total_sequence_length / (double)sequence_count;
     print(INFO, MSG_NONE, "Average sequence length: %.2f", sequence_average_length);
 
     g_sequence_dataset.sequences = sequences;

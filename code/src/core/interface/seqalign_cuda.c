@@ -145,4 +145,18 @@ cuda_align(void)
 
 #undef RETURN_CUDA_ERRORS
 
+#else
+
+bool
+cuda_init(void)
+{
+    return false;
+}
+
+bool
+cuda_align(void)
+{
+    return false;
+}
+
 #endif // USE_CUDA

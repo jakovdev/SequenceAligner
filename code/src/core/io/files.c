@@ -376,8 +376,8 @@ file_matrix_open(const char* file_path, size_t matrix_dim)
     size_t bytes = triangle_elements * sizeof(*file.matrix);
     file.meta.bytes = bytes;
     const char* file_name = file_name_path(file_path);
-    const float mmap_size = (float)bytes / (float)GiB;
 
+    const double mmap_size = (double)bytes / (double)GiB;
     print(INFO, MSG_LOC(LAST), "Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
     print_error_prefix("MATRIXFILE");
 

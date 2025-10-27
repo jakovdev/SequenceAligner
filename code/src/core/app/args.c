@@ -305,7 +305,7 @@ args_print_config(void)
 
     if (args.mode_filter)
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Filter threshold: %.1f%%", args.filter * 100.0f);
+        print(CONFIG, MSG_LOC(MIDDLE), "Filter threshold: %.1f%%", (double)args.filter * 100.0);
     }
 
     if (args.mode_write)

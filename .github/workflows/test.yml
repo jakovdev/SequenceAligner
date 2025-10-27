@@ -27,11 +27,12 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja \
             -DUSE_CUDA=OFF \
-            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DUSE_ASAN=ON \
             -DARCH_LEVEL=native
 
       - name: Build
-        run: cmake --build build --config RelWithDebInfo -- -j$(nproc)
+        run: cmake --build build --config Debug -- -j$(nproc)
 
       - name: Run test
         run: ./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -B -v -D
