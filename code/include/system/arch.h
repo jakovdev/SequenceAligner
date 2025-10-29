@@ -93,6 +93,7 @@ typedef HANDLE pthread_t;
 #define T_Func void*
 #define T_Ret(x) return (x)
 #define aligned_free(ptr) free(ptr)
+#define time_init()
 
 #endif
 

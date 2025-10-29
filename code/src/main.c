@@ -4,12 +4,14 @@
 #include "core/bio/sequence/sequences.h"
 #include "core/interface/seqalign_cuda.h"
 #include "core/interface/seqalign_hdf5.h"
+#include "system/arch.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
 int
 main(int argc, char* argv[])
 {
+    time_init();
     args_init(argc, argv);
 
     print(HEADER, MSG_NONE, "SEQUENCE ALIGNER");

@@ -13,34 +13,36 @@
 #include <time.h>
 #endif
 
+#ifdef _WIN32
+static double g_freq_inv;
+
+void
+time_init(void)
+{
+    LARGE_INTEGER freq;
+    QueryPerformanceFrequency(&freq);
+    g_freq_inv = 1.0 / (double)freq.QuadPart;
+}
+
 double
 time_current(void)
 {
-#ifdef _WIN32
-    // TODO: Check
-
-    // static double freq_inv = 0.0;
-    // if (freq_inv == 0.0)
-    // {
-    //     LARGE_INTEGER freq;
-    //     QueryPerformanceFrequency(&freq);
-    //     freq_inv = 1.0 / (double)freq.QuadPart;
-    // }
-
-    // LARGE_INTEGER count;
-    // QueryPerformanceCounter(&count);
-    // return (double)count.QuadPart * freq_inv;
-
-    LARGE_INTEGER freq, count;
-    QueryPerformanceFrequency(&freq);
+    LARGE_INTEGER count;
     QueryPerformanceCounter(&count);
-    return (double)count.QuadPart / (double)freq.QuadPart;
+    return (double)count.QuadPart * g_freq_inv;
+}
+
 #else
+
+double
+time_current(void)
+{
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
-#endif
 }
+
+#endif
 
 void*
 alloc_huge_page(size_t size)
