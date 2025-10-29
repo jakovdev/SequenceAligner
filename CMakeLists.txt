@@ -57,6 +57,8 @@ if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TY
             set(SUPPORTS_GCC_FLAGS FALSE)
         endif()
     endforeach()
+    find_program(GDB_EXECUTABLE gdb)
+    string(REGEX REPLACE ".+" "TRUE" HAS_GDB "${GDB_EXECUTABLE}")
 endif()
 
 if(IS_GCC_LIKE)
@@ -172,6 +174,7 @@ function(set_c_compiler_options target)
                 $<$<COMPILE_LANGUAGE:C>:-Wduplicated-cond>
                 $<$<COMPILE_LANGUAGE:C>:-Wlogical-op>
                 $<$<COMPILE_LANGUAGE:C>:-Wuseless-cast>
+                $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-ggdb3>
                 $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fprefetch-loop-arrays>
             )
         endif()
@@ -207,6 +210,7 @@ function(set_cuda_compiler_options target)
     target_compile_options(${target} PRIVATE
         $<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
+        $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-ggdb3>
         $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-extra-device-vectorization>
     )
     if(PLATFORM_TYPE STREQUAL "MSVC")
@@ -245,9 +249,10 @@ function(set_cuda_compiler_options target)
             $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wundef>
             $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wuninitialized>
             $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wwrite-strings>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fstack-protector-strong>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=-O2>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fstack-protector-strong>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-Xcompiler=-ggdb3>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-DNDEBUG>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fdata-sections>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-ffunction-sections>
