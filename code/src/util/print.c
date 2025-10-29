@@ -232,7 +232,7 @@ static struct
         unsigned is_init : 1;
     } flags;
 
-    char error_prefix[64];
+    char error_prefix[TERMINAL_WIDTH];
 
 } style = {
 
