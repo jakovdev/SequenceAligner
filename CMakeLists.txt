@@ -62,6 +62,14 @@ if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TY
     string(REGEX REPLACE ".+" "TRUE" HAS_GDB "${GDB_EXECUTABLE}")
 endif()
 
+if(USE_ASAN AND USE_CUDA)
+    message(FATAL_ERROR "AddressSanitizer (ASAN) is not supported with CUDA")
+endif()
+
+if(USE_ASAN AND NOT PLATFROM_TYPE STREQUAL "GCC")
+    message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
+endif()
+
 if(IS_GCC_LIKE)
     set(CMAKE_C_STANDARD 23)
 endif()
@@ -182,7 +190,7 @@ function(set_c_compiler_options target)
         if(NOT USE_ASAN)
             target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>)
         endif()
-        if(PLATFORM_TYPE STREQUAL "GCC" AND NOT USE_CUDA AND USE_ASAN)
+        if(PLATFORM_TYPE STREQUAL "GCC" AND USE_ASAN)
             target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
             target_link_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
         endif()
