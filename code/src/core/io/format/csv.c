@@ -99,8 +99,6 @@ csv_header_parse(char* restrict file_cursor,
                  bool* no_header,
                  size_t* seq_col)
 {
-    print_error_prefix("CSV");
-
     char* header_start = file_cursor;
     *seq_col = SIZE_MAX;
     *no_header = false;
@@ -113,6 +111,7 @@ csv_header_parse(char* restrict file_cursor,
 
     if (!num_columns)
     {
+        print_error_prefix("CSV");
         print(ERROR, MSG_NONE, "Invalid header (do you have an empty line or file?)");
         exit(1);
     }
@@ -121,6 +120,7 @@ csv_header_parse(char* restrict file_cursor,
 
     if (!headers)
     {
+        print_error_prefix("CSV");
         print(ERROR, MSG_NONE, "Memory allocation failed for column headers");
         exit(1);
     }
@@ -179,6 +179,7 @@ csv_header_parse(char* restrict file_cursor,
 
         if (!choices)
         {
+            print_error_prefix("CSV");
             print(ERROR, MSG_NONE, "Memory allocation failed for choices array");
             if (headers)
             {

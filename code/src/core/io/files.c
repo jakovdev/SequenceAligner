@@ -291,6 +291,7 @@ file_sequence_total(FileText* file)
 {
     if (!file)
     {
+        print_error_prefix("FILE");
         print(ERROR, MSG_NONE, "Invalid parameters for total sequence count");
         exit(1);
     }
@@ -303,6 +304,7 @@ file_sequence_next_length(FileText* file)
 {
     if (!file)
     {
+        print_error_prefix("FILE");
         print(ERROR, MSG_NONE, "Invalid parameters for sequence column length");
         exit(1);
     }
@@ -315,6 +317,7 @@ file_sequence_next_length(FileText* file)
             return fasta_entry_length(file->data.cursor, file->data.end);
         case FILE_FORMAT_UNKNOWN:
         default:
+            print_error_prefix("FILE");
             print(ERROR, MSG_NONE, "Unknown file format");
             exit(1);
     }
@@ -325,6 +328,7 @@ file_sequence_next(FileText* file)
 {
     if (!file)
     {
+        print_error_prefix("FILE");
         print(ERROR, MSG_NONE, "Invalid parameters for next sequence line");
         exit(1);
     }
@@ -337,6 +341,7 @@ file_sequence_next(FileText* file)
             return fasta_entry_next(&file->data.cursor);
         case FILE_FORMAT_UNKNOWN:
         default:
+            print_error_prefix("FILE");
             print(ERROR, MSG_NONE, "Unknown file format");
             exit(1);
     }
@@ -347,6 +352,7 @@ file_extract_sequence(FileText* restrict file, char* restrict output)
 {
     if (!file || !output)
     {
+        print_error_prefix("FILE");
         print(ERROR, MSG_NONE, "Invalid parameters for sequence extraction");
         exit(1);
     }
@@ -361,6 +367,7 @@ file_extract_sequence(FileText* restrict file, char* restrict output)
             return fasta_entry_extract(&file->data.cursor, file->data.end, output);
         case FILE_FORMAT_UNKNOWN:
         default:
+            print_error_prefix("FILE");
             print(ERROR, MSG_NONE, "Unknown file format");
             exit(1);
     }

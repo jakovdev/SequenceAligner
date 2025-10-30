@@ -259,15 +259,14 @@ validate_sequence(sequence_ptr_t sequence, SequenceType sequence_type)
 bool
 sequences_load_from_file(void)
 {
-    print_error_prefix("SEQUENCES");
-
     FileText input_file = { 0 };
     if (!file_text_open(&input_file, args_input()))
     {
         return false;
     }
 
-    seq_pool_init();
+    print_error_prefix("SEQUENCES");
+
     sequence_count_t total = file_sequence_total(&input_file);
     sequences_t sequences = MALLOC(sequences, total);
     if (!sequences)
@@ -293,7 +292,6 @@ sequences_load_from_file(void)
     sequence_t sequence_current = { 0 };
 
     print(PROGRESS, MSG_PERCENT(0), "Loading sequences");
-    print_error_prefix("FILE");
 
     for (sequence_count_t seq_index = 0; seq_index < total; seq_index++)
     {
@@ -325,7 +323,6 @@ sequences_load_from_file(void)
 
             else
             {
-                print_error_prefix("SEQUENCES");
                 print(ERROR, MSG_NONE, "Sequence too long: %zu letters", next_sequence_length);
                 goto cleanup_sequence_current;
             }
@@ -344,7 +341,6 @@ sequences_load_from_file(void)
 
             if (!sequence_current.letters)
             {
-                print_error_prefix("SEQUENCES");
                 print(ERROR, MSG_NONE, "Failed to allocate sequence buffer");
                 goto cleanup_sequences;
             }
@@ -374,13 +370,18 @@ sequences_load_from_file(void)
 
             else
             {
-                print_error_prefix("SEQUENCES");
                 print(ERROR, MSG_NONE, "Found sequence with invalid letters");
                 goto cleanup_sequence_current;
             }
         }
 
         sequence_init(&sequences[sequence_count_current], &sequence_current);
+        if (!sequences[sequence_count_current].letters)
+        {
+            print(ERROR, MSG_NONE, "Failed to allocate memory for sequence");
+            goto cleanup_sequence_current;
+        }
+
         total_sequence_length += sequence_current.length;
         sequence_count_current++;
 
@@ -390,8 +391,6 @@ sequences_load_from_file(void)
     }
 
     free(sequence_current.letters);
-
-    print_error_prefix("SEQUENCES");
 
     sequence_count_t sequence_count = sequence_count_current;
     if (UNLIKELY(sequence_count > SEQUENCE_COUNT_MAX))
