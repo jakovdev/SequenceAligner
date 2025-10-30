@@ -704,8 +704,13 @@ print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...)
 
             else
             {
-                const char* c_fmt = "%s%s%s %s %s (1-%d): ";
-                printf(c_fmt, section_color, box_vertical, c_color, c_icon, p_buffer, c_count);
+                printf("%s%s%s %s %s (1-%d): ",
+                       section_color,
+                       box_vertical,
+                       c_color,
+                       c_icon,
+                       p_buffer,
+                       c_count);
             }
 
             fflush(stdout);
