@@ -8,11 +8,7 @@ extern bool sequences_load_from_file(void);
 extern sequences_t sequences_get(void);
 extern sequence_count_t sequences_count(void);
 extern alignment_size_t sequences_alignment_count(void);
-
-extern void sequences_get_pair(sequence_index_t first_sequence_index,
-                               sequence_ptr_t* restrict first_sequence_out,
-                               sequence_index_t second_index,
-                               sequence_ptr_t* restrict second_sequence_out);
+extern sequence_t* sequence_get(sequence_index_t index);
 
 #ifdef USE_CUDA
 extern char* sequences_flattened(void);

@@ -8,7 +8,6 @@
 #include "core/bio/types.h"
 #include "core/io/files.h"
 #include "system/arch.h"
-#include "system/simd.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -193,20 +192,20 @@ sequences_free(void)
 }
 
 static void
-sequence_init(sequence_ptr_t pooled_sequence, const sequence_ptr_t temporary_sequence)
+sequence_init(sequence_t* const restrict pooled, const sequence_t* const restrict temporary)
 {
-    pooled_sequence->length = temporary_sequence->length;
+    pooled->length = temporary->length;
 
-    pooled_sequence->letters = seq_pool_alloc(temporary_sequence->length + 1);
-    if (pooled_sequence->letters)
+    pooled->letters = seq_pool_alloc(temporary->length + 1);
+    if (pooled->letters)
     {
-        memcpy(pooled_sequence->letters, temporary_sequence->letters, temporary_sequence->length);
-        pooled_sequence->letters[temporary_sequence->length] = '\0';
+        memcpy(pooled->letters, temporary->letters, temporary->length);
+        pooled->letters[temporary->length] = '\0';
     }
 }
 
 static bool
-validate_sequence(const sequence_ptr_t sequence, SequenceType sequence_type)
+validate_sequence(sequence_ptr_t sequence, SequenceType sequence_type)
 {
     if (!sequence->letters || !sequence->length)
     {
@@ -562,17 +561,10 @@ cleanup_sequences:
     return false;
 }
 
-void
-sequences_get_pair(sequence_index_t first_sequence_index,
-                   sequence_ptr_t* restrict first_sequence_out,
-                   sequence_index_t second_sequence_index,
-                   sequence_ptr_t* restrict second_sequence_out)
+sequence_t*
+sequence_get(sequence_index_t index)
 {
-    *first_sequence_out = &g_sequence_dataset.sequences[first_sequence_index];
-    *second_sequence_out = &g_sequence_dataset.sequences[second_sequence_index];
-
-    prefetch((*first_sequence_out)->letters);
-    prefetch((*second_sequence_out)->letters);
+    return &g_sequence_dataset.sequences[index];
 }
 
 sequences_t

@@ -4,7 +4,7 @@
 #include "system/arch.h"
 
 void
-seq_indices_precompute(SeqIndices* indices, const sequence_ptr_t seq)
+seq_indices_precompute(SeqIndices* indices, sequence_ptr_t seq)
 {
 #ifdef USE_SIMD
     const sequence_length_t vector_len = (seq->length / BYTES) * BYTES;

@@ -47,8 +47,8 @@ align(void)
 #endif
             for (sequence_count_t j = i + 1; j < sequence_count; j++)
             {
-                sequence_t *seq1, *seq2;
-                sequences_get_pair(i, &seq1, j, &seq2);
+                sequence_ptr_t seq1 = sequence_get(i);
+                sequence_ptr_t seq2 = sequence_get(j);
 
                 score_t score = align_func(seq1, seq2);
 

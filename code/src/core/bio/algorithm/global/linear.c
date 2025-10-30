@@ -6,7 +6,7 @@
 #include "system/arch.h"
 
 void
-linear_global_init(score_t* restrict matrix, const sequence_ptr_t seq1, const sequence_ptr_t seq2)
+linear_global_init(score_t* restrict matrix, sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
     const sequence_length_t len1 = seq1->length;
     const sequence_length_t len2 = seq2->length;
@@ -29,8 +29,8 @@ linear_global_init(score_t* restrict matrix, const sequence_ptr_t seq1, const se
 void
 linear_global_fill(score_t* restrict matrix,
                    const SeqIndices* seq1_indices,
-                   const sequence_ptr_t seq1,
-                   const sequence_ptr_t seq2)
+                   sequence_ptr_t seq1,
+                   sequence_ptr_t seq2)
 {
     const sequence_length_t len1 = seq1->length;
     const sequence_length_t len2 = seq2->length;
@@ -61,7 +61,7 @@ linear_global_fill(score_t* restrict matrix,
 #ifdef USE_SIMD
 
 void
-simd_linear_global_row_init(score_t* restrict matrix, const sequence_ptr_t seq1)
+simd_linear_global_row_init(score_t* restrict matrix, sequence_ptr_t seq1)
 {
     const sequence_length_t len1 = seq1->length;
 

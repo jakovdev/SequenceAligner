@@ -11,7 +11,7 @@
 #include "util/progress.h"
 
 static float
-similarity_pairwise(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
+similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
     if (UNLIKELY(!seq1->length || !seq2->length))
     {

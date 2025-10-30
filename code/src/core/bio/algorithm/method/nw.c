@@ -7,7 +7,7 @@
 #include "util/print.h"
 
 score_t
-align_nw(const sequence_ptr_t seq1, const sequence_ptr_t seq2)
+align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
     const sequence_length_t len1 = seq1->length;
     const sequence_length_t len2 = seq2->length;

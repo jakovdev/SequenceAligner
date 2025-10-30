@@ -10,8 +10,8 @@ void
 affine_global_init(score_t* restrict match,
                    score_t* restrict gap_x,
                    score_t* restrict gap_y,
-                   const sequence_ptr_t seq1,
-                   const sequence_ptr_t seq2)
+                   sequence_ptr_t seq1,
+                   sequence_ptr_t seq2)
 {
     match[0] = 0;
     gap_x[0] = gap_y[0] = SCORE_MIN;
@@ -44,8 +44,8 @@ affine_global_fill(score_t* restrict match,
                    score_t* restrict gap_x,
                    score_t* restrict gap_y,
                    const SeqIndices* seq1_indices,
-                   const sequence_ptr_t seq1,
-                   const sequence_ptr_t seq2)
+                   sequence_ptr_t seq1,
+                   sequence_ptr_t seq2)
 {
     const sequence_length_t len1 = seq1->length;
     const sequence_length_t len2 = seq2->length;
