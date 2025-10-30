@@ -122,30 +122,34 @@ function(set_c_compiler_options target)
             $<$<COMPILE_LANGUAGE:C>:/Zc:preprocessor>
             $<$<COMPILE_LANGUAGE:C>:/utf-8>
             $<$<COMPILE_LANGUAGE:C>:/TC>
-            $<$<COMPILE_LANGUAGE:C>:/nologo>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/Od>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/Zi>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/MDd>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/W4>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/RTC1>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/analyze>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/wd28301>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/wd6993>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/wd6001>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/wd6255>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:/D_CRT_SECURE_NO_WARNINGS>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Ox>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/GL>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/DNDEBUG>
+            $<$<COMPILE_LANGUAGE:C>:/WX>
+            $<$<COMPILE_LANGUAGE:C>:/Wall>
+            $<$<COMPILE_LANGUAGE:C>:/analyze>
+            $<$<COMPILE_LANGUAGE:C>:/wd4574> # #ifdef 0
+            $<$<COMPILE_LANGUAGE:C>:/wd4710> # inline expansion info
+            $<$<COMPILE_LANGUAGE:C>:/wd4711> # inline expansion info
+            $<$<COMPILE_LANGUAGE:C>:/wd4820> # struct padding
+            $<$<COMPILE_LANGUAGE:C>:/wd5045> # spectre mitigation
+            $<$<COMPILE_LANGUAGE:C>:/wd5262> # implicit [[fallthrough]]
+            $<$<COMPILE_LANGUAGE:C>:/wd6255> # _alloca warning
+            $<$<COMPILE_LANGUAGE:C>:/wd6993> # analyzer ignores openmp
+            $<$<COMPILE_LANGUAGE:C>:/wd28301> # no annotations for first declaration (in Windows 10 SDK)
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox>
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ob3>
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/GL>
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/GA>
             $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gy>
-            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/MD>
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gw>
+            $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/jumptablerdata>
         )
         target_link_options(${target} PRIVATE
-            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:/LTCG>
-            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:/OPT:REF>
-            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:/OPT:ICF>
+            /WX
+            $<$<CONFIG:Release>:/LTCG>
+            $<$<CONFIG:Release>:/OPT:REF>
+            $<$<CONFIG:Release>:/OPT:ICF>
         )
         target_compile_definitions(${target} PRIVATE WIN32_LEAN_AND_MEAN)
+        target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
     elseif(IS_GCC_LIKE)
         target_compile_options(${target} PRIVATE
             $<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL}>
@@ -224,17 +228,34 @@ function(set_cuda_compiler_options target)
     )
     if(PLATFORM_TYPE STREQUAL "MSVC")
         target_compile_options(${target} PRIVATE
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL}>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/WX>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Wall>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/analyze>
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4514> # unreferenced inline function
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4668> # #if undefined
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4710> # inline expansion info
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4711> # inline expansion info
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4820> # struct padding
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5039> # atexit exception
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5045> # spectre mitigation
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Od>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Zi>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/MDd>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/W4>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/RTC1>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/analyze>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Ox>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/GL>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/DNDEBUG>
-            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Gy>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/GL>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/Ox>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/Ob3>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=/O2>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=/Ob1>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Zi>
             $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/MD>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/GA>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Gy>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Gw>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/DNDEBUG>
+            $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/jumptablerdata>
         )
     elseif(PLATFORM_TYPE STREQUAL "GCC")
         target_compile_options(${target} PRIVATE

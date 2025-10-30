@@ -518,10 +518,10 @@ Cuda::switchKernel(int kernel_id)
         }
     }
 
-    const int blockDim = m_device_prop.maxThreadsPerBlock;
-    const int gridDim = (int)((batch + blockDim - 1) / blockDim);
+    const unsigned int block_dim = static_cast<unsigned int>(m_device_prop.maxThreadsPerBlock);
+    const unsigned int grid_dim = static_cast<unsigned int>((batch + block_dim - 1) / block_dim);
 
-    if (gridDim <= 0 || gridDim > m_device_prop.maxGridSize[0])
+    if (!grid_dim || grid_dim > static_cast<unsigned int>(m_device_prop.maxGridSize[0]))
     {
         setHostError("Grid size exceeds device limit");
         return false;
@@ -536,30 +536,30 @@ Cuda::switchKernel(int kernel_id)
             setHostError("Invalid kernel ID");
             return false;
         case 0: // Gotoh Affine
-            k_ga<<<gridDim, blockDim, 0, m_results.stream0>>>(m_seqs,
-                                                              d_buffer,
-                                                              d_progress,
-                                                              d_checksum,
-                                                              offset,
-                                                              batch);
+            k_ga<<<grid_dim, block_dim, 0, m_results.stream0>>>(m_seqs,
+                                                                d_buffer,
+                                                                d_progress,
+                                                                d_checksum,
+                                                                offset,
+                                                                batch);
             break;
 
         case 1: // Needleman-Wunsch
-            k_nw<<<gridDim, blockDim, 0, m_results.stream0>>>(m_seqs,
-                                                              d_buffer,
-                                                              d_progress,
-                                                              d_checksum,
-                                                              offset,
-                                                              batch);
+            k_nw<<<grid_dim, block_dim, 0, m_results.stream0>>>(m_seqs,
+                                                                d_buffer,
+                                                                d_progress,
+                                                                d_checksum,
+                                                                offset,
+                                                                batch);
             break;
 
         case 2: // Smith-Waterman
-            k_sw<<<gridDim, blockDim, 0, m_results.stream0>>>(m_seqs,
-                                                              d_buffer,
-                                                              d_progress,
-                                                              d_checksum,
-                                                              offset,
-                                                              batch);
+            k_sw<<<grid_dim, block_dim, 0, m_results.stream0>>>(m_seqs,
+                                                                d_buffer,
+                                                                d_progress,
+                                                                d_checksum,
+                                                                offset,
+                                                                batch);
             break;
     }
 
