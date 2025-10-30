@@ -16,6 +16,7 @@ archive/
 vcpkg_installed/
 
 # IDE and editor files
+TODO
 compile_commands.json
 .vscode/
 .cache/
