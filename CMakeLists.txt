@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.25)
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 option(USE_CUDA "Enable CUDA support" OFF)
 option(USE_ASAN "Enable AddressSanitizer (ASAN) support (GCC|Clang only, no CUDA)" OFF)
+option(USE_BIN "Copy binaries to bin directory for easier execution during development" OFF)
 
 set(SEQALIGN_LANGUAGES "C")
 if(USE_CUDA)
@@ -346,8 +347,16 @@ if(WIN32)
     endif()
 endif()
 
-if(PLATFORM_TYPE STREQUAL "GCC" AND (CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo" OR CMAKE_BUILD_TYPE STREQUAL "Debug"))
+if(USE_BIN)
     set_target_properties(seqalign PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+    if(PLATFORM_TYPE STREQUAL "MSVC")
+        add_custom_command(TARGET seqalign POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_FILE:seqalign>
+                "${CMAKE_SOURCE_DIR}/bin/"
+        )
+        install_runtime_dlls("$<TARGET_FILE_DIR:seqalign>" "${CMAKE_SOURCE_DIR}/bin")
+    endif()
 endif()
 
 install(TARGETS seqalign RUNTIME DESTINATION .)
