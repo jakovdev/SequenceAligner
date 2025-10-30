@@ -348,13 +348,4 @@ All implementations use dynamic programming with optimized matrix operations.
 
 This project is licensed under the GNU Affero General Public License v3.0 - see the LICENSE file for details.
 
-**Academic Use**: This software is intended for academic purposes only. If you use this software in your research, please cite:
-
-```bibtex
-@software{SequenceAligner,
-  author = {Jakov Dragičević},
-  title = {Sequence Aligner},
-  year = {2025},
-  url = {https://github.com/jakovdev/SequenceAligner}
-}
-```
+**Academic Use**: This software is intended for academic purposes only. If you use this software in your research, please cite: [CITATION.cff](CITATION.cff).

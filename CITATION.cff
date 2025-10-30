@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: SequenceAligner
+type: software
+authors:
+  - given-names: Jakov
+    family-names: Dragičević
+repository-code: 'https://github.com/jakovdev/SequenceAligner'
+abstract: >-
+  High performance all-vs-all pairwise sequence alignment
+  tool
+keywords:
+  - Biological Sequences
+  - Pairwise Sequence Alignment
+  - Sequence Similarity
+  - High Performance Computing
+license: AGPL-3.0-or-later
