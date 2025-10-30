@@ -78,6 +78,8 @@ typedef HANDLE pthread_t;
 #define MAX max
 #define MIN min
 
+void time_init(void);
+
 #else // POSIX/Linux
 
 #define MAX_PATH (260)
