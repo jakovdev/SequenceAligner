@@ -230,6 +230,7 @@ function(set_cuda_compiler_options target)
         )
     elseif(PLATFORM_TYPE STREQUAL "GCC")
         target_compile_options(${target} PRIVATE
+            $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL}>
             $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-pedantic>
             $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wall>
             $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wcast-align>
