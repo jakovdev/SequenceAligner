@@ -43,19 +43,24 @@ endif()
 if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TYPE STREQUAL "MSYS2")
     set(IS_GCC_LIKE TRUE)
     include(CheckCCompilerFlag)
-    set(SUPPORTS_GCC_FLAGS TRUE)
-    foreach(flag
-        "-fprefetch-loop-arrays"
-        "-fanalyzer"
-        "-Wuseless-cast"
-        "-Warith-conversion"
-        "-Wduplicated-branches"
-        "-Wduplicated-cond"
-        "-Wlogical-op"
+    set(GCC_FLAGS_TO_CHECK
+        -fprefetch-loop-arrays
+        -fanalyzer
+        -Wuseless-cast
+        -Warith-conversion
+        -Wduplicated-branches
+        -Wduplicated-cond
+        -Wlogical-op
     )
-        check_c_compiler_flag(${flag} Flag${flag})
-        if(NOT Flag${flag})
+    set(SUPPORTS_GCC_FLAGS TRUE)
+    foreach(_flag IN LISTS GCC_FLAGS_TO_CHECK)
+        string(REGEX REPLACE "^-+" "" _name "${_flag}")
+        string(REGEX REPLACE "[^A-Za-z0-9]" "_" _name "${_name}")
+        set(_var "HAVE_GCC_FLAG_${_name}")
+        check_c_compiler_flag("${_flag}" ${_var})
+        if(NOT ${_var})
             set(SUPPORTS_GCC_FLAGS FALSE)
+            break()
         endif()
     endforeach()
     find_program(GDB_EXECUTABLE gdb)
@@ -66,7 +71,7 @@ if(USE_ASAN AND USE_CUDA)
     message(FATAL_ERROR "AddressSanitizer (ASAN) is not supported with CUDA")
 endif()
 
-if(USE_ASAN AND NOT PLATFROM_TYPE STREQUAL "GCC")
+if(USE_ASAN AND NOT PLATFORM_TYPE STREQUAL "GCC")
     message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
 endif()
 

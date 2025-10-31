@@ -26,10 +26,10 @@ jobs:
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
-            -DUSE_CUDA=OFF \
             -DCMAKE_BUILD_TYPE=Debug \
+            -DARCH_LEVEL=native \
             -DUSE_ASAN=ON \
-            -DARCH_LEVEL=native
+            -DUSE_BIN=ON
 
       - name: Build
         run: cmake --build build --config Debug -- -j$(nproc)

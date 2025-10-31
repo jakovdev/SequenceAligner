@@ -95,9 +95,9 @@ jobs:
       shell: bash
       run: |
         cmake -S . -B build -G Ninja \
-          -DUSE_CUDA=OFF \
           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-          -DARCH_LEVEL=native
+          -DARCH_LEVEL=native \
+          -DUSE_BIN=ON
 
         cmake --build build --config RelWithDebInfo -- -j$(nproc)
 
