@@ -51,6 +51,7 @@ if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TY
         -Wduplicated-branches
         -Wduplicated-cond
         -Wlogical-op
+        -Wopenmp
     )
     set(SUPPORTS_GCC_FLAGS TRUE)
     foreach(_flag IN LISTS GCC_FLAGS_TO_CHECK)
@@ -169,7 +170,6 @@ function(set_c_compiler_options target)
             $<$<COMPILE_LANGUAGE:C>:-Winit-self>
             $<$<COMPILE_LANGUAGE:C>:-Wmissing-declarations>
             $<$<COMPILE_LANGUAGE:C>:-Wmissing-include-dirs>
-            $<$<COMPILE_LANGUAGE:C>:-Wopenmp>
             $<$<COMPILE_LANGUAGE:C>:-Wshadow>
             $<$<COMPILE_LANGUAGE:C>:-Wstrict-prototypes>
             $<$<COMPILE_LANGUAGE:C>:-Wswitch-default>
@@ -190,6 +190,7 @@ function(set_c_compiler_options target)
                 $<$<COMPILE_LANGUAGE:C>:-Wduplicated-branches>
                 $<$<COMPILE_LANGUAGE:C>:-Wduplicated-cond>
                 $<$<COMPILE_LANGUAGE:C>:-Wlogical-op>
+                $<$<COMPILE_LANGUAGE:C>:-Wopenmp>
                 $<$<COMPILE_LANGUAGE:C>:-Wuseless-cast>
                 $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-ggdb3>
                 $<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fprefetch-loop-arrays>
