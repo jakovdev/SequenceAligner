@@ -64,8 +64,10 @@ if(PLATFORM_TYPE STREQUAL "GCC" OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TY
             break()
         endif()
     endforeach()
-    find_program(GDB_EXECUTABLE gdb)
-    string(REGEX REPLACE ".+" "TRUE" HAS_GDB "${GDB_EXECUTABLE}")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        find_program(GDB_EXECUTABLE gdb)
+        string(REGEX REPLACE ".+" "TRUE" HAS_GDB "${GDB_EXECUTABLE}")
+    endif()
 endif()
 
 if(USE_ASAN AND USE_CUDA)
