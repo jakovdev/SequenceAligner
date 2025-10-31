@@ -112,11 +112,61 @@ args_validate_file_input(void)
 }
 
 static bool
+args_validate_file_output(void)
+{
+    if (!args.mode_write)
+    {
+        return true;
+    }
+
+    if (args.mode_write && !args.output_file_set)
+    {
+        print(ERROR, MSG_NONE, "Missing parameter: output file (-o, --output)");
+        print(INFO, MSG_NONE, "Use -W, --no-write to disable writing results to file");
+        return false;
+    }
+
+    if (path_special_exists(args.path_output))
+    {
+        print(ERROR, MSG_NONE, "%s is an existing directory or non-regular file", args.path_output);
+        return false;
+    }
+
+    if (path_file_exists(args.path_output))
+    {
+        print(WARNING, MSG_NONE, "Output file already exists: %s", args.path_output);
+        if (!args.force && !print_yN("Do you want to DELETE it? [y/N]"))
+        {
+            print(ERROR, MSG_NONE, "Output file exists and will not be overwritten");
+            print(INFO, MSG_LOC(FIRST), "Change the output path or remove the file");
+            print(INFO, MSG_LOC(LAST), "You can also use -W, --no-write to disable writing");
+            return false;
+        }
+
+        if (remove(args.path_output) != 0)
+        {
+            print(ERROR, MSG_NONE, "Failed to delete existing output file: %s", args.path_output);
+            return false;
+        }
+
+        print(INFO, MSG_NONE, "Deleted existing output file");
+    }
+
+    if (!path_directories_create(args.path_output))
+    {
+        print(ERROR, MSG_NONE, "Failed to create directories for output file");
+        return false;
+    }
+
+    return true;
+}
+
+static bool
 args_validate_required(void)
 {
     bool valid = true;
 
-    valid &= args_validate_file_input();
+    valid &= args_validate_file_input() && args_validate_file_output();
 
     if (!args.seq_type_set)
     {
@@ -244,7 +294,7 @@ args_print_config(void)
 
     else
     {
-        print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (-W, --no-write) or file not specified");
+        print(CONFIG, MSG_LOC(MIDDLE), "Output: Disabled (-W, --no-write)");
     }
 
     print(CONFIG, MSG_LOC(MIDDLE), "Sequence type: %s", sequence_type_name(args.seq_type));
@@ -557,6 +607,7 @@ args_init(int argc, char* argv[])
     args.seq_type = SEQ_TYPE_INVALID;
     args.matrix_id = PARAM_UNSET;
     args.method_id = ALIGN_INVALID;
+    args.mode_write = 1;
 
 #ifdef USE_CUDA
     args.mode_cuda = 1;

@@ -103,6 +103,7 @@ void time_init(void);
 
 #endif
 
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -120,5 +121,8 @@ double time_current(void);
 ALLOC void* alloc_huge_page(size_t size);
 size_t available_memory(void);
 const char* file_name_path(const char* path);
+bool path_special_exists(const char* path);
+bool path_file_exists(const char* path);
+bool path_directories_create(const char* path);
 
 #endif // SYSTEM_ARCH_H

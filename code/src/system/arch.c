@@ -7,6 +7,8 @@
 
 #define HUGE_PAGE_THRESHOLD (2 * MiB)
 
+#include <errno.h>
+
 #ifndef _WIN32
 #include <stdio.h>
 #include <sys/sysinfo.h>
@@ -14,6 +16,11 @@
 #endif
 
 #ifdef _WIN32
+
+#include <direct.h>
+
+#define mkdir(dir, mode) _mkdir(dir)
+
 static double g_freq_inv;
 
 void
@@ -139,4 +146,149 @@ file_name_path(const char* path)
     const char* name = strrchr(path, '/');
 #endif
     return name ? name + 1 : path;
+}
+
+bool
+path_special_exists(const char* path)
+{
+    if (!path || path[0] == '\0')
+    {
+        return false;
+    }
+
+#ifdef _WIN32
+    DWORD attr = GetFileAttributesA(path);
+    if (attr == INVALID_FILE_ATTRIBUTES)
+    {
+        return false;
+    }
+
+    return (attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
+#else
+    struct stat st;
+    if (lstat(path, &st) != 0)
+    {
+        return false;
+    }
+
+    return (S_ISDIR(st.st_mode) || S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
+            S_ISFIFO(st.st_mode) || S_ISSOCK(st.st_mode));
+#endif
+}
+
+bool
+path_file_exists(const char* path)
+{
+    if (!path || path[0] == '\0')
+    {
+        return false;
+    }
+
+#ifdef _WIN32
+    DWORD attr = GetFileAttributesA(path);
+    if (attr == INVALID_FILE_ATTRIBUTES)
+    {
+        return false;
+    }
+
+    return true;
+#else
+    struct stat st;
+    if (lstat(path, &st) != 0)
+    {
+        return false;
+    }
+
+    return (S_ISREG(st.st_mode) || S_ISLNK(st.st_mode));
+#endif
+}
+
+static const char*
+_find_last_sep(const char* path)
+{
+    const char* last1 = strrchr(path, '/');
+#ifdef _WIN32
+    const char* last2 = strrchr(path, '\\');
+    if (!last1)
+    {
+        return last2;
+    }
+
+    if (!last2)
+    {
+        return last1;
+    }
+
+    return (last1 > last2) ? last1 : last2;
+#else
+    return last1;
+#endif
+}
+
+bool
+path_directories_create(const char* path)
+{
+    if (!path || path[0] == '\0')
+    {
+        return true;
+    }
+
+    const char* last_sep = _find_last_sep(path);
+    if (!last_sep)
+    {
+        return true;
+    }
+
+    size_t dir_len = (size_t)(last_sep - path);
+    if (dir_len == 0)
+    {
+        return true;
+    }
+
+    char* dirbuf = malloc(dir_len + 1);
+    if (!dirbuf)
+    {
+        return false;
+    }
+
+    memcpy(dirbuf, path, dir_len);
+    dirbuf[dir_len] = '\0';
+
+    char* p = dirbuf;
+    if (p[0] == '/' || p[0] == '\\')
+    {
+        p++;
+    }
+
+    for (; *p; ++p)
+    {
+        if (*p == '/' || *p == '\\')
+        {
+            char saved = *p;
+            *p = '\0';
+
+            if (mkdir(dirbuf, 0755) != 0)
+            {
+                if (errno != EEXIST)
+                {
+                    free(dirbuf);
+                    return false;
+                }
+            }
+
+            *p = saved;
+        }
+    }
+
+    if (mkdir(dirbuf, 0755) != 0)
+    {
+        if (errno != EEXIST)
+        {
+            free(dirbuf);
+            return false;
+        }
+    }
+
+    free(dirbuf);
+    return true;
 }
