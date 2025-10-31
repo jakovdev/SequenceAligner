@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <getopt.h>
+#include <limits.h>
 #include <omp.h>
 #include <stdio.h>
 
@@ -261,16 +262,9 @@ args_print_config(void)
         print(CONFIG, MSG_LOC(MIDDLE), "Filter threshold: %.1f%%", (double)args.filter * 100.0);
     }
 
-    print(CONFIG, MSG_LOC(LAST), "Threads: %lu", args.thread_num);
-
     if (args.mode_write)
     {
         print(CONFIG, MSG_LOC(MIDDLE), "Compression: %u", args.compression_level);
-    }
-
-    if (args.mode_benchmark)
-    {
-        print(TIMING, MSG_NONE, "Benchmarking mode enabled");
     }
 
 #ifdef USE_CUDA
@@ -285,6 +279,13 @@ args_print_config(void)
     }
 
 #endif
+
+    print(CONFIG, MSG_LOC(LAST), "CPU Threads: %lu", args.thread_num);
+
+    if (args.mode_benchmark)
+    {
+        print(TIMING, MSG_NONE, "Benchmarking mode enabled");
+    }
 }
 
 static int
