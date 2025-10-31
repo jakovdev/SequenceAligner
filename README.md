@@ -168,7 +168,7 @@ cd path\to\where\you\unzipped\release
 | Argument | Description |
 |--------|-------------|
 | `-o, --output FILE` | Output HDF5 file path (required if writing results) |
-| `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold |
+| `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold (0.0-1.0) |
 | `-T, --threads N` | Number of threads (0 = auto) [default: auto] |
 | `-z, --compression N` | HDF5 compression level (0-9) [default: 0 (no compression)] |
 | `-B, --benchmark` | Enable benchmarking mode |

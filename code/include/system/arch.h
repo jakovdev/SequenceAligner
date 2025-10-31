@@ -82,8 +82,6 @@ void time_init(void);
 
 #else // POSIX/Linux
 
-#define MAX_PATH (260)
-
 #include <alloca.h>
 #include <fcntl.h>
 #include <pthread.h>
@@ -96,6 +94,12 @@ void time_init(void);
 #define T_Ret(x) return (x)
 #define aligned_free(ptr) free(ptr)
 #define time_init()
+
+#ifndef PATH_MAX
+#define PATH_MAX _POSIX_PATH_MAX
+#endif
+
+#define MAX_PATH PATH_MAX
 
 #endif
 

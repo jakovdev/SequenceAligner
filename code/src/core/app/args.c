@@ -198,7 +198,7 @@ args_print_usage(const char* program_name)
 
     printf("\nOptional arguments:\n");
     printf("  -o, --output FILE      Output HDF5 file path (required for writing results)\n");
-    printf("  -f, --filter THRESHOLD Filter sequences with similarity above threshold\n");
+    printf("  -f, --filter THRESHOLD Filter sequences with similarity above threshold (0.0-1.0)\n");
     printf("  -T, --threads N        Number of threads (0 = auto)\n");
     printf("  -z, --compression N    HDF5 compression level (0-9) [default: 0 (no compression)]\n");
     printf("  -B, --benchmark        Enable benchmarking mode\n");
@@ -312,35 +312,64 @@ args_parse_scoring_matrix(const char* arg, SequenceType seq_type)
     return matrix_name_id(seq_type, arg);
 }
 
+static int
+args_parse_gap(const char* arg)
+{
+    char* endptr = NULL;
+    long gap = strtol(arg, &endptr, 10);
+    if (endptr == arg || *endptr != '\0' || gap < 0 || gap > INT_MAX)
+    {
+        print(ERROR, MSG_NONE, "Invalid gap value: %s", arg);
+        print(INFO, MSG_NONE, "Gap values must be positive integers (auto-negated internally)");
+        exit(1);
+    }
+
+    return (int)gap;
+}
+
 static float
 args_parse_filter_threshold(const char* arg)
 {
-    float threshold = strtof(arg, NULL);
-    if (threshold < 0.0f || threshold > 100.0f)
+    char* endptr = NULL;
+    float threshold = strtof(arg, &endptr);
+    if (endptr == arg || *endptr != '\0' || threshold < 0.0f || threshold > 1.0f)
     {
-        return -1.0f;
+        print(ERROR, MSG_NONE, "Invalid filter threshold: %s", arg);
+        print(INFO, MSG_NONE, "Threshold must be between 0.0 and 1.0, representing proportion");
+        exit(1);
     }
 
-    return threshold > 1.0f ? threshold / 100.0f : threshold;
+    return threshold;
 }
 
 static unsigned long
 args_parse_thread_num(const char* arg)
 {
-    long threads = atol(arg);
-    if (threads < 0)
+    char* endptr = NULL;
+    unsigned long threads = strtoul(arg, &endptr, 10);
+    if (endptr == arg || *endptr != '\0')
     {
-        return 0;
+        print(ERROR, MSG_NONE, "Invalid thread count: %s", arg);
+        print(INFO, MSG_NONE, "You can leave out the argument for auto-detection");
+        exit(1);
     }
 
-    return (unsigned long)threads;
+    return threads;
 }
 
 static unsigned int
 args_parse_compression_level(const char* arg)
 {
-    int level = atoi(arg);
-    return (level < 0 || level > 9) ? 0 : (unsigned int)level;
+    char* endptr = NULL;
+    unsigned long level = strtoul(arg, &endptr, 10);
+    if (endptr == arg || *endptr != '\0' || level > 9)
+    {
+        print(ERROR, MSG_NONE, "Invalid compression level: %s", arg);
+        print(INFO, MSG_NONE, "Compression level must be between 0 (no compression) and 9 (max)");
+        exit(1);
+    }
+
+    return (unsigned int)level;
 }
 
 static void
@@ -354,91 +383,85 @@ args_parse(int argc, char* argv[])
         switch (opt)
         {
             case 'i':
-                strncpy(args.path_input, optarg, MAX_PATH - 1);
+                if (strlen(optarg) >= MAX_PATH)
+                {
+                    print(ERROR, MSG_NONE, "Input file path is too long");
+                    exit(1);
+                }
+
+                snprintf(args.path_input, MAX_PATH, "%s", optarg);
                 args.input_file_set = 1;
                 break;
 
             case 't':
                 args.seq_type = sequence_type_arg(optarg);
-                if (args.seq_type != SEQ_TYPE_INVALID)
-                {
-                    args.seq_type_set = 1;
-                }
-
-                else
+                if (args.seq_type == SEQ_TYPE_INVALID)
                 {
                     print(ERROR, MSG_NONE, "Unknown sequence type: %s", optarg);
+                    exit(1);
                 }
 
+                args.seq_type_set = 1;
                 break;
 
             case 'm':
                 if (!args.seq_type_set)
                 {
                     print(ERROR, MSG_NONE, "Must specify sequence type (-t) before matrix");
-                    break;
+                    exit(1);
                 }
 
                 args.matrix_id = args_parse_scoring_matrix(optarg, args.seq_type);
-                if (args.matrix_id != PARAM_UNSET)
-                {
-                    args.matrix_set = 1;
-                }
-
-                else
+                if (args.matrix_id == PARAM_UNSET)
                 {
                     print(ERROR, MSG_NONE, "Unknown scoring matrix: %s", optarg);
+                    exit(1);
                 }
 
+                args.matrix_set = 1;
                 break;
 
             case 'a':
                 args.method_id = alignment_arg(optarg);
-                if (args.method_id != ALIGN_INVALID)
-                {
-                    args.method_id_set = 1;
-                }
-
-                else
+                if (args.method_id == ALIGN_INVALID)
                 {
                     print(ERROR, MSG_NONE, "Unknown alignment method: %s", optarg);
+                    exit(1);
                 }
 
+                args.method_id_set = 1;
                 break;
 
             case 'p':
-                args.gap_penalty = atoi(optarg);
+                args.gap_penalty = args_parse_gap(optarg);
                 args.gap_penalty_set = 1;
                 break;
 
             case 's':
-                args.gap_open = atoi(optarg);
+                args.gap_open = args_parse_gap(optarg);
                 args.gap_open_set = 1;
                 break;
 
             case 'e':
-                args.gap_extend = atoi(optarg);
+                args.gap_extend = args_parse_gap(optarg);
                 args.gap_extend_set = 1;
                 break;
 
             case 'o':
-                strncpy(args.path_output, optarg, MAX_PATH - 1);
+                if (strlen(optarg) >= MAX_PATH)
+                {
+                    print(ERROR, MSG_NONE, "Output file path is too long");
+                    exit(1);
+                }
+
+                snprintf(args.path_output, MAX_PATH, "%s", optarg);
                 args.output_file_set = 1;
                 args.mode_write = 1;
                 break;
 
             case 'f':
                 args.filter = args_parse_filter_threshold(optarg);
-                if (args.filter >= 0.0f)
-                {
-                    args.mode_filter = 1;
-                }
-
-                else
-                {
-                    print(ERROR, MSG_NONE, "Invalid filter threshold: %s", optarg);
-                }
-
+                args.mode_filter = 1;
                 break;
 
             case 'T':
@@ -487,7 +510,6 @@ args_parse(int argc, char* argv[])
                 exit(0);
 
             default:
-                print(ERROR, MSG_NONE, "Unknown option: %c", opt);
                 args_print_usage(argv[0]);
                 exit(1);
         }
