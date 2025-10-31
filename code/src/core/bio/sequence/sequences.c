@@ -314,7 +314,7 @@ sequences_load_from_file(void)
                 bench_io_start();
             }
 
-            if (skip_long_sequences)
+            if (args_force() || skip_long_sequences)
             {
                 file_sequence_next(&input_file);
                 skipped_count++;
@@ -362,7 +362,7 @@ sequences_load_from_file(void)
                 bench_io_start();
             }
 
-            if (skip_invalid_sequences)
+            if (args_force() || skip_invalid_sequences)
             {
                 invalid_count++;
                 continue;

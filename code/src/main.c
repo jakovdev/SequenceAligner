@@ -45,7 +45,7 @@ main(int argc, char* argv[])
         bench_io_end();
         print(ERROR, MSG_NONE, "Failed to create file, will use no-write mode");
 
-        if (!print_yN("Do you want to continue? [y/N]"))
+        if (!args_force() && !print_yN("Do you want to continue? [y/N]"))
         {
             print(INFO, MSG_LOC(LAST), "Exiting due to file creation failure");
             h5_close(1);
@@ -61,7 +61,7 @@ main(int argc, char* argv[])
         bench_io_end();
         print(ERROR, MSG_NONE, "Failed to store sequences, will use no-write mode");
 
-        if (!print_yN("Do you want to continue? [y/N]"))
+        if (!args_force() && !print_yN("Do you want to continue? [y/N]"))
         {
             print(INFO, MSG_LOC(LAST), "Exiting due to sequence store failure");
             h5_close(1);

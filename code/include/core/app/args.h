@@ -21,5 +21,6 @@ extern float args_filter(void);
 extern bool args_mode_benchmark(void);
 extern bool args_mode_write(void);
 extern bool args_mode_cuda(void);
+extern bool args_force(void);
 
 #endif // CORE_APP_ARGS_H

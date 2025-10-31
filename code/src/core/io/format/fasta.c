@@ -1,5 +1,6 @@
 #include "core/io/format/fasta.h"
 
+#include "core/app/args.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -106,7 +107,7 @@ fasta_validate(char* restrict file_start, char* restrict file_end)
                     bench_io_start();
                 }
 
-                if (!skip_empty_headers)
+                if (!args_force() && !skip_empty_headers)
                 {
                     print(ERROR, MSG_NONE, "Empty header found on line %zu", line_number);
                     return false;

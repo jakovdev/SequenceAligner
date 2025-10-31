@@ -39,10 +39,11 @@ static struct
     unsigned mode_filter : 1;
     unsigned mode_benchmark : 1;
     unsigned mode_cuda : 1;
+    unsigned force : 1;
     unsigned quiet : 1;
 } args = { 0 };
 
-static const char* optstring = "i:t:m:a:p:s:e:o:f:T:z:BCWDvqlh";
+static const char* optstring = "i:t:m:a:p:s:e:o:f:T:z:BCWDFvqlh";
 
 static struct option long_options[] = { { "input", required_argument, 0, 'i' },
                                         { "type", required_argument, 0, 't' },
@@ -59,6 +60,7 @@ static struct option long_options[] = { { "input", required_argument, 0, 'i' },
                                         { "no-cuda", no_argument, 0, 'C' },
                                         { "no-write", no_argument, 0, 'W' },
                                         { "no-detail", no_argument, 0, 'D' },
+                                        { "force-proceed", no_argument, 0, 'F' },
                                         { "verbose", no_argument, 0, 'v' },
                                         { "quiet", no_argument, 0, 'q' },
                                         { "list-matrices", no_argument, 0, 'l' },
@@ -85,6 +87,7 @@ GETTER(float, filter, args.filter)
 GETTER(bool, mode_benchmark, (bool)args.mode_benchmark)
 GETTER(bool, mode_write, (bool)args.mode_write)
 GETTER(bool, mode_cuda, (bool)args.mode_cuda)
+GETTER(bool, force, (bool)args.force)
 
 #undef GETTER
 
@@ -207,6 +210,7 @@ args_print_usage(const char* program_name)
 #endif
     printf("  -W, --no-write         Disable writing to output file\n");
     printf("  -D, --no-detail        Disable detailed printing\n");
+    printf("  -F, --force-proceed    Force proceed without user prompts (for CI)\n");
     printf("  -v, --verbose          Enable verbose printing\n");
     printf("  -q, --quiet            Suppress all non-error printing\n");
     printf("  -l, --list-matrices    List all available scoring matrices\n");
@@ -492,6 +496,10 @@ args_parse(int argc, char* argv[])
                 print_detail_flip();
                 break;
 
+            case 'F':
+                args.force = 1;
+                break;
+
             case 'v':
                 print_verbose_flip();
                 break;
@@ -530,7 +538,7 @@ args_parse(int argc, char* argv[])
 
     if (args.method_id == ALIGN_GOTOH_AFFINE && args.gap_open == args.gap_extend)
     {
-        if (print_Yn("Equal gap penalties detected, switch to Needleman-Wunsch? (Y/n)"))
+        if (args.force || print_Yn("Equal gap penalties found, switch to Needleman-Wunsch? [Y/n]"))
         {
             args.method_id = ALIGN_NEEDLEMAN_WUNSCH;
             args.gap_penalty = args.gap_open;

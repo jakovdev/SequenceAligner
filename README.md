@@ -175,6 +175,7 @@ cd path\to\where\you\unzipped\release
 | `-C, --no-cuda` | Disable CUDA |
 | `-W, --no-write` | Disable writing to output file |
 | `-D, --no-detail` | Disable detailed printing |
+| `-F, --force-proceed` | Force proceed without user prompts (for CI) |
 | `-v, --verbose` | Enable verbose printing |
 | `-q, --quiet` | Suppress all non-error printing |
 | `-l, --list-matrices` | List all available substitution matrices |
