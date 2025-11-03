@@ -103,22 +103,15 @@ def format_matrix_as_c_array(matrix):
     formatted_rows = []
     alphabet = matrix.alphabet
 
-    max_width = 1
-    for aa1 in alphabet:
-        for aa2 in alphabet:
-            val = matrix.get_value(aa1, aa2)
-            width = len(str(val))
-            max_width = max(max_width, width)
-
-    # Format with consistent spacing
+    FIXED_WIDTH = 3
     for aa1 in alphabet:
         row_values = []
         for aa2 in alphabet:
             val = matrix.get_value(aa1, aa2)
-            formatted_val = f"{val:>{max_width}}"
+            formatted_val = f"{val:>{FIXED_WIDTH}}"
             row_values.append(formatted_val)
 
-        formatted_row = "    {" + ", ".join(row_values) + "}, // " + aa1
+        formatted_row = "{" + ", ".join(row_values) + "}, // " + aa1
         formatted_rows.append(formatted_row)
 
     return "{\n" + "\n".join(formatted_rows) + "\n}"
@@ -175,10 +168,9 @@ def generate_header_file(matrix_types):
         alphabet_name = type_name.upper()
         header_content.extend(
             [
-                f"typedef struct",
-                "{",
-                "    const char* name;",
-                f"    const int (*matrix)[{alphabet_name}_SIZE];",
+                f"typedef struct {{",
+                "	const char *name;",
+                f"	const int (*matrix)[{alphabet_name}_SIZE];",
                 f"}} {type_name.capitalize()}Matrix;",
                 "",
             ]
@@ -225,10 +217,9 @@ def generate_source_file(matrix_types):
             continue
 
         source_content.append(f"// {type_name.capitalize()} matrix identifiers")
-        source_content.append(f"typedef enum")
-        source_content.append("{")
+        source_content.append(f"typedef enum {{")
         for i, (name, _) in enumerate(type_info["matrices"]):
-            source_content.append(f"    {name}_ID = {i},")
+            source_content.append(f"{name}_ID = {i},")
         source_content.append(f"}} {type_name.capitalize()}MatrixID;")
         source_content.append("")
 
@@ -254,7 +245,7 @@ def generate_source_file(matrix_types):
             f"const {type_name.capitalize()}Matrix ALL_{alphabet_name}_MATRICES[NUM_{alphabet_name}_MATRICES] = {{"
         )
         for name, _ in type_info["matrices"]:
-            source_content.append(f'    {{"{name}", {name}}},')
+            source_content.append(f'{{"{name}", {name}}},')
         source_content.append("};")
         source_content.append("")
 

@@ -8,113 +8,97 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 
-int
-main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
-    time_init();
-    args_init(argc, argv);
+	time_init();
+	args_init(argc, argv);
 
-    print(HEADER, MSG_NONE, "SEQUENCE ALIGNER");
+	print(M_NONE, HEADER "SEQUENCE ALIGNER");
+	args_print_config();
+	print(M_NONE, SECTION "Setting Up Alignment");
 
-    args_print_config();
+	bench_io_start();
+	if (!sequences_load_from_file())
+		return 1;
+	bench_io_end();
 
-    print(SECTION, MSG_NONE, "Setting Up Alignment");
+	sequence_count_t sequence_count = sequences_count();
+	alignment_size_t total_alignments = sequences_alignment_count();
+	if (args_mode_cuda() && !cuda_init())
+		return 1;
 
-    bench_io_start();
+	print_error_context("HDF5");
+	bench_io_start();
+	if (!h5_open(args_output(), sequence_count, args_compression(),
+		     args_mode_write())) {
+		bench_io_end();
+		print(M_NONE,
+		      ERROR "Failed to create file, will use no-write mode");
 
-    if (!sequences_load_from_file())
-    {
-        return 1;
-    }
+		if (!args_force() &&
+		    !print_yN("Do you want to continue? [y/N]")) {
+			print(M_LOC(LAST),
+			      INFO "Exiting due to file creation failure");
+			h5_close(1);
+			return 1;
+		}
 
-    bench_io_end();
+		bench_io_start();
+		h5_open(NULL, 0, 0, false);
+	}
 
-    sequence_count_t sequence_count = sequences_count();
-    alignment_size_t total_alignments = sequences_alignment_count();
+	if (!h5_sequences_store(sequences_get(), sequence_count)) {
+		bench_io_end();
+		print(M_NONE, ERROR
+		      "Failed to store sequences, will use no-write mode");
 
-    if (args_mode_cuda() && !cuda_init())
-    {
-        return 1;
-    }
+		if (!args_force() &&
+		    !print_yN("Do you want to continue? [y/N]")) {
+			print(M_LOC(LAST),
+			      INFO "Exiting due to sequence store failure");
+			h5_close(1);
+			return 1;
+		}
 
-    print_error_prefix("HDF5");
+		bench_io_start();
+		h5_open(NULL, 0, 0, false);
+	}
 
-    bench_io_start();
-    if (!h5_open(args_output(), (size_t)sequence_count, args_compression(), args_mode_write()))
-    {
-        bench_io_end();
-        print(ERROR, MSG_NONE, "Failed to create file, will use no-write mode");
+	bench_io_end();
 
-        if (!args_force() && !print_yN("Do you want to continue? [y/N]"))
-        {
-            print(INFO, MSG_LOC(LAST), "Exiting due to file creation failure");
-            h5_close(1);
-            return 1;
-        }
+	print(M_LOC(FIRST), VERBOSE "Initializing substitution matrix");
+	scoring_matrix_init();
 
-        bench_io_start();
-        h5_open(NULL, 0, 0, false);
-    }
-
-    if (!h5_sequences_store(sequences_get(), sequence_count))
-    {
-        bench_io_end();
-        print(ERROR, MSG_NONE, "Failed to store sequences, will use no-write mode");
-
-        if (!args_force() && !print_yN("Do you want to continue? [y/N]"))
-        {
-            print(INFO, MSG_LOC(LAST), "Exiting due to sequence store failure");
-            h5_close(1);
-            return 1;
-        }
-
-        bench_io_start();
-        h5_open(NULL, 0, 0, false);
-    }
-
-    bench_io_end();
-
-    print(VERBOSE, MSG_LOC(FIRST), "Initializing substitution matrix");
-    scoring_matrix_init();
-
-    print(SECTION, MSG_NONE, "Performing Alignments");
-
-    print(INFO, MSG_NONE, "Will perform %zu pairwise alignments", total_alignments);
-
-    bool alignment_success = false;
+	print(M_NONE, SECTION "Performing Alignments");
+	print(M_NONE, INFO "Will perform %zu pairwise alignments",
+	      total_alignments);
+	bool alignment_success = false;
 
 #ifdef USE_CUDA
-    if (args_mode_cuda())
-    {
-        alignment_success = cuda_align();
-    }
-
-    else
+	if (args_mode_cuda())
+		alignment_success = cuda_align();
+	else
 #endif
-    {
-        alignment_success = align();
-    }
+		alignment_success = align();
 
-    if (!alignment_success)
-    {
-        print(ERROR, MSG_NONE, "Failed to perform alignments");
-        h5_close(1);
-        return 1;
-    }
+	if (!alignment_success) {
+		print(M_NONE, ERROR "Failed to perform alignments");
+		h5_close(1);
+		return 1;
+	}
 
-    if (!args_mode_write())
-    {
-        print(INFO, MSG_NONE, "Matrix checksum: %lld", h5_checksum());
-    }
+	if (!args_mode_write()) {
+		print(M_NONE, INFO "Matrix checksum: %lld", h5_checksum());
+	}
 
-    bench_align_print();
+	bench_align_print();
 
-    bench_io_start();
-    h5_close(0);
-    bench_io_end();
+	bench_io_start();
+	h5_close(0);
+	bench_io_end();
 
-    bench_io_print();
+	bench_io_print();
 
-    bench_total_print(total_alignments);
-    return 0;
+	bench_total_print(total_alignments);
+	return 0;
 }

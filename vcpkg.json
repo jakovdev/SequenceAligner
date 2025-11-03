@@ -1,6 +1,6 @@
 {
-  "dependencies": [
-    "getopt-win32",
-    "hdf5"
-  ]
+    "dependencies": [
+        "getopt-win32",
+        "hdf5"
+    ]
 }

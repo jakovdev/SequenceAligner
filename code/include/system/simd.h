@@ -28,7 +28,8 @@ typedef __mmask64 num_t;
 #define setzero_si _mm512_setzero_si512
 #define and_si _mm512_and_si512
 #define setr_epi32 _mm512_setr_epi32
-#define set_row_indices() _mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+#define set_row_indices() \
+	_mm512_setr_epi32(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
 
 #elif defined(__AVX2__)
 #include <immintrin.h>
@@ -89,8 +90,8 @@ __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b);
 
 #ifdef USE_SIMD
 #define PREFETCH_DISTANCE (BYTES << 4)
-#define prefetch(x) _mm_prefetch((const char*)(x), _MM_HINT_T0)
-#define prefetch_write(x) _mm_prefetch((const char*)(x), _MM_HINT_T1)
+#define prefetch(x) _mm_prefetch((const char *)(x), _MM_HINT_T0)
+#define prefetch_write(x) _mm_prefetch((const char *)(x), _MM_HINT_T1)
 #endif
 
 #ifdef _MSC_VER

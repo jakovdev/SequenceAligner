@@ -5,6 +5,7 @@
 #include <stdbool.h>
 
 bool cuda_init(void);
+
 bool cuda_align(void);
 
 #endif // INTERFACE_SEQALIGN_CUDA_H

@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef unsigned int uint;
 typedef unsigned long long ull;
 typedef signed long long sll;
 
@@ -31,11 +32,8 @@ typedef half_t sequence_count_t;
 #define SEQUENCE_COUNT_MAX (HALF_MAX)
 
 typedef size_t alignment_size_t;
-
 typedef half_t sequence_offset_t;
-
 typedef int score_t;
-
 #define SCORE_MIN (INT_MIN / 2)
 
 #endif // HOST_TYPES_H

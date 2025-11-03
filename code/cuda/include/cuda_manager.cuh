@@ -9,203 +9,198 @@
 #define R __restrict__
 typedef quar_t sequence_length_t;
 
-struct Sequences
-{
-    Sequences() = default;
-
-    char* d_letters{ nullptr };
-    sequence_offset_t* d_offsets{ nullptr };
-    sequence_length_t* d_lengths{ nullptr };
-    size_t* d_indices{ nullptr };
-    sequence_count_t n_seqs{ 0 };
-    size_t n_letters{ 0 };
-    bool constant{ false };
+struct Sequences {
+	Sequences() = default;
+	char *d_letters{ nullptr };
+	sequence_offset_t *d_offsets{ nullptr };
+	sequence_length_t *d_lengths{ nullptr };
+	size_t *d_indices{ nullptr };
+	sequence_count_t n_seqs{ 0 };
+	size_t n_letters{ 0 };
+	bool constant{ false };
 };
 
-struct KernelResults
-{
-    KernelResults() = default;
+struct KernelResults {
+	KernelResults() = default;
+	~KernelResults()
+	{
+		cudaFree(d_scores0);
+		if (use_batching)
+			cudaFree(d_scores1);
 
-    ~KernelResults()
-    {
-        cudaFree(d_scores0);
-        if (use_batching)
-        {
-            cudaFree(d_scores1);
-        }
+		cudaFree(d_progress);
+		cudaFree(d_checksum);
 
-        cudaFree(d_progress);
-        cudaFree(d_checksum);
+		if (s_comp != nullptr)
+			cudaStreamDestroy(s_comp);
+		if (s_copy != nullptr)
+			cudaStreamDestroy(s_copy);
+	}
 
-        if (stream0 != nullptr)
-        {
-            cudaStreamDestroy(stream0);
-        }
-
-        if (stream1 != nullptr)
-        {
-            cudaStreamDestroy(stream1);
-        }
-    }
-
-    score_t* d_scores0{ nullptr };
-    score_t* d_scores1{ nullptr };
-    ull* d_progress{ nullptr };
-    sll* d_checksum{ nullptr };
-
-    cudaStream_t stream0{ nullptr };
-    cudaStream_t stream1{ nullptr };
-
-    score_t* h_scores{ nullptr };
-    size_t* h_indices{ nullptr };
-    alignment_size_t h_batch_size{ 0 };
-    alignment_size_t h_last_batch{ 0 };
-    alignment_size_t h_total_count{ 0 };
-    alignment_size_t h_completed_batch{ 0 };
-    ull h_progress{ 0 };
-    int h_active{ 0 };
-    bool use_batching{ false };
-    bool h_after_first{ false };
-    bool d_triangular{ false };
-    bool copy_in_progress{ false };
+	score_t *d_scores0{ nullptr };
+	score_t *d_scores1{ nullptr };
+	ull *d_progress{ nullptr };
+	sll *d_checksum{ nullptr };
+	cudaStream_t s_comp{ nullptr };
+	cudaStream_t s_copy{ nullptr };
+	score_t *h_scores{ nullptr };
+	size_t *h_indices{ nullptr };
+	alignment_size_t h_batch_size{ 0 };
+	alignment_size_t h_last_batch{ 0 };
+	alignment_size_t h_total_count{ 0 };
+	alignment_size_t h_completed_batch{ 0 };
+	ull h_progress{ 0 };
+	int h_active{ 0 };
+	bool use_batching{ false };
+	bool h_after_first{ false };
+	bool d_triangular{ false };
+	bool copy_in_progress{ false };
 };
 
-class Cuda
-{
-  public:
-    static Cuda& getInstance();
-    Cuda(const Cuda&) = delete;
-    Cuda& operator=(const Cuda&) = delete;
-    Cuda(Cuda&&) = delete;
-    Cuda& operator=(Cuda&&) = delete;
+class Cuda {
+    public:
+	static Cuda &getInstance();
+	Cuda(const Cuda &) = delete;
+	Cuda &operator=(const Cuda &) = delete;
+	Cuda(Cuda &&) = delete;
+	Cuda &operator=(Cuda &&) = delete;
+	~Cuda()
+	{
+		if (m_init) {
+			cudaFree(m_seqs.d_letters);
+			cudaFree(m_seqs.d_offsets);
+			cudaFree(m_seqs.d_lengths);
+			cudaFree(m_seqs.d_indices);
+			cudaDeviceReset();
+		}
+	}
 
-    ~Cuda()
-    {
-        if (m_initialized)
-        {
-            cudaFree(m_seqs.d_letters);
-            cudaFree(m_seqs.d_offsets);
-            cudaFree(m_seqs.d_lengths);
-            cudaFree(m_seqs.d_indices);
-            cudaDeviceReset();
-        }
-    }
+	bool initialize();
 
-    bool initialize();
-    bool hasEnoughMemory(size_t bytes);
+	bool hasEnoughMemory(size_t bytes);
 
-    bool uploadSequences(char* sequences_letters,
-                         sequence_offset_t* sequences_offsets,
-                         sequence_length_t* sequences_lengths,
-                         sequence_count_t sequences_count,
-                         size_t total_sequences_length);
+	bool uploadSequences(char *sequences_letters,
+			     sequence_offset_t *sequences_offsets,
+			     sequence_length_t *sequences_lengths,
+			     sequence_count_t sequences_count,
+			     size_t total_sequences_length);
 
-    bool uploadScoring(int* scoring_matrix, int* sequence_lookup);
-    bool uploadPenalties(int linear, int start, int extend);
-    bool uploadTriangleIndices(size_t* triangle_indices,
-                               score_t* score_buffer,
-                               size_t buffer_bytes);
+	bool uploadScoring(int *scoring_matrix, int *sequence_lookup);
+	bool uploadPenalties(int linear, int start, int extend);
+	bool uploadTriangleIndices(size_t *triangle_indices,
+				   score_t *score_buffer, size_t buffer_bytes);
 
-    bool launchKernel(int kernel_id);
-    bool getResults();
+	bool launchKernel(int kernel_id);
+	bool getResults();
 
-    ull getProgress();
-    sll getChecksum();
+	ull getProgress();
+	sll getChecksum();
 
-    const char* getDeviceError() const;
+	const char *getDeviceError() const;
 
-    const char* getHostError() const { return m_host_error; }
+	const char *getHostError() const
+	{
+		return m_h_err;
+	}
 
-    const char* getDeviceName() const { return m_initialized ? m_device_prop.name : nullptr; }
+	const char *getDeviceName() const
+	{
+		return m_init ? m_dev.name : nullptr;
+	}
 
-  private:
-    Cuda() = default;
+    private:
+	Cuda() = default;
 
-    void setHostError(const char* error) { m_host_error = error; }
+	void setHostError(const char *error)
+	{
+		m_h_err = error;
+	}
 
-    void setDeviceError(cudaError_t error) { m_cuda_error = cudaGetErrorString(error); }
+	void setDeviceError(cudaError_t error)
+	{
+		m_d_err = cudaGetErrorString(error);
+	}
 
-    void setError(const char* host_error, cudaError_t cuda_error)
-    {
-        setHostError(host_error);
-        setDeviceError(cuda_error);
-    }
+	void setError(const char *host_error, cudaError_t cuda_error)
+	{
+		setHostError(host_error);
+		setDeviceError(cuda_error);
+	}
 
-    bool getMemoryStats(size_t* free, size_t* total);
-    bool copyTriangularMatrixFlag(bool triangular);
+	bool getMemoryStats(size_t *free, size_t *total);
+	bool copyTriangularMatrixFlag(bool triangular);
 
-    bool switchKernel(int kernel_id);
+	bool switchKernel(int kernel_id);
 
-    cudaDeviceProp m_device_prop;
-    KernelResults m_results;
-    Sequences m_seqs;
-    const char* m_host_error{ "No errors in program" };
-    const char* m_cuda_error{ "No errors inside GPU" };
-    int m_device_id{ 0 };
-    bool m_initialized{ false };
+	cudaDeviceProp m_dev;
+	KernelResults m_kr;
+	Sequences m_seqs;
+	const char *m_h_err{ "No errors in program" };
+	const char *m_d_err{ "No errors from GPU" };
+	int m_id{ 0 };
+	bool m_init{ false };
 };
 
-#define CUDA_ERROR_CHECK(msg)                                                                      \
-    do                                                                                             \
-    {                                                                                              \
-        if (err != cudaSuccess)                                                                    \
-        {                                                                                          \
-            setError(msg, err);                                                                    \
-            return false;                                                                          \
-        }                                                                                          \
-    } while (0)
+#define CUDA_ERROR(msg)                     \
+	do {                                \
+		if (err != cudaSuccess) {   \
+			setError(msg, err); \
+			return false;       \
+		}                           \
+	} while (0)
 
-#define DEVICE_MEMSET(ptr, value, size, name)                                                      \
-    do                                                                                             \
-    {                                                                                              \
-        err = cudaMemset(ptr, value, size * sizeof(*ptr));                                         \
-        CUDA_ERROR_CHECK("Failed to initialize " name " in GPU");                                  \
-    } while (0)
+#define D_MEMSET(ptr, value, n)                                 \
+	do {                                                    \
+		err = cudaMemset(ptr, value, n * sizeof(*ptr)); \
+		CUDA_ERROR("D_MEMSET: " #ptr " -> " #value);    \
+	} while (0)
 
-#define DEVICE_MALLOC(ptr, size, name)                                                             \
-    do                                                                                             \
-    {                                                                                              \
-        err = cudaMalloc(&ptr, size * sizeof(*ptr));                                               \
-        CUDA_ERROR_CHECK("Failed to allocate " name " to GPU");                                    \
-    } while (0)
+#define D_MALLOC(ptr, n)                                  \
+	do {                                              \
+		err = cudaMalloc(&ptr, n * sizeof(*ptr)); \
+		CUDA_ERROR("D_MALLOC: " #ptr);            \
+	} while (0)
 
-#define HOST_DEVICE_COPY(dst, src, size, name)                                                     \
-    do                                                                                             \
-    {                                                                                              \
-        static_assert(sizeof(*dst) == sizeof(*src), "Pointer types must match");                   \
-        err = cudaMemcpy(dst, src, size * sizeof(*dst), cudaMemcpyHostToDevice);                   \
-        CUDA_ERROR_CHECK("Failed to copy " name " to GPU");                                        \
-    } while (0)
+#define HD_COPY(dst, src, n)                                 \
+	do {                                                 \
+		static_assert(sizeof(*dst) == sizeof(*src),  \
+			      "Pointer types must match");   \
+		err = cudaMemcpy(dst, src, n * sizeof(*dst), \
+				 cudaMemcpyHostToDevice);    \
+		CUDA_ERROR("HD_COPY: " #src " -> " #dst);    \
+	} while (0)
 
-#define DEVICE_HOST_COPY(dst, src, size, name)                                                     \
-    do                                                                                             \
-    {                                                                                              \
-        static_assert(sizeof(*dst) == sizeof(*src), "Pointer types must match");                   \
-        err = cudaMemcpy(dst, src, size * sizeof(*dst), cudaMemcpyDeviceToHost);                   \
-        CUDA_ERROR_CHECK("Failed to copy " name " from GPU");                                      \
-    } while (0)
+#define DH_COPY(dst, src, n)                                 \
+	do {                                                 \
+		static_assert(sizeof(*dst) == sizeof(*src),  \
+			      "Pointer types must match");   \
+		err = cudaMemcpy(dst, src, n * sizeof(*dst), \
+				 cudaMemcpyDeviceToHost);    \
+		CUDA_ERROR("DH_COPY: " #src " -> " #dst);    \
+	} while (0)
 
-#define DEVICE_DEVICE_COPY(dst, src, size, name)                                                   \
-    do                                                                                             \
-    {                                                                                              \
-        static_assert(sizeof(*dst) == sizeof(*src), "Pointer types must match");                   \
-        err = cudaMemcpy(dst, src, size * sizeof(*dst), cudaMemcpyDeviceToDevice);                 \
-        CUDA_ERROR_CHECK("Failed to copy " name " in GPU");                                        \
-    } while (0)
+#define DD_COPY(dst, src, n)                                 \
+	do {                                                 \
+		static_assert(sizeof(*dst) == sizeof(*src),  \
+			      "Pointer types must match");   \
+		err = cudaMemcpy(dst, src, n * sizeof(*dst), \
+				 cudaMemcpyDeviceToDevice);  \
+		CUDA_ERROR("DD_COPY: " #src " -> " #dst);    \
+	} while (0)
 
-#define CONSTANT_COPY(symbol, src, size, name)                                                     \
-    do                                                                                             \
-    {                                                                                              \
-        err = cudaMemcpyToSymbol(symbol, src, size);                                               \
-        CUDA_ERROR_CHECK("Failed to copy " name " to GPU constant memory");                        \
-    } while (0)
+#define C_COPY(dst, src, n)                              \
+	do {                                             \
+		err = cudaMemcpyToSymbol(dst, src, n);   \
+		CUDA_ERROR("C_COPY: " #src " -> " #dst); \
+	} while (0)
 
-#define DEVICE_HOST_COPY_ASYNC(dst, src, size, name, stream)                                       \
-    do                                                                                             \
-    {                                                                                              \
-        static_assert(sizeof(*dst) == sizeof(*src), "Pointer types must match");                   \
-        err = cudaMemcpyAsync(dst, src, size * sizeof(*dst), cudaMemcpyDeviceToHost, stream);      \
-        CUDA_ERROR_CHECK("Failed to copy " name " from GPU asynchronously");                       \
-    } while (0)
+#define DH_COPY_ASYNC(dst, src, n, stream)                                    \
+	do {                                                                  \
+		static_assert(sizeof(*dst) == sizeof(*src),                   \
+			      "Pointer types must match");                    \
+		err = cudaMemcpyAsync(dst, src, n * sizeof(*dst),             \
+				      cudaMemcpyDeviceToHost, stream);        \
+		CUDA_ERROR("DH_COPY_ASYNC: " #src " -> " #dst " @ " #stream); \
+	} while (0)
 
 #endif // CUDA_MANAGER_HPP

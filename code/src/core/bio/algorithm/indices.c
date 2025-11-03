@@ -2,45 +2,35 @@
 
 #include "core/bio/score/scoring.h"
 #include "system/arch.h"
+#include "system/simd.h"
 
-void
-seq_indices_precompute(SeqIndices* indices, sequence_ptr_t seq)
+void seq_indices_precompute(SeqIndices *indices, sequence_ptr_t seq)
 {
 #ifdef USE_SIMD
-    const sequence_length_t vector_len = (seq->length / BYTES) * BYTES;
-    sequence_length_t i = 0;
+	const sequence_length_t vector_len = (seq->length / BYTES) * BYTES;
+	sequence_length_t i = 0;
 
-    for (; i < vector_len; i += BYTES)
-    {
-        prefetch(seq->letters + i + BYTES * 2);
+	for (; i < vector_len; i += BYTES) {
+		prefetch(seq->letters + i + BYTES * 2);
+		VECTORIZE for (sequence_length_t j = 0; j < BYTES; j++)
+			indices->data[i + j] =
+			SEQUENCE_LOOKUP[(unsigned char)seq->letters[i + j]];
+	}
 
-        VECTORIZE for (sequence_length_t j = 0; j < BYTES; j++)
-        {
-            indices->data[i + j] = SEQUENCE_LOOKUP[(unsigned char)seq->letters[i + j]];
-        }
-    }
-
-    for (; i < seq->length; i++)
-    {
-        indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq->letters[i]];
-    }
-
+	for (; i < seq->length; i++)
+		indices->data[i] =
+			SEQUENCE_LOOKUP[(unsigned char)seq->letters[i]];
 #else
-
-    VECTORIZE UNROLL(8) for (sequence_length_t i = 0; i < seq->length; ++i)
-    {
-        indices->data[i] = SEQUENCE_LOOKUP[(unsigned char)seq->letters[i]];
-    }
-
+	VECTORIZE UNROLL(8) for (sequence_length_t i = 0; i < seq->length; ++i)
+		indices->data[i] =
+		SEQUENCE_LOOKUP[(unsigned char)seq->letters[i]];
 #endif
 }
 
-void
-seq_indices_free(SeqIndices* indices)
+void seq_indices_free(SeqIndices *indices)
 {
-    if (!indices->is_stack && indices->data)
-    {
-        free(indices->data);
-        indices->data = NULL;
-    }
+	if (!indices->is_stack && indices->data) {
+		free(indices->data);
+		indices->data = NULL;
+	}
 }

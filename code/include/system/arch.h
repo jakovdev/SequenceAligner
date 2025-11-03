@@ -40,7 +40,10 @@
 
 #define CACHE_LINE ((size_t)64)
 
-#define ALIGN_POW2(value, pow2) (((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
+#define sizeof_field(t, f) (sizeof(((t *)0)->f))
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define ALIGN_POW2(value, pow2) \
+	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
 #ifdef _WIN32
 
@@ -62,11 +65,12 @@
 
 typedef HANDLE pthread_t;
 
-#define T_Func DWORD WINAPI
+typedef DWORD WINAPI T_Func;
 #define T_Ret(x) return (DWORD)(size_t)(x)
-
-#define pthread_create(threads, _, function, arg)                                                  \
-    (void)(*threads = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)function, arg, 0, NULL))
+#define pthread_create(threads, _, function, arg)                             \
+	(void)(*threads = CreateThread(NULL, 0,                               \
+				       (LPTHREAD_START_ROUTINE)function, arg, \
+				       0, NULL))
 #define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
 
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
@@ -90,7 +94,7 @@ void time_init(void);
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define T_Func void*
+typedef void *T_Func;
 #define T_Ret(x) return (x)
 #define aligned_free(ptr) free(ptr)
 #define time_init()
@@ -117,12 +121,20 @@ void time_init(void);
 #define ALLOCA(ptr, count) ALLOCATION(ptr, count, alloca)
 #define REALLOC(ptr, count) (realloc(ptr, (count) * sizeof(*(ptr))))
 
+#define atomic_load_relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
+#define atomic_add_relaxed(p, v) \
+	atomic_fetch_add_explicit((p), (v), memory_order_relaxed)
+
 double time_current(void);
-ALLOC void* alloc_huge_page(size_t size);
+
+ALLOC void *alloc_huge_page(size_t size);
+
 size_t available_memory(void);
-const char* file_name_path(const char* path);
-bool path_special_exists(const char* path);
-bool path_file_exists(const char* path);
-bool path_directories_create(const char* path);
+
+const char *file_name_path(const char *path);
+
+bool path_special_exists(const char *path);
+bool path_file_exists(const char *path);
+bool path_directories_create(const char *path);
 
 #endif // SYSTEM_ARCH_H

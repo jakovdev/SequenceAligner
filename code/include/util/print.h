@@ -14,91 +14,76 @@ BASIC USAGE:
 print_quiet_flip(); // Only prints important messages like errors and user prompts
 print_detail_flip(); // Prints the message without the details (box, icon, etc.)
 print_verbose_flip(); // Prints VERBOSE messages
+print_streams(stdin, stdout, stderr); // Set input/output/error streams
+print_error_context("ARGS"); // Will be prepended to error messages
 // You can also freely customize icons, colors, return codes etc. in print.h and print.c.
 
-print(HEADER, MSG_NONE, "Header text");
+print(M_NONE, HEADER "Header text");
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                                 Header text                                  ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
-print(SECTION, MSG_NONE, "Setup");
+print(M_NONE, SECTION "Setup");
 ┌─────────────────────────────────── Setup ────────────────────────────────────┐
-
-print(SUCCESS, MSG_NONE, "Success text");
-│ ✓ Success text                                                               │
-
 const char* input_file = "input.csv";
 // Automatically formats the string like printf
-print(INFO, MSG_NONE, "Reading input file: %s", input_file);
+print(M_NONE, INFO "Reading input file: %s", input_file);
 │ • Reading input file: input.csv                                              │
-
-print(VERBOSE, MSG_NONE, "Batch size: %zu tasks per batch", optimal_batch_size);
+print(M_NONE, VERBOSE "Batch size: %zu tasks per batch", optimal_batch_size);
 │ · Batch size: 6163 tasks per batch                                           │
-
 // Multiple related items with indentation hierarchy
-print(CONFIG, MSG_LOC(FIRST), "Input: %s", input_file);
-print(CONFIG, MSG_LOC(MIDDLE), "Output: %s", output_file);
-print(CONFIG, MSG_LOC(LAST), "Compression: %d", compression_level);
-│ ⚙ Input: in.csv                                                              │
+print(M_LOC(FIRST), INFO "Input: %s", input_file);
+print(M_LOC(MIDDLE), INFO "Output: %s", output_file);
+print(M_LOC(LAST), INFO "Compression: %d", compression_level);
+│ • Input: in.csv                                                              │
 │ ├ Output: out.h5                                                             │
 │ └ Compression: 0                                                             │
-
-// Timing breakdown with hierarchy
-print(TIMING, MSG_LOC(FIRST), "Timing breakdown:");
-print(TIMING, MSG_LOC(MIDDLE), "Init: %.3f sec (%.1f%%)", init_time, init_percent);
-print(TIMING, MSG_LOC(MIDDLE), "Compute: %.3f sec (%.1f%%)", compute_time, compute_percent);
-print(TIMING, MSG_LOC(MIDDLE), "I/O: %.3f sec (%.1f%%)", io_time, io_percent);
-print(TIMING, MSG_LOC(LAST), "Total: %.3f sec (%.1f%%)", total_time, total_percent);
-│ ⧗ Timing breakdown:                                                          │
+print(M_LOC(FIRST), INFO "Timing breakdown:");
+print(M_LOC(MIDDLE), INFO "Init: %.3f sec (%.1f%%)", init_time, init_percent);
+print(M_LOC(MIDDLE), INFO "Compute: %.3f sec (%.1f%%)", compute_time, compute_percent);
+print(M_LOC(MIDDLE), INFO "I/O: %.3f sec (%.1f%%)", io_time, io_percent);
+print(M_LOC(LAST), INFO "Total: %.3f sec (%.1f%%)", total_time, total_percent);
+│ • Timing breakdown:                                                          │
 │ ├ Init: 0.005 sec (7.5%)                                                     │
 │ ├ Compute: 0.044 sec (73.0%)                                                 │
 │ ├ I/O: 0.012 sec (19.4%)                                                     │
 │ └ Total: 0.060 sec (100.0%)                                                  │
-
-print(DNA, MSG_NONE, "Found %d sequences", seq_number);
-│ ◇ Found 1042 sequences                                                       │
-
 // Progress bar display
-for (int i = 0; i < seq_number; i++) {
-    int percentage = 100 * (i + 1) / seq_number;
-    print(PROGRESS, MSG_PERCENT(percentage), "Storing sequences");
-}
-
+for (int i = 0; i < seq_number; i++)
+    print(M_PROPORT(i / seq_number) "Storing sequences");
 // Has quick return for repeating percentages, draws over empty boxes
 │ ▶ Storing sequences [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■] 100% │
-
 // Interactive prompt with choices
-char* choices[] = {"hello", "second"}; // Will auto NULL terminate, but you can also do it manually
-int selected = print(CHOICE, MSG_CHOICE(choices, sizeof(choices)), "Enter column number");
+char* choices[] = {"hello", "second", NULL}; // Will auto NULL terminate, but you should do it manually
+int selected = print(M_CS(choices), "Enter column number");
 // This will display:
 │ 1: hello                                                                     │
 │ 2: second                                                                    │
 │ • Enter column number (1-2): 4                                               │
 │ ! Invalid input! Please enter a number between 1 and 2.                      │
 // On valid input, returns the zero-based index of the selected choice
-
-print(WARNING, MSG_NONE, "Warning text");
+print(M_NONE, WARNING "Warning text");
 │ ! Warning text                                                               │
-
-print(ERROR, MSG_NONE, "Error: File not found");
-│ ✗ Error: File not found                                                      │
-
+print_error_context("FILES");
+print(M_NONE, ERROR "File not found");
+│ ✗ FILES | File not found                                                     │
+print_error_context(NULL);
+print(M_NONE, ERROR "File not found");
+│ ✗ File not found                                                             │
 // For getting user input
 char result[16] = { 0 };
-print(PROMPT, MSG_INPUT(result, sizeof(result)), "Enter a character: ");
+print(PROMPT, M_UINS(result), "Enter a character: ");
 │ • Enter a character: hello                                                   │
 // result will now contain "hello"
-
 // Quick y/N prompt (also has Y/n and y/n variants)
-int answer = print_yN("Do you want to continue? (y/N): ");
-│ • Do you want to continue? (y/N): y                                          │
+int answer = print_yN("Do you want to continue?");
+│ • Do you want to continue? [y/N]: y                                          │
 // answer will be 1 (yes) or 0 (no)
-
-// Close section (useful for program exit, otherwise it will be closed automatically)
-print(SECTION, MSG_NONE, NULL);
+// Close section (will do it automatically if possible (exit, new section/header))
+// print(M_NONE, NULL);
 └──────────────────────────────────────────────────────────────────────────────┘
 // For starting section with no text
-print(SECTION, MSG_NONE, "");
+print(M_NONE, SECTION);
 ┌──────────────────────────────────────────────────────────────────────────────┐
 */
 
@@ -120,134 +105,94 @@ print(SECTION, MSG_NONE, "");
 #endif
 #endif
 
-typedef enum
-{
-    FIRST,
-    MIDDLE,
-    LAST,
+#include <stddef.h>
+#include <stdio.h>
+
+typedef enum {
+	FIRST,
+	MIDDLE,
+	LAST,
+#define _M_LOC(l) ((M_ARG){ .loc = (l) })
 } p_location_t;
 
-typedef struct
-{
-    char** chs;
-    const int n;
+typedef struct {
+	char **choices;
+	const size_t n;
+#define _M_CHOICE(c, s) \
+	((M_ARG){ .choice = { .choices = (c), .n = (s) } }), CHOICE
 } p_choice_t;
 
-typedef struct
-{
-    char* ret;
-    const int rsz;
-} p_input_t;
+typedef struct {
+	char *out;
+	const size_t out_size;
+#define _M_UINPUT(o, s) \
+	((M_ARG){ .uinput = { .out = (o), .out_size = (s) } }), PROMPT
+} p_uinput_t;
 
-typedef const union
-{
-    const p_location_t loc;
-    const int percent;
-    const p_choice_t choice_coll;
-    const p_input_t input;
-} MSG_ARG;
+typedef const union {
+	const p_location_t loc;
+	const int percent;
+#define _M_PERCENT(p) ((M_ARG){ .percent = (p) }), PROGRESS
+	const p_choice_t choice;
+	const p_uinput_t uinput;
+} M_ARG;
 
-#define MSG_LOC(location) ((MSG_ARG){ .loc = (location) })
-#define MSG_PROPORTION(proportion) ((MSG_ARG){ .percent = ((int)(proportion * 100)) })
-#define MSG_PERCENT(percentage) ((MSG_ARG){ .percent = (percentage) })
-#define MSG_CHOICE(choices, cnum) ((MSG_ARG){ .choice_coll = { .chs = choices, .n = (int)cnum } })
-#define MSG_INPUT(result, rsize) ((MSG_ARG){ .input = { .ret = result, .rsz = (int)rsize } })
-#define MSG_NONE MSG_LOC(FIRST)
+#define M_LOC(location) _M_LOC(location)
 
-extern void print_error_prefix(const char* prefix);
+#define M_PERCENT(percentage) _M_PERCENT(percentage)
+#define M_PROPORT(proportion) _M_PERCENT((int)((proportion) * 100))
 
-typedef enum
-{
-    HEADER,
-    SECTION,
-    SUCCESS,
-    INFO,
-    VERBOSE,
-    CONFIG,
-    TIMING,
-    DNA,
-    PROGRESS,
-    CHOICE,
-    PROMPT,
-    WARNING,
-    ERROR,
-    MSG_TYPE_COUNT
-} message_t;
+#define M_CHOICE(choices, n) _M_CHOICE(choices, n)
+#define M_CS(choices) _M_CHOICE(choices, sizeof(choices))
+
+#define M_UINPUT(out, s) _M_UINPUT(out, s)
+#define M_UINS(out) _M_UINPUT(out, sizeof(out))
+
+#define M_NONE M_LOC(FIRST)
+
+// clang-format off
+#define NONE	 "0" /* No special message type */
+#define INFO     "1" /* Regular info message */
+#define VERBOSE  "2" /* Info message controlled by verbose flag */
+#define WARNING  "3" /* Warning message, something is ignored, assumption */
+#define ERROR    "4" /* Error message, reason why program has to exit */
+#define CHOICE   "5" /* User choice prompt, numbered range */
+#define PROMPT   "6" /* User input prompt, free text */
+#define PROGRESS "7" /* Progress bar display */
+#define HEADER   "8" /* Header box, for large titles */
+#define SECTION  "9" /* Section box, for separating by context */
+// clang-format on
 
 // Useful for debugging
-typedef enum
-{
-    // All fields are customizable for easier debugging or if checks
-    PRINT_SUCCESS = 0,
-    PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS = 0,
-    PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS = 0,
-    PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0, // Editable first choice index
-    PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
-    PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
-    PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
-} print_return_t;
+enum {
+	// All fields are customizable for easier debugging or if checks
+	PRINT_SUCCESS = 0,
+	PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS = 0,
+	PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS = 0,
+	PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0, // Editable first choice index
+	PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
+	PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
+	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
+};
 
 #define DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES 0
 
-extern void print_verbose_flip(void);
-extern void print_quiet_flip(void);
-extern void print_detail_flip(void);
+void print_verbose_flip(void);
+void print_quiet_flip(void);
+void print_detail_flip(void);
 
-extern print_return_t print(message_t type, MSG_ARG margs, const char* P_RESTRICT format, ...);
+void print_error_context(const char *prefix);
+
+void print_streams(FILE *in, FILE *out, FILE *err);
+
+int print(M_ARG, const char *P_RESTRICT format, ...);
 
 #define PRINT_USER_YES 1
 #define PRINT_USER_NO 0
 
-static inline int
-print_yN(const char* P_RESTRICT prompt)
-{
-    char result[2] = { 0 };
-    print(PROMPT, MSG_INPUT(result, sizeof(result)), prompt);
-    if (result[0] == 'y' || result[0] == 'Y')
-    {
-        return PRINT_USER_YES;
-    }
-
-    else
-    {
-        return PRINT_USER_NO;
-    }
-}
-
-static inline int
-print_Yn(const char* P_RESTRICT prompt)
-{
-    char result[2] = { 0 };
-    print(PROMPT, MSG_INPUT(result, sizeof(result)), prompt);
-    if (result[0] == 'n' || result[0] == 'N')
-    {
-        return PRINT_USER_NO;
-    }
-
-    else
-    {
-        return PRINT_USER_YES;
-    }
-}
-
-static inline int
-print_yn(const char* P_RESTRICT prompt)
-{
-    char result[2] = { 0 };
-repeat:
-    print(PROMPT, MSG_INPUT(result, sizeof(result)), prompt);
-    if (result[0] == 'y' || result[0] == 'Y')
-    {
-        return PRINT_USER_YES;
-    }
-
-    else if (result[0] == 'n' || result[0] == 'N')
-    {
-        return PRINT_USER_NO;
-    }
-
-    goto repeat;
-}
+int print_yN(const char *P_RESTRICT prompt);
+int print_Yn(const char *P_RESTRICT prompt);
+int print_yn(const char *P_RESTRICT prompt);
 
 #undef P_RESTRICT
 #endif /* UTIL_PRINT_H */

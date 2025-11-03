@@ -14,16 +14,14 @@ extern const char NUCLEOTIDE_ALPHABET[];
 #define NUM_AMINO_MATRICES 65
 #define NUM_NUCLEOTIDE_MATRICES 2
 
-typedef struct
-{
-    const char* name;
-    const int (*matrix)[AMINO_SIZE];
+typedef struct {
+	const char *name;
+	const int (*matrix)[AMINO_SIZE];
 } AminoMatrix;
 
-typedef struct
-{
-    const char* name;
-    const int (*matrix)[NUCLEOTIDE_SIZE];
+typedef struct {
+	const char *name;
+	const int (*matrix)[NUCLEOTIDE_SIZE];
 } NucleotideMatrix;
 
 extern const AminoMatrix ALL_AMINO_MATRICES[NUM_AMINO_MATRICES];

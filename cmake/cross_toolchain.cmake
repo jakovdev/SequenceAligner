@@ -2,7 +2,7 @@ set(PKG_CONFIG_EXECUTABLE "x86_64-w64-mingw32-pkg-config" CACHE FILEPATH "pkg-co
 
 execute_process(COMMAND ${PKG_CONFIG_EXECUTABLE} --variable=prefix hdf5 OUTPUT_VARIABLE MINGW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 if(NOT MINGW_PREFIX)
-    message(FATAL_ERROR "Could not determine MinGW prefix via pkg-config")
+	message(FATAL_ERROR "Could not determine MinGW prefix via pkg-config")
 endif()
 
 set(MINGW_PREFIX "${MINGW_PREFIX}" CACHE PATH "MinGW prefix discovered via pkg-config")
