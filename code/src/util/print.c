@@ -25,10 +25,12 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
+#undef ERROR
 #include <windows.h>
 #ifdef ERROR
 #undef ERROR
 #endif
+#define ERROR "4"
 
 #ifdef OPTIONAL
 #undef OPTIONAL
@@ -40,8 +42,9 @@
 #define MAX max
 #define MIN min
 #define fputc_unlocked _fputc_nolock
-#define fputs_unlocked _fputs_nolock
 #define fwrite_unlocked _fwrite_nolock
+#define flockfile _lock_file
+#define funlockfile _unlock_file
 #else
 #include <termios.h>
 #include <unistd.h>
@@ -301,7 +304,7 @@ static void terminal_read_input(char *input_buffer, size_t input_buffer_size)
 		if (input_char == '\x7F' || input_char == '\b') {
 			if (input_char_index > 0) {
 				input_buffer[--input_char_index] = '\0';
-				fputs("\b \b", p.out);
+				fwrite("\b \b", 1, 3, p.out);
 				fflush(p.out);
 			}
 
@@ -375,7 +378,6 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 
 	FILE *out = (type == M_ERROR) ? p.err : p.out;
 #define ouputc(c) fputc_unlocked((c), out)
-#define ouputs(s) fputs_unlocked((s), out)
 #define oprintf(...) fprintf(out, __VA_ARGS__)
 #define ouwrite(buf, size) fwrite_unlocked((buf), 1, (size), out)
 
@@ -592,9 +594,9 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 
 		if (simple) {
 			if (p.flags.in_section)
-				ouputs(p.ansi_carriage_return);
+				ouwrite(p.ansi_carriage_return, 1);
 
-			ouputs(p_buf);
+			ouwrite(p_buf, p_buflen);
 			ouputc(' ');
 			if (percent == 100) {
 				ouwrite("100%\n", 5);
@@ -615,9 +617,8 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		const size_t filled_width = bar_width * (size_t)percent / 100;
 		const size_t empty_width = bar_width - filled_width;
 
-		if (p.flags.in_section) {
-			ouputs(p.ansi_carriage_return);
-		}
+		if (p.flags.in_section)
+			ouwrite(p.ansi_carriage_return, 1);
 
 		ouwcol(M_SECTION);
 		ouwbox(BOX_NORMAL, BOX_VERTICAL);
@@ -634,10 +635,10 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 
 		size_t ifew;
 		for (ifew = 0; ifew < filled_width; ifew++)
-			ouputs(p.progress_filled_char);
+			ouwrite(p.progress_filled_char, 3);
 
 		for (ifew = 0; ifew < empty_width; ifew++)
-			ouputs(p.progress_empty_char);
+			ouwrite(p.progress_empty_char, 2);
 
 		ouwrite("] ", 2);
 		if (percent == 100) {
@@ -824,7 +825,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		goto cleanup;
 	} else {
 		if (simple) {
-			ouputs(p_buf);
+			ouwrite(p_buf, p_buflen);
 		} else {
 			ouwcol(M_SECTION);
 			ouwbox(BOX_NORMAL, BOX_VERTICAL);
@@ -840,7 +841,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 				ouputc(' ');
 			}
 
-			ouputs(p_buf);
+			ouwrite(p_buf, p_buflen);
 			size_t padding =
 				available > p_buflen ? available - p_buflen : 0;
 			while (padding--)

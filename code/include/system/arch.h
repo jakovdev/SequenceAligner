@@ -65,7 +65,7 @@
 
 typedef HANDLE pthread_t;
 
-typedef DWORD WINAPI T_Func;
+#define T_Func DWORD WINAPI
 #define T_Ret(x) return (DWORD)(size_t)(x)
 #define pthread_create(threads, _, function, arg)                             \
 	(void)(*threads = CreateThread(NULL, 0,                               \
