@@ -12,8 +12,8 @@ veci_t g_gap_open_vec;
 veci_t g_gap_extend_vec;
 #endif
 
-int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
-int SCORING_MATRIX[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
+int SEQ_LUP[SCHAR_MAX + 1];
+int SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 void scoring_matrix_init(void)
 {
@@ -26,7 +26,7 @@ void scoring_matrix_init(void)
 			ALL_NUCLEOTIDE_MATRICES[matrix_id].matrix;
 		for (int i = 0; i < NUCLEOTIDE_SIZE; i++) {
 			for (int j = 0; j < NUCLEOTIDE_SIZE; j++)
-				SCORING_MATRIX[i][j] = src_matrix[i][j];
+				SUB_MAT[i][j] = src_matrix[i][j];
 		}
 
 		break;
@@ -38,24 +38,24 @@ void scoring_matrix_init(void)
 			ALL_AMINO_MATRICES[matrix_id].matrix;
 		for (int i = 0; i < AMINO_SIZE; i++) {
 			for (int j = 0; j < AMINO_SIZE; j++)
-				SCORING_MATRIX[i][j] = src_matrix[i][j];
+				SUB_MAT[i][j] = src_matrix[i][j];
 		}
 
 		break;
 	}
 	}
 
-	memset(SEQUENCE_LOOKUP, -1, sizeof(SEQUENCE_LOOKUP));
+	memset(SEQ_LUP, -1, sizeof(SEQ_LUP));
 	switch (sequence_type) {
 	case SEQ_TYPE_NUCLEO:
 		for (int i = 0; i < NUCLEOTIDE_SIZE; i++)
-			SEQUENCE_LOOKUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
+			SEQ_LUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
 		break;
 	// Expandable
 	case SEQ_TYPE_AMINO:
 	default:
 		for (int i = 0; i < AMINO_SIZE; i++)
-			SEQUENCE_LOOKUP[(int)AMINO_ALPHABET[i]] = i;
+			SEQ_LUP[(int)AMINO_ALPHABET[i]] = i;
 		break;
 	}
 

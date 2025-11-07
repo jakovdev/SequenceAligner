@@ -29,11 +29,11 @@ s32 align_sw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 #endif
 		affine_local_init(match, gap_x, gap_y, seq1, seq2);
 
-	int *restrict seq1_indices = { 0 };
+	int *restrict seq1_i = { 0 };
 	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
-		seq1_indices = MALLOC(seq1_indices, len1);
-		if (!seq1_indices) {
+		seq1_i = MALLOC(seq1_i, len1);
+		if (!seq1_i) {
 			print_error_context("SEQALIGN - SW");
 			print(M_NONE, ERR
 			      "Failed to allocate memory for sequence indices");
@@ -43,14 +43,14 @@ s32 align_sw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		goto no_stack;
 	}
 
-	seq1_indices = ALLOCA(seq1_indices, len1);
+	seq1_i = ALLOCA(seq1_i, len1);
 	is_stack = true;
 
 no_stack:
-	seq_indices_precompute(seq1_indices, seq1);
-	const s32 score = affine_local_fill(match, gap_x, gap_y, seq1_indices,
-					    seq1, seq2);
-	seq_indices_free(seq1_indices, is_stack);
+	seq_indices_precompute(seq1_i, seq1);
+	const s32 score =
+		affine_local_fill(match, gap_x, gap_y, seq1_i, seq1, seq2);
+	seq_indices_free(seq1_i, is_stack);
 	matrix_free(matrix, stack_matrix);
 	return score;
 }

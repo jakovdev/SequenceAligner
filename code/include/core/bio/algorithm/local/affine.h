@@ -11,7 +11,7 @@ void affine_local_init(s32 *restrict match, s32 *restrict gap_x,
 		       sequence_ptr_t seq2);
 
 s32 affine_local_fill(s32 *restrict match, s32 *restrict gap_x,
-		      s32 *restrict gap_y, const s32 *restrict seq1_indices,
+		      s32 *restrict gap_y, const s32 *restrict seq1_i,
 		      sequence_ptr_t seq1, sequence_ptr_t seq2);
 
 #if USE_SIMD == 1

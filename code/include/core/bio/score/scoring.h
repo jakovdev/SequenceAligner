@@ -14,8 +14,8 @@ extern veci_t g_gap_open_vec;
 extern veci_t g_gap_extend_vec;
 #endif
 
-extern int SEQUENCE_LOOKUP[SCHAR_MAX + 1];
-extern int SCORING_MATRIX[MAX_MATRIX_DIM][MAX_MATRIX_DIM];
+extern int SEQ_LUP[SCHAR_MAX + 1];
+extern int SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 void scoring_matrix_init(void);
 

@@ -12,15 +12,15 @@ void seq_indices_precompute(s32 *restrict indices, sequence_ptr_t seq)
 
 	for (; i < vector_len; i += BYTES) {
 		prefetch(seq->letters + i + BYTES * 2);
-		VECTORIZE for (u64 j = 0; j < BYTES; j++) indices[i + j] =
-			SEQUENCE_LOOKUP[(uchar)seq->letters[i + j]];
+		VECTORIZE for (u64 j = 0; j < BYTES; j++)
+			indices[i + j] = SEQ_LUP[(uchar)seq->letters[i + j]];
 	}
 
 	for (; i < seq->length; i++)
-		indices[i] = SEQUENCE_LOOKUP[(uchar)seq->letters[i]];
+		indices[i] = SEQ_LUP[(uchar)seq->letters[i]];
 #else
 	VECTORIZE UNROLL(8) for (u64 i = 0; i < seq->length; ++i)
-		indices[i] = SEQUENCE_LOOKUP[(uchar)seq->letters[i]];
+		indices[i] = SEQ_LUP[(uchar)seq->letters[i]];
 #endif
 }
 

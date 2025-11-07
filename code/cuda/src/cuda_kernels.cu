@@ -48,7 +48,7 @@ bool Cuda::uploadScoring(int *scoring_matrix, int *sequence_lookup)
 	return true;
 }
 
-bool Cuda::uploadPenalties(s32 linear, s32 open, s32 extend)
+bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend)
 {
 	if (!m_init) {
 		setHostError("CUDA not initialized");
@@ -222,18 +222,18 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 		gap_y[col] = SCORE_MIN;
 	}
 
-	s32 prev_match[MAX_CUDA_SEQUENCE_LENGTH + 1];
-	s32 prev_gap_y[MAX_CUDA_SEQUENCE_LENGTH + 1];
+	s32 p_match[MAX_CUDA_SEQUENCE_LENGTH + 1];
+	s32 p_gap_y[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++) {
-		prev_match[col] = match[col];
-		prev_gap_y[col] = gap_y[col];
+		p_match[col] = match[col];
+		p_gap_y[col] = gap_y[col];
 	}
 
 	for (u32 row = 1; row <= len1; ++row) {
 		match[0] = row * -(c_gap_penalty);
 		gap_x[0] = SCORE_MIN;
-		gap_y[0] = max(prev_match[0] - c_gap_open,
-			       prev_gap_y[0] - c_gap_extend);
+		gap_y[0] =
+			max(p_match[0] - c_gap_open, p_gap_y[0] - c_gap_extend);
 		match[0] = gap_y[0];
 
 		const int idx1 = c_seq_lookup[d_seq_letter(&seqs, i, row - 1)];
@@ -242,14 +242,14 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SCORE_MAT(idx1, idx2);
 
-			const s32 diag_score = prev_match[col - 1] + similarity;
+			const s32 diag_score = p_match[col - 1] + similarity;
 
 			const s32 open_x = match[col - 1] - c_gap_open;
 			const s32 extend_x = gap_x[col - 1] - c_gap_extend;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = prev_match[col] - c_gap_open;
-			const s32 extend_y = prev_gap_y[col] - c_gap_extend;
+			const s32 open_y = p_match[col] - c_gap_open;
+			const s32 extend_y = p_gap_y[col] - c_gap_extend;
 			gap_y[col] = max(open_y, extend_y);
 
 			match[col] =
@@ -257,8 +257,8 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 		}
 
 		for (u32 col = 0; col <= len2; col++) {
-			prev_match[col] = match[col];
-			prev_gap_y[col] = gap_y[col];
+			p_match[col] = match[col];
+			p_gap_y[col] = gap_y[col];
 		}
 	}
 
@@ -311,11 +311,11 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 		gap_x[col] = gap_y[col] = SCORE_MIN;
 	}
 
-	s32 prev_match[MAX_CUDA_SEQUENCE_LENGTH + 1];
-	s32 prev_gap_y[MAX_CUDA_SEQUENCE_LENGTH + 1];
+	s32 p_match[MAX_CUDA_SEQUENCE_LENGTH + 1];
+	s32 p_gap_y[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++) {
-		prev_match[col] = match[col];
-		prev_gap_y[col] = gap_y[col];
+		p_match[col] = match[col];
+		p_gap_y[col] = gap_y[col];
 	}
 
 	s32 max_score = 0;
@@ -329,14 +329,14 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SCORE_MAT(idx1, idx2);
 
-			const s32 diag_score = prev_match[col - 1] + similarity;
+			const s32 diag_score = p_match[col - 1] + similarity;
 
 			const s32 open_x = match[col - 1] - c_gap_open;
 			const s32 extend_x = gap_x[col - 1] - c_gap_extend;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = prev_match[col] - c_gap_open;
-			const s32 extend_y = prev_gap_y[col] - c_gap_extend;
+			const s32 open_y = p_match[col] - c_gap_open;
+			const s32 extend_y = p_gap_y[col] - c_gap_extend;
 			gap_y[col] = max(open_y, extend_y);
 
 			const s32 best =
@@ -348,8 +348,8 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 		}
 
 		for (u32 col = 0; col <= len2; col++) {
-			prev_match[col] = match[col];
-			prev_gap_y[col] = gap_y[col];
+			p_match[col] = match[col];
+			p_gap_y[col] = gap_y[col];
 		}
 	}
 

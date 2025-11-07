@@ -635,10 +635,10 @@ static void h5_flush_memory_map(void)
 		u32 end = min(begin + chunk_size, (u32)matrix_dim);
 
 		for (u32 i = begin; i < end; i++) {
-			u64 row_offset = matrix_dim * (i - begin);
+			u64 row = matrix_dim * (i - begin);
 
 			for (u32 j = i + 1; j < matrix_dim; j++) {
-				buffer[row_offset + j] =
+				buffer[row + j] =
 					g_hdf5.memory_map
 						.matrix[matrix_triangle_index(
 							i, j)];
@@ -646,11 +646,11 @@ static void h5_flush_memory_map(void)
 
 			for (u32 j = 0; j < i; j++) {
 				if (j >= begin) {
-					buffer[row_offset + j] =
+					buffer[row + j] =
 						buffer[matrix_dim * (j - begin) +
 						       i];
 				} else {
-					buffer[row_offset + j] =
+					buffer[row + j] =
 						g_hdf5.memory_map.matrix
 							[matrix_triangle_index(
 								j, i)];

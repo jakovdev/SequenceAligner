@@ -148,7 +148,7 @@ def generate_header_file(matrix_types):
             max_dim = dim_size
             max_dim_name = f"{type_name.upper()}_SIZE"
 
-    header_content.append(f"#define MAX_MATRIX_DIM {max_dim_name}")
+    header_content.append(f"#define SUBMAT_MAX {max_dim_name}")
     header_content.append("")
 
     for type_name, type_info in matrix_types.items():

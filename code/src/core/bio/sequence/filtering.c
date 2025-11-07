@@ -67,65 +67,55 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 	}
 
 	const u64 num_threads = (u64)args_thread_num();
-	const u64 expected_progress = sequence_count - 1;
-	_Alignas(CACHE_LINE) _Atomic(u64) global_progress = 0;
+	const u64 progress_total = sequence_count - 1;
+	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
 	*filtered_count = 0;
-	u32 total_filtered = 0;
-	const u64 update_limit = expected_progress / (num_threads * 100);
+	u32 filtered_total = 0;
+	const u64 update_limit = progress_total / (num_threads * 100);
 	for (u32 i = 0; i < sequence_count; i++)
 		keep_flags[i] = true;
 
-	if (!progress_start(&global_progress, expected_progress,
-			    "Filtering sequences"))
+	if (!progress_start(&g_progress, progress_total, "Filtering sequences"))
 		return false;
 
-#pragma omp parallel reduction(+ : total_filtered)
-	{
-		u64 local_progress = 0;
-		u32 local_filtered = 0;
+	OMP_PARALLEL_REDUCTION(filtered_total, +)
+	u64 progress = 0;
+	u32 filtered = 0;
 
-#ifdef _MSC_VER
-		s64 si;
-#pragma omp for schedule(dynamic)
-		for (si = 1; si < (s64)sequence_count; si++) {
-			u32 i = (u32)si;
-#else
-#pragma omp for schedule(dynamic)
-		for (u32 i = 1; i < sequence_count; i++) {
-#endif
-			bool should_keep = true;
+	OMP_FOR_DYNAMIC(i, 1, sequence_count) {
+		OMP_START_DYNAMIC(i);
+		bool should_keep = true;
 
-			for (u32 j = 0; j < i; j++) {
-				if (!keep_flags[j])
-					continue;
+		for (u32 j = 0; j < i; j++) {
+			if (!keep_flags[j])
+				continue;
 
-				double similarity = similarity_pairwise(
-					&sequences[i], &sequences[j]);
-				if (similarity >= filter_threshold) {
-					should_keep = false;
-					local_filtered++;
-					break;
-				}
-			}
-
-			keep_flags[i] = should_keep;
-
-			if (++local_progress >= update_limit) {
-				atomic_add_relaxed(&global_progress,
-						   local_progress);
-				local_progress = 0;
+			double similarity = similarity_pairwise(&sequences[i],
+								&sequences[j]);
+			if (similarity >= filter_threshold) {
+				should_keep = false;
+				filtered++;
+				break;
 			}
 		}
 
-		if (local_progress > 0)
-			atomic_add_relaxed(&global_progress, local_progress);
+		keep_flags[i] = should_keep;
 
-		total_filtered += local_filtered;
+		if (++progress >= update_limit) {
+			atomic_add_relaxed(&g_progress, progress);
+			progress = 0;
+		}
 	}
+
+	if (progress > 0)
+		atomic_add_relaxed(&g_progress, progress);
+
+	filtered_total += filtered;
+	OMP_PARALLEL_REDUCTION_END()
 
 	bench_filter_end();
 	progress_end();
 	bench_filter_start();
-	*filtered_count = total_filtered;
+	*filtered_count = filtered_total;
 	return true;
 }

@@ -30,7 +30,7 @@ void affine_local_init(s32 *restrict match, s32 *restrict gap_x,
 }
 
 s32 affine_local_fill(s32 *restrict match, s32 *restrict gap_x,
-		      s32 *restrict gap_y, const s32 *restrict seq1_indices,
+		      s32 *restrict gap_y, const s32 *restrict seq1_i,
 		      sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
 	const u64 len1 = seq1->length;
@@ -40,43 +40,41 @@ s32 affine_local_fill(s32 *restrict match, s32 *restrict gap_x,
 	const s32 gap_extend = args_gap_extend();
 	s32 score = 0;
 	for (u64 i = 1; i <= len2; ++i) {
-		const u64 row_offset = i * cols;
-		const u64 prev_row_offset = (i - 1) * cols;
-		const int c2_idx = SEQUENCE_LOOKUP[(uchar)seq2->letters[i - 1]];
+		const u64 row = i * cols;
+		const u64 p_row = (i - 1) * cols;
+		const int c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
-		prefetch(&match[row_offset + PREFETCH_DISTANCE]);
-		prefetch(&gap_x[row_offset + PREFETCH_DISTANCE]);
-		prefetch(&gap_y[row_offset + PREFETCH_DISTANCE]);
+		prefetch(&match[row + PREFETCH_DISTANCE]);
+		prefetch(&gap_x[row + PREFETCH_DISTANCE]);
+		prefetch(&gap_y[row + PREFETCH_DISTANCE]);
 
 		for (u64 j = 1; j <= len1; j++) {
-			const s32 similarity =
-				SCORING_MATRIX[seq1_indices[j - 1]][c2_idx];
-			const s32 diag_score =
-				match[prev_row_offset + j - 1] + similarity;
+			const s32 similarity = SUB_MAT[seq1_i[j - 1]][c2_idx];
+			const s32 d_score = match[p_row + j - 1] + similarity;
 
-			const s32 prev_match_x = match[row_offset + j - 1];
-			const s32 prev_gap_x = gap_x[row_offset + j - 1];
-			const s32 prev_match_y = match[prev_row_offset + j];
-			const s32 prev_gap_y = gap_y[prev_row_offset + j];
+			const s32 p_match_x = match[row + j - 1];
+			const s32 p_gap_x = gap_x[row + j - 1];
+			const s32 p_match_y = match[p_row + j];
+			const s32 p_gap_y = gap_y[p_row + j];
 
-			const s32 open_x = prev_match_x - (gap_open);
-			const s32 extend_x = prev_gap_x - (gap_extend);
-			const s32 open_y = prev_match_y - (gap_open);
-			const s32 extend_y = prev_gap_y - (gap_extend);
+			const s32 open_x = p_match_x - (gap_open);
+			const s32 extend_x = p_gap_x - (gap_extend);
+			const s32 open_y = p_match_y - (gap_open);
+			const s32 extend_y = p_gap_y - (gap_extend);
 
-			gap_x[row_offset + j] = (open_x > extend_x) ? open_x :
-								      extend_x;
-			gap_y[row_offset + j] = (open_y > extend_y) ? open_y :
-								      extend_y;
+			gap_x[row + j] = (open_x > extend_x) ? open_x :
+							       extend_x;
+			gap_y[row + j] = (open_y > extend_y) ? open_y :
+							       extend_y;
 
-			const s32 curr_gap_x = gap_x[row_offset + j];
-			const s32 curr_gap_y = gap_y[row_offset + j];
+			const s32 curr_gap_x = gap_x[row + j];
+			const s32 curr_gap_y = gap_y[row + j];
 
 			s32 best = 0;
-			best = diag_score > best ? diag_score : best;
+			best = d_score > best ? d_score : best;
 			best = curr_gap_x > best ? curr_gap_x : best;
 			best = curr_gap_y > best ? curr_gap_y : best;
-			match[row_offset + j] = best;
+			match[row + j] = best;
 			if (best > score)
 				score = best;
 		}

@@ -40,31 +40,29 @@ bool cuda_init(void)
 
 bool cuda_align(void)
 {
-	char *sequences = sequences_flattened();
+	char *seqs = sequences_flattened();
 	u32 *offsets = sequences_offsets();
 	u32 *lengths = sequences_lengths();
-	u32 sequence_count = sequences_count();
-	u64 total_length = sequences_length_total();
+	u32 seqs_n = sequences_count();
+	u64 len_total = sequences_length_total();
 
 	print_error_context("CUDA");
 
-	if (!cuda_upload_sequences(sequences, offsets, lengths, sequence_count,
-				   total_length))
+	if (!cuda_upload_sequences(seqs, offsets, lengths, seqs_n, len_total))
 		RETURN_CUDA_ERRORS("Failed uploading sequences");
 
-	int FLAT_SCORING_MATRIX[MAX_MATRIX_DIM * MAX_MATRIX_DIM] = { 0 };
-	for (int i = 0; i < MAX_MATRIX_DIM; i++) {
-		for (int j = 0; j < MAX_MATRIX_DIM; j++)
-			FLAT_SCORING_MATRIX[i * MAX_MATRIX_DIM + j] =
-				SCORING_MATRIX[i][j];
+	int submat_f[SUBMAT_MAX * SUBMAT_MAX] = { 0 };
+	for (int i = 0; i < SUBMAT_MAX; i++) {
+		for (int j = 0; j < SUBMAT_MAX; j++)
+			submat_f[i * SUBMAT_MAX + j] = SUB_MAT[i][j];
 	}
 
-	if (!cuda_upload_scoring(FLAT_SCORING_MATRIX, SEQUENCE_LOOKUP))
+	if (!cuda_upload_scoring(submat_f, SEQ_LUP))
 		RETURN_CUDA_ERRORS("Failed uploading scoring data");
 
-	if (!cuda_upload_penalties(args_gap_penalty(), args_gap_open(),
-				   args_gap_extend()))
-		RETURN_CUDA_ERRORS("Failed uploading penalties");
+	if (!cuda_upload_gaps(args_gap_penalty(), args_gap_open(),
+			      args_gap_extend()))
+		RETURN_CUDA_ERRORS("Failed uploading gaps");
 
 	s32 *matrix = h5_matrix_data();
 	size_t matrix_bytes = h5_matrix_bytes();
@@ -78,7 +76,7 @@ bool cuda_align(void)
 	if (!cuda_kernel_launch(args_align_method()))
 		RETURN_CUDA_ERRORS("Failed to launch alignment");
 
-	const u64 alignment_count = sequences_alignment_count();
+	const u64 alignments = sequences_alignment_count();
 
 	print(M_PERCENT(0) "Aligning sequences");
 
@@ -86,18 +84,13 @@ bool cuda_align(void)
 		if (!cuda_results_get())
 			RETURN_CUDA_ERRORS("Failed to get results");
 
-		ull current_progress = cuda_results_progress();
-		print(M_PROPORT(current_progress /
-				alignment_count) "Aligning sequences");
+		ull progress = cuda_results_progress();
+		print(M_PROPORT(progress / alignments) "Aligning sequences");
 
-		if (current_progress >= alignment_count) {
+		if (progress >= alignments)
 			break;
-		} else {
-			if (!cuda_kernel_launch(args_align_method())) {
-				RETURN_CUDA_ERRORS(
-					"Failed to launch next batch");
-			}
-		}
+		else if (!cuda_kernel_launch(args_align_method()))
+			RETURN_CUDA_ERRORS("Failed to launch next batch");
 	}
 
 	if (!cuda_results_get())

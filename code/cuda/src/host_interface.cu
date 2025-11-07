@@ -28,9 +28,9 @@ bool cuda_upload_scoring(int *scoring_matrix, int *sequence_lookup)
 						 sequence_lookup);
 }
 
-bool cuda_upload_penalties(s32 linear, s32 open, s32 extend)
+bool cuda_upload_gaps(s32 linear, s32 open, s32 extend)
 {
-	return Cuda::getInstance().uploadPenalties(linear, open, extend);
+	return Cuda::getInstance().uploadGaps(linear, open, extend);
 }
 
 bool cuda_upload_triangle_indices(u64 *indices, s32 *score_buffer,

@@ -19,11 +19,11 @@ s32 align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 #endif
 	s32 *restrict matrix = matrix_alloc(stack_matrix, mat_bytes);
 	linear_global_init(matrix, seq1, seq2);
-	s32 *restrict seq1_indices = { 0 };
+	s32 *restrict seq1_i = { 0 };
 	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
-		seq1_indices = MALLOC(seq1_indices, len1);
-		if (!seq1_indices) {
+		seq1_i = MALLOC(seq1_i, len1);
+		if (!seq1_i) {
 			print_error_context("SEQALIGN - NW");
 			print(M_NONE, ERR
 			      "Failed to allocate memory for sequence indices");
@@ -33,14 +33,14 @@ s32 align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		goto no_stack;
 	}
 
-	seq1_indices = ALLOCA(seq1_indices, len1);
+	seq1_i = ALLOCA(seq1_i, len1);
 	is_stack = true;
 
 no_stack:
-	seq_indices_precompute(seq1_indices, seq1);
-	linear_global_fill(matrix, seq1_indices, seq1, seq2);
+	seq_indices_precompute(seq1_i, seq1);
+	linear_global_fill(matrix, seq1_i, seq1, seq2);
 	const s32 score = matrix[len2 * (len1 + 1) + len1];
-	seq_indices_free(seq1_indices, is_stack);
+	seq_indices_free(seq1_i, is_stack);
 	matrix_free(matrix, stack_matrix);
 	return score;
 }

@@ -83,7 +83,7 @@ class Cuda {
 			     u64 total_sequences_length);
 
 	bool uploadScoring(int *scoring_matrix, int *sequence_lookup);
-	bool uploadPenalties(s32 linear, s32 start, s32 extend);
+	bool uploadGaps(s32 linear, s32 start, s32 extend);
 	bool uploadTriangleIndices(u64 *triangle_indices, s32 *score_buffer,
 				   size_t buffer_bytes);
 
