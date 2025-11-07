@@ -4,7 +4,8 @@
 #include "core/bio/sequence/sequences.h"
 #include "core/interface/seqalign_cuda.h"
 #include "core/interface/seqalign_hdf5.h"
-#include "system/arch.h"
+#include "system/os.h"
+#include "system/types.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -22,8 +23,8 @@ int main(int argc, char *argv[])
 		return 1;
 	bench_io_end();
 
-	sequence_count_t sequence_count = sequences_count();
-	alignment_size_t total_alignments = sequences_alignment_count();
+	u32 sequence_count = sequences_count();
+	u64 total_alignments = sequences_alignment_count();
 	if (args_mode_cuda() && !cuda_init())
 		return 1;
 
@@ -33,10 +34,9 @@ int main(int argc, char *argv[])
 		     args_mode_write())) {
 		bench_io_end();
 		print(M_NONE,
-		      ERROR "Failed to create file, will use no-write mode");
+		      ERR "Failed to create file, will use no-write mode");
 
-		if (!args_force() &&
-		    !print_yN("Do you want to continue? [y/N]")) {
+		if (!args_force() && !print_yN("Do you want to continue?")) {
 			print(M_LOC(LAST),
 			      INFO "Exiting due to file creation failure");
 			h5_close(1);
@@ -49,11 +49,10 @@ int main(int argc, char *argv[])
 
 	if (!h5_sequences_store(sequences_get(), sequence_count)) {
 		bench_io_end();
-		print(M_NONE, ERROR
-		      "Failed to store sequences, will use no-write mode");
+		print(M_NONE,
+		      ERR "Failed to store sequences, will use no-write mode");
 
-		if (!args_force() &&
-		    !print_yN("Do you want to continue? [y/N]")) {
+		if (!args_force() && !print_yN("Do you want to continue?")) {
 			print(M_LOC(LAST),
 			      INFO "Exiting due to sequence store failure");
 			h5_close(1);
@@ -70,7 +69,7 @@ int main(int argc, char *argv[])
 	scoring_matrix_init();
 
 	print(M_NONE, SECTION "Performing Alignments");
-	print(M_NONE, INFO "Will perform %zu pairwise alignments",
+	print(M_NONE, INFO "Will perform " Pu64 " pairwise alignments",
 	      total_alignments);
 	bool alignment_success = false;
 
@@ -82,14 +81,13 @@ int main(int argc, char *argv[])
 		alignment_success = align();
 
 	if (!alignment_success) {
-		print(M_NONE, ERROR "Failed to perform alignments");
+		print(M_NONE, ERR "Failed to perform alignments");
 		h5_close(1);
 		return 1;
 	}
 
-	if (!args_mode_write()) {
-		print(M_NONE, INFO "Matrix checksum: %lld", h5_checksum());
-	}
+	if (!args_mode_write())
+		print(M_NONE, INFO "Matrix checksum: " Ps64, h5_checksum());
 
 	bench_align_print();
 

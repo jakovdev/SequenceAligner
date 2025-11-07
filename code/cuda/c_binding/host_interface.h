@@ -14,18 +14,16 @@ bool cuda_initialize(void);
 
 bool cuda_triangular(size_t buffer_bytes);
 
-bool cuda_upload_sequences(char *sequence_letters,
-			   sequence_offset_t *sequence_offsets,
-			   quar_t *sequence_lengths,
-			   sequence_count_t sequence_count,
-			   size_t total_sequences_length);
+bool cuda_upload_sequences(char *sequence_letters, u32 *sequence_offsets,
+			   u32 *sequence_lengths, u32 sequence_count,
+			   u64 total_sequences_length);
 
 bool cuda_upload_scoring(int *scoring_matrix, int *sequence_lookup);
 
-bool cuda_upload_penalties(int linear, int start, int extend);
+bool cuda_upload_penalties(s32 linear, s32 start, s32 extend);
 
-bool cuda_upload_triangle_indices(size_t *triangle_indices,
-				  score_t *score_buffer, size_t buffer_bytes);
+bool cuda_upload_triangle_indices(u64 *triangle_indices, s32 *score_buffer,
+				  size_t buffer_bytes);
 
 bool cuda_kernel_launch(int kernel_id);
 

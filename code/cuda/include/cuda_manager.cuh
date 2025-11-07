@@ -7,16 +7,15 @@
 #include <cuda_runtime.h>
 
 #define R __restrict__
-typedef quar_t sequence_length_t;
 
 struct Sequences {
 	Sequences() = default;
 	char *d_letters{ nullptr };
-	sequence_offset_t *d_offsets{ nullptr };
-	sequence_length_t *d_lengths{ nullptr };
-	size_t *d_indices{ nullptr };
-	sequence_count_t n_seqs{ 0 };
-	size_t n_letters{ 0 };
+	u32 *d_offsets{ nullptr };
+	u32 *d_lengths{ nullptr };
+	u64 *d_indices{ nullptr };
+	u64 n_letters{ 0 };
+	u32 n_seqs{ 0 };
 	bool constant{ false };
 };
 
@@ -37,18 +36,18 @@ struct KernelResults {
 			cudaStreamDestroy(s_copy);
 	}
 
-	score_t *d_scores0{ nullptr };
-	score_t *d_scores1{ nullptr };
+	s32 *d_scores0{ nullptr };
+	s32 *d_scores1{ nullptr };
 	ull *d_progress{ nullptr };
 	sll *d_checksum{ nullptr };
 	cudaStream_t s_comp{ nullptr };
 	cudaStream_t s_copy{ nullptr };
-	score_t *h_scores{ nullptr };
-	size_t *h_indices{ nullptr };
-	alignment_size_t h_batch_size{ 0 };
-	alignment_size_t h_last_batch{ 0 };
-	alignment_size_t h_total_count{ 0 };
-	alignment_size_t h_completed_batch{ 0 };
+	s32 *h_scores{ nullptr };
+	u64 *h_indices{ nullptr };
+	u64 h_batch_size{ 0 };
+	u64 h_last_batch{ 0 };
+	u64 h_total_count{ 0 };
+	u64 h_completed_batch{ 0 };
 	ull h_progress{ 0 };
 	int h_active{ 0 };
 	bool use_batching{ false };
@@ -79,16 +78,14 @@ class Cuda {
 
 	bool hasEnoughMemory(size_t bytes);
 
-	bool uploadSequences(char *sequences_letters,
-			     sequence_offset_t *sequences_offsets,
-			     sequence_length_t *sequences_lengths,
-			     sequence_count_t sequences_count,
-			     size_t total_sequences_length);
+	bool uploadSequences(char *sequences_letters, u32 *sequences_offsets,
+			     u32 *sequences_lengths, u32 sequences_count,
+			     u64 total_sequences_length);
 
 	bool uploadScoring(int *scoring_matrix, int *sequence_lookup);
-	bool uploadPenalties(int linear, int start, int extend);
-	bool uploadTriangleIndices(size_t *triangle_indices,
-				   score_t *score_buffer, size_t buffer_bytes);
+	bool uploadPenalties(s32 linear, s32 start, s32 extend);
+	bool uploadTriangleIndices(u64 *triangle_indices, s32 *score_buffer,
+				   size_t buffer_bytes);
 
 	bool launchKernel(int kernel_id);
 	bool getResults();

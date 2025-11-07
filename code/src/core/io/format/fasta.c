@@ -42,13 +42,13 @@ static inline char *fasta_skip_line(char *cursor, char *file_end)
 bool fasta_validate(char *restrict file_start, char *restrict file_end)
 {
 	if (!file_start || !file_end || file_start >= file_end) {
-		print(M_NONE, ERROR "Invalid file bounds for validation");
+		print(M_NONE, ERR "Invalid file bounds for validation");
 		return false;
 	}
 
 	char *cursor = file_start;
-	size_t sequence_count = 0;
-	size_t line_number = 1;
+	u64 sequence_count = 0;
+	u64 line_number = 1;
 	bool in_sequence = false;
 	bool found_sequence_data = false;
 	bool asked_user_about_skipping = false;
@@ -59,7 +59,7 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 		char ch = *cursor;
 
 		if (ch == '\0') {
-			print(M_NONE, ERROR "Null character found on line %zu",
+			print(M_NONE, ERR "Null character found on line " Pu64,
 			      line_number);
 			return false;
 		}
@@ -67,7 +67,7 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 		if (ch == '>') {
 			if (in_sequence && !found_sequence_data) {
 				print(M_NONE,
-				      ERROR "Empty sequence found on line %zu",
+				      ERR "Empty sequence found on line " Pu64,
 				      line_number);
 				return false;
 			}
@@ -78,18 +78,17 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 					bench_io_end();
 					print(M_NONE,
 					      WARNING
-					      "Empty header found on line %zu",
+					      "Empty header found on line " Pu64,
 					      line_number);
-					skip = print_yN(
-						"Skip empty headers? [y/N]");
+					skip = print_yN("Skip empty headers?");
 					asked_user_about_skipping = true;
 					bench_io_start();
 				}
 
 				if (!args_force() && !skip) {
 					print(M_NONE,
-					      ERROR
-					      "Empty header found on line %zu",
+					      ERR
+					      "Empty header found on line " Pu64,
 					      line_number);
 					return false;
 				}
@@ -113,30 +112,29 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 			}
 		} else {
 			print(M_NONE,
-			      ERROR
-			      "Data found before first header on line %zu",
+			      ERR
+			      "Data found before first header on line " Pu64,
 			      line_number);
 			return false;
 		}
 	}
 
 	if (sequence_count == 0) {
-		print(M_NONE, ERROR "No sequences found in input file");
+		print(M_NONE, ERR "No sequences found in input file");
 		return false;
 	}
 
 	if (in_sequence && !found_sequence_data) {
-		print(M_NONE,
-		      ERROR "Last sequence header has no sequence data");
+		print(M_NONE, ERR "Last sequence header has no sequence data");
 		return false;
 	}
 
 	return true;
 }
 
-size_t fasta_total_entries(char *restrict file_cursor, char *restrict file_end)
+u64 fasta_total_entries(char *restrict file_cursor, char *restrict file_end)
 {
-	size_t count = 0;
+	u64 count = 0;
 	char *cursor = file_cursor;
 
 	while (cursor < file_end) {
@@ -172,14 +170,14 @@ bool fasta_entry_next(char *restrict *restrict p_cursor)
 	return false;
 }
 
-size_t fasta_entry_length(char *cursor, char *file_end)
+u64 fasta_entry_length(char *cursor, char *file_end)
 {
 	if (!cursor || !file_end || cursor >= file_end || *cursor != '>')
 		return 0;
 
 	cursor = fasta_skip_line(cursor, file_end);
 
-	size_t length = 0;
+	u64 length = 0;
 
 	while (cursor < file_end) {
 		cursor = fasta_skip_empty(cursor, file_end);
@@ -202,11 +200,11 @@ size_t fasta_entry_length(char *cursor, char *file_end)
 	return length;
 }
 
-size_t fasta_entry_extract(char *restrict *restrict p_cursor,
-			   char *restrict file_end, char *restrict output)
+u64 fasta_entry_extract(char *restrict *restrict p_cursor,
+			char *restrict file_end, char *restrict output)
 {
 	if (!p_cursor || !output) {
-		print(M_NONE, ERROR "Invalid parameters for fasta extraction");
+		print(M_NONE, ERR "Invalid parameters for fasta extraction");
 		return 0;
 	}
 
@@ -218,7 +216,7 @@ size_t fasta_entry_extract(char *restrict *restrict p_cursor,
 
 	cursor = fasta_skip_line(cursor, file_end);
 	char *write_pos = output;
-	size_t length = 0;
+	u64 length = 0;
 
 	while (cursor < file_end) {
 		cursor = fasta_skip_empty(cursor, file_end);

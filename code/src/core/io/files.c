@@ -1,13 +1,17 @@
 #include "core/io/files.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "core/io/format/csv.h"
 #include "core/io/format/fasta.h"
-#include "system/arch.h"
+#include "system/os.h"
+#include "system/memory.h"
 #include "util/print.h"
+#include "core/bio/types.h"
 
-static void file_metadata_init(FileMetadata *meta)
+static void file_metadata_init(struct FileMetadata *meta)
 {
 #ifdef _WIN32
 	meta->hFile = INVALID_HANDLE_VALUE;
@@ -18,7 +22,7 @@ static void file_metadata_init(FileMetadata *meta)
 	meta->bytes = 0;
 }
 
-static void file_metadata_close(FileMetadata *meta)
+static void file_metadata_close(struct FileMetadata *meta)
 {
 #ifdef _WIN32
 	if (meta->hMapping) {
@@ -41,7 +45,7 @@ static void file_metadata_close(FileMetadata *meta)
 	meta->bytes = 0;
 }
 
-static FileFormat file_format_detect(const char *file_path)
+static enum FileFormat file_format_detect(const char *file_path)
 {
 	const char *ext = strrchr(file_path, '.');
 	if (!ext)
@@ -60,12 +64,12 @@ static FileFormat file_format_detect(const char *file_path)
 	return FILE_FORMAT_UNKNOWN;
 }
 
-static void file_format_data_reset(FileFormatMetadata *data)
+static void file_format_data_reset(struct FileFormatMetadata *data)
 {
 	memset(data, 0, sizeof(*data));
 }
 
-static bool file_format_csv_parse(FileText *file)
+static bool file_format_csv_parse(struct FileText *file)
 {
 	if (!file->text)
 		return false;
@@ -85,25 +89,25 @@ static bool file_format_csv_parse(FileText *file)
 	file->data.cursor = file->data.start;
 
 	print(M_NONE, VERBOSE "Counting sequences in input file");
-	size_t total = csv_total_lines(file->data.start, file->data.end);
+	u64 total = csv_total_lines(file->data.start, file->data.end);
 
 	if (total >= SEQUENCE_COUNT_MAX) {
-		print(M_NONE, ERROR "Too many sequences in input file: %zu",
+		print(M_NONE, ERR "Too many sequences in input file: " Pu64,
 		      total);
 		return false;
 	}
 
 	if (!total) {
-		print(M_NONE, ERROR "No sequences found in input file");
+		print(M_NONE, ERR "No sequences found in input file");
 		return false;
 	}
 
-	file->data.total = (sequence_count_t)total;
-	print(M_NONE, INFO "Found %u sequences", file->data.total);
+	file->data.total = (u32)total;
+	print(M_NONE, INFO "Found " Pu32 " sequences", file->data.total);
 	return true;
 }
 
-static bool file_format_fasta_parse(FileText *file)
+static bool file_format_fasta_parse(struct FileText *file)
 {
 	if (!file->text)
 		return false;
@@ -114,25 +118,25 @@ static bool file_format_fasta_parse(FileText *file)
 		return false;
 
 	print(M_NONE, VERBOSE "Counting sequences in input file");
-	file->data.total = (sequence_count_t)fasta_total_entries(
-		file->data.start, file->data.end);
+	u64 total = fasta_total_entries(file->data.start, file->data.end);
 
-	if (file->data.total >= SEQUENCE_COUNT_MAX) {
-		print(M_NONE, ERROR "Too many sequences in input file (%u)",
-		      file->data.total);
+	if (total >= SEQUENCE_COUNT_MAX) {
+		print(M_NONE, ERR "Too many sequences in input file: " Pu64,
+		      total);
 		return false;
 	}
 
-	if (!file->data.total) {
-		print(M_NONE, ERROR "No sequences found in input file");
+	if (!total) {
+		print(M_NONE, ERR "No sequences found in input file");
 		return false;
 	}
 
-	print(M_NONE, INFO "Found %u sequences", file->data.total);
+	file->data.total = (u32)total;
+	print(M_NONE, INFO "Found " Pu32 " sequences", file->data.total);
 	return true;
 }
 
-void file_text_close(FileText *file)
+void file_text_close(struct FileText *file)
 {
 #ifdef _WIN32
 	if (file->text) {
@@ -151,7 +155,7 @@ void file_text_close(FileText *file)
 	file_format_data_reset(&file->data);
 }
 
-bool file_text_open(FileText *file, const char *file_path)
+bool file_text_open(struct FileText *file, const char *file_path)
 {
 	print_error_context("FILE");
 
@@ -160,10 +164,10 @@ bool file_text_open(FileText *file, const char *file_path)
 	file->text = NULL;
 
 	const char *file_name = file_name_path(file_path);
-#define file_error_defer(message_lit)                                \
-	do {                                                         \
-		print(M_NONE, ERROR message_lit " '%s'", file_name); \
-		goto file_error;                                     \
+#define file_error_defer(message_lit)                              \
+	do {                                                       \
+		print(M_NONE, ERR message_lit " '%s'", file_name); \
+		goto file_error;                                   \
 	} while (0)
 
 #ifdef _WIN32
@@ -172,7 +176,7 @@ bool file_text_open(FileText *file, const char *file_path)
 				       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
 	if (file->meta.hFile == INVALID_HANDLE_VALUE) {
-		print(M_NONE, ERROR "Could not open file '%s'", file_name);
+		print(M_NONE, ERR "Could not open file '%s'", file_name);
 		return false;
 	}
 
@@ -216,7 +220,7 @@ bool file_text_open(FileText *file, const char *file_path)
 	file->data.end = file->text + file->meta.bytes;
 	file->data.cursor = file->data.start;
 
-	FileFormat type = file_format_detect(file_path);
+	enum FileFormat type = file_format_detect(file_path);
 	file->data.type = type;
 
 	switch (type) {
@@ -226,7 +230,7 @@ bool file_text_open(FileText *file, const char *file_path)
 		return file_format_fasta_parse(file);
 	case FILE_FORMAT_UNKNOWN:
 	default:
-		print(M_NONE, ERROR "Failed to parse file format");
+		print(M_NONE, ERR "Failed to parse file format");
 	}
 
 file_error:
@@ -234,17 +238,17 @@ file_error:
 	return false;
 }
 
-sequence_count_t file_sequence_total(FileText *file)
+u32 file_sequence_total(struct FileText *file)
 {
 	if (file)
 		return file->data.total;
 
 	print_error_context("FILE");
-	print(M_NONE, ERROR "Invalid file for total sequence count");
-	exit(1);
+	print(M_NONE, ERR "Invalid file for total sequence count");
+	exit(EXIT_FAILURE);
 }
 
-size_t file_sequence_next_length(FileText *file)
+u64 file_sequence_next_length(struct FileText *file)
 {
 	if (file) {
 		switch (file->data.type) {
@@ -261,11 +265,11 @@ size_t file_sequence_next_length(FileText *file)
 	}
 
 	print_error_context("FILE");
-	print(M_NONE, ERROR "Invalid file for sequence column length");
-	exit(1);
+	print(M_NONE, ERR "Invalid file for sequence column length");
+	exit(EXIT_FAILURE);
 }
 
-bool file_sequence_next(FileText *file)
+bool file_sequence_next(struct FileText *file)
 {
 	if (file) {
 		switch (file->data.type) {
@@ -279,45 +283,45 @@ bool file_sequence_next(FileText *file)
 	}
 
 	print_error_context("FILE");
-	print(M_NONE, ERROR "Invalid file for next sequence line");
-	exit(1);
+	print(M_NONE, ERR "Invalid file for next sequence line");
+	exit(EXIT_FAILURE);
 }
 
-size_t file_extract_sequence(FileText *restrict file, char *restrict output)
+u64 file_extract_entry(struct FileText *restrict file, char *restrict out)
 {
-	if (file && output) {
+	if (file && out) {
 		switch (file->data.type) {
 		case FILE_FORMAT_CSV:
 			return csv_line_column_extract(
-				&file->data.cursor, output,
+				&file->data.cursor, out,
 				file->data.format.csv.sequence_column);
 		case FILE_FORMAT_FASTA:
 			return fasta_entry_extract(&file->data.cursor,
-						   file->data.end, output);
+						   file->data.end, out);
 		case FILE_FORMAT_UNKNOWN:
 		default:
 		}
 	}
 
 	print_error_context("FILE");
-	print(M_NONE, ERROR "Invalid file for sequence extraction");
-	exit(1);
+	print(M_NONE, ERR "Invalid file for sequence extraction");
+	exit(EXIT_FAILURE);
 }
 
-FileScoreMatrix file_matrix_open(const char *file_path, size_t matrix_dim)
+struct FileScoreMatrix file_matrix_open(const char *file_path, u64 matrix_dim)
 {
-	FileScoreMatrix file = { 0 };
+	struct FileScoreMatrix file = { 0 };
 	file_metadata_init(&file.meta);
 
 	size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
 	size_t bytes = triangle_elements * sizeof(*file.matrix);
 	file.meta.bytes = bytes;
 	const char *file_name = file_name_path(file_path);
-#define file_error_return(message_lit)                               \
-	do {                                                         \
-		print(M_NONE, ERROR message_lit " '%s'", file_name); \
-		file_matrix_close(&file);                            \
-		return file;                                         \
+#define file_error_return(message_lit)                             \
+	do {                                                       \
+		print(M_NONE, ERR message_lit " '%s'", file_name); \
+		file_matrix_close(&file);                          \
+		return file;                                       \
 	} while (0)
 
 	const double mmap_size = (double)bytes / (double)GiB;
@@ -387,7 +391,7 @@ FileScoreMatrix file_matrix_open(const char *file_path, size_t matrix_dim)
 	return file;
 }
 
-void file_matrix_close(FileScoreMatrix *file)
+void file_matrix_close(struct FileScoreMatrix *file)
 {
 	if (file && file->matrix) {
 #ifdef _WIN32
@@ -401,10 +405,9 @@ void file_matrix_close(FileScoreMatrix *file)
 	file_metadata_close(&file->meta);
 }
 
-alignment_size_t matrix_triangle_index(sequence_index_t row,
-				       sequence_index_t col)
+u64 matrix_triangle_index(u32 row, u32 col)
 {
-	return ((size_t)col * (col - 1)) / 2 + row;
+	return ((u64)col * (col - 1)) / 2 + row;
 }
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *output_path)

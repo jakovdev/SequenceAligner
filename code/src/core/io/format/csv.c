@@ -2,17 +2,22 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <string.h>
 
-#include "system/arch.h"
+#include "system/memory.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
-static inline size_t csv_column_count(const char *line)
+#ifdef _WIN32
+#include "system/os.h"
+#endif
+
+static inline u64 csv_column_count(const char *line)
 {
 	if (!line || !*line || *line == '\n' || *line == '\r')
 		return 0;
 
-	size_t count = 1;
+	u64 count = 1;
 	while (*line) {
 		if (*line == ',')
 			count++;
@@ -38,8 +43,8 @@ static inline char *csv_column_copy(const char *restrict file_start,
 	return name;
 }
 
-static inline void csv_column_sequence(char **headers, size_t num_cols,
-				       size_t *seq_col)
+static inline void csv_column_sequence(char **headers, u64 num_cols,
+				       u64 *seq_col)
 {
 	if (!headers || num_cols == 0 || num_cols > INT_MAX) {
 		*seq_col = SIZE_MAX;
@@ -75,22 +80,23 @@ static inline void csv_column_sequence(char **headers, size_t num_cols,
 }
 
 char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
-		       bool *no_header, size_t *seq_col)
+		       bool *no_header, u64 *seq_col)
 {
 	char *header_start = file_cursor;
 	*seq_col = SIZE_MAX;
 	*no_header = false;
-	size_t num_columns = 0;
+	u64 num_columns = 0;
 	char **headers = NULL;
 
 	num_columns = csv_column_count(header_start);
-	print(M_NONE, VERBOSE "Found %zu column(s) in input file", num_columns);
+	print(M_NONE, VERBOSE "Found " Pu64 " column(s) in input file",
+	      num_columns);
 
 	if (!num_columns) {
 		print_error_context("CSV");
-		print(M_NONE, ERROR
-		      "Invalid header (do you have an empty line or file?)");
-		exit(1);
+		print(M_NONE, ERR
+		      "Invalid header (do you have an empty first line or file?)");
+		exit(EXIT_FAILURE);
 	}
 
 	headers = MALLOC(headers, num_columns);
@@ -98,15 +104,15 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	if (!headers) {
 		print_error_context("CSV");
 		print(M_NONE,
-		      ERROR "Memory allocation failed for column headers");
-		exit(1);
+		      ERR "Memory allocation failed for column headers");
+		exit(EXIT_FAILURE);
 	}
 
-	for (size_t i = 0; i < num_columns; i++)
+	for (u64 i = 0; i < num_columns; i++)
 		headers[i] = NULL;
 
 	const char *col_start = header_start;
-	size_t column = 0;
+	u64 column = 0;
 
 	while (file_cursor < file_end) {
 		if (*file_cursor == ',' || *file_cursor == '\n' ||
@@ -143,10 +149,10 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 
 		if (!choices) {
 			print_error_context("CSV");
-			print(M_NONE, ERROR
-			      "Memory allocation failed for choices array");
+			print(M_NONE,
+			      ERR "Memory allocation failed for choices array");
 			if (headers) {
-				for (size_t i = 0; i < num_columns; i++) {
+				for (u64 i = 0; i < num_columns; i++) {
 					if (headers[i])
 						free(headers[i]);
 				}
@@ -154,26 +160,23 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 				free(headers);
 			}
 
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		for (column = 0; column < num_columns; column++)
 			choices[column] = headers[column];
 
 		char headerless_choice[] =
-			"My csv file does not have a header! Do not skip it!";
+			"My csv file does not have a header line";
 		choices[num_columns] = headerless_choice;
 		size_t choice_n = num_columns + 1;
 
 		print(M_LOC(FIRST), INFO
-		      "Could not automatically detect the sequence column.");
-		print(M_LOC(MIDDLE),
+		      "Could not automatically detect the sequence column");
+		print(M_LOC(LAST),
 		      INFO "Which column contains your sequences?");
-		print(M_LOC(LAST), INFO
-		      "Select the header name (this first line will be skipped!):");
-
-		*seq_col = (size_t)print(M_CHOICE(choices, choice_n),
-					 CHOICE "Enter column number");
+		*seq_col = (u64)print(
+			M_CHOICE(choices, choice_n) "Enter column number");
 		free(choices);
 		bench_io_start();
 	}
@@ -185,8 +188,8 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 			      "OK, select the column that displays a sequence");
 			char **choices = headers;
 			size_t choice_n = num_columns;
-			*seq_col = (size_t)print(M_CHOICE(choices, choice_n),
-						 CHOICE "Enter column number");
+			*seq_col = (u64)print(M_CHOICE(
+				choices, choice_n) "Enter column number");
 			*no_header = true;
 			bench_io_start();
 		} else {
@@ -199,8 +202,8 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 
 	if (*seq_col < num_columns && headers && headers[*seq_col]) {
 		const char *sequence_column = headers[*seq_col];
-		print(M_NONE, VERBOSE "Using column #%zu ('%s')", *seq_col + 1,
-		      sequence_column);
+		print(M_NONE, VERBOSE "Using column #" Pu64 " ('%s')",
+		      *seq_col + 1, sequence_column);
 	}
 
 	if (headers) {
@@ -239,9 +242,9 @@ bool csv_line_next(char *restrict *restrict p_cursor)
 	return true;
 }
 
-size_t csv_total_lines(char *restrict file_cursor, char *restrict file_end)
+u64 csv_total_lines(char *restrict file_cursor, char *restrict file_end)
 {
-	size_t total_lines = 0;
+	u64 total_lines = 0;
 
 	while (file_cursor < file_end && *file_cursor) {
 		if (csv_line_next(&file_cursor))
@@ -251,13 +254,13 @@ size_t csv_total_lines(char *restrict file_cursor, char *restrict file_end)
 	return total_lines;
 }
 
-size_t csv_line_column_extract(char *restrict *restrict p_cursor,
-			       char *restrict output, size_t target_column)
+u64 csv_line_column_extract(char *restrict *restrict p_cursor,
+			    char *restrict output, u64 target_column)
 {
 	char *cursor = *p_cursor;
 	char *write_pos = NULL;
-	size_t column = 0;
-	size_t column_length = 0;
+	u64 column = 0;
+	u64 column_length = 0;
 
 	while (*cursor &&
 	       (*cursor == ' ' || *cursor == '\r' || *cursor == '\n'))
@@ -273,7 +276,7 @@ size_t csv_line_column_extract(char *restrict *restrict p_cursor,
 
 			*write_pos = '\0';
 			ptrdiff_t delta = write_pos - output;
-			column_length = delta < 0 ? 0 : (size_t)delta;
+			column_length = delta < 0 ? 0 : (u64)delta;
 		} else {
 			while (*cursor && *cursor != ',' && *cursor != '\n' &&
 			       *cursor != '\r')
@@ -293,10 +296,10 @@ size_t csv_line_column_extract(char *restrict *restrict p_cursor,
 	return column_length;
 }
 
-size_t csv_line_column_length(char *cursor, size_t target_column)
+u64 csv_line_column_length(char *cursor, u64 target_column)
 {
-	size_t column = 0;
-	size_t column_length = 0;
+	u64 column = 0;
+	u64 column_length = 0;
 
 	while (*cursor &&
 	       (*cursor == ' ' || *cursor == '\r' || *cursor == '\n'))
@@ -310,7 +313,7 @@ size_t csv_line_column_length(char *cursor, size_t target_column)
 				cursor++;
 
 			ptrdiff_t delta = cursor - col_start;
-			column_length = delta < 0 ? 0 : (size_t)delta;
+			column_length = delta < 0 ? 0 : (u64)delta;
 			break;
 		} else {
 			while (*cursor && *cursor != ',' && *cursor != '\n' &&
@@ -331,13 +334,13 @@ bool csv_validate(const char *restrict file_start,
 		  const char *restrict file_end)
 {
 	if (!file_start || !file_end || file_start >= file_end) {
-		print(M_NONE, ERROR "Invalid file bounds for validation");
+		print(M_NONE, ERR "Invalid file bounds for validation");
 		return false;
 	}
 
 	const char *cursor = file_start;
-	size_t line_number = 0;
-	size_t expected_columns = 0;
+	u64 line_number = 0;
+	u64 expected_columns = 0;
 	bool first_line = true;
 
 	while (cursor < file_end) {
@@ -355,7 +358,7 @@ bool csv_validate(const char *restrict file_start,
 		if (cursor >= file_end)
 			break;
 
-		size_t current_columns = 0;
+		u64 current_columns = 0;
 		bool field_started = false;
 
 		while (cursor < file_end) {
@@ -377,7 +380,7 @@ bool csv_validate(const char *restrict file_start,
 				}
 			} else if (ch == '\0') {
 				print(M_NONE,
-				      ERROR "Null character found on line %zu",
+				      ERR "Null character found on line " Pu64,
 				      line_number);
 				return false;
 			} else {
@@ -396,7 +399,7 @@ bool csv_validate(const char *restrict file_start,
 		if (first_line) {
 			if (current_columns == 0) {
 				print(M_NONE,
-				      ERROR "Header line has zero columns");
+				      ERR "Header line has zero columns");
 				return false;
 			}
 
@@ -405,8 +408,9 @@ bool csv_validate(const char *restrict file_start,
 		} else if (current_columns > 0) {
 			if (current_columns != expected_columns) {
 				print(M_NONE,
-				      ERROR
-				      "Expected %zu column(s), found %zu on line %zu",
+				      ERR "Expected " Pu64
+					  " column(s), found " Pu64
+					  " on line " Pu64,
 				      expected_columns, current_columns,
 				      line_number);
 				return false;

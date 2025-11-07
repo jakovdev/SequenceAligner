@@ -3,9 +3,10 @@
 #define CORE_BIO_SEQUENCE_FILTERING_H
 
 #include "core/bio/types.h"
+#include "system/types.h"
 
-bool filter_sequences(sequences_t sequences, sequence_count_t sequence_count,
-		      float filter_threshold, bool *keep_flags,
-		      sequence_count_t *filtered_count);
+bool filter_sequences(sequence_t *sequences, u32 sequence_count,
+		      double filter_threshold, bool *keep_flags,
+		      u32 *filtered_count);
 
 #endif // CORE_BIO_SEQUENCE_FILTERING_H

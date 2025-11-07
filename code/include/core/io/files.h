@@ -2,13 +2,15 @@
 #ifndef CORE_IO_FILES_H
 #define CORE_IO_FILES_H
 
-#include "core/bio/types.h"
+#include <stddef.h>
+#include <stdbool.h>
 
+#include "system/types.h"
 #ifdef _WIN32
-#include "system/arch.h"
+#include "system/os.h"
 #endif
 
-typedef struct {
+struct FileMetadata {
 	size_t bytes;
 #ifdef _WIN32
 	HANDLE hFile;
@@ -16,63 +18,56 @@ typedef struct {
 #else
 	int fd;
 #endif
-} FileMetadata;
+};
 
-typedef enum {
-	FILE_FORMAT_CSV,
-	FILE_FORMAT_FASTA,
-	FILE_FORMAT_UNKNOWN
-} FileFormat;
+enum FileFormat { FILE_FORMAT_CSV, FILE_FORMAT_FASTA, FILE_FORMAT_UNKNOWN };
 
-typedef struct {
-	sequence_count_t total;
-	FileFormat type;
+struct FileFormatMetadata {
 	char *start;
 	char *end;
 	char *cursor;
-
 	union {
 		struct {
-			size_t sequence_column;
+			u64 sequence_column;
 			bool headerless;
 		} csv;
 
 		struct {
-			size_t temp1;
+			u64 temp1;
 			bool temp2;
 		} fasta;
 	} format;
-} FileFormatMetadata;
+	enum FileFormat type;
+	u32 total;
+};
 
-typedef struct {
-	FileMetadata meta;
-	FileFormatMetadata data;
+struct FileText {
+	struct FileMetadata meta;
+	struct FileFormatMetadata data;
 	char *text;
-} FileText;
+};
 
-typedef struct {
-	FileMetadata meta;
-	score_t *matrix;
-} FileScoreMatrix;
+struct FileScoreMatrix {
+	struct FileMetadata meta;
+	s32 *matrix;
+};
 
-bool file_text_open(FileText *restrict file, const char *restrict file_path);
-void file_text_close(FileText *file);
+bool file_text_open(struct FileText *restrict file, const char *restrict path);
+void file_text_close(struct FileText *file);
 
-sequence_count_t file_sequence_total(FileText *file);
+u32 file_sequence_total(struct FileText *file);
 
-size_t file_sequence_next_length(FileText *file);
+u64 file_sequence_next_length(struct FileText *file);
 
-bool file_sequence_next(FileText *file);
+bool file_sequence_next(struct FileText *file);
 
-size_t file_extract_sequence(FileText *restrict file, char *restrict output);
+u64 file_extract_entry(struct FileText *restrict file, char *restrict out);
 
-FileScoreMatrix file_matrix_open(const char *file_path, size_t matrix_dim);
-void file_matrix_close(FileScoreMatrix *file);
+struct FileScoreMatrix file_matrix_open(const char *path, u64 matrix_dim);
+void file_matrix_close(struct FileScoreMatrix *file);
 
-alignment_size_t matrix_triangle_index(sequence_index_t row,
-				       sequence_index_t col);
+u64 matrix_triangle_index(u32 row, u32 col);
 
-void file_matrix_name(char *buffer, size_t buffer_size,
-		      const char *output_path);
+void file_matrix_name(char *buffer, size_t buffer_size, const char *path);
 
 #endif // CORE_IO_FILES_H

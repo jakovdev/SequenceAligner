@@ -6,20 +6,21 @@
 #include "core/bio/sequence/sequences.h"
 #include "core/bio/types.h"
 #include "core/interface/seqalign_hdf5.h"
-#include "system/arch.h"
+#include "system/types.h"
+#include "system/os.h"
+#include "system/memory.h"
 #include "util/benchmark.h"
 #include "util/progress.h"
 
 bool align(void)
 {
-	const sequence_count_t sequence_count = sequences_count();
-	const alignment_size_t alignment_count = sequences_alignment_count();
-	const unsigned long num_threads = args_thread_num();
+	const u32 sequence_count = sequences_count();
+	const u64 alignment_count = sequences_alignment_count();
+	const u64 num_threads = (u64)args_thread_num();
 	const align_func_t align_func = align_function(args_align_method());
-	int64_t global_checksum = 0;
-	_Alignas(CACHE_LINE) _Atomic(alignment_size_t) global_progress = 0;
-	const alignment_size_t progress_update_interval =
-		MAX(1, alignment_count / (num_threads * 100));
+	s64 global_checksum = 0;
+	_Alignas(CACHE_LINE) _Atomic(u64) global_progress = 0;
+	const u64 update_limit = max(1, alignment_count / (num_threads * 100));
 
 	bench_align_start();
 	if (!progress_start(&global_progress, alignment_count,
@@ -28,29 +29,28 @@ bool align(void)
 
 #pragma omp parallel reduction(+ : global_checksum)
 	{
-		int64_t local_checksum = 0;
-		alignment_size_t local_progress = 0;
+		s64 local_checksum = 0;
+		u64 local_progress = 0;
 
 #ifdef _MSC_VER
-		int64_t si;
+		s64 si;
 #pragma omp for schedule(dynamic)
-		for (si = 0; si < (int64_t)sequence_count; si++) {
-			sequence_count_t i = (sequence_count_t)si;
+		for (si = 0; si < (s64)sequence_count; si++) {
+			u32 i = (u32)si;
 #else
 #pragma omp for schedule(dynamic)
-		for (sequence_count_t i = 0; i < sequence_count; i++) {
+		for (u32 i = 0; i < sequence_count; i++) {
 #endif
-			for (sequence_count_t j = i + 1; j < sequence_count;
-			     j++) {
+			for (u32 j = i + 1; j < sequence_count; j++) {
 				sequence_ptr_t seq1 = sequence_get(i);
 				sequence_ptr_t seq2 = sequence_get(j);
-				score_t score = align_func(seq1, seq2);
+				s32 score = align_func(seq1, seq2);
 				local_checksum += score;
 				h5_matrix_set(i, j, score);
 				local_progress++;
 			}
 
-			if (local_progress >= progress_update_interval) {
+			if (local_progress >= update_limit) {
 				atomic_add_relaxed(&global_progress,
 						   local_progress);
 				local_progress = 0;

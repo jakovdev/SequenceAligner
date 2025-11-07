@@ -7,7 +7,7 @@
 #ifndef _MSC_VER
 #include <x86intrin.h>
 #endif
-#define USE_SIMD
+#define USE_SIMD 1
 #define USE_AVX512
 typedef __m512i veci_t;
 typedef __mmask64 num_t;
@@ -34,7 +34,7 @@ typedef __mmask64 num_t;
 #elif defined(__AVX2__)
 #include <immintrin.h>
 #include <stdint.h>
-#define USE_SIMD
+#define USE_SIMD 1
 #define USE_AVX2
 typedef __m256i veci_t;
 typedef uint32_t num_t;
@@ -59,7 +59,7 @@ typedef uint32_t num_t;
 #elif defined(__SSE2__)
 #include <emmintrin.h>
 #include <stdint.h>
-#define USE_SIMD
+#define USE_SIMD 1
 #define USE_SSE
 typedef __m128i veci_t;
 typedef uint16_t num_t;
@@ -84,11 +84,12 @@ typedef uint16_t num_t;
 __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b);
 
 #else
+#define USE_SIMD 0
 #define prefetch(x)
 #define prefetch_write(x)
 #endif
 
-#ifdef USE_SIMD
+#if USE_SIMD == 1
 #define PREFETCH_DISTANCE (BYTES << 4)
 #define prefetch(x) _mm_prefetch((const char *)(x), _MM_HINT_T0)
 #define prefetch_write(x) _mm_prefetch((const char *)(x), _MM_HINT_T1)

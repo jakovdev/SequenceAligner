@@ -13,11 +13,9 @@ bool cuda_triangular(size_t buffer_bytes)
 	return !Cuda::getInstance().hasEnoughMemory(buffer_bytes);
 }
 
-bool cuda_upload_sequences(char *sequences_letters,
-			   sequence_offset_t *sequences_offsets,
-			   sequence_length_t *sequences_lengths,
-			   sequence_count_t sequences_count,
-			   size_t total_sequences_length)
+bool cuda_upload_sequences(char *sequences_letters, u32 *sequences_offsets,
+			   u32 *sequences_lengths, u32 sequences_count,
+			   u64 total_sequences_length)
 {
 	return Cuda::getInstance().uploadSequences(
 		sequences_letters, sequences_offsets, sequences_lengths,
@@ -30,12 +28,12 @@ bool cuda_upload_scoring(int *scoring_matrix, int *sequence_lookup)
 						 sequence_lookup);
 }
 
-bool cuda_upload_penalties(int linear, int open, int extend)
+bool cuda_upload_penalties(s32 linear, s32 open, s32 extend)
 {
 	return Cuda::getInstance().uploadPenalties(linear, open, extend);
 }
 
-bool cuda_upload_triangle_indices(size_t *indices, score_t *score_buffer,
+bool cuda_upload_triangle_indices(u64 *indices, s32 *score_buffer,
 				  size_t buffer_bytes)
 {
 	return Cuda::getInstance().uploadTriangleIndices(indices, score_buffer,

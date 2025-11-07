@@ -12,28 +12,19 @@ typedef unsigned int uint;
 typedef unsigned long long ull;
 typedef signed long long sll;
 
-#if SIZE_MAX == UINT64_MAX
-typedef uint32_t HALF_OF_SIZE_T;
-typedef uint16_t HALF_OF_HALF_T;
-#define HALF_MAX (UINT32_MAX)
-#define QUAR_MAX (UINT16_MAX)
-#else
-#error "Unsupported platform: size_t width not 64 bits"
-#endif
+#define SEQUENCE_LENGTH_MAX (INT32_MAX)
+#define SEQUENCE_COUNT_MAX (UINT32_MAX)
+#define SEQUENCE_COUNT_MIN (2)
+#define SCORE_MIN (INT32_MIN / 2)
 
-typedef HALF_OF_SIZE_T half_t;
-typedef HALF_OF_HALF_T quar_t;
-
-// typedef quar_t sequence_length_t;
-#define SEQUENCE_LENGTH_MAX (QUAR_MAX)
-
-typedef half_t sequence_index_t;
-typedef half_t sequence_count_t;
-#define SEQUENCE_COUNT_MAX (HALF_MAX)
-
-typedef size_t alignment_size_t;
-typedef half_t sequence_offset_t;
-typedef int score_t;
-#define SCORE_MIN (INT_MIN / 2)
+/* sequence lengths and counts */
+typedef uint32_t u32;
+/* scores */
+typedef int32_t s32;
+/* alignment sizes, counters */
+typedef uint64_t u64;
+/* checksums */
+typedef int64_t s64;
+typedef unsigned char uchar;
 
 #endif // HOST_TYPES_H

@@ -1,10 +1,12 @@
 #include "core/interface/seqalign_hdf5.h"
 
 #include <hdf5.h>
+#include <string.h>
 
 #include "core/bio/types.h"
 #include "core/io/files.h"
-#include "system/arch.h"
+#include "system/os.h"
+#include "system/memory.h"
 #include "util/print.h"
 
 #ifdef USE_CUDA
@@ -13,7 +15,6 @@
 #endif
 
 static struct {
-	char file_matrix_name[MAX_PATH];
 	hsize_t matrix_dims[2];
 	hsize_t chunk_dims[2];
 	hsize_t seq_dims[1];
@@ -23,14 +24,15 @@ static struct {
 	hid_t lengths_id;
 	const char *file_path;
 #ifdef USE_CUDA
-	size_t *triangle_indices;
+	u64 *triangle_indices;
 #endif
-	score_t *full_matrix;
+	s32 *full_matrix;
 	size_t full_matrix_b;
-	FileScoreMatrix memory_map;
-	size_t matrix_dim;
-	int64_t checksum;
-	unsigned int compression_level;
+	struct FileScoreMatrix memory_map;
+	u64 matrix_dim;
+	s64 checksum;
+	char file_matrix_name[MAX_PATH];
+	u8 compression_level;
 	bool sequences_stored;
 	bool mode_write;
 	bool memory_map_required;
@@ -40,8 +42,7 @@ static struct {
 static void h5_chunk_dimensions_calculate(void);
 static bool h5_file_setup(void);
 
-bool h5_open(const char *file_path, size_t mat_dim, unsigned int compression,
-	     bool write)
+bool h5_open(const char *file_path, u64 mat_dim, u8 compression, bool write)
 {
 	g_hdf5.matrix_dim = mat_dim;
 	g_hdf5.file_id = H5I_INVALID_HID;
@@ -57,8 +58,8 @@ bool h5_open(const char *file_path, size_t mat_dim, unsigned int compression,
 		return true;
 	}
 
-	if (g_hdf5.matrix_dim < 2) {
-		print(M_NONE, ERROR "Matrix size is too small");
+	if (g_hdf5.matrix_dim < SEQUENCE_COUNT_MIN) {
+		print(M_NONE, ERR "Matrix size is too small");
 		return false;
 	}
 
@@ -102,32 +103,33 @@ bool h5_open(const char *file_path, size_t mat_dim, unsigned int compression,
 	g_hdf5.is_init = true;
 	const char *file_type =
 		g_hdf5.memory_map_required ? "Memory-mapped file" : "HDF5 file";
-	print(M_LOC(LAST), VERBOSE "%s has matrix size: %u x %u", file_type,
-	      mat_dim, mat_dim);
+	print(M_LOC(LAST), VERBOSE "%s has matrix size: " Pu64 " x " Pu64,
+	      file_type, mat_dim, mat_dim);
 
 	return true;
 }
 
-#define H5_SEQUENCE_BATCH_SIZE 1 << 12
+#define H5_SEQUENCE_BATCH_SIZE (1 << 12)
 
-bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
+bool h5_sequences_store(sequence_t *sequences, u32 seq_count)
 {
 	if (!g_hdf5.mode_write || !g_hdf5.is_init || g_hdf5.sequences_stored)
 		return true;
 
 	if (g_hdf5.file_id < 0) {
-		print(M_NONE, ERROR
-		      "Cannot store sequences: HDF5 file not initialized");
+		print(M_NONE,
+		      ERR "Cannot store sequences: HDF5 file not initialized");
 		return false;
 	}
 
-	print(M_NONE, INFO "Storing %u sequences in HDF5 file", seq_count);
+	print(M_NONE, INFO "Storing " Pu32 " sequences in HDF5 file",
+	      seq_count);
 
 	hid_t seq_group = H5Gcreate2(g_hdf5.file_id, "/sequences", H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
 
 	if (seq_group < 0) {
-		print(M_NONE, ERROR "Failed to create sequences group");
+		print(M_NONE, ERR "Failed to create sequences group");
 		return false;
 	}
 
@@ -138,7 +140,7 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
 	if (lengths_space < 0) {
 		print(M_NONE,
-		      ERROR "Failed to create sequence lengths dataspace");
+		      ERR "Failed to create sequence lengths dataspace");
 		return false;
 	}
 
@@ -149,21 +151,20 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 	H5Sclose(lengths_space);
 
 	if (g_hdf5.lengths_id < 0) {
-		print(M_NONE,
-		      ERROR "Failed to create sequence lengths dataset");
+		print(M_NONE, ERR "Failed to create sequence lengths dataset");
 		return false;
 	}
 
-	sequence_length_t *lengths = MALLOC(lengths, seq_count);
+	u64 *lengths = MALLOC(lengths, seq_count);
 	if (!lengths) {
 		print(M_NONE,
-		      ERROR "Failed to allocate memory for sequence lengths");
+		      ERR "Failed to allocate memory for sequence lengths");
 		H5Dclose(g_hdf5.lengths_id);
 		g_hdf5.lengths_id = H5I_INVALID_HID;
 		return false;
 	}
 
-	for (sequence_index_t i = 0; i < seq_count; i++)
+	for (u32 i = 0; i < seq_count; i++)
 		lengths[i] = sequences[i].length;
 
 	herr_t status = H5Dwrite(g_hdf5.lengths_id, H5T_NATIVE_ULONG, H5S_ALL,
@@ -172,7 +173,7 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 	free(lengths);
 
 	if (status < 0) {
-		print(M_NONE, ERROR "Failed to write sequence lengths");
+		print(M_NONE, ERR "Failed to write sequence lengths");
 		H5Dclose(g_hdf5.lengths_id);
 		g_hdf5.lengths_id = H5I_INVALID_HID;
 		return false;
@@ -183,7 +184,7 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 
 	hid_t seq_space = H5Screate_simple(1, g_hdf5.seq_dims, NULL);
 	if (seq_space < 0) {
-		print(M_NONE, ERROR "Failed to create sequences dataspace");
+		print(M_NONE, ERR "Failed to create sequences dataspace");
 		H5Tclose(string_type);
 		H5Dclose(g_hdf5.lengths_id);
 		g_hdf5.lengths_id = H5I_INVALID_HID;
@@ -195,7 +196,7 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 					 H5P_DEFAULT, H5P_DEFAULT);
 
 	if (g_hdf5.sequences_id < 0) {
-		print(M_NONE, ERROR "Failed to create sequences dataset");
+		print(M_NONE, ERR "Failed to create sequences dataset");
 		H5Sclose(seq_space);
 		H5Tclose(string_type);
 		H5Dclose(g_hdf5.lengths_id);
@@ -203,16 +204,17 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 		return false;
 	}
 
-	const sequence_index_t batch_size = H5_SEQUENCE_BATCH_SIZE;
-	for (sequence_index_t batch_start = 0; batch_start < seq_count;
+	print(M_PERCENT(0) "Storing sequences");
+
+	const u32 batch_size = H5_SEQUENCE_BATCH_SIZE;
+	for (u32 batch_start = 0; batch_start < seq_count;
 	     batch_start += batch_size) {
-		sequence_index_t batch_end =
-			MIN(batch_start + batch_size, seq_count);
-		sequence_index_t current_batch_size = batch_end - batch_start;
+		u32 batch_end = min(batch_start + batch_size, seq_count);
+		u32 current_batch_size = batch_end - batch_start;
 
 		char **seq_data = MALLOC(seq_data, current_batch_size);
 		if (!seq_data) {
-			print(M_NONE, ERROR
+			print(M_NONE, ERR
 			      "Failed to allocate memory for sequence batch");
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
@@ -223,14 +225,14 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 			return false;
 		}
 
-		for (sequence_index_t i = 0; i < current_batch_size; i++)
+		for (u32 i = 0; i < current_batch_size; i++)
 			seq_data[i] = sequences[batch_start + i].letters;
 
 		hsize_t batch_dims[1] = { current_batch_size };
 		hid_t batch_mem_space = H5Screate_simple(1, batch_dims, NULL);
 
 		if (batch_mem_space < 0) {
-			print(M_NONE, ERROR
+			print(M_NONE, ERR
 			      "Failed to create memory dataspace for sequence batch");
 			free(seq_data);
 			H5Sclose(seq_space);
@@ -256,7 +258,7 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 		free(seq_data);
 
 		if (status < 0) {
-			print(M_NONE, ERROR "Failed to write sequence batch");
+			print(M_NONE, ERR "Failed to write sequence batch");
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
 			H5Dclose(g_hdf5.sequences_id);
@@ -266,9 +268,10 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 			return false;
 		}
 
-		const int percentage = (int)(100 * batch_end / seq_count);
-		print(M_PERCENT(percentage) "Storing sequences");
+		print(M_PROPORT(batch_end / seq_count) "Storing sequences");
 	}
+
+	print(M_PERCENT(100) "Storing sequences");
 
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
@@ -276,7 +279,7 @@ bool h5_sequences_store(sequences_t sequences, sequence_count_t seq_count)
 	return true;
 }
 
-void h5_matrix_set(sequence_index_t row, sequence_index_t col, score_t value)
+void h5_matrix_set(u32 row, u32 col, s32 value)
 {
 	if (!g_hdf5.mode_write)
 		return;
@@ -290,12 +293,12 @@ void h5_matrix_set(sequence_index_t row, sequence_index_t col, score_t value)
 	}
 }
 
-void h5_checksum_set(int64_t checksum)
+void h5_checksum_set(s64 checksum)
 {
 	g_hdf5.checksum = checksum;
 }
 
-int64_t h5_checksum(void)
+s64 h5_checksum(void)
 {
 	return g_hdf5.checksum;
 }
@@ -313,7 +316,7 @@ void h5_close(int skip_flush)
 	if (g_hdf5.mode_write) {
 		if (!skip_flush) {
 			print(M_NONE, SECTION "Finalizing Results");
-			print(M_LOC(FIRST), INFO "Matrix checksum: %lld",
+			print(M_LOC(FIRST), INFO "Matrix checksum: " Ps64,
 			      g_hdf5.checksum);
 			print(M_LOC(LAST), INFO "Writing results to %s",
 			      file_name_path(g_hdf5.file_path));
@@ -331,7 +334,7 @@ void h5_close(int skip_flush)
 
 #ifdef USE_CUDA
 
-score_t *h5_matrix_data(void)
+s32 *h5_matrix_data(void)
 {
 	if (!g_hdf5.mode_write)
 		return NULL;
@@ -351,13 +354,13 @@ size_t h5_matrix_bytes(void)
 
 static bool h5_triangle_indices_calculate(void);
 
-size_t *h5_triangle_indices(void)
+u64 *h5_triangle_indices(void)
 {
 	if (!g_hdf5.mode_write)
 		return NULL;
 
 	if (!g_hdf5.triangle_indices && !h5_triangle_indices_calculate()) {
-		print(M_NONE, ERROR "Failed to calculate result offsets");
+		print(M_NONE, ERR "Failed to calculate result offsets");
 		return NULL;
 	}
 
@@ -375,11 +378,11 @@ static bool h5_triangle_indices_calculate(void)
 	if (!(g_hdf5.triangle_indices =
 		      MALLOC(g_hdf5.triangle_indices, g_hdf5.matrix_dim))) {
 		print(M_NONE,
-		      ERROR "Failed to allocate memory for result offsets");
+		      ERR "Failed to allocate memory for result offsets");
 		return false;
 	}
 
-	for (size_t i = 0; i < g_hdf5.matrix_dim; i++)
+	for (u64 i = 0; i < g_hdf5.matrix_dim; i++)
 		g_hdf5.triangle_indices[i] = (i * (i - 1)) / 2;
 
 	return true;
@@ -387,37 +390,36 @@ static bool h5_triangle_indices_calculate(void)
 
 #endif
 
-#define H5_MIN_CHUNK_SIZE 1 << 7
-#define H5_MAX_CHUNK_SIZE H5_MIN_CHUNK_SIZE << 7
+#define H5_MIN_CHUNK_SIZE (1 << 7)
+#define H5_MAX_CHUNK_SIZE (H5_MIN_CHUNK_SIZE << 7)
 
 static void h5_chunk_dimensions_calculate(void)
 {
-	sequence_count_t matrix_dim = (sequence_count_t)g_hdf5.matrix_dim;
-	sequence_count_t chunk_dim;
+	u32 matrix_dim = (u32)g_hdf5.matrix_dim;
+	u32 chunk_dim;
 
 	if (matrix_dim <= H5_MIN_CHUNK_SIZE) {
 		chunk_dim = matrix_dim;
 	} else if (matrix_dim > H5_MAX_CHUNK_SIZE) {
-		sequence_count_t target_chunks = matrix_dim > 1 << 15 ? 1 << 4 :
-									1 << 5;
+		u32 target_chunks = matrix_dim > 1 << 15 ? 1 << 4 : 1 << 5;
 		chunk_dim = matrix_dim / target_chunks;
 		chunk_dim = ALIGN_POW2(chunk_dim, H5_MIN_CHUNK_SIZE);
-		chunk_dim = MAX(chunk_dim, H5_MIN_CHUNK_SIZE);
-		chunk_dim = MIN(chunk_dim, H5_MAX_CHUNK_SIZE);
+		chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
+		chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
 	} else {
-		sequence_count_t chunk_candidates[] = {
+		u32 chunk_candidates[] = {
 			H5_MIN_CHUNK_SIZE,	H5_MIN_CHUNK_SIZE << 1,
 			H5_MIN_CHUNK_SIZE << 2, H5_MIN_CHUNK_SIZE << 3,
 			H5_MIN_CHUNK_SIZE << 4, H5_MIN_CHUNK_SIZE << 5,
 			H5_MIN_CHUNK_SIZE << 6, H5_MAX_CHUNK_SIZE
 		};
 
-		sequence_count_t num_candidates = ARRAY_SIZE(chunk_candidates);
+		u32 num_candidates = ARRAY_SIZE(chunk_candidates);
 
 		chunk_dim = H5_MIN_CHUNK_SIZE;
 
-		for (sequence_index_t i = 0; i < num_candidates; i++) {
-			sequence_count_t candidate = chunk_candidates[i];
+		for (u32 i = 0; i < num_candidates; i++) {
+			u32 candidate = chunk_candidates[i];
 			if (candidate > H5_MAX_CHUNK_SIZE ||
 			    candidate > matrix_dim) {
 				break;
@@ -431,8 +433,8 @@ static void h5_chunk_dimensions_calculate(void)
 
 	g_hdf5.chunk_dims[0] = chunk_dim;
 	g_hdf5.chunk_dims[1] = chunk_dim;
-	print(M_LOC(FIRST), VERBOSE "HDF5 chunk size: %u x %u", chunk_dim,
-	      chunk_dim);
+	print(M_LOC(FIRST), VERBOSE "HDF5 chunk size: " Pu32 " x " Pu32,
+	      chunk_dim, chunk_dim);
 }
 
 static bool h5_file_setup(void)
@@ -448,7 +450,7 @@ static bool h5_file_setup(void)
 	H5Pclose(fapl);
 
 	if (g_hdf5.file_id < 0) {
-		print(M_NONE, ERROR "Failed to create HDF5 file: %s",
+		print(M_NONE, ERR "Failed to create HDF5 file: %s",
 		      g_hdf5.file_path);
 		h5_file_close();
 		return false;
@@ -459,7 +461,7 @@ static bool h5_file_setup(void)
 	hid_t matrix_space = H5Screate_simple(2, g_hdf5.matrix_dims, NULL);
 
 	if (matrix_space < 0) {
-		print(M_NONE, ERROR "Failed to create matrix dataspace");
+		print(M_NONE, ERR "Failed to create matrix dataspace");
 		h5_file_close();
 		return false;
 	}
@@ -481,8 +483,7 @@ static bool h5_file_setup(void)
 	H5Pclose(plist_id);
 
 	if (g_hdf5.matrix_id < 0) {
-		print(M_NONE,
-		      ERROR "Failed to create similarity matrix dataset");
+		print(M_NONE, ERR "Failed to create similarity matrix dataset");
 		h5_file_close();
 		return false;
 	}
@@ -544,8 +545,8 @@ static void h5_store_checksum(void)
 
 	hid_t attr_space = H5Screate(H5S_SCALAR);
 	if (attr_space < 0) {
-		print(M_NONE, ERROR
-		      "Failed to create dataspace for checksum attribute");
+		print(M_NONE,
+		      ERR "Failed to create dataspace for checksum attribute");
 		return;
 	}
 
@@ -553,7 +554,7 @@ static void h5_store_checksum(void)
 				   attr_space, H5P_DEFAULT, H5P_DEFAULT);
 
 	if (attr_id < 0) {
-		print(M_NONE, ERROR "Failed to create checksum attribute");
+		print(M_NONE, ERR "Failed to create checksum attribute");
 		H5Sclose(attr_space);
 		return;
 	}
@@ -563,7 +564,7 @@ static void h5_store_checksum(void)
 	H5Sclose(attr_space);
 
 	if (status < 0) {
-		print(M_NONE, ERROR "Failed to write checksum attribute");
+		print(M_NONE, ERR "Failed to write checksum attribute");
 		return;
 	}
 
@@ -576,7 +577,7 @@ static void h5_flush_full_matrix(void)
 				 H5S_ALL, H5P_DEFAULT, g_hdf5.full_matrix);
 
 	if (status < 0) {
-		print(M_NONE, ERROR "Failed to write matrix data to HDF5");
+		print(M_NONE, ERR "Failed to write matrix data to HDF5");
 		return;
 	}
 
@@ -588,24 +589,22 @@ static void h5_flush_memory_map(void)
 	size_t matrix_dim = g_hdf5.matrix_dim;
 	size_t available_mem = available_memory();
 	if (!available_mem) {
-		print(M_NONE, ERROR "Failed to retrieve available memory");
+		print(M_NONE, ERR "Failed to retrieve available memory");
 		return;
 	}
 
 	hsize_t chunk_rows = g_hdf5.chunk_dims[0];
 	size_t row_bytes = matrix_dim * sizeof(*g_hdf5.memory_map.matrix);
-	sequence_count_t max_rows =
-		(sequence_count_t)(available_mem / (4 * row_bytes));
-	sequence_count_t chunk_size =
-		(sequence_count_t)(chunk_rows > 4 ? chunk_rows : 4);
+	u32 max_rows = (u32)(available_mem / (4 * row_bytes));
+	u32 chunk_size = (u32)(chunk_rows > 4 ? chunk_rows : 4);
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
 	const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
-	print(M_NONE, VERBOSE "Using %u rows per chunk (%zu MiB buffer)",
+	print(M_NONE, VERBOSE "Using " Pu32 " rows per chunk (%zu MiB buffer)",
 	      chunk_size, buffer_mib);
 
-	score_t *buffer = calloc(chunk_size, row_bytes);
+	s32 *buffer = calloc(chunk_size, row_bytes);
 	if (!buffer) {
 		print(M_NONE, WARNING "Failed to allocate buffer of %zu bytes",
 		      row_bytes * chunk_size);
@@ -613,7 +612,7 @@ static void h5_flush_memory_map(void)
 		chunk_size = 1;
 		buffer = calloc(chunk_size, row_bytes);
 		if (!buffer) {
-			print(M_NONE, ERROR
+			print(M_NONE, ERR
 			      "Cannot allocate even minimal buffer, aborting");
 			return;
 		}
@@ -632,22 +631,20 @@ static void h5_flush_memory_map(void)
 	print(M_NONE, INFO "Converting memory-mapped matrix to HDF5 format");
 	print(M_PERCENT(0) "Converting to HDF5");
 
-	for (sequence_index_t begin = 0; begin < matrix_dim;
-	     begin += chunk_size) {
-		sequence_count_t end =
-			MIN(begin + chunk_size, (sequence_count_t)matrix_dim);
+	for (u32 begin = 0; begin < matrix_dim; begin += chunk_size) {
+		u32 end = min(begin + chunk_size, (u32)matrix_dim);
 
-		for (sequence_index_t i = begin; i < end; i++) {
-			alignment_size_t row_offset = matrix_dim * (i - begin);
+		for (u32 i = begin; i < end; i++) {
+			u64 row_offset = matrix_dim * (i - begin);
 
-			for (sequence_index_t j = i + 1; j < matrix_dim; j++) {
+			for (u32 j = i + 1; j < matrix_dim; j++) {
 				buffer[row_offset + j] =
 					g_hdf5.memory_map
 						.matrix[matrix_triangle_index(
 							i, j)];
 			}
 
-			for (sequence_index_t j = 0; j < i; j++) {
+			for (u32 j = 0; j < i; j++) {
 				if (j >= begin) {
 					buffer[row_offset + j] =
 						buffer[matrix_dim * (j - begin) +
@@ -661,7 +658,7 @@ static void h5_flush_memory_map(void)
 			}
 		}
 
-		sequence_count_t rows = end - begin;
+		u32 rows = end - begin;
 		hsize_t start[2] = { begin, 0 };
 		hsize_t count[2] = { rows, matrix_dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL,
@@ -671,7 +668,7 @@ static void h5_flush_memory_map(void)
 		hid_t mem_space = H5Screate_simple(2, mem_dims, NULL);
 
 		if (mem_space < 0) {
-			print(M_NONE, ERROR
+			print(M_NONE, ERR
 			      "Failed to create memory dataspace for matrix chunk");
 			H5Sclose(file_space);
 			free(buffer);
@@ -685,16 +682,16 @@ static void h5_flush_memory_map(void)
 		H5Sclose(mem_space);
 
 		if (status < 0) {
-			print(M_NONE, ERROR "Failed to write chunk to HDF5");
+			print(M_NONE, ERR "Failed to write chunk to HDF5");
 			H5Sclose(file_space);
 			free(buffer);
 			return;
 		}
 
-		const int percentage = (int)(100 * end / matrix_dim);
-		print(M_PERCENT(percentage) "Converting to HDF5");
+		print(M_PROPORT(end / matrix_dim) "Converting to HDF5");
 	}
 
+	print(M_PERCENT(100) "Converting to HDF5");
 	H5Sclose(file_space);
 	free(buffer);
 	return;

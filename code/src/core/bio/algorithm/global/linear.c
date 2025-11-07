@@ -1,56 +1,52 @@
 #include "core/bio/algorithm/global/linear.h"
 
 #include "core/app/args.h"
-#include "core/bio/algorithm/indices.h"
 #include "core/bio/score/scoring.h"
-#include "system/arch.h"
+#include "system/compiler.h"
 #include "system/simd.h"
 
-void linear_global_init(score_t *restrict matrix, sequence_ptr_t seq1,
+void linear_global_init(s32 *restrict matrix, sequence_ptr_t seq1,
 			sequence_ptr_t seq2)
 {
-	const sequence_length_t len1 = seq1->length;
-	const sequence_length_t len2 = seq2->length;
-	const sequence_length_t cols = len1 + 1U;
-	const int gap_penalty = args_gap_penalty();
+	const u64 len1 = seq1->length;
+	const u64 len2 = seq2->length;
+	const u64 cols = len1 + 1;
+	const s32 gap_penalty = args_gap_penalty();
 
 	matrix[0] = 0;
-	VECTORIZE UNROLL(8) for (sequence_length_t j = 1; j <= len1; j++)
+	VECTORIZE UNROLL(8) for (u64 j = 1; j <= len1; j++)
 	{
-		matrix[j] = (score_t)j * (-gap_penalty);
+		matrix[j] = (s32)j * (-gap_penalty);
 	}
 
-	VECTORIZE UNROLL(8) for (sequence_length_t i = 1; i <= len2; i++)
+	VECTORIZE UNROLL(8) for (u64 i = 1; i <= len2; i++)
 	{
-		matrix[i * cols] = (score_t)i * (-gap_penalty);
+		matrix[i * cols] = (s32)i * (-gap_penalty);
 	}
 }
 
-void linear_global_fill(score_t *restrict matrix,
-			const SeqIndices *seq1_indices, sequence_ptr_t seq1,
-			sequence_ptr_t seq2)
+void linear_global_fill(s32 *restrict matrix, const s32 *restrict seq1_indices,
+			sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	const sequence_length_t len1 = seq1->length;
-	const sequence_length_t len2 = seq2->length;
-	const sequence_length_t cols = len1 + 1U;
-	const int gap_penalty = args_gap_penalty();
-	for (sequence_length_t i = 1; i <= len2; ++i) {
-		sequence_length_t row_offset = i * cols;
-		sequence_length_t prev_row_offset = (i - 1) * cols;
-		int c2_idx =
-			SEQUENCE_LOOKUP[(unsigned char)seq2->letters[i - 1]];
+	const u64 len1 = seq1->length;
+	const u64 len2 = seq2->length;
+	const u64 cols = len1 + 1;
+	const s32 gap_penalty = args_gap_penalty();
+	for (u64 i = 1; i <= len2; ++i) {
+		const u64 row_offset = i * cols;
+		const u64 prev_row_offset = (i - 1) * cols;
+		const int c2_idx = SEQUENCE_LOOKUP[(uchar)seq2->letters[i - 1]];
 
 		prefetch(&matrix[row_offset + PREFETCH_DISTANCE]);
 
-		UNROLL(4) for (sequence_length_t j = 1; j <= len1; j++)
+		UNROLL(4) for (u64 j = 1; j <= len1; j++)
 		{
-			score_t match =
+			const s32 match =
 				matrix[prev_row_offset + j - 1] +
-				SCORING_MATRIX[seq1_indices->data[j - 1]]
-					      [c2_idx];
-			score_t del =
+				SCORING_MATRIX[seq1_indices[j - 1]][c2_idx];
+			const s32 del =
 				matrix[prev_row_offset + j] + (-gap_penalty);
-			score_t insert =
+			const s32 insert =
 				matrix[row_offset + j - 1] + (-gap_penalty);
 			matrix[row_offset + j] =
 				match > del ?
@@ -60,24 +56,23 @@ void linear_global_fill(score_t *restrict matrix,
 	}
 }
 
-#ifdef USE_SIMD
+#if USE_SIMD == 1
 
-void simd_linear_global_row_init(score_t *restrict matrix, sequence_ptr_t seq1)
+void simd_linear_global_row_init(s32 *restrict matrix, sequence_ptr_t seq1)
 {
-	const sequence_length_t len1 = seq1->length;
-	const int gap_penalty = args_gap_penalty();
+	const u64 len1 = seq1->length;
+	const s32 gap_penalty = args_gap_penalty();
 
 	veci_t indices = g_first_row_indices;
 	veci_t gap_penalty_vec = set1_epi32(-gap_penalty);
-	for (sequence_length_t j = 1; j <= len1; j += NUM_ELEMS) {
-		sequence_length_t remaining = len1 + 1U - j;
+	for (u64 j = 1; j <= len1; j += NUM_ELEMS) {
+		u64 remaining = len1 + 1 - j;
 		if (remaining >= NUM_ELEMS) {
 			veci_t values = mullo_epi32(indices, gap_penalty_vec);
 			storeu((veci_t *)&matrix[j], values);
 		} else {
-			for (sequence_length_t k = 0; k < remaining; k++)
-				matrix[j + k] =
-					(score_t)(j + k) * (-gap_penalty);
+			for (u64 k = 0; k < remaining; k++)
+				matrix[j + k] = (s32)(j + k) * (-gap_penalty);
 		}
 
 		indices = add_epi32(indices, set1_epi32(NUM_ELEMS));

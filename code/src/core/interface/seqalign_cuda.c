@@ -10,21 +10,21 @@
 
 #include "host_interface.h"
 
-#define RETURN_CUDA_ERRORS(error_message_lit)                 \
-	do {                                                  \
-		print(M_LOC(FIRST), ERROR error_message_lit); \
-		print(M_LOC(MIDDLE), ERROR "Host error: %s",  \
-		      cuda_error_host_get());                 \
-		print(M_LOC(LAST), ERROR "Device error: %s",  \
-		      cuda_error_device_get());               \
-		return false;                                 \
+#define RETURN_CUDA_ERRORS(error_message_lit)               \
+	do {                                                \
+		print(M_LOC(FIRST), ERR error_message_lit); \
+		print(M_LOC(MIDDLE), ERR "Host error: %s",  \
+		      cuda_error_host_get());               \
+		print(M_LOC(LAST), ERR "Device error: %s",  \
+		      cuda_error_device_get());             \
+		return false;                               \
 	} while (0)
 
 bool cuda_init(void)
 {
 	print_error_context("CUDA");
 
-	if (sequences_max_length() > 1024)
+	if (sequences_length_max() > 1024)
 		RETURN_CUDA_ERRORS("Sequence length exceeds maximum of 1024");
 
 	if (!cuda_initialize())
@@ -41,10 +41,10 @@ bool cuda_init(void)
 bool cuda_align(void)
 {
 	char *sequences = sequences_flattened();
-	sequence_offset_t *offsets = sequences_offsets();
-	quar_t *lengths = sequences_lengths();
-	sequence_count_t sequence_count = sequences_count();
-	size_t total_length = sequences_total_length();
+	u32 *offsets = sequences_offsets();
+	u32 *lengths = sequences_lengths();
+	u32 sequence_count = sequences_count();
+	u64 total_length = sequences_length_total();
 
 	print_error_context("CUDA");
 
@@ -66,10 +66,10 @@ bool cuda_align(void)
 				   args_gap_extend()))
 		RETURN_CUDA_ERRORS("Failed uploading penalties");
 
-	score_t *matrix = h5_matrix_data();
+	s32 *matrix = h5_matrix_data();
 	size_t matrix_bytes = h5_matrix_bytes();
 
-	size_t *result_offsets = h5_triangle_indices();
+	u64 *result_offsets = h5_triangle_indices();
 	if (!cuda_upload_triangle_indices(result_offsets, matrix, matrix_bytes))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
@@ -78,18 +78,17 @@ bool cuda_align(void)
 	if (!cuda_kernel_launch(args_align_method()))
 		RETURN_CUDA_ERRORS("Failed to launch alignment");
 
-	const alignment_size_t alignment_count = sequences_alignment_count();
-	int percentage = 0;
+	const u64 alignment_count = sequences_alignment_count();
 
-	print(M_PERCENT(percentage) "Aligning sequences");
+	print(M_PERCENT(0) "Aligning sequences");
 
 	while (true) {
 		if (!cuda_results_get())
 			RETURN_CUDA_ERRORS("Failed to get results");
 
 		ull current_progress = cuda_results_progress();
-		percentage = (int)(100 * current_progress / alignment_count);
-		print(M_PERCENT(percentage) "Aligning sequences");
+		print(M_PROPORT(current_progress /
+				alignment_count) "Aligning sequences");
 
 		if (current_progress >= alignment_count) {
 			break;
@@ -104,10 +103,7 @@ bool cuda_align(void)
 	if (!cuda_results_get())
 		RETURN_CUDA_ERRORS("Failed to get results");
 
-	if (percentage < 100) {
-		percentage = 100;
-		print(M_PERCENT(percentage) "Aligning sequences");
-	}
+	print(M_PERCENT(100) "Aligning sequences");
 
 	h5_checksum_set(cuda_results_checksum() * 2);
 

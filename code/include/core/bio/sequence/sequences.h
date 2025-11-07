@@ -3,27 +3,28 @@
 #define CORE_BIO_SEQUENCE_SEQUENCES_H
 
 #include "core/bio/types.h"
+#include "system/types.h"
 
 bool sequences_load_from_file(void);
 
-sequences_t sequences_get(void);
+sequence_t *sequences_get(void);
 
-sequence_count_t sequences_count(void);
+u32 sequences_count(void);
 
-alignment_size_t sequences_alignment_count(void);
+u64 sequences_alignment_count(void);
 
-sequence_t *sequence_get(sequence_index_t index);
+sequence_t *sequence_get(u32 index);
 
 #ifdef USE_CUDA
 char *sequences_flattened(void);
 
-sequence_offset_t *sequences_offsets(void);
+u32 *sequences_offsets(void);
 
-quar_t *sequences_lengths(void);
+u32 *sequences_lengths(void);
 
-size_t sequences_total_length(void);
+u64 sequences_length_total(void);
 
-sequence_length_t sequences_max_length(void);
+u32 sequences_length_max(void);
 #endif
 
 #endif // CORE_BIO_SEQUENCE_SEQUENCES_H

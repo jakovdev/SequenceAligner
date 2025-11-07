@@ -7,7 +7,7 @@
 #include "matrices.h"
 #include "system/simd.h"
 
-#ifdef USE_SIMD
+#if USE_SIMD == 1
 extern veci_t g_first_row_indices;
 extern veci_t g_gap_penalty_vec;
 extern veci_t g_gap_open_vec;

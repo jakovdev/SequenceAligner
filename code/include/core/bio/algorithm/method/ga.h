@@ -3,7 +3,8 @@
 #define CORE_BIO_ALGORITHM_METHOD_GA_H
 
 #include "core/bio/types.h"
+#include "system/types.h"
 
-score_t align_ga(sequence_ptr_t seq1, sequence_ptr_t seq2);
+s32 align_ga(sequence_ptr_t seq1, sequence_ptr_t seq2);
 
 #endif // CORE_BIO_ALGORITHM_METHOD_GA_H

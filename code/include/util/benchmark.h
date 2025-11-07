@@ -2,7 +2,7 @@
 #ifndef UTIL_BENCHMARK_H
 #define UTIL_BENCHMARK_H
 
-#include <stddef.h>
+#include "system/types.h"
 
 void bench_io_start(void);
 void bench_align_start(void);
@@ -14,8 +14,8 @@ void bench_filter_end(void);
 
 void bench_io_print(void);
 void bench_align_print(void);
-void bench_filter_print(size_t filtered);
+void bench_filter_print(u64 filtered);
 
-void bench_total_print(size_t alignments);
+void bench_total_print(u64 alignments);
 
 #endif // UTIL_BENCHMARK_H

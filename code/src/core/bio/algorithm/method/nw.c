@@ -5,62 +5,61 @@
 #include "core/bio/algorithm/indices.h"
 #include "core/bio/algorithm/matrix.h"
 #include "util/print.h"
-#include "system/arch.h"
+#include "system/memory.h"
 #include "system/simd.h"
 
-score_t align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
+s32 align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	const sequence_length_t len1 = seq1->length;
-	const sequence_length_t len2 = seq2->length;
-	size_t matrix_bytes = MATRIX_BYTES(len1, len2);
-	size_t matrix_size =
-		USE_STACK_MATRIX(matrix_bytes) ? MATRIX_SIZE(len1, len2) : 1;
+	const u64 len1 = seq1->length;
+	const u64 len2 = seq2->length;
+	const size_t mat_bytes = MATRIX_BYTES(len1, len2);
+	const size_t mat_size = MATRIX_SIZE_S(len1, len2, mat_bytes);
 #ifdef _MSC_VER
-	score_t *stack_matrix = ALLOCA(stack_matrix, matrix_size);
+	s32 *stack_matrix = ALLOCA(stack_matrix, mat_size);
 #else
-	score_t stack_matrix[matrix_size];
+	s32 stack_matrix[mat_size];
 #endif
-	score_t *restrict matrix = matrix_alloc(stack_matrix, matrix_bytes);
-#ifdef USE_SIMD
+	s32 *restrict matrix = matrix_alloc(stack_matrix, mat_bytes);
+#if USE_SIMD == 1
 	matrix[0] = 0;
-	const sequence_length_t cols = len1 + 1U;
-	const int gap_penalty = args_gap_penalty();
+	const u64 cols = len1 + 1;
+	const s32 gap_penalty = args_gap_penalty();
 
 	if (len1 >= NUM_ELEMS) {
 		simd_linear_global_row_init(matrix, seq1);
 	} else {
 		// TODO: Move below elsewhere
-		for (sequence_length_t j = 1; j <= len1; j++)
-			matrix[j] = (score_t)j * (-gap_penalty);
+		for (u64 j = 1; j <= len1; j++)
+			matrix[j] = (s32)j * (-gap_penalty);
 	}
 
-	for (sequence_length_t i = 1; i <= len2; i++)
-		matrix[i * cols] = (score_t)i * (-gap_penalty);
+	for (u64 i = 1; i <= len2; i++)
+		matrix[i * cols] = (s32)i * (-gap_penalty);
 #else
 	linear_global_init(matrix, seq1, seq2);
 #endif
-	SeqIndices seq1_indices = { 0 };
+	s32 *restrict seq1_indices = { 0 };
+	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
-		seq1_indices.data = MALLOC(seq1_indices.data, len1);
-		if (!seq1_indices.data) {
+		seq1_indices = MALLOC(seq1_indices, len1);
+		if (!seq1_indices) {
 			print_error_context("SEQALIGN - NW");
-			print(M_NONE, ERROR
+			print(M_NONE, ERR
 			      "Failed to allocate memory for sequence indices");
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
-		seq1_indices.is_stack = false;
 		goto no_stack;
 	}
 
-	seq1_indices.data = ALLOCA(seq1_indices.data, len1);
-	seq1_indices.is_stack = true;
+	seq1_indices = ALLOCA(seq1_indices, len1);
+	is_stack = true;
 
 no_stack:
-	seq_indices_precompute(&seq1_indices, seq1);
-	linear_global_fill(matrix, &seq1_indices, seq1, seq2);
-	score_t score = matrix[len2 * (len1 + 1U) + len1];
-	seq_indices_free(&seq1_indices);
+	seq_indices_precompute(seq1_indices, seq1);
+	linear_global_fill(matrix, seq1_indices, seq1, seq2);
+	const s32 score = matrix[len2 * (len1 + 1) + len1];
+	seq_indices_free(seq1_indices, is_stack);
 	matrix_free(matrix, stack_matrix);
 	return score;
 }

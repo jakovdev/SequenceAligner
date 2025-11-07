@@ -1,7 +1,7 @@
 #include "cuda_manager.cuh"
 #include "host_types.h"
 
-constexpr size_t CUDA_BATCH_SIZE = 64ULL << 20;
+constexpr u64 CUDA_BATCH_SIZE = 64U << 20;
 
 Cuda &Cuda::getInstance()
 {
@@ -32,11 +32,9 @@ bool Cuda::initialize()
 	return true;
 }
 
-bool Cuda::uploadSequences(char *sequences_letters,
-			   sequence_offset_t *sequences_offsets,
-			   sequence_length_t *sequences_lengths,
-			   sequence_count_t sequences_count,
-			   size_t total_sequences_length)
+bool Cuda::uploadSequences(char *sequences_letters, u32 *sequences_offsets,
+			   u32 *sequences_lengths, u32 sequences_count,
+			   u64 total_sequences_length)
 {
 	if (!m_init || !sequences_letters || !sequences_offsets ||
 	    !sequences_lengths || !sequences_count || !total_sequences_length) {
@@ -46,13 +44,12 @@ bool Cuda::uploadSequences(char *sequences_letters,
 
 	m_seqs.n_seqs = sequences_count;
 	m_seqs.n_letters = total_sequences_length;
-	m_kr.h_total_count =
-		(size_t)sequences_count * (sequences_count - 1) / 2;
+	m_kr.h_total_count = (u64)sequences_count * (sequences_count - 1) / 2;
 	constexpr size_t cell_size = sizeof(*m_kr.h_scores);
 
 	if (!hasEnoughMemory(cell_size * sequences_count * sequences_count)) {
-		if (!hasEnoughMemory(m_kr.h_total_count * cell_size)) {
-			if (!hasEnoughMemory(CUDA_BATCH_SIZE * cell_size)) {
+		if (!hasEnoughMemory(cell_size * m_kr.h_total_count)) {
+			if (!hasEnoughMemory(cell_size * CUDA_BATCH_SIZE)) {
 				setHostError("Not enough memory for results");
 				return false;
 			}
@@ -82,8 +79,8 @@ bool Cuda::uploadSequences(char *sequences_letters,
 	return true;
 }
 
-bool Cuda::uploadTriangleIndices(size_t *triangle_indices,
-				 score_t *score_buffer, size_t buffer_bytes)
+bool Cuda::uploadTriangleIndices(u64 *triangle_indices, s32 *score_buffer,
+				 size_t buffer_bytes)
 {
 	if (!m_init || !triangle_indices || !score_buffer || !buffer_bytes) {
 		setHostError(
@@ -122,7 +119,7 @@ bool Cuda::launchKernel(int kernel_id)
 
 	if (!m_kr.h_after_first) {
 		cudaError_t err;
-		alignment_size_t d_scores_size = 0;
+		u64 d_scores_size = 0;
 
 		err = cudaStreamCreate(&m_kr.s_comp);
 		CUDA_ERROR("Failed to create compute stream");
@@ -173,8 +170,7 @@ bool Cuda::getResults()
 			CUDA_ERROR("Compute stream synchronization failed");
 			DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 
-			const alignment_size_t n_scores =
-				m_seqs.n_seqs * m_seqs.n_seqs;
+			const u64 n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
 			DH_COPY(m_kr.h_scores, m_kr.d_scores0, n_scores);
 			matrix_copied = true;
 		}
@@ -207,8 +203,8 @@ bool Cuda::getResults()
 		return true;
 	}
 
-	alignment_size_t batch_offset = m_kr.h_completed_batch;
-	score_t *buffer = nullptr;
+	u64 batch_offset = m_kr.h_completed_batch;
+	s32 *buffer = nullptr;
 
 	if (m_kr.h_after_first) {
 		buffer = (m_kr.h_active == 0) ? m_kr.d_scores1 : m_kr.d_scores0;
@@ -219,11 +215,11 @@ bool Cuda::getResults()
 		buffer = m_kr.d_scores0;
 	}
 
-	alignment_size_t n_scores =
+	u64 n_scores =
 		std::min(m_kr.h_batch_size, m_kr.h_total_count - batch_offset);
 
 	if (n_scores > 0) {
-		score_t *scores = m_kr.h_scores + batch_offset;
+		s32 *scores = m_kr.h_scores + batch_offset;
 
 		if (m_kr.h_after_first) {
 			DH_COPY_ASYNC(scores, buffer, n_scores, m_kr.s_copy);

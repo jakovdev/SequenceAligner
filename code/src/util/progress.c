@@ -1,35 +1,31 @@
 #include "util/progress.h"
 
-#include "system/arch.h"
+#include "system/os.h"
 #include "util/print.h"
 
 static _Atomic(bool) p_running;
-static _Atomic(size_t) *p_progress;
+static _Atomic(u64) *p_progress;
 static const char *p_message;
-static size_t p_total;
+static u64 p_total;
 static pthread_t p_thread;
 
 static T_Func progress_monitor_worker(void *arg)
 {
 	(void)arg;
-	int percentage = 0;
-	print(M_PERCENT(percentage) "%s", p_message);
+	print(M_PERCENT(0) "%s", p_message);
 
 	while (atomic_load_relaxed(p_progress) < p_total) {
 		usleep(100000);
-		percentage =
-			(int)(100 * atomic_load_relaxed(p_progress) / p_total);
-		print(M_PERCENT(percentage) "%s", p_message);
+		print(M_PROPORT(atomic_load_relaxed(p_progress) / p_total) "%s",
+		      p_message);
 	}
 
-	if (percentage < 100)
-		print(M_PERCENT(100) "%s", p_message);
+	print(M_PERCENT(100) "%s", p_message);
 
 	T_Ret(NULL);
 }
 
-bool progress_start(_Atomic(size_t) *progress, size_t total,
-		    const char *message)
+bool progress_start(_Atomic(u64) *progress, u64 total, const char *message)
 {
 	if (atomic_load(&p_running))
 		goto p_thread_error;
@@ -46,7 +42,7 @@ bool progress_start(_Atomic(size_t) *progress, size_t total,
 	atomic_store(&p_running, false);
 p_thread_error:
 	print_error_context("THREAD");
-	print(M_NONE, ERROR "Failed to create progress monitor thread");
+	print(M_NONE, ERR "Failed to create progress monitor thread");
 	return false;
 }
 

@@ -7,12 +7,6 @@
 #include <limits.h>
 #include <string.h>
 
-#ifdef __GNUC__
-#define DESTRUCTOR __attribute__((destructor))
-#else
-#define DESTRUCTOR
-#endif
-
 #ifdef __cplusplus
 #define P_RESTRICT __restrict
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
@@ -25,22 +19,7 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#undef ERROR
 #include <windows.h>
-#ifdef ERROR
-#undef ERROR
-#endif
-#define ERROR "4"
-
-#ifdef OPTIONAL
-#undef OPTIONAL
-#endif
-
-#ifdef REQUIRED
-#undef REQUIRED
-#endif
-#define MAX max
-#define MIN min
 #define fputc_unlocked _fputc_nolock
 #define fwrite_unlocked _fwrite_nolock
 #define flockfile _lock_file
@@ -49,9 +28,11 @@
 #include <termios.h>
 #include <unistd.h>
 #include <sys/param.h>
+#define max MAX
+#define min MIN
 #endif
 
-#define CLAMP(v, min, max) (MIN(MAX((v), (min)), (max)))
+#define CLAMP(val, min_val, max_val) (min(max((val), (min_val)), (max_val)))
 
 #ifndef TERMINAL_WIDTH
 #define TERMINAL_WIDTH 80
@@ -123,7 +104,7 @@ static void terminal_mode_restore(void)
 #endif
 }
 
-enum {
+enum m_type {
 	M_INFO = 1,
 	M_VERBOSE,
 	M_WARNING,
@@ -136,7 +117,7 @@ enum {
 	M_TYPES
 };
 
-typedef enum {
+enum color {
 	COLOR_RESET,
 	COLOR_RED,
 	COLOR_GREEN,
@@ -147,21 +128,21 @@ typedef enum {
 	COLOR_GRAY,
 	COLOR_BRIGHT_CYAN,
 	COLOR_TYPE_COUNT
-} color_t;
+};
 
-typedef enum {
+enum icon {
 	ICON_NONE,
-	ICON_INFO,
-	ICON_DOT,
 	ICON_WARNING,
+	ICON_DOT,
+	ICON_INFO,
 	ICON_ERROR,
 	ICON_ARROW,
 	ICON_TYPE_COUNT
-} icon_t;
+};
 
-typedef enum { OPTIONAL, REQUIRED } requirement_t;
+enum requirement { P_OPTIONAL, P_REQUIRED };
 
-enum {
+enum box_pos {
 	BOX_TOP_LEFT,
 	BOX_LEFT_TEE,
 	BOX_BOTTOM_LEFT,
@@ -173,49 +154,47 @@ enum {
 	BOX_CHAR_COUNT
 };
 
-enum { BOX_NORMAL, BOX_FANCY, BOX_TYPE_COUNT };
+enum box_type { BOX_NORMAL, BOX_FANCY, BOX_TYPE_COUNT };
 
 static struct {
-	const struct {
-		color_t color;
-		icon_t icon;
-		requirement_t requirement;
-	} map[M_TYPES];
-	struct {
-		unsigned verbose : 1;
-		unsigned quiet : 1;
-		unsigned nodetail : 1;
-		unsigned in_section : 1;
-		unsigned content_printed : 1;
-		unsigned is_init : 1;
-	} flags;
 	const char *codes[COLOR_TYPE_COUNT];
 	const char *icons[ICON_TYPE_COUNT];
-	const char *boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT];
-	const char *progress_filled_char;
-	const char *progress_empty_char;
-	const char *ansi_escape_start;
-	const char *ansi_carriage_return;
 	FILE *in;
 	FILE *out;
 	FILE *err;
 	size_t width;
+	const struct {
+		enum color color;
+		enum icon icon;
+		enum requirement requirement;
+	} map[M_TYPES];
+	unsigned verbose : 1;
+	unsigned quiet : 1;
+	unsigned nodetail : 1;
+	unsigned in_section : 1;
+	unsigned content_printed : 1;
+	unsigned is_init : 1;
+	const char boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT][sizeof("╔")];
 	char err_ctx[TERMINAL_WIDTH];
-
+	const char progress_filled_char[sizeof("■")];
+	const char progress_empty_char[sizeof("·")];
+	const char ansi_escape_start[sizeof("\x1b")];
+	char ansi_carriage_return[sizeof("\r")];
 } p = {
     .map = {
-        [0]          = { COLOR_RESET,       ICON_NONE,    OPTIONAL },
-        [M_INFO]     = { COLOR_BLUE,        ICON_INFO,    OPTIONAL },
-        [M_VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     REQUIRED },
-        [M_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, REQUIRED },
-        [M_ERROR]    = { COLOR_RED,         ICON_ERROR,   REQUIRED },
-        [M_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
-        [M_PROMPT]   = { COLOR_BLUE,        ICON_INFO,    REQUIRED },
-        [M_PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   OPTIONAL },
-        [M_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    OPTIONAL },
-        [M_SECTION]  = { COLOR_BLUE,        ICON_NONE,    OPTIONAL },
+        [0]          = { COLOR_RESET,       ICON_NONE,    P_OPTIONAL },
+        [M_INFO]     = { COLOR_BLUE,        ICON_INFO,    P_OPTIONAL },
+        [M_VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     P_REQUIRED },
+        [M_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, P_REQUIRED },
+        [M_ERROR]    = { COLOR_RED,         ICON_ERROR,   P_REQUIRED },
+        [M_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    P_REQUIRED },
+        [M_PROMPT]   = { COLOR_BLUE,        ICON_INFO,    P_REQUIRED },
+        [M_PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   P_OPTIONAL },
+        [M_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    P_OPTIONAL },
+        [M_SECTION]  = { COLOR_BLUE,        ICON_NONE,    P_OPTIONAL },
     },
-#define CODESIZ(c) (c == COLOR_RESET ? 4 : 5)
+#define PCOL(t) p.map[(t)].color
+#define PCOLSIZ(t) (PCOL(t) == COLOR_RESET ? 4 : 5)
     .codes = {
         [COLOR_RESET]       = "\x1b[0m",
         [COLOR_RED]         = "\x1b[31m",
@@ -227,15 +206,17 @@ static struct {
         [COLOR_GRAY]        = "\x1b[90m",
         [COLOR_BRIGHT_CYAN] = "\x1b[96m",
     },
+#define PICO(t) p.map[(t)].icon
+#define PICOSIZ(t) (PICO(t) >= ICON_ERROR ? 3 : PICO(t))
     .icons = {
         [ICON_NONE]    = "",
-        [ICON_INFO]    = "•",
-        [ICON_DOT]     = "·",
         [ICON_WARNING] = "!",
+        [ICON_DOT]     = "·",
+        [ICON_INFO]    = "•",
         [ICON_ERROR]   = "✗",
         [ICON_ARROW]   = "▶",
     },
-#define BOXSIZ (sizeof("┌") - 1)
+#define BOXSIZ (sizeof(p.boxes[BOX_NORMAL][0]) - 1)
     .boxes = {
         { "┌", "├", "└", "┐", "─", "│", "┤", "┘" },
         { "╔", "╠", "╚", "╗", "═", "║", "╣", "╝" },
@@ -249,17 +230,17 @@ static struct {
 
 void print_verbose_flip(void)
 {
-	p.flags.verbose = !p.flags.verbose;
+	p.verbose = !p.verbose;
 }
 
 void print_quiet_flip(void)
 {
-	p.flags.quiet = !p.flags.quiet;
+	p.quiet = !p.quiet;
 }
 
 void print_detail_flip(void)
 {
-	p.flags.nodetail = !p.flags.nodetail;
+	p.nodetail = !p.nodetail;
 }
 
 void print_error_context(const char *context)
@@ -279,14 +260,21 @@ void print_streams(FILE *in, FILE *out, FILE *err)
 	p.err = err;
 }
 
+static void print_section_end(void)
+{
+	if (p.in_section)
+		print(M_NONE, NULL);
+}
+
 static void print_init(void)
 {
 	terminal_init();
 	if (!terminal_environment())
-		p.ansi_carriage_return = "\n";
+		p.ansi_carriage_return[0] = '\n';
 
 	print_streams(stdin, stdout, stderr);
-	p.flags.is_init = 1;
+	p.is_init = 1;
+	atexit(print_section_end);
 }
 
 static void terminal_read_input(char *input_buffer, size_t input_buffer_size)
@@ -322,57 +310,41 @@ static void terminal_read_input(char *input_buffer, size_t input_buffer_size)
 	terminal_mode_restore();
 }
 
-int print_yN(const char *P_RESTRICT prompt)
+bool print_yN(const char *P_RESTRICT prompt)
 {
 	char result[2] = { 0 };
-	print(M_UINS(result), PROMPT "%s [y/N]: ", prompt);
-	if (result[0] == 'y' || result[0] == 'Y')
-		return PRINT_USER_YES;
-	else
-		return PRINT_USER_NO;
+	print(M_UINS(result) "%s [y/N]", prompt);
+	return result[0] == 'y' || result[0] == 'Y';
 }
 
-int print_Yn(const char *P_RESTRICT prompt)
+bool print_Yn(const char *P_RESTRICT prompt)
 {
 	char result[2] = { 0 };
-	print(M_UINS(result), PROMPT "%s [Y/n]: ", prompt);
-	if (result[0] == 'n' || result[0] == 'N')
-		return PRINT_USER_NO;
-	else
-		return PRINT_USER_YES;
+	print(M_UINS(result) "%s [Y/n]", prompt);
+	return !(result[0] == 'n' || result[0] == 'N');
 }
 
-int print_yn(const char *P_RESTRICT prompt)
+bool print_yn(const char *P_RESTRICT prompt)
 {
-	char result[2] = { 0 };
 repeat:
-	print(M_UINS(result), PROMPT "%s [y/n]: ", prompt);
+	char result[2] = { 0 };
+	print(M_UINS(result) "%s [y/n]", prompt);
 	if (result[0] == 'y' || result[0] == 'Y')
-		return PRINT_USER_YES;
+		return true;
 	else if (result[0] == 'n' || result[0] == 'N')
-		return PRINT_USER_NO;
+		return false;
 
 	goto repeat;
 }
 
-DESTRUCTOR static void print_section_end(void)
+enum p_return print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 {
-	if (p.flags.in_section)
-		print(M_NONE, NULL);
-}
-
-int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
-{
-	if (!p.flags.is_init) {
+	if (!p.is_init)
 		print_init();
-#ifdef _MSC_VER
-		atexit(print_end_section);
-#endif
-	}
 
-	int type = 0;
+	enum m_type type = 0;
 	if (fmt && fmt[0] >= '0' && fmt[0] <= '9') {
-		type = fmt[0] - '0';
+		type = (enum m_type)fmt[0] - '0';
 		fmt++;
 	}
 
@@ -381,88 +353,85 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 #define oprintf(...) fprintf(out, __VA_ARGS__)
 #define ouwrite(buf, size) fwrite_unlocked((buf), 1, (size), out)
 
-	const int is_verbose = type == M_VERBOSE && !p.flags.verbose;
-	const int is_required = p.map[type].requirement == REQUIRED;
-	if ((p.flags.quiet && !is_required) || is_verbose)
+	const bool is_verbose = type == M_VERBOSE && !p.verbose;
+	const bool is_required = p.map[type].requirement == P_REQUIRED;
+	if ((p.quiet && !is_required) || is_verbose)
 		return PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS;
 
-	if (!p.flags.in_section && type != M_HEADER && type != M_SECTION)
+	if (!p.in_section && type != M_HEADER && type != M_SECTION)
 		print(M_NONE, SECTION);
 
 	static int last_percentage = -1;
 	if (type == M_PROGRESS) {
 		const int percent = CLAMP(arg.percent, 0, 100);
-		if (percent == last_percentage)
+		if (percent == last_percentage ||
+		    (percent == 100 && last_percentage == -1))
 			return PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS;
 
 		last_percentage = percent;
 
 		if (last_percentage == 100)
 			last_percentage = -1;
-	} else if (last_percentage != -1 && p.flags.content_printed) {
+	} else if (last_percentage != -1 && p.content_printed) {
 		fputc('\n', out);
 		last_percentage = -1;
 	}
 
-	const int simple = p.flags.nodetail || (p.flags.quiet && is_required);
-
-#define PMAP(t) p.map[(t)]
-#define PICO(t) PMAP(t).icon
-#define PCOL(t) PMAP(t).color
-#define ouwico(t) ouwrite(p.icons[PICO(t)], strlen(p.icons[PICO(t)]))
-#define ouwcol(t) ouwrite(p.codes[PCOL(t)], CODESIZ(PCOL(t)))
-#define ouwbox(t, part) ouwrite(p.boxes[(t)][part], BOXSIZ)
-
-	const size_t box_chars = simple ? 0 : 1;
-	const size_t ico_chars = (simple || PMAP(type).icon == ICON_NONE) ? 0 :
-									    2;
-	const size_t available = p.width - (2 * box_chars) - ico_chars - 1;
+#define ouwico(t) ouwrite(p.icons[PICO(t)], PICOSIZ(t))
+#define ouwcol(t) ouwrite(p.codes[PCOL(t)], PCOLSIZ(t))
+#define ouwbox(bt, bpart) ouwrite(p.boxes[(bt)][bpart], BOXSIZ)
 
 	char p_buf[BUFSIZ] = { 0 };
 	int p_bufsiz = 0;
 
-	if (fmt) {
-		char fmt_copy[BUFSIZ];
-		size_t fmt_i = 0;
-
-		fmt_copy[0] = '\0';
-
-		if (type == M_ERROR && p.err_ctx[0] != '\0') {
-			size_t ctxlen =
-				strnlen(p.err_ctx, sizeof(fmt_copy) - 1);
-			if (ctxlen) {
-				memcpy(fmt_copy + fmt_i, p.err_ctx, ctxlen);
-				fmt_i += ctxlen;
-			}
-		}
-
-		{
-			const char *fmt_src = fmt ? fmt : "";
-			size_t copy_len =
-				strnlen(fmt_src, sizeof(fmt_copy) - 1 - fmt_i);
-			if (copy_len)
-				memcpy(fmt_copy + fmt_i, fmt_src, copy_len);
-			fmt_copy[fmt_i + copy_len] = '\0';
-		}
-
-		va_list v_args;
-		va_start(v_args, fmt);
-		p_bufsiz = vsnprintf(p_buf, sizeof(p_buf), fmt_copy, v_args);
-		va_end(v_args);
-
-		if (p_bufsiz < 0) {
-#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
-			print_error_context("_TO_DEV_");
-			print(M_NONE, ERROR "Failed to format string");
-#endif
-			return PRINT_INVALID_FORMAT_ARGS__ERROR;
-		}
-	} else {
-		/* No format string, used for section end */
+	if (!fmt) { /* Section end only */
 		type = M_SECTION;
+		goto skip_fmt;
 	}
 
+	char fmt_copy[BUFSIZ];
+	size_t fmt_i = 0;
+
+	fmt_copy[0] = '\0';
+
+	if (type == M_ERROR && p.err_ctx[0] != '\0') {
+		size_t ctxlen = strnlen(p.err_ctx, sizeof(fmt_copy) - 1);
+		if (ctxlen) {
+			memcpy(fmt_copy + fmt_i, p.err_ctx, ctxlen);
+			fmt_i += ctxlen;
+		}
+	}
+
+	const char *fmt_src = fmt ? fmt : "";
+	size_t copy_len = strnlen(fmt_src, sizeof(fmt_copy) - 1 - fmt_i);
+	if (copy_len)
+		memcpy(fmt_copy + fmt_i, fmt_src, copy_len);
+	fmt_copy[fmt_i + copy_len] = '\0';
+
+	va_list v_args;
+	va_start(v_args, fmt);
+	p_bufsiz = vsnprintf(p_buf, sizeof(p_buf), fmt_copy, v_args);
+	va_end(v_args);
+
+	if (p_bufsiz < 0) {
+#ifndef NDEBUG
+		print_error_context("_TO_DEV_");
+		print(M_NONE, ERR "Failed to format string");
+#endif
+		return PRINT_INVALID_FORMAT_ARGS__ERROR;
+	}
+
+skip_fmt:
+	bool simple = p.nodetail || (p.quiet && is_required);
+	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
+	if (p_buflen > available) { /* Overflow, no box/icon/color then */
+#ifndef NDEBUG
+		print_error_context("_TO_DEV_");
+		print(M_NONE, ERR "Message too long, doing a simple print");
+#endif
+		simple = true;
+	}
 
 	flockfile(out);
 
@@ -474,12 +443,14 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			ouputc('\n');
 			ouwrite(p_buf, p_buflen);
 			ouwrite("\n\n", 2);
-			p.flags.in_section = 0;
+			p.in_section = 0;
 			goto cleanup;
 		}
 
-		if (p.flags.in_section)
+		if (p.in_section) {
+			funlockfile(out);
 			print(M_NONE, NULL);
+		}
 
 		/* Top border */
 		ouwcol(type);
@@ -518,17 +489,17 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		ouwcol(COLOR_RESET);
 		ouputc('\n');
 
-		p.flags.in_section = 0;
+		p.in_section = 0;
 
 		goto cleanup;
 	} else if (type == M_SECTION) {
 		/* Close previous section if open */
-		if (p.flags.in_section && (!fmt || p.flags.content_printed)) {
+		if (p.in_section && (!fmt || p.content_printed)) {
 			if (simple) {
 				ouputc('\n');
 
-				p.flags.in_section = 0;
-				p.flags.content_printed = 0;
+				p.in_section = 0;
+				p.content_printed = 0;
 			} else {
 				ouwcol(M_SECTION);
 				ouwbox(BOX_NORMAL, BOX_BOTTOM_LEFT);
@@ -541,8 +512,8 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 				ouwcol(COLOR_RESET);
 				ouputc('\n');
 
-				p.flags.in_section = 0;
-				p.flags.content_printed = 0;
+				p.in_section = 0;
+				p.content_printed = 0;
 			}
 		}
 
@@ -554,8 +525,8 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			ouwrite(p_buf, p_buflen);
 			ouputc('\n');
 
-			p.flags.in_section = 1;
-			p.flags.content_printed = 0;
+			p.in_section = 1;
+			p.content_printed = 0;
 			goto cleanup;
 		}
 
@@ -584,8 +555,8 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		ouwcol(COLOR_RESET);
 		ouputc('\n');
 
-		p.flags.in_section = 1;
-		p.flags.content_printed = 0;
+		p.in_section = 1;
+		p.content_printed = 0;
 		goto cleanup;
 	} else if (type == M_PROGRESS) {
 		const int percent = CLAMP(arg.percent, 0, 100);
@@ -593,7 +564,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			percent < 10 ? 1 : (percent < 100 ? 2 : 3);
 
 		if (simple) {
-			if (p.flags.in_section)
+			if (p.in_section)
 				ouwrite(p.ansi_carriage_return, 1);
 
 			ouwrite(p_buf, p_buflen);
@@ -608,7 +579,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			}
 
 			fflush(out);
-			p.flags.content_printed = 1;
+			p.content_printed = 1;
 			goto cleanup;
 		}
 
@@ -617,7 +588,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		const size_t filled_width = bar_width * (size_t)percent / 100;
 		const size_t empty_width = bar_width - filled_width;
 
-		if (p.flags.in_section)
+		if (p.in_section)
 			ouwrite(p.ansi_carriage_return, 1);
 
 		ouwcol(M_SECTION);
@@ -657,7 +628,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			ouputc('\n');
 
 		fflush(out);
-		p.flags.content_printed = 1;
+		p.content_printed = 1;
 
 		goto cleanup;
 	} else if (type == M_CHOICE) {
@@ -665,9 +636,10 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		size_t c_count = arg.choice.n;
 
 		if (c_count < 2) {
-#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
+			funlockfile(out);
+#ifndef NDEBUG
 			print_error_context("_TO_DEV_");
-			print(M_NONE, ERROR "Not enough choices (<2)");
+			print(M_NONE, ERR "Not enough choices (<2)");
 #endif
 			return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
 		}
@@ -702,9 +674,6 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		}
 
 		char i_buffer[TERMINAL_WIDTH] = { 0 };
-		const char *w_msg = "Please enter a number between";
-		const char *w_color = p.codes[p.map[M_WARNING].color];
-		const char *w_icon = p.icons[ICON_WARNING];
 
 		do {
 			if (!simple) {
@@ -721,15 +690,17 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			oprintf("%zu", c_count);
 			ouwrite("): ", 3);
 
+			funlockfile(out);
 			fflush(out);
 			terminal_read_input(i_buffer, sizeof(i_buffer));
+			flockfile(out);
 			char *endptr = NULL;
 			unsigned long selected = strtoul(i_buffer, &endptr, 10);
 			if (endptr == i_buffer || *endptr != '\0' ||
 			    selected > INT_MAX)
 				selected = 0;
 
-			if (simple) {
+			if (!simple) {
 				const int p_chars =
 					snprintf(NULL, 0, "%s (1-%zu): %s",
 						 p_buf, c_count, i_buffer);
@@ -749,42 +720,27 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 			ouputc('\n');
 
 			if (selected >= 1 && selected <= c_count) {
-				p.flags.content_printed = 1;
+				p.content_printed = 1;
+				funlockfile(out);
 				return (int)selected - 1 +
 				       PRINT_FIRST_CHOICE_INDEX__SUCCESS;
 			}
 
-			if (simple) {
-				oprintf("%s %d and %zu.\n", w_msg, 1, c_count);
-			} else {
-				const int w_chars =
-					snprintf(NULL, 0, "%s %s 1 and %zu.",
-						 w_icon, w_msg, c_count);
-				const size_t w_len =
-					(w_chars < 0) ? 0 : (size_t)w_chars;
-				const size_t w_padding =
-					available > w_len ?
-						available - w_len + 2 :
-						0;
-
-				ouwcol(M_SECTION);
-				ouwbox(BOX_NORMAL, BOX_VERTICAL);
-				oprintf("%s %s %s %d and %zu.%*s", w_color,
-					w_icon, w_msg, 1, c_count,
-					(int)w_padding, "");
-				ouwcol(M_SECTION);
-				ouwbox(BOX_NORMAL, BOX_VERTICAL);
-				ouwcol(COLOR_RESET);
-				ouputc('\n');
-			}
+			funlockfile(out);
+			print(M_NONE,
+			      WARNING
+			      "Please enter a number between 1 and %zu.",
+			      c_count);
+			flockfile(out);
 		} while (1);
 	} else if (type == M_PROMPT) {
 		char *result = arg.uinput.out;
 		const size_t rsz = arg.uinput.out_size;
 		if (rsz < 2) {
-#if DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES == 0
+			funlockfile(out);
+#ifndef NDEBUG
 			print_error_context("_TO_DEV_");
-			print(M_NONE, ERROR "Input buffer size is too small.");
+			print(M_NONE, ERR "Input buffer size is too small.");
 #endif
 			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}
@@ -805,10 +761,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		terminal_read_input(result, rsz);
 
 		if (!simple) {
-			const int p_chars =
-				snprintf(NULL, 0, "%s: %s", p_buf, result);
-			const size_t p_len = (p_chars < 0) ? 0 :
-							     (size_t)p_chars;
+			const size_t p_len = p_buflen + 2 + strlen(result);
 			size_t p_padding =
 				p_len < available ? available - p_len : 0;
 
@@ -820,7 +773,7 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 		}
 
 		ouputc('\n');
-		p.flags.content_printed = 1;
+		p.content_printed = 1;
 
 		goto cleanup;
 	} else {
@@ -853,9 +806,12 @@ int print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 
 		ouputc('\n');
 
-		p.flags.content_printed = 1;
+		p.content_printed = 1;
 	}
 
+#undef ouwico
+#undef ouwcol
+#undef ouwbox
 cleanup:
 	funlockfile(out);
 	return PRINT_SUCCESS;

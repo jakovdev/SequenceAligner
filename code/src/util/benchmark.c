@@ -1,7 +1,7 @@
 #include "util/benchmark.h"
 
 #include "core/app/args.h"
-#include "system/arch.h"
+#include "system/os.h"
 #include "util/print.h"
 
 static struct {
@@ -69,15 +69,16 @@ void bench_align_print(void)
 	}
 }
 
-void bench_filter_print(size_t filtered)
+void bench_filter_print(u64 filtered)
 {
 	if (args_mode_benchmark()) {
-		print(M_NONE, INFO "Filtered %zu sequences in %.3f seconds",
+		print(M_NONE,
+		      INFO "Filtered " Pu64 " sequences in %.3f seconds",
 		      filtered, g_times.filter);
 	}
 }
 
-void bench_total_print(size_t alignments)
+void bench_total_print(u64 alignments)
 {
 	if (args_mode_benchmark()) {
 		double time_total = g_times.align + g_times.io + g_times.filter;

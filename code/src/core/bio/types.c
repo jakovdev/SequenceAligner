@@ -2,41 +2,44 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "core/bio/algorithm/method/ga.h"
 #include "core/bio/algorithm/method/nw.h"
 #include "core/bio/algorithm/method/sw.h"
 #include "core/bio/score/matrices.h"
-#include "system/arch.h"
+#include "system/compiler.h"
 
+#define AMINO_ALIASES ((const char *[]){ "amino", "aa", "protein", NULL })
+#define NUCLEO_ALIASES ((const char *[]){ "nucleo", "dna", "rna", "nt", NULL })
 static struct {
-	SequenceType type;
 	const char *name;
 	const char *description;
 	const char **aliases;
+	enum SequenceType type;
 } SEQUENCE_TYPES[] = {
-	{ SEQ_TYPE_AMINO, "Amino acids", "protein sequences",
-	  (const char *[]){ "amino", "aa", "protein", NULL } },
-	{ SEQ_TYPE_NUCLEOTIDE, "Nucleotides", "DNA/RNA sequences",
-	  (const char *[]){ "nucleotide", "dna", "rna", "nt", NULL } },
+	{ "Amino acids", "Protein sequences", AMINO_ALIASES, SEQ_TYPE_AMINO },
+	{ "Nucleotides", "DNA/RNA sequences", NUCLEO_ALIASES, SEQ_TYPE_NUCLEO },
 };
 
+#define GA_ALIASES ((const char *[]){ "ga", "gotoh", NULL })
+#define NW_ALIASES ((const char *[]){ "nw", "needleman", NULL })
+#define SW_ALIASES ((const char *[]){ "sw", "smith", NULL })
 static struct {
-	AlignmentMethod method;
 	const char *name;
 	const char *description;
 	const char **aliases;
-	GapPenaltyType gap_type;
-} ALIGNMENT_METHODS[] = {
-	{ ALIGN_GOTOH_AFFINE, "Gotoh (affine)", "global alignment",
-	  (const char *[]){ "ga", "gotoh", NULL }, GAP_TYPE_AFFINE },
-	{ ALIGN_NEEDLEMAN_WUNSCH, "Needleman-Wunsch", "global alignment",
-	  (const char *[]){ "nw", "needleman", NULL }, GAP_TYPE_LINEAR },
-	{ ALIGN_SMITH_WATERMAN, "Smith-Waterman", "local alignment",
-	  (const char *[]){ "sw", "smith", NULL }, GAP_TYPE_AFFINE }
-};
+	enum AlignmentMethod method;
+	enum GapPenaltyType gap_type;
+} ALIGNMENT_METHODS[] = { { "Gotoh (affine)", "global alignment", GA_ALIASES,
+			    ALIGN_GOTOH_AFFINE, GAP_TYPE_AFFINE },
+			  { "Needleman-Wunsch", "global alignment", NW_ALIASES,
+			    ALIGN_NEEDLEMAN_WUNSCH, GAP_TYPE_LINEAR },
+			  { "Smith-Waterman", "local alignment", SW_ALIASES,
+			    ALIGN_SMITH_WATERMAN, GAP_TYPE_AFFINE } };
 
-align_func_t align_function(AlignmentMethod method)
+align_func_t align_function(enum AlignmentMethod method)
 {
 	switch (method) {
 	case ALIGN_GOTOH_AFFINE:
@@ -52,22 +55,22 @@ align_func_t align_function(AlignmentMethod method)
 	}
 }
 
-const char *alignment_name(AlignmentMethod method)
+const char *alignment_name(enum AlignmentMethod method)
 {
 	return ALIGNMENT_METHODS[method].name;
 }
 
-bool alignment_linear(AlignmentMethod method)
+bool alignment_linear(enum AlignmentMethod method)
 {
 	return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
 }
 
-bool alignment_affine(AlignmentMethod method)
+bool alignment_affine(enum AlignmentMethod method)
 {
 	return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
 }
 
-const char *gap_type_name(AlignmentMethod method)
+const char *gap_type_name(enum AlignmentMethod method)
 {
 	switch (ALIGNMENT_METHODS[method].gap_type) {
 	case GAP_TYPE_LINEAR:
@@ -79,7 +82,7 @@ const char *gap_type_name(AlignmentMethod method)
 	}
 }
 
-AlignmentMethod alignment_arg(const char *arg)
+enum AlignmentMethod alignment_arg(const char *arg)
 {
 	if (!arg)
 		return ALIGN_INVALID;
@@ -88,7 +91,7 @@ AlignmentMethod alignment_arg(const char *arg)
 	if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1]))) {
 		int method = atoi(arg);
 		if (method >= 0 && method < ALIGN_COUNT)
-			return (AlignmentMethod)method;
+			return (enum AlignmentMethod)method;
 
 		return ALIGN_INVALID;
 	}
@@ -112,25 +115,25 @@ void alignment_list(void)
 		       ALIGNMENT_METHODS[i].aliases[0],
 		       ALIGNMENT_METHODS[i].name,
 		       ALIGNMENT_METHODS[i].description,
-		       gap_type_name((AlignmentMethod)i));
+		       gap_type_name((enum AlignmentMethod)i));
 	}
 }
 
-const char *matrix_id_name(SequenceType seq_type, int matrix_id)
+const char *matrix_id_name(enum SequenceType seq_type, int matrix_id)
 {
 	if (seq_type < 0 || matrix_id < 0)
 		return "Unknown";
 
 	if (seq_type == SEQ_TYPE_AMINO && matrix_id < NUM_AMINO_MATRICES)
 		return ALL_AMINO_MATRICES[matrix_id].name;
-	else if (seq_type == SEQ_TYPE_NUCLEOTIDE &&
+	else if (seq_type == SEQ_TYPE_NUCLEO &&
 		 matrix_id < NUM_NUCLEOTIDE_MATRICES)
 		return ALL_NUCLEOTIDE_MATRICES[matrix_id].name;
 
 	return "Unknown";
 }
 
-int matrix_name_id(SequenceType seq_type, const char *name)
+int matrix_name_id(enum SequenceType seq_type, const char *name)
 {
 	if (!name)
 		return -1;
@@ -141,7 +144,7 @@ int matrix_name_id(SequenceType seq_type, const char *name)
 	if (seq_type == SEQ_TYPE_AMINO) {
 		num_matrices = NUM_AMINO_MATRICES;
 		matrices = ALL_AMINO_MATRICES;
-	} else if (seq_type == SEQ_TYPE_NUCLEOTIDE) {
+	} else if (seq_type == SEQ_TYPE_NUCLEO) {
 		num_matrices = NUM_NUCLEOTIDE_MATRICES;
 		matrices = ALL_NUCLEOTIDE_MATRICES;
 	} else {
@@ -163,7 +166,7 @@ int matrix_name_id(SequenceType seq_type, const char *name)
 	return -1;
 }
 
-void matrix_seq_type_list(SequenceType seq_type)
+void matrix_seq_type_list(enum SequenceType seq_type)
 {
 	if (seq_type == SEQ_TYPE_AMINO) {
 		for (int i = 0; i < NUM_AMINO_MATRICES; i++)
@@ -171,7 +174,7 @@ void matrix_seq_type_list(SequenceType seq_type)
 			       (i + 1) % 5 == 0		     ? "\n" :
 			       (i == NUM_AMINO_MATRICES - 1) ? "\n" :
 							       ", ");
-	} else if (seq_type == SEQ_TYPE_NUCLEOTIDE) {
+	} else if (seq_type == SEQ_TYPE_NUCLEO) {
 		for (int i = 0; i < NUM_NUCLEOTIDE_MATRICES; i++)
 			printf("  %s%s", ALL_NUCLEOTIDE_MATRICES[i].name,
 			       (i + 1) % 5 == 0			  ? "\n" :
@@ -180,12 +183,12 @@ void matrix_seq_type_list(SequenceType seq_type)
 	}
 }
 
-const char *sequence_type_name(SequenceType seq_type)
+const char *sequence_type_name(enum SequenceType seq_type)
 {
 	return SEQUENCE_TYPES[seq_type].name;
 }
 
-SequenceType sequence_type_arg(const char *arg)
+enum SequenceType sequence_type_arg(const char *arg)
 {
 	if (!arg)
 		return SEQ_TYPE_INVALID;
@@ -193,7 +196,7 @@ SequenceType sequence_type_arg(const char *arg)
 	if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1]))) {
 		int type = atoi(arg);
 		if (type >= 0 && type < SEQ_TYPE_COUNT)
-			return (SequenceType)type;
+			return (enum SequenceType)type;
 
 		return SEQ_TYPE_INVALID;
 	}

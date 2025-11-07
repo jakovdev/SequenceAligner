@@ -49,6 +49,7 @@ print(M_LOC(LAST), INFO "Total: %.3f sec (%.1f%%)", total_time, total_percent);
 │ ├ I/O: 0.012 sec (19.4%)                                                     │
 │ └ Total: 0.060 sec (100.0%)                                                  │
 // Progress bar display
+int seq_number = 1000;
 for (int i = 0; i < seq_number; i++)
     print(M_PROPORT(i / seq_number) "Storing sequences");
 // Has quick return for repeating percentages, draws over empty boxes
@@ -65,20 +66,20 @@ int selected = print(M_CS(choices), "Enter column number");
 print(M_NONE, WARNING "Warning text");
 │ ! Warning text                                                               │
 print_error_context("FILES");
-print(M_NONE, ERROR "File not found");
+print(M_NONE, ERR "File not found");
 │ ✗ FILES | File not found                                                     │
 print_error_context(NULL);
-print(M_NONE, ERROR "File not found");
+print(M_NONE, ERR "File not found");
 │ ✗ File not found                                                             │
 // For getting user input
 char result[16] = { 0 };
-print(PROMPT, M_UINS(result), "Enter a character: ");
+print(M_UINS(result) "Enter a character: ");
 │ • Enter a character: hello                                                   │
 // result will now contain "hello"
 // Quick y/N prompt (also has Y/n and y/n variants)
-int answer = print_yN("Do you want to continue?");
+bool answer = print_yN("Do you want to continue?");
 │ • Do you want to continue? [y/N]: y                                          │
-// answer will be 1 (yes) or 0 (no)
+// answer will be true (yes) or false (no)
 // Close section (will do it automatically if possible (exit, new section/header))
 // print(M_NONE, NULL);
 └──────────────────────────────────────────────────────────────────────────────┘
@@ -107,40 +108,41 @@ print(M_NONE, SECTION);
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdbool.h>
 
-typedef enum {
+enum p_location {
 	FIRST,
 	MIDDLE,
 	LAST,
 #define _M_LOC(l) ((M_ARG){ .loc = (l) })
-} p_location_t;
+};
 
-typedef struct {
+struct p_choice {
 	char **choices;
 	const size_t n;
 #define _M_CHOICE(c, s) \
 	((M_ARG){ .choice = { .choices = (c), .n = (s) } }), CHOICE
-} p_choice_t;
+};
 
-typedef struct {
+struct p_uinput {
 	char *out;
 	const size_t out_size;
 #define _M_UINPUT(o, s) \
 	((M_ARG){ .uinput = { .out = (o), .out_size = (s) } }), PROMPT
-} p_uinput_t;
+};
 
 typedef const union {
-	const p_location_t loc;
+	const enum p_location loc;
 	const int percent;
 #define _M_PERCENT(p) ((M_ARG){ .percent = (p) }), PROGRESS
-	const p_choice_t choice;
-	const p_uinput_t uinput;
+	const struct p_choice choice;
+	const struct p_uinput uinput;
 } M_ARG;
 
 #define M_LOC(location) _M_LOC(location)
 
 #define M_PERCENT(percentage) _M_PERCENT(percentage)
-#define M_PROPORT(proportion) _M_PERCENT((int)((proportion) * 100))
+#define M_PROPORT(proportion) _M_PERCENT((int)(100 * proportion))
 
 #define M_CHOICE(choices, n) _M_CHOICE(choices, n)
 #define M_CS(choices) _M_CHOICE(choices, sizeof(choices))
@@ -155,7 +157,7 @@ typedef const union {
 #define INFO     "1" /* Regular info message */
 #define VERBOSE  "2" /* Info message controlled by verbose flag */
 #define WARNING  "3" /* Warning message, something is ignored, assumption */
-#define ERROR    "4" /* Error message, reason why program has to exit */
+#define ERR      "4" /* Error message, reason why program has to exit */
 #define CHOICE   "5" /* User choice prompt, numbered range */
 #define PROMPT   "6" /* User input prompt, free text */
 #define PROGRESS "7" /* Progress bar display */
@@ -164,8 +166,8 @@ typedef const union {
 // clang-format on
 
 // Useful for debugging
-enum {
-	// All fields are customizable for easier debugging or if checks
+enum p_return {
+	/* All fields are customizable for easier debugging or if checks */
 	PRINT_SUCCESS = 0,
 	PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS = 0,
 	PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS = 0,
@@ -175,8 +177,6 @@ enum {
 	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
 };
 
-#define DEFINE_AS_1_TO_TURN_OFF_DEV_MESSAGES 0
-
 void print_verbose_flip(void);
 void print_quiet_flip(void);
 void print_detail_flip(void);
@@ -185,14 +185,10 @@ void print_error_context(const char *prefix);
 
 void print_streams(FILE *in, FILE *out, FILE *err);
 
-int print(M_ARG, const char *P_RESTRICT format, ...);
-
-#define PRINT_USER_YES 1
-#define PRINT_USER_NO 0
-
-int print_yN(const char *P_RESTRICT prompt);
-int print_Yn(const char *P_RESTRICT prompt);
-int print_yn(const char *P_RESTRICT prompt);
+enum p_return print(M_ARG, const char *P_RESTRICT format, ...);
+bool print_yN(const char *P_RESTRICT prompt);
+bool print_Yn(const char *P_RESTRICT prompt);
+bool print_yn(const char *P_RESTRICT prompt);
 
 #undef P_RESTRICT
 #endif /* UTIL_PRINT_H */
