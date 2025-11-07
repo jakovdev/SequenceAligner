@@ -4,6 +4,7 @@
 
 #include "core/app/args.h"
 #include "core/bio/types.h"
+#include "util/print.h"
 
 #if USE_SIMD == 1
 veci_t g_first_row_indices;
@@ -17,46 +18,27 @@ int SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 void scoring_matrix_init(void)
 {
-	int matrix_id = args_scoring_matrix();
-	int sequence_type = args_sequence_type();
-
-	switch (sequence_type) {
-	case SEQ_TYPE_NUCLEO: {
-		const int (*src_matrix)[NUCLEOTIDE_SIZE] =
-			ALL_NUCLEOTIDE_MATRICES[matrix_id].matrix;
-		for (int i = 0; i < NUCLEOTIDE_SIZE; i++) {
-			for (int j = 0; j < NUCLEOTIDE_SIZE; j++)
-				SUB_MAT[i][j] = src_matrix[i][j];
-		}
-
-		break;
-	}
-	// Expandable
-	case SEQ_TYPE_AMINO:
-	default: {
-		const int (*src_matrix)[AMINO_SIZE] =
-			ALL_AMINO_MATRICES[matrix_id].matrix;
-		for (int i = 0; i < AMINO_SIZE; i++) {
-			for (int j = 0; j < AMINO_SIZE; j++)
-				SUB_MAT[i][j] = src_matrix[i][j];
-		}
-
-		break;
-	}
-	}
-
+	const int m_id = args_scoring_matrix();
 	memset(SEQ_LUP, -1, sizeof(SEQ_LUP));
-	switch (sequence_type) {
-	case SEQ_TYPE_NUCLEO:
-		for (int i = 0; i < NUCLEOTIDE_SIZE; i++)
-			SEQ_LUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
+	switch (args_sequence_type()) {
+	case SEQ_TYPE_NUCLEO: {
+		memcpy(SUB_MAT, NUCLEO_MATRIX[m_id].matrix, NUCLEO_MATSIZE);
+		for (int i = 0; i < NUCLEO_SIZE; i++)
+			SEQ_LUP[(uchar)NUCLEO_ALPHABET[i]] = i;
 		break;
+	}
 	// Expandable
-	case SEQ_TYPE_AMINO:
-	default:
+	case SEQ_TYPE_AMINO: {
+		memcpy(SUB_MAT, AMINO_MATRIX[m_id].matrix, AMINO_MATSIZE);
 		for (int i = 0; i < AMINO_SIZE; i++)
-			SEQ_LUP[(int)AMINO_ALPHABET[i]] = i;
+			SEQ_LUP[(uchar)AMINO_ALPHABET[i]] = i;
 		break;
+	}
+	default:
+	case SEQ_TYPE_COUNT:
+	case SEQ_TYPE_INVALID:
+		print(M_NONE, ERR "Invalid sequence type for scoring matrix");
+		exit(EXIT_FAILURE);
 	}
 
 #if USE_SIMD == 1

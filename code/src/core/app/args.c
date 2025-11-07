@@ -220,7 +220,7 @@ static void args_print_matrices(void)
 	matrix_seq_type_list(SEQ_TYPE_AMINO);
 	printf("\n");
 
-	printf("Nucleotide Matrices (%d):\n", NUM_NUCLEOTIDE_MATRICES);
+	printf("Nucleotide Matrices (%d):\n", NUM_NUCLEO_MATRICES);
 	matrix_seq_type_list(SEQ_TYPE_NUCLEO);
 	printf("\n");
 }
@@ -323,7 +323,7 @@ static int args_parse_scoring_matrix(const char *arg,
 		int matrix = atoi(arg);
 		int max_matrix = (seq_type == SEQ_TYPE_AMINO) ?
 					 NUM_AMINO_MATRICES :
-					 NUM_NUCLEOTIDE_MATRICES;
+					 NUM_NUCLEO_MATRICES;
 		if (matrix >= 0 && matrix < max_matrix)
 			return matrix;
 

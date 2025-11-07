@@ -24,7 +24,7 @@ MATRIX_TYPES = {
         "matrices": [],
         "pattern": r"(blosum\d+|pam\d+)",
     },
-    "nucleotide": {
+    "nucleo": {
         "alphabet": NUCLEOTIDES,
         "matrices": [],
         "pattern": r"(dnafull|nuc44)",
@@ -134,6 +134,9 @@ def generate_header_file(matrix_types):
         header_content.append(
             f"#define {alphabet_name}_SIZE {len(type_info['alphabet'])}"
         )
+        header_content.append(
+            f"#define {alphabet_name}_MATSIZE ({alphabet_name}_SIZE * {alphabet_name}_SIZE * sizeof(int))"
+        )
         header_content.append(f"extern const char {alphabet_name}_ALPHABET[];")
         header_content.append("")
 
@@ -182,7 +185,7 @@ def generate_header_file(matrix_types):
 
         alphabet_name = type_name.upper()
         header_content.append(
-            f"extern const {type_name.capitalize()}Matrix ALL_{alphabet_name}_MATRICES[NUM_{alphabet_name}_MATRICES];"
+            f"extern const {type_name.capitalize()}Matrix {alphabet_name}_MATRIX[NUM_{alphabet_name}_MATRICES];"
         )
 
     header_content.append("")
@@ -242,7 +245,7 @@ def generate_source_file(matrix_types):
 
         alphabet_name = type_name.upper()
         source_content.append(
-            f"const {type_name.capitalize()}Matrix ALL_{alphabet_name}_MATRICES[NUM_{alphabet_name}_MATRICES] = {{"
+            f"const {type_name.capitalize()}Matrix {alphabet_name}_MATRIX[NUM_{alphabet_name}_MATRICES] = {{"
         )
         for name, _ in type_info["matrices"]:
             source_content.append(f'{{"{name}", {name}}},')

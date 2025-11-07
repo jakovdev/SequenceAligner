@@ -3,7 +3,7 @@
 
 const char AMINO_ALPHABET[] = "ARNDCQEGHILKMFPSTWYVBZX*";
 
-const char NUCLEOTIDE_ALPHABET[] = "ATGCSWRYKMBVHDN*";
+const char NUCLEO_ALPHABET[] = "ATGCSWRYKMBVHDN*";
 
 // Amino matrix identifiers
 typedef enum {
@@ -74,11 +74,11 @@ PAM80_ID = 63,
 PAM90_ID = 64,
 } AminoMatrixID;
 
-// Nucleotide matrix identifiers
+// Nucleo matrix identifiers
 typedef enum {
 DNAFULL_ID = 0,
 NUC44_ID = 1,
-} NucleotideMatrixID;
+} NucleoMatrixID;
 
 // Amino matrices
 static const int BLOSUM100[AMINO_SIZE][AMINO_SIZE] = {
@@ -1836,8 +1836,8 @@ static const int PAM90[AMINO_SIZE][AMINO_SIZE] = {
 {-10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10, -10,   1}, // *
 };
 
-// Nucleotide matrices
-static const int DNAFULL[NUCLEOTIDE_SIZE][NUCLEOTIDE_SIZE] = {
+// Nucleo matrices
+static const int DNAFULL[NUCLEO_SIZE][NUCLEO_SIZE] = {
 {  5,  -4,  -4,  -4,  -4,   1,   1,  -4,  -4,   1,  -4,  -1,  -1,  -1,  -2,  -4}, // A
 { -4,   5,  -4,  -4,  -4,   1,  -4,   1,   1,  -4,  -1,  -4,  -1,  -1,  -2,   5}, // T
 { -4,  -4,   5,  -4,   1,  -4,   1,  -4,   1,  -4,  -1,  -1,  -4,  -1,  -2,  -4}, // G
@@ -1856,7 +1856,7 @@ static const int DNAFULL[NUCLEOTIDE_SIZE][NUCLEOTIDE_SIZE] = {
 { -4,   5,  -4,  -4,  -4,   1,  -4,   1,   1,  -4,  -1,  -4,  -1,  -1,  -2,   5}, // *
 };
 
-static const int NUC44[NUCLEOTIDE_SIZE][NUCLEOTIDE_SIZE] = {
+static const int NUC44[NUCLEO_SIZE][NUCLEO_SIZE] = {
 {  5,  -4,  -4,  -4,  -4,   1,   1,  -4,  -4,   1,  -4,  -1,  -1,  -1,  -2,  -4}, // A
 { -4,   5,  -4,  -4,  -4,   1,  -4,   1,   1,  -4,  -1,  -4,  -1,  -1,  -2,  -4}, // T
 { -4,  -4,   5,  -4,   1,  -4,   1,  -4,   1,  -4,  -1,  -1,  -4,  -1,  -2,  -4}, // G
@@ -1875,7 +1875,7 @@ static const int NUC44[NUCLEOTIDE_SIZE][NUCLEOTIDE_SIZE] = {
 { -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4,  -4}, // *
 };
 
-const AminoMatrix ALL_AMINO_MATRICES[NUM_AMINO_MATRICES] = {
+const AminoMatrix AMINO_MATRIX[NUM_AMINO_MATRICES] = {
 {"BLOSUM100", BLOSUM100},
 {"BLOSUM30", BLOSUM30},
 {"BLOSUM35", BLOSUM35},
@@ -1943,7 +1943,7 @@ const AminoMatrix ALL_AMINO_MATRICES[NUM_AMINO_MATRICES] = {
 {"PAM90", PAM90},
 };
 
-const NucleotideMatrix ALL_NUCLEOTIDE_MATRICES[NUM_NUCLEOTIDE_MATRICES] = {
+const NucleoMatrix NUCLEO_MATRIX[NUM_NUCLEO_MATRICES] = {
 {"DNAFULL", DNAFULL},
 {"NUC44", NUC44},
 };

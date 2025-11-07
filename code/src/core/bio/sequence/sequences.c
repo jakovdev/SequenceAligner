@@ -191,8 +191,8 @@ static bool validate_sequence(sequence_ptr_t sequence,
 		alphabet_size = AMINO_SIZE;
 		break;
 	case SEQ_TYPE_NUCLEO:
-		valid_alphabet = NUCLEOTIDE_ALPHABET;
-		alphabet_size = NUCLEOTIDE_SIZE;
+		valid_alphabet = NUCLEO_ALPHABET;
+		alphabet_size = NUCLEO_SIZE;
 		break;
 	case SEQ_TYPE_INVALID:
 	case SEQ_TYPE_COUNT:

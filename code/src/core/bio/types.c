@@ -125,10 +125,9 @@ const char *matrix_id_name(enum SequenceType seq_type, int matrix_id)
 		return "Unknown";
 
 	if (seq_type == SEQ_TYPE_AMINO && matrix_id < NUM_AMINO_MATRICES)
-		return ALL_AMINO_MATRICES[matrix_id].name;
-	else if (seq_type == SEQ_TYPE_NUCLEO &&
-		 matrix_id < NUM_NUCLEOTIDE_MATRICES)
-		return ALL_NUCLEOTIDE_MATRICES[matrix_id].name;
+		return AMINO_MATRIX[matrix_id].name;
+	else if (seq_type == SEQ_TYPE_NUCLEO && matrix_id < NUM_NUCLEO_MATRICES)
+		return NUCLEO_MATRIX[matrix_id].name;
 
 	return "Unknown";
 }
@@ -143,10 +142,10 @@ int matrix_name_id(enum SequenceType seq_type, const char *name)
 
 	if (seq_type == SEQ_TYPE_AMINO) {
 		num_matrices = NUM_AMINO_MATRICES;
-		matrices = ALL_AMINO_MATRICES;
+		matrices = AMINO_MATRIX;
 	} else if (seq_type == SEQ_TYPE_NUCLEO) {
-		num_matrices = NUM_NUCLEOTIDE_MATRICES;
-		matrices = ALL_NUCLEOTIDE_MATRICES;
+		num_matrices = NUM_NUCLEO_MATRICES;
+		matrices = NUCLEO_MATRIX;
 	} else {
 		return -1;
 	}
@@ -156,8 +155,7 @@ int matrix_name_id(enum SequenceType seq_type, const char *name)
 		if (seq_type == SEQ_TYPE_AMINO)
 			matrix_name = ((const AminoMatrix *)matrices)[i].name;
 		else
-			matrix_name =
-				((const NucleotideMatrix *)matrices)[i].name;
+			matrix_name = ((const NucleoMatrix *)matrices)[i].name;
 
 		if (strcasecmp(name, matrix_name) == 0)
 			return i;
@@ -170,16 +168,16 @@ void matrix_seq_type_list(enum SequenceType seq_type)
 {
 	if (seq_type == SEQ_TYPE_AMINO) {
 		for (int i = 0; i < NUM_AMINO_MATRICES; i++)
-			printf("  %s%s", ALL_AMINO_MATRICES[i].name,
+			printf("  %s%s", AMINO_MATRIX[i].name,
 			       (i + 1) % 5 == 0		     ? "\n" :
 			       (i == NUM_AMINO_MATRICES - 1) ? "\n" :
 							       ", ");
 	} else if (seq_type == SEQ_TYPE_NUCLEO) {
-		for (int i = 0; i < NUM_NUCLEOTIDE_MATRICES; i++)
-			printf("  %s%s", ALL_NUCLEOTIDE_MATRICES[i].name,
-			       (i + 1) % 5 == 0			  ? "\n" :
-			       (i == NUM_NUCLEOTIDE_MATRICES - 1) ? "\n" :
-								    ", ");
+		for (int i = 0; i < NUM_NUCLEO_MATRICES; i++)
+			printf("  %s%s", NUCLEO_MATRIX[i].name,
+			       (i + 1) % 5 == 0		      ? "\n" :
+			       (i == NUM_NUCLEO_MATRICES - 1) ? "\n" :
+								", ");
 	}
 }
 
