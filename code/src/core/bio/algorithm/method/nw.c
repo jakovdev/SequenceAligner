@@ -1,12 +1,10 @@
 #include "core/bio/algorithm/method/nw.h"
 
-#include "core/app/args.h"
 #include "core/bio/algorithm/global/linear.h"
 #include "core/bio/algorithm/indices.h"
 #include "core/bio/algorithm/matrix.h"
 #include "util/print.h"
 #include "system/memory.h"
-#include "system/simd.h"
 
 s32 align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
@@ -20,24 +18,7 @@ s32 align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	s32 stack_matrix[mat_size];
 #endif
 	s32 *restrict matrix = matrix_alloc(stack_matrix, mat_bytes);
-#if USE_SIMD == 1
-	matrix[0] = 0;
-	const u64 cols = len1 + 1;
-	const s32 gap_penalty = args_gap_penalty();
-
-	if (len1 >= NUM_ELEMS) {
-		simd_linear_global_row_init(matrix, seq1);
-	} else {
-		// TODO: Move below elsewhere
-		for (u64 j = 1; j <= len1; j++)
-			matrix[j] = (s32)j * (-gap_penalty);
-	}
-
-	for (u64 i = 1; i <= len2; i++)
-		matrix[i * cols] = (s32)i * (-gap_penalty);
-#else
 	linear_global_init(matrix, seq1, seq2);
-#endif
 	s32 *restrict seq1_indices = { 0 };
 	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {

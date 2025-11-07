@@ -55,28 +55,3 @@ void linear_global_fill(s32 *restrict matrix, const s32 *restrict seq1_indices,
 		}
 	}
 }
-
-#if USE_SIMD == 1
-
-void simd_linear_global_row_init(s32 *restrict matrix, sequence_ptr_t seq1)
-{
-	const u64 len1 = seq1->length;
-	const s32 gap_penalty = args_gap_penalty();
-
-	veci_t indices = g_first_row_indices;
-	veci_t gap_penalty_vec = set1_epi32(-gap_penalty);
-	for (u64 j = 1; j <= len1; j += NUM_ELEMS) {
-		u64 remaining = len1 + 1 - j;
-		if (remaining >= NUM_ELEMS) {
-			veci_t values = mullo_epi32(indices, gap_penalty_vec);
-			storeu((veci_t *)&matrix[j], values);
-		} else {
-			for (u64 k = 0; k < remaining; k++)
-				matrix[j + k] = (s32)(j + k) * (-gap_penalty);
-		}
-
-		indices = add_epi32(indices, set1_epi32(NUM_ELEMS));
-	}
-}
-
-#endif
