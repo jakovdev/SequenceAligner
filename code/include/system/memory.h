@@ -12,11 +12,11 @@
 
 #include "system/compiler.h"
 
-#define KiB (1U << 10)
+#define KiB ((size_t)1 << 10)
 #define MiB (KiB << 10)
 #define GiB (MiB << 10)
 
-#define CACHE_LINE (64U)
+#define CACHE_LINE ((size_t)64)
 
 #define sizeof_field(t, f) (sizeof(((t *)0)->f))
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))

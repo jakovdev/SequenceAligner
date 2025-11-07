@@ -1,7 +1,7 @@
 #include "cuda_manager.cuh"
 #include "host_types.h"
 
-constexpr u64 CUDA_BATCH_SIZE = 64U << 20;
+constexpr u64 CUDA_BATCH_SIZE = (UINT64_C(64) << 20);
 
 Cuda &Cuda::getInstance()
 {

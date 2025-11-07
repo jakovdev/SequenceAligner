@@ -16,7 +16,7 @@
 #define ALIGNED_ALLOC_AVAILABLE
 #endif
 
-#define HUGE_PAGE (2 * MiB)
+#define HUGE_PAGE ((size_t)2 * MiB)
 
 #include "system/types.h"
 
