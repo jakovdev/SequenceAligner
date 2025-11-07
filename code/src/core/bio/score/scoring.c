@@ -48,13 +48,13 @@ void scoring_matrix_init(void)
 	memset(SEQUENCE_LOOKUP, -1, sizeof(SEQUENCE_LOOKUP));
 	switch (sequence_type) {
 	case SEQ_TYPE_NUCLEO:
-		for (int i = 0; i < (int)strlen(NUCLEOTIDE_ALPHABET); i++)
+		for (int i = 0; i < NUCLEOTIDE_SIZE; i++)
 			SEQUENCE_LOOKUP[(int)NUCLEOTIDE_ALPHABET[i]] = i;
 		break;
 	// Expandable
 	case SEQ_TYPE_AMINO:
 	default:
-		for (int i = 0; i < (int)strlen(AMINO_ALPHABET); i++)
+		for (int i = 0; i < AMINO_SIZE; i++)
 			SEQUENCE_LOOKUP[(int)AMINO_ALPHABET[i]] = i;
 		break;
 	}
