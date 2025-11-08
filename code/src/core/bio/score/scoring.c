@@ -4,7 +4,7 @@
 
 #include "core/app/args.h"
 #include "core/bio/types.h"
-#include "util/print.h"
+#include "system/compiler.h"
 
 #if USE_SIMD == 1
 veci_t g_first_row_indices;
@@ -35,9 +35,7 @@ void scoring_init(void)
 	default:
 	case SEQ_TYPE_COUNT:
 	case SEQ_TYPE_INVALID:
-		print_error_context("SCORING");
-		print(M_NONE, ERR "Invalid sequence type");
-		exit(EXIT_FAILURE);
+		UNREACHABLE();
 	}
 
 #if USE_SIMD == 1

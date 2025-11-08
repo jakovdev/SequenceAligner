@@ -231,6 +231,7 @@ bool file_text_open(struct FileText *file, const char *file_path)
 	case FILE_FORMAT_UNKNOWN:
 	default:
 		print(M_NONE, ERR "Failed to parse file format");
+		break;
 	}
 
 file_error:
@@ -261,6 +262,7 @@ u64 file_sequence_next_length(struct FileText *file)
 						  file->data.end);
 		case FILE_FORMAT_UNKNOWN:
 		default:
+			break;
 		}
 	}
 
@@ -279,6 +281,7 @@ bool file_sequence_next(struct FileText *file)
 			return fasta_entry_next(&file->data.cursor);
 		case FILE_FORMAT_UNKNOWN:
 		default:
+			break;
 		}
 	}
 
@@ -300,6 +303,7 @@ u64 file_extract_entry(struct FileText *restrict file, char *restrict out)
 						   file->data.end, out);
 		case FILE_FORMAT_UNKNOWN:
 		default:
+			break;
 		}
 	}
 
@@ -393,16 +397,19 @@ struct FileScoreMatrix file_matrix_open(const char *file_path, u64 matrix_dim)
 
 void file_matrix_close(struct FileScoreMatrix *file)
 {
-	if (file && file->matrix) {
-#ifdef _WIN32
-		UnmapViewOfFile(file->matrix);
-#else
-		munmap(file->matrix, file->meta.bytes);
-#endif
-		file->matrix = NULL;
-	}
+	if (!file)
+		return;
 
 	file_metadata_close(&file->meta);
+	if (!file->matrix)
+		return;
+
+#ifdef _WIN32
+	UnmapViewOfFile(file->matrix);
+#else
+	munmap(file->matrix, file->meta.bytes);
+#endif
+	file->matrix = NULL;
 }
 
 u64 matrix_triangle_index(u32 row, u32 col)
@@ -412,8 +419,10 @@ u64 matrix_triangle_index(u32 row, u32 col)
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *output_path)
 {
-	if (!(output_path && output_path[0] != '\0'))
+	if (!output_path || !output_path[0]) {
 		snprintf(buffer, buffer_size, "./seqalign_matrix.mmap");
+		return;
+	}
 
 	char dir[MAX_PATH] = { 0 };
 	char base[MAX_PATH] = { 0 };
@@ -425,13 +434,12 @@ void file_matrix_name(char *buffer, size_t buffer_size, const char *output_path)
 		strncpy(dir, output_path, dir_len);
 		dir[dir_len] = '\0';
 		strncpy(base, last_slash + 1, MAX_PATH - 1);
-		base[MAX_PATH - 1] = '\0';
 	} else {
 		strcpy(dir, "./");
 		strncpy(base, output_path, MAX_PATH - 1);
-		base[MAX_PATH - 1] = '\0';
 	}
 
+	base[MAX_PATH - 1] = '\0';
 	char *dot = strrchr(base, '.');
 	if (dot)
 		*dot = '\0';

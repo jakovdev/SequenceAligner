@@ -176,8 +176,7 @@ static void sequence_init(sequence_t *const restrict pooled,
 	}
 }
 
-static bool validate_sequence(sequence_ptr_t sequence,
-			      enum SequenceType sequence_type)
+static bool validate_sequence(sequence_ptr_t sequence)
 {
 	if (!sequence->letters || !sequence->length)
 		return false;
@@ -185,7 +184,7 @@ static bool validate_sequence(sequence_ptr_t sequence,
 	const char *valid_alphabet = NULL;
 	int alphabet_size = 0;
 
-	switch (sequence_type) {
+	switch (args_sequence_type()) {
 	case SEQ_TYPE_AMINO:
 		valid_alphabet = AMINO_ALPHABET;
 		alphabet_size = AMINO_SIZE;
@@ -197,7 +196,7 @@ static bool validate_sequence(sequence_ptr_t sequence,
 	case SEQ_TYPE_INVALID:
 	case SEQ_TYPE_COUNT:
 	default:
-		return false;
+		UNREACHABLE();
 	}
 
 	for (u64 i = 0; i < sequence->length; i++) {
@@ -269,7 +268,6 @@ bool sequences_load_from_file(void)
 	bool ask_long = false;
 	bool skip_invalid = false;
 	bool ask_invalid = false;
-	enum SequenceType sequence_type = args_sequence_type();
 
 	sequence_t seq_curr = { 0 };
 
@@ -326,7 +324,7 @@ bool sequences_load_from_file(void)
 
 		file_extract_entry(&input_file, seq_curr.letters);
 
-		if (!validate_sequence(&seq_curr, sequence_type)) {
+		if (!validate_sequence(&seq_curr)) {
 			if (!ask_invalid) {
 				bench_io_end();
 				print(M_LOC(FIRST), WARNING

@@ -51,7 +51,7 @@ align_func_t align_function(enum AlignmentMethod method)
 	case ALIGN_INVALID:
 	case ALIGN_COUNT:
 	default:
-		return NULL;
+		UNREACHABLE();
 	}
 }
 
