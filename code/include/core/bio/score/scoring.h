@@ -17,6 +17,6 @@ extern veci_t g_gap_extend_vec;
 extern int SEQ_LUP[SCHAR_MAX + 1];
 extern int SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
-void scoring_matrix_init(void);
+void scoring_init(void);
 
 #endif // CORE_BIO_SCORE_SCORING_H

@@ -16,7 +16,7 @@ s32 args_gap_extend(void);
 int args_thread_num(void);
 enum AlignmentMethod args_align_method(void);
 enum SequenceType args_sequence_type(void);
-int args_scoring_matrix(void);
+int args_sub_matrix(void);
 u8 args_compression(void);
 double args_filter(void);
 bool args_mode_benchmark(void);

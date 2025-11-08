@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	bench_io_end();
 
 	print(M_LOC(FIRST), VERBOSE "Initializing substitution matrix");
-	scoring_matrix_init();
+	scoring_init();
 
 	print(M_NONE, SECTION "Performing Alignments");
 	print(M_NONE, INFO "Will perform " Pu64 " pairwise alignments",

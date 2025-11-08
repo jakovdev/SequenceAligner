@@ -84,7 +84,7 @@ GETTER(s32, gap_extend, args.gap_extend)
 GETTER(int, thread_num, args.thread_num)
 GETTER(enum AlignmentMethod, align_method, args.method_id)
 GETTER(enum SequenceType, sequence_type, args.seq_type)
-GETTER(int, scoring_matrix, args.matrix_id)
+GETTER(int, sub_matrix, args.matrix_id)
 GETTER(u8, compression, args.compression_level)
 GETTER(double, filter, args.filter)
 GETTER(bool, mode_benchmark, (bool)args.mode_benchmark)
@@ -214,7 +214,7 @@ static bool args_validate_required(void)
 
 static void args_print_matrices(void)
 {
-	printf("Listing available scoring matrices\n\n");
+	printf("Listing available substitution matrices\n\n");
 
 	printf("Amino Acid Matrices (%d):\n", NUM_AMINO_MATRICES);
 	matrix_seq_type_list(SEQ_TYPE_AMINO);
@@ -236,7 +236,7 @@ static void args_print_usage(const char *program_name)
 	printf("  -t, --type TYPE        Sequence type\n");
 	sequence_types_list();
 
-	printf("  -m, --matrix MATRIX    Scoring matrix\n");
+	printf("  -m, --matrix MATRIX    Substitution matrix\n");
 	printf("                           Use --list-matrices or -l to see all available matrices\n");
 
 	printf("  -a, --align METHOD     Alignment method\n");
@@ -260,7 +260,7 @@ static void args_print_usage(const char *program_name)
 	printf("  -F, --force-proceed    Force proceed without user prompts (for CI)\n");
 	printf("  -v, --verbose          Enable verbose printing\n");
 	printf("  -q, --quiet            Suppress all non-error printing\n");
-	printf("  -l, --list-matrices    List all available scoring matrices\n");
+	printf("  -l, --list-matrices    List all available substitution matrices\n");
 	printf("  -h, --help             Display this help message\n");
 }
 
@@ -313,8 +313,7 @@ void args_print_config(void)
 		print(M_NONE, INFO "Benchmarking mode enabled");
 }
 
-static int args_parse_scoring_matrix(const char *arg,
-				     enum SequenceType seq_type)
+static int args_parse_sub_matrix(const char *arg, enum SequenceType seq_type)
 {
 	if (seq_type < 0)
 		return PARAM_UNSET;
@@ -425,10 +424,11 @@ static void args_parse(int argc, char *argv[])
 				exit(EXIT_FAILURE);
 			}
 
-			args.matrix_id = args_parse_scoring_matrix(
-				optarg, args.seq_type);
+			args.matrix_id =
+				args_parse_sub_matrix(optarg, args.seq_type);
 			if (args.matrix_id == PARAM_UNSET) {
-				print(M_NONE, ERR "Unknown scoring matrix: %s",
+				print(M_NONE,
+				      ERR "Unknown substitution matrix: %s",
 				      optarg);
 				exit(EXIT_FAILURE);
 			}

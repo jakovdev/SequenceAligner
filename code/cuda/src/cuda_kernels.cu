@@ -8,10 +8,10 @@ If over the limit, it will write out of memory error message.
 */
 #define MAX_CUDA_SEQUENCE_LENGTH (1024)
 
-#define SCORE_MATDIM (24)
+#define SUB_MATDIM (24)
 #define SEQ_LOOKUP_SIZ (128)
-__constant__ int c_score_mat[SCORE_MATDIM * SCORE_MATDIM];
-#define SCORE_MAT(i, j) c_score_mat[(i) * SCORE_MATDIM + (j)]
+__constant__ int c_sub_mat[SUB_MATDIM * SUB_MATDIM];
+#define SUB_MAT(i, j) c_sub_mat[(i) * SUB_MATDIM + (j)]
 __constant__ int c_seq_lookup[SEQ_LOOKUP_SIZ];
 
 __constant__ int c_gap_penalty;
@@ -33,7 +33,7 @@ bool Cuda::copyTriangularMatrixFlag(bool triangular)
 	return true;
 }
 
-bool Cuda::uploadScoring(int *scoring_matrix, int *sequence_lookup)
+bool Cuda::uploadScoring(int *sub_matrix, int *sequence_lookup)
 {
 	if (!m_init) {
 		setHostError("CUDA not initialized");
@@ -42,7 +42,7 @@ bool Cuda::uploadScoring(int *scoring_matrix, int *sequence_lookup)
 
 	cudaError_t err;
 
-	C_COPY(c_score_mat, scoring_matrix, sizeof(c_score_mat));
+	C_COPY(c_sub_mat, sub_matrix, sizeof(c_sub_mat));
 	C_COPY(c_seq_lookup, sequence_lookup, sizeof(c_seq_lookup));
 
 	return true;
@@ -156,7 +156,7 @@ __global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
 			const int idx2 =
 				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 match =
-				dp_prev[col - 1] + SCORE_MAT(idx1, idx2);
+				dp_prev[col - 1] + SUB_MAT(idx1, idx2);
 			const s32 gap_v = dp_prev[col] - c_gap_penalty;
 			const s32 gap_h = dp_curr[col - 1] - c_gap_penalty;
 
@@ -240,7 +240,7 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 		for (u32 col = 1; col <= len2; col++) {
 			const int idx2 =
 				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
-			const s32 similarity = SCORE_MAT(idx1, idx2);
+			const s32 similarity = SUB_MAT(idx1, idx2);
 
 			const s32 diag_score = p_match[col - 1] + similarity;
 
@@ -327,7 +327,7 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 		for (u32 col = 1; col <= len2; col++) {
 			const int idx2 =
 				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
-			const s32 similarity = SCORE_MAT(idx1, idx2);
+			const s32 similarity = SUB_MAT(idx1, idx2);
 
 			const s32 diag_score = p_match[col - 1] + similarity;
 

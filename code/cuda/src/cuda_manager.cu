@@ -79,19 +79,18 @@ bool Cuda::uploadSequences(char *sequences_letters, u32 *sequences_offsets,
 	return true;
 }
 
-bool Cuda::uploadTriangleIndices(u64 *triangle_indices, s32 *score_buffer,
-				 size_t buffer_bytes)
+bool Cuda::uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes)
 {
-	if (!m_init || !triangle_indices || !score_buffer || !buffer_bytes) {
+	if (!m_init || !indices || !scores || !scores_bytes) {
 		setHostError(
 			"Invalid parameters for uploading indices, or using --no-write");
 		return false;
 	}
 
-	const size_t expected_size = m_kr.h_total_count * sizeof(*score_buffer);
+	const size_t expected_size = m_kr.h_total_count * sizeof(*scores);
 
-	if (buffer_bytes <= expected_size) {
-		if (buffer_bytes == expected_size) {
+	if (scores_bytes <= expected_size) {
+		if (scores_bytes == expected_size) {
 			if (!copyTriangularMatrixFlag(true))
 				return false;
 		} else {
@@ -100,12 +99,12 @@ bool Cuda::uploadTriangleIndices(u64 *triangle_indices, s32 *score_buffer,
 		}
 	}
 
-	m_kr.h_scores = score_buffer;
-	m_kr.h_indices = triangle_indices;
+	m_kr.h_scores = scores;
+	m_kr.h_indices = indices;
 
 	cudaError_t err;
 	D_MALLOC(m_seqs.d_indices, m_seqs.n_seqs);
-	HD_COPY(m_seqs.d_indices, triangle_indices, m_seqs.n_seqs);
+	HD_COPY(m_seqs.d_indices, indices, m_seqs.n_seqs);
 
 	return true;
 }

@@ -18,12 +18,11 @@ bool cuda_upload_sequences(char *sequence_letters, u32 *sequence_offsets,
 			   u32 *sequence_lengths, u32 sequence_count,
 			   u64 total_sequences_length);
 
-bool cuda_upload_scoring(int *scoring_matrix, int *sequence_lookup);
+bool cuda_upload_scoring(int *sub_matrix, int *sequence_lookup);
 
 bool cuda_upload_gaps(s32 linear, s32 start, s32 extend);
 
-bool cuda_upload_triangle_indices(u64 *triangle_indices, s32 *score_buffer,
-				  size_t buffer_bytes);
+bool cuda_upload_indices(u64 *indices, s32 *scores, size_t buffer_bytes);
 
 bool cuda_kernel_launch(int kernel_id);
 

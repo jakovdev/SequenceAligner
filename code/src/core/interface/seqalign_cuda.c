@@ -68,7 +68,7 @@ bool cuda_align(void)
 	size_t matrix_bytes = h5_matrix_bytes();
 
 	u64 *result_offsets = h5_triangle_indices();
-	if (!cuda_upload_triangle_indices(result_offsets, matrix, matrix_bytes))
+	if (!cuda_upload_indices(result_offsets, matrix, matrix_bytes))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
 	bench_align_start();

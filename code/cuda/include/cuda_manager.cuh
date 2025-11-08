@@ -82,10 +82,9 @@ class Cuda {
 			     u32 *sequences_lengths, u32 sequences_count,
 			     u64 total_sequences_length);
 
-	bool uploadScoring(int *scoring_matrix, int *sequence_lookup);
+	bool uploadScoring(int *sub_matrix, int *sequence_lookup);
 	bool uploadGaps(s32 linear, s32 start, s32 extend);
-	bool uploadTriangleIndices(u64 *triangle_indices, s32 *score_buffer,
-				   size_t buffer_bytes);
+	bool uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes);
 
 	bool launchKernel(int kernel_id);
 	bool getResults();

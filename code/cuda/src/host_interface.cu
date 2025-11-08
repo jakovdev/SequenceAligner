@@ -22,10 +22,9 @@ bool cuda_upload_sequences(char *sequences_letters, u32 *sequences_offsets,
 		sequences_count, total_sequences_length);
 }
 
-bool cuda_upload_scoring(int *scoring_matrix, int *sequence_lookup)
+bool cuda_upload_scoring(int *sub_matrix, int *sequence_lookup)
 {
-	return Cuda::getInstance().uploadScoring(scoring_matrix,
-						 sequence_lookup);
+	return Cuda::getInstance().uploadScoring(sub_matrix, sequence_lookup);
 }
 
 bool cuda_upload_gaps(s32 linear, s32 open, s32 extend)
@@ -33,11 +32,9 @@ bool cuda_upload_gaps(s32 linear, s32 open, s32 extend)
 	return Cuda::getInstance().uploadGaps(linear, open, extend);
 }
 
-bool cuda_upload_triangle_indices(u64 *indices, s32 *score_buffer,
-				  size_t buffer_bytes)
+bool cuda_upload_indices(u64 *indices, s32 *scores, size_t scores_bytes)
 {
-	return Cuda::getInstance().uploadTriangleIndices(indices, score_buffer,
-							 buffer_bytes);
+	return Cuda::getInstance().uploadIndices(indices, scores, scores_bytes);
 }
 
 bool cuda_kernel_launch(int kernel_id)
