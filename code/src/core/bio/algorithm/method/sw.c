@@ -24,7 +24,7 @@ s32 align_sw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	s32 *restrict gap_y = matrix + 2 * MATRIX_SIZE(len1, len2);
 #if USE_SIMD == 1
 	if (len1 >= NUM_ELEMS)
-		simd_affine_local_row_init(match, gap_x, gap_y, seq1, seq2);
+		affine_local_init_simd(match, gap_x, gap_y, seq1, seq2);
 	else
 #endif
 		affine_local_init(match, gap_x, gap_y, seq1, seq2);
@@ -33,7 +33,7 @@ s32 align_sw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
 		seq1_i = MALLOC(seq1_i, len1);
-		if (!seq1_i) {
+		if (UNLIKELY(!seq1_i)) {
 			print_error_context("SEQALIGN - SW");
 			print(M_NONE, ERR
 			      "Failed to allocate memory for sequence indices");

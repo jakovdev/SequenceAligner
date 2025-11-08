@@ -27,7 +27,7 @@ s32 align_ga(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
 		seq1_i = MALLOC(seq1_i, len1);
-		if (!seq1_i) {
+		if (UNLIKELY(!seq1_i)) {
 			print_error_context("SEQALIGN - GA");
 			print(M_NONE, ERR
 			      "Failed to allocate memory for sequence indices");

@@ -65,13 +65,14 @@ class Cuda {
 	Cuda &operator=(Cuda &&) = delete;
 	~Cuda()
 	{
-		if (m_init) {
-			cudaFree(m_seqs.d_letters);
-			cudaFree(m_seqs.d_offsets);
-			cudaFree(m_seqs.d_lengths);
-			cudaFree(m_seqs.d_indices);
-			cudaDeviceReset();
-		}
+		if (!m_init)
+			return;
+
+		cudaFree(m_seqs.d_letters);
+		cudaFree(m_seqs.d_offsets);
+		cudaFree(m_seqs.d_lengths);
+		cudaFree(m_seqs.d_indices);
+		cudaDeviceReset();
 	}
 
 	bool initialize();

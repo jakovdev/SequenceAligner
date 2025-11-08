@@ -222,11 +222,10 @@ static bool validate_sequence(sequence_ptr_t sequence)
 static bool seq_len_valid(u64 length)
 {
 	const s32 gap_pen = args_gap_penalty();
-	const bool linear = gap_pen > 0;
-	if (!linear)
+	if (!gap_pen)
 		return length <= SEQUENCE_LENGTH_MAX;
 
-	u64 limit = SEQUENCE_LENGTH_MAX / (u64)gap_pen;
+	const u64 limit = SEQUENCE_LENGTH_MAX / (u64)gap_pen;
 	if (length < limit)
 		return true;
 
@@ -365,7 +364,7 @@ bool sequences_load_from_file(void)
 	free(seq_curr.letters);
 
 	u32 seq_n = seq_n_curr;
-	if (UNLIKELY(seq_n > SEQUENCE_COUNT_MAX)) {
+	if (seq_n > SEQUENCE_COUNT_MAX) {
 		print(M_NONE, ERR "Too many sequences: " Pu32, seq_n);
 		goto cleanup_seqs;
 	}

@@ -49,10 +49,8 @@ bool Cuda::uploadSequences(char *sequences_letters, u32 *sequences_offsets,
 
 	if (!hasEnoughMemory(cell_size * sequences_count * sequences_count)) {
 		if (!hasEnoughMemory(cell_size * m_kr.h_total_count)) {
-			if (!hasEnoughMemory(cell_size * CUDA_BATCH_SIZE)) {
-				setHostError("Not enough memory for results");
+			if (!hasEnoughMemory(cell_size * CUDA_BATCH_SIZE))
 				return false;
-			}
 
 			if (!copyTriangularMatrixFlag(true))
 				return false;
@@ -191,9 +189,8 @@ bool Cuda::getResults()
 		err = cudaStreamQuery(m_kr.s_copy);
 		if (err == cudaErrorNotReady)
 			return true;
-		else if (err != cudaSuccess)
-			CUDA_ERROR("Copy stream query failed");
 
+		CUDA_ERROR("Copy stream query failed");
 		m_kr.copy_in_progress = false;
 	}
 
@@ -250,10 +247,7 @@ sll Cuda::getChecksum()
 
 	cudaError_t err;
 	err = cudaStreamSynchronize(m_kr.s_comp);
-	if (err != cudaSuccess) {
-		setError("Failed to synchronize compute stream", err);
-		return 0;
-	}
+	CUDA_ERROR("Failed to synchronize compute stream");
 
 	DH_COPY(&checksum, m_kr.d_checksum, 1);
 	return checksum;
