@@ -273,8 +273,8 @@ static void print_init(void)
 		p.ansi_carriage_return[0] = '\n';
 
 	print_streams(stdin, stdout, stderr);
-	p.is_init = 1;
 	atexit(print_section_end);
+	p.is_init = 1;
 }
 
 static void terminal_read_input(char *input_buffer, size_t input_buffer_size)

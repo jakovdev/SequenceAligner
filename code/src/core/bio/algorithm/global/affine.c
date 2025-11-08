@@ -20,16 +20,16 @@ void affine_global_init(s32 *restrict match, s32 *restrict gap_x,
 	const s32 gap_open = args_gap_open();
 	const s32 gap_extend = args_gap_extend();
 
-	UNROLL(8) for (u64 j = 1; j <= len1; j++)
-	{
+	UNROLL(8)
+	for (u64 j = 1; j <= len1; j++) {
 		gap_x[j] =
 			max(match[j - 1] - gap_open, gap_x[j - 1] - gap_extend);
 		match[j] = gap_x[j];
 		gap_y[j] = SCORE_MIN;
 	}
 
-	UNROLL(8) for (u64 i = 1; i <= len2; i++)
-	{
+	UNROLL(8)
+	for (u64 i = 1; i <= len2; i++) {
 		const u64 idx = i * cols;
 		gap_y[idx] = max(match[idx - cols] - gap_open,
 				 gap_y[idx - cols] - gap_extend);
@@ -57,8 +57,8 @@ void affine_global_fill(s32 *restrict match, s32 *restrict gap_x,
 		prefetch(&gap_x[row + PREFETCH_DISTANCE]);
 		prefetch(&gap_y[row + PREFETCH_DISTANCE]);
 
-		VECTORIZE for (u64 j = 1; j <= len1; j++)
-		{
+		VECTORIZE
+		for (u64 j = 1; j <= len1; j++) {
 			const s32 similarity = SUB_MAT[seq1_i[j - 1]][c2_idx];
 			const s32 d_score = match[p_row + j - 1] + similarity;
 

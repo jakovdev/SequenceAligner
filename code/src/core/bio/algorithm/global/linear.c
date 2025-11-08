@@ -14,15 +14,16 @@ void linear_global_init(s32 *restrict matrix, sequence_ptr_t seq1,
 	const s32 gap_penalty = args_gap_penalty();
 
 	matrix[0] = 0;
-	VECTORIZE UNROLL(8) for (u64 j = 1; j <= len1; j++)
-	{
-		matrix[j] = (s32)j * (-gap_penalty);
-	}
 
-	VECTORIZE UNROLL(8) for (u64 i = 1; i <= len2; i++)
-	{
+	VECTORIZE
+	UNROLL(8)
+	for (u64 j = 1; j <= len1; j++)
+		matrix[j] = (s32)j * (-gap_penalty);
+
+	VECTORIZE
+	UNROLL(8)
+	for (u64 i = 1; i <= len2; i++)
 		matrix[i * cols] = (s32)i * (-gap_penalty);
-	}
 }
 
 void linear_global_fill(s32 *restrict matrix, const s32 *restrict seq1_i,
@@ -39,8 +40,8 @@ void linear_global_fill(s32 *restrict matrix, const s32 *restrict seq1_i,
 
 		prefetch(&matrix[row + PREFETCH_DISTANCE]);
 
-		UNROLL(4) for (u64 j = 1; j <= len1; j++)
-		{
+		UNROLL(4)
+		for (u64 j = 1; j <= len1; j++) {
 			const s32 match = matrix[p_row + j - 1] +
 					  SUB_MAT[seq1_i[j - 1]][c2_idx];
 			const s32 del = matrix[p_row + j] + (-gap_penalty);

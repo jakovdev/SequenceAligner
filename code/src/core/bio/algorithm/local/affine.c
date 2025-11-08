@@ -15,14 +15,15 @@ void affine_local_init(s32 *restrict match, s32 *restrict gap_x,
 
 	match[0] = 0;
 	gap_x[0] = gap_y[0] = SCORE_MIN;
-	UNROLL(8) for (u64 j = 1; j <= len1; j++)
-	{
+
+	UNROLL(8)
+	for (u64 j = 1; j <= len1; j++) {
 		match[j] = 0;
 		gap_x[j] = gap_y[j] = SCORE_MIN;
 	}
 
-	UNROLL(8) for (u64 i = 1; i <= len2; i++)
-	{
+	UNROLL(8)
+	for (u64 i = 1; i <= len2; i++) {
 		u64 idx = i * cols;
 		match[idx] = 0;
 		gap_x[idx] = gap_y[idx] = SCORE_MIN;
@@ -95,8 +96,8 @@ void simd_affine_local_row_init(s32 *restrict match, s32 *restrict gap_x,
 	veci_t zero_vec = setzero_si();
 	veci_t score_min = set1_epi32(SCORE_MIN);
 
-	VECTORIZE for (u64 j = 0; j <= len1; j += NUM_ELEMS)
-	{
+	VECTORIZE
+	for (u64 j = 0; j <= len1; j += NUM_ELEMS) {
 		u64 remaining = len1 + 1 - j;
 		if (remaining >= NUM_ELEMS) {
 			storeu((veci_t *)&match[j], zero_vec);
@@ -110,8 +111,8 @@ void simd_affine_local_row_init(s32 *restrict match, s32 *restrict gap_x,
 		}
 	}
 
-	VECTORIZE for (u64 i = 1; i <= len2; i++)
-	{
+	VECTORIZE
+	for (u64 i = 1; i <= len2; i++) {
 		u64 idx = i * (len1 + 1);
 		match[idx] = 0;
 		gap_x[idx] = SCORE_MIN;

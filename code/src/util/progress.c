@@ -21,7 +21,6 @@ static T_Func progress_monitor_worker(void *arg)
 	}
 
 	print(M_PERCENT(100) "%s", p_message);
-
 	T_Ret(NULL);
 }
 
@@ -49,7 +48,6 @@ p_thread_error:
 void progress_end(void)
 {
 	if (!atomic_load(&p_running)) {
-		print_error_context("THREAD");
 		print(M_NONE, WARNING "No progress monitor is running");
 		return;
 	}
