@@ -277,36 +277,36 @@ static void print_init(void)
 	p.is_init = 1;
 }
 
-static void terminal_read_input(char *input_buffer, size_t input_buffer_size)
+static void terminal_read_input(char *buf, size_t buf_sz)
 {
-	size_t input_char_index = 0;
-	int input_char;
+	if (!buf || !buf_sz)
+		return;
 
 	fflush(p.out);
 	terminal_mode_raw();
 
-	while ((input_char = fgetc(p.in)) != EOF) {
-		if (input_char == '\n' || input_char == '\r')
-			break;
-
-		if (input_char == '\x7F' || input_char == '\b') {
-			if (input_char_index > 0) {
-				input_buffer[--input_char_index] = '\0';
+	size_t i = 0;
+	for (int c; (c = fgetc(p.in)) != EOF && c != '\n' && c != '\r';) {
+		if (c == '\b' || c == 0x7F) {
+			if (i) {
+				while (i && ((buf[i - 1] & 0xC0) == 0x80))
+					i--;
+				buf[--i] = '\0';
 				fwrite("\b \b", 1, 3, p.out);
 				fflush(p.out);
 			}
-
 			continue;
 		}
 
-		if (input_char_index + 1 < input_buffer_size) {
-			input_buffer[input_char_index++] = (char)input_char;
-			input_buffer[input_char_index] = '\0';
-			fputc(input_char, p.out);
+		if (i < buf_sz - 1 && (c >= 0x20 && c <= 0x7E)) {
+			buf[i++] = (char)c;
+			buf[i] = '\0';
+			fputc(c, p.out);
 			fflush(p.out);
 		}
 	}
 
+	buf[i] = '\0';
 	terminal_mode_restore();
 }
 
@@ -691,7 +691,6 @@ skip_fmt:
 			ouwrite("): ", 3);
 
 			funlockfile(out);
-			fflush(out);
 			terminal_read_input(i_buffer, sizeof(i_buffer));
 			flockfile(out);
 			char *endptr = NULL;
@@ -757,8 +756,9 @@ skip_fmt:
 		ouwrite(p_buf, p_buflen);
 		ouwrite(": ", 2);
 
-		fflush(out);
+		funlockfile(out);
 		terminal_read_input(result, rsz);
+		flockfile(out);
 
 		if (!simple) {
 			const size_t p_len = p_buflen + 2 + strlen(result);
