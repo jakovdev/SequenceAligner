@@ -23,14 +23,12 @@ int main(int argc, char *argv[])
 		return 1;
 	bench_io_end();
 
-	u32 sequence_count = sequences_count();
-	u64 total_alignments = sequences_alignment_count();
 	if (args_mode_cuda() && !cuda_init())
 		return 1;
 
 	print_error_context("HDF5");
 	bench_io_start();
-	if (!h5_open(args_output(), sequence_count, args_compression(),
+	if (!h5_open(args_output(), sequences_count(), args_compression(),
 		     args_mode_write())) {
 		bench_io_end();
 		print(M_NONE,
@@ -47,7 +45,7 @@ int main(int argc, char *argv[])
 		h5_open(NULL, 0, 0, false);
 	}
 
-	if (!h5_sequences_store(sequences_get(), sequence_count)) {
+	if (!h5_sequences_store(sequences_get(), sequences_count())) {
 		bench_io_end();
 		print(M_NONE,
 		      ERR "Failed to store sequences, will use no-write mode");
@@ -70,7 +68,7 @@ int main(int argc, char *argv[])
 
 	print(M_NONE, SECTION "Performing Alignments");
 	print(M_NONE, INFO "Will perform " Pu64 " pairwise alignments",
-	      total_alignments);
+	      sequences_alignment_count());
 	bool alignment_success = false;
 
 #ifdef USE_CUDA
@@ -97,6 +95,6 @@ int main(int argc, char *argv[])
 
 	bench_io_print();
 
-	bench_total_print(total_alignments);
+	bench_total_print(sequences_alignment_count());
 	return 0;
 }

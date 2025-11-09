@@ -1,18 +1,9 @@
 #include "cuda_manager.cuh"
 #include "host_types.h"
 
-/*
-Increase if needed, this depends on your available VRAM.
-On an 8GB card, the limit is around 20000-22000.
-If over the limit, it will write out of memory error message.
-*/
-#define MAX_CUDA_SEQUENCE_LENGTH (1024)
-
-#define SUB_MATDIM (24)
-#define SEQ_LOOKUP_SIZ (128)
 __constant__ int c_sub_mat[SUB_MATDIM * SUB_MATDIM];
 #define SUB_MAT(i, j) c_sub_mat[(i) * SUB_MATDIM + (j)]
-__constant__ int c_seq_lookup[SEQ_LOOKUP_SIZ];
+__constant__ int c_seq_lup[SEQ_LUPSIZ];
 
 __constant__ int c_gap_penalty;
 __constant__ int c_gap_open;
@@ -33,17 +24,24 @@ bool Cuda::copyTriangularMatrixFlag(bool triangular)
 	return true;
 }
 
-bool Cuda::uploadScoring(int *sub_matrix, int *sequence_lookup)
+bool Cuda::uploadScoring(const int sub_mat[SUB_MATDIM][SUB_MATDIM],
+			 const int seq_lup[SEQ_LUPSIZ])
 {
 	if (!m_init) {
 		setHostError("CUDA not initialized");
 		return false;
 	}
 
+	int sub_mat_f[SUB_MATDIM * SUB_MATDIM] = { 0 };
+	for (int i = 0; i < SUB_MATDIM; i++) {
+		for (int j = 0; j < SUB_MATDIM; j++)
+			sub_mat_f[i * SUB_MATDIM + j] = sub_mat[i][j];
+	}
+
 	cudaError_t err;
 
-	C_COPY(c_sub_mat, sub_matrix, sizeof(c_sub_mat));
-	C_COPY(c_seq_lookup, sequence_lookup, sizeof(c_seq_lookup));
+	C_COPY(c_sub_mat, sub_mat_f, sizeof(c_sub_mat));
+	C_COPY(c_seq_lup, seq_lup, sizeof(c_seq_lup));
 
 	return true;
 }
@@ -152,9 +150,9 @@ __global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
 
 		for (u32 col = 1; col <= len2; col++) {
 			const int idx1 =
-				c_seq_lookup[d_seq_letter(&seqs, i, row - 1)];
+				c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
 			const int idx2 =
-				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
+				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 match =
 				dp_prev[col - 1] + SUB_MAT(idx1, idx2);
 			const s32 gap_v = dp_prev[col] - c_gap_penalty;
@@ -236,10 +234,10 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 			max(p_match[0] - c_gap_open, p_gap_y[0] - c_gap_extend);
 		match[0] = gap_y[0];
 
-		const int idx1 = c_seq_lookup[d_seq_letter(&seqs, i, row - 1)];
+		const int idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
 		for (u32 col = 1; col <= len2; col++) {
 			const int idx2 =
-				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
+				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SUB_MAT(idx1, idx2);
 
 			const s32 diag_score = p_match[col - 1] + similarity;
@@ -323,10 +321,10 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 		match[0] = 0;
 		gap_x[0] = gap_y[0] = SCORE_MIN;
 
-		const int idx1 = c_seq_lookup[d_seq_letter(&seqs, i, row - 1)];
+		const int idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
 		for (u32 col = 1; col <= len2; col++) {
 			const int idx2 =
-				c_seq_lookup[d_seq_letter(&seqs, j, col - 1)];
+				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SUB_MAT(idx1, idx2);
 
 			const s32 diag_score = p_match[col - 1] + similarity;
@@ -368,11 +366,11 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 bool Cuda::switchKernel(int kernel_id)
 {
 	cudaError_t err;
-	u64 offset = m_kr.h_last_batch;
-	u64 batch = m_kr.h_batch_size;
+	u64 offset = m_kr.h_batch_last;
+	u64 batch = m_kr.h_batch;
 	s32 *d_buffer = m_kr.d_scores0;
 
-	if (offset >= m_kr.h_total_count) {
+	if (offset >= m_kr.h_alignments) {
 		if (m_kr.h_after_first) {
 			err = cudaDeviceSynchronize();
 			CUDA_ERROR(
@@ -385,9 +383,9 @@ bool Cuda::switchKernel(int kernel_id)
 	}
 
 	if (m_kr.d_triangular) {
-		offset = m_kr.h_last_batch;
-		if (offset + batch > m_kr.h_total_count)
-			batch = m_kr.h_total_count - offset;
+		offset = m_kr.h_batch_last;
+		if (offset + batch > m_kr.h_alignments)
+			batch = m_kr.h_alignments - offset;
 
 		if (!batch) {
 			if (m_kr.h_after_first) {
@@ -449,7 +447,7 @@ bool Cuda::switchKernel(int kernel_id)
 	err = cudaGetLastError();
 	CUDA_ERROR("Kernel launch failed");
 
-	m_kr.h_last_batch += batch;
+	m_kr.h_batch_last += batch;
 
 	return true;
 }

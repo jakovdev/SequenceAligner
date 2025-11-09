@@ -412,7 +412,7 @@ void file_matrix_close(struct FileScoreMatrix *file)
 	file->matrix = NULL;
 }
 
-u64 matrix_triangle_index(u32 row, u32 col)
+u64 matrix_index(u32 row, u32 col)
 {
 	return ((u64)col * (col - 1)) / 2 + row;
 }

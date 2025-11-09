@@ -13,18 +13,15 @@ bool cuda_triangular(size_t buffer_bytes)
 	return !Cuda::getInstance().hasEnoughMemory(buffer_bytes);
 }
 
-bool cuda_upload_sequences(char *sequences_letters, u32 *sequences_offsets,
-			   u32 *sequences_lengths, u32 sequences_count,
-			   u64 total_sequences_length)
+bool cuda_upload_sequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total)
 {
-	return Cuda::getInstance().uploadSequences(
-		sequences_letters, sequences_offsets, sequences_lengths,
-		sequences_count, total_sequences_length);
+	return Cuda::getInstance().uploadSequences(seqs, seq_n, seq_len_total);
 }
 
-bool cuda_upload_scoring(int *sub_matrix, int *sequence_lookup)
+bool cuda_upload_scoring(const int sub_mat[SUB_MATDIM][SUB_MATDIM],
+			 const int seq_lup[SEQ_LUPSIZ])
 {
-	return Cuda::getInstance().uploadScoring(sub_matrix, sequence_lookup);
+	return Cuda::getInstance().uploadScoring(sub_mat, seq_lup);
 }
 
 bool cuda_upload_gaps(s32 linear, s32 open, s32 extend)

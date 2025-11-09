@@ -40,35 +40,20 @@ bool cuda_init(void)
 
 bool cuda_align(void)
 {
-	char *seqs = sequences_flattened();
-	u32 *offsets = sequences_offsets();
-	u32 *lengths = sequences_lengths();
-	u32 seqs_n = sequences_count();
-	u64 len_total = sequences_length_total();
-
 	print_error_context("CUDA");
-
-	if (!cuda_upload_sequences(seqs, offsets, lengths, seqs_n, len_total))
+	if (!cuda_upload_sequences(sequences_get(), sequences_count(),
+				   sequences_length_sum()))
 		RETURN_CUDA_ERRORS("Failed uploading sequences");
 
-	int submat_f[SUBMAT_MAX * SUBMAT_MAX] = { 0 };
-	for (int i = 0; i < SUBMAT_MAX; i++) {
-		for (int j = 0; j < SUBMAT_MAX; j++)
-			submat_f[i * SUBMAT_MAX + j] = SUB_MAT[i][j];
-	}
-
-	if (!cuda_upload_scoring(submat_f, SEQ_LUP))
+	if (!cuda_upload_scoring(SUB_MAT, SEQ_LUP))
 		RETURN_CUDA_ERRORS("Failed uploading scoring data");
 
 	if (!cuda_upload_gaps(args_gap_penalty(), args_gap_open(),
 			      args_gap_extend()))
 		RETURN_CUDA_ERRORS("Failed uploading gaps");
 
-	s32 *matrix = h5_matrix_data();
-	size_t matrix_bytes = h5_matrix_bytes();
-
-	u64 *result_offsets = h5_triangle_indices();
-	if (!cuda_upload_indices(result_offsets, matrix, matrix_bytes))
+	if (!cuda_upload_indices(h5_indices(), h5_matrix_data(),
+				 h5_matrix_bytes()))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
 	bench_align_start();
@@ -86,10 +71,10 @@ bool cuda_align(void)
 
 		ull progress = cuda_results_progress();
 		print(M_PROPORT(progress / alignments) "Aligning sequences");
-
 		if (progress >= alignments)
 			break;
-		else if (!cuda_kernel_launch(args_align_method()))
+
+		if (!cuda_kernel_launch(args_align_method()))
 			RETURN_CUDA_ERRORS("Failed to launch next batch");
 	}
 

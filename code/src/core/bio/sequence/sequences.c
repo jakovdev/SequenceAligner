@@ -31,18 +31,13 @@ static struct {
 	size_t block_count;
 } g_pool = { 0 };
 
-static struct {
-	sequence_t *seqs;
-	u64 align_n;
+static sequence_t *g_seqs;
+static u64 g_align_n;
 #ifdef USE_CUDA
-	char *seqs_flat;
-	size_t seq_len_total;
-	u32 *offs_flat;
-	u32 *lens_flat;
-	u32 seq_len_max;
+static u64 g_seq_len_sum;
+static u32 g_seq_len_max;
 #endif
-	u32 seq_n;
-} g_dataset = { 0 };
+static u32 g_seq_n;
 
 static void seq_pool_free(void)
 {
@@ -135,33 +130,16 @@ static char *seq_pool_alloc(size_t size)
 
 static void sequences_free(void)
 {
-	if (g_dataset.seqs) {
-		free(g_dataset.seqs);
-		g_dataset.seqs = NULL;
+	if (g_seqs) {
+		free(g_seqs);
+		g_seqs = NULL;
 	}
-
-	g_dataset.seq_n = 0;
-	g_dataset.align_n = 0;
-
+	g_align_n = 0;
 #ifdef USE_CUDA
-	if (g_dataset.seqs_flat) {
-		free(g_dataset.seqs_flat);
-		g_dataset.seqs_flat = NULL;
-	}
-
-	if (g_dataset.offs_flat) {
-		free(g_dataset.offs_flat);
-		g_dataset.offs_flat = NULL;
-	}
-
-	if (g_dataset.lens_flat) {
-		free(g_dataset.lens_flat);
-		g_dataset.lens_flat = NULL;
-	}
-
-	g_dataset.seq_len_total = 0;
-	g_dataset.seq_len_max = 0;
+	g_seq_len_sum = 0;
+	g_seq_len_max = 0;
 #endif
+	g_seq_n = 0;
 }
 
 static void sequence_init(sequence_t *const restrict pooled,
@@ -259,7 +237,10 @@ bool sequences_load_from_file(void)
 	double filter_threshold = args_filter();
 	bool apply_filtering = filter_threshold > 0.0;
 
-	u64 seq_len_total = 0;
+	u64 seqs_len_sum = 0;
+#ifdef USE_CUDA
+	u32 seq_len_max = 0;
+#endif
 	u32 seq_n_curr = 0;
 	u32 seq_n_skip = 0;
 	u32 seq_n_invalid = 0;
@@ -353,7 +334,11 @@ bool sequences_load_from_file(void)
 			goto cleanup_seq_curr_seqs;
 		}
 
-		seq_len_total += seq_curr.length;
+		seqs_len_sum += seq_curr.length;
+#ifdef USE_CUDA
+		if (args_mode_cuda() && seq_curr.length > seq_len_max)
+			seq_len_max = (u32)seq_curr.length;
+#endif
 		seq_n_curr++;
 
 		u32 seq_n_actual = seq_n_curr + seq_n_skip + seq_n_invalid;
@@ -364,11 +349,6 @@ bool sequences_load_from_file(void)
 	free(seq_curr.letters);
 
 	u32 seq_n = seq_n_curr;
-	if (seq_n > SEQUENCE_COUNT_MAX) {
-		print(M_NONE, ERR "Too many sequences: " Pu32, seq_n);
-		goto cleanup_seqs;
-	}
-
 	if (seq_n < 2) {
 		print(M_NONE,
 		      ERR "At least 2 sequences are required, found " Pu32,
@@ -408,7 +388,7 @@ bool sequences_load_from_file(void)
 	}
 
 	u32 write_index = 0;
-	seq_len_total = 0;
+	seqs_len_sum = 0;
 
 	for (u32 read_index = 0; read_index < seq_n; read_index++) {
 		if (!keep_flags[read_index])
@@ -417,7 +397,11 @@ bool sequences_load_from_file(void)
 		if (write_index != read_index)
 			seqs[write_index] = seqs[read_index];
 
-		seq_len_total += seqs[write_index].length;
+		seqs_len_sum += seqs[write_index].length;
+#ifdef USE_CUDA
+		if (args_mode_cuda() && seqs[write_index].length > seq_len_max)
+			seq_len_max = (u32)seqs[write_index].length;
+#endif
 		write_index++;
 	}
 
@@ -451,51 +435,17 @@ skip_filtering:
 	print(M_NONE, INFO "Loaded " Pu32 " sequences", seq_n);
 
 already_printed:
-	double seq_len_avg = (double)seq_len_total / (double)seq_n;
+	double seq_len_avg = (double)seqs_len_sum / (double)seq_n;
 	print(M_NONE, INFO "Average sequence length: %.2f", seq_len_avg);
 
-	g_dataset.seqs = seqs;
-	g_dataset.seq_n = seq_n;
-	g_dataset.align_n = ((u64)seq_n * (seq_n - 1)) / 2;
-	atexit(sequences_free);
-
+	g_seqs = seqs;
+	g_seq_n = seq_n;
+	g_align_n = ((u64)seq_n * (seq_n - 1)) / 2;
 #ifdef USE_CUDA
-	if (!args_mode_cuda())
-		goto skip_cuda;
-
-	u32 cuda_max_length = 0;
-
-	for (u32 i = 0; i < seq_n; i++) {
-		if (cuda_max_length < seqs[i].length)
-			cuda_max_length = (u32)seqs[i].length;
-	}
-
-	g_dataset.seqs_flat = MALLOC(g_dataset.seqs_flat, seq_len_total);
-	g_dataset.offs_flat = MALLOC(g_dataset.offs_flat, seq_n);
-	g_dataset.lens_flat = MALLOC(g_dataset.lens_flat, seq_n);
-
-	if (!g_dataset.seqs_flat || !g_dataset.offs_flat ||
-	    !g_dataset.lens_flat) {
-		print_error_context("CUDA");
-		print(M_NONE, ERR "Failed to allocate flattened arrays");
-		goto cleanup_seqs;
-	}
-
-	u32 offset = 0;
-	for (u32 i = 0; i < seq_n; i++) {
-		g_dataset.offs_flat[i] = offset;
-		g_dataset.lens_flat[i] = (u32)seqs[i].length;
-		memcpy(g_dataset.seqs_flat + offset, seqs[i].letters,
-		       seqs[i].length);
-		offset += (u32)seqs[i].length;
-	}
-
-	g_dataset.seq_len_total = seq_len_total;
-	g_dataset.seq_len_max = cuda_max_length;
-
-skip_cuda:
+	g_seq_len_sum = seqs_len_sum;
+	g_seq_len_max = seq_len_max;
 #endif
-
+	atexit(sequences_free);
 	file_text_close(&input_file);
 	return true;
 
@@ -511,49 +461,34 @@ cleanup_seqs:
 
 sequence_t *sequence_get(u32 index)
 {
-	return &g_dataset.seqs[index];
+	return &g_seqs[index];
 }
 
 sequence_t *sequences_get(void)
 {
-	return g_dataset.seqs;
+	return g_seqs;
 }
 
 u32 sequences_count(void)
 {
-	return g_dataset.seq_n;
+	return g_seq_n;
 }
 
 u64 sequences_alignment_count(void)
 {
-	return g_dataset.align_n;
+	return g_align_n;
 }
 
 #ifdef USE_CUDA
 
-char *sequences_flattened(void)
+u64 sequences_length_sum(void)
 {
-	return g_dataset.seqs_flat;
-}
-
-u32 *sequences_offsets(void)
-{
-	return g_dataset.offs_flat;
-}
-
-u32 *sequences_lengths(void)
-{
-	return g_dataset.lens_flat;
-}
-
-u64 sequences_length_total(void)
-{
-	return g_dataset.seq_len_total;
+	return g_seq_len_sum;
 }
 
 u32 sequences_length_max(void)
 {
-	return g_dataset.seq_len_max;
+	return g_seq_len_max;
 }
 
 #endif

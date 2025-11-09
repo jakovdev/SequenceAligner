@@ -24,7 +24,7 @@ static struct {
 	hid_t lengths_id;
 	const char *file_path;
 #ifdef USE_CUDA
-	u64 *triangle_indices;
+	u64 *indices;
 #endif
 	s32 *full_matrix;
 	size_t full_matrix_b;
@@ -285,8 +285,7 @@ void h5_matrix_set(u32 row, u32 col, s32 value)
 		return;
 
 	if (g_hdf5.memory_map_required) {
-		g_hdf5.memory_map.matrix[matrix_triangle_index(row, col)] =
-			value;
+		g_hdf5.memory_map.matrix[matrix_index(row, col)] = value;
 	} else {
 		g_hdf5.full_matrix[g_hdf5.matrix_dim * row + col] = value;
 		g_hdf5.full_matrix[g_hdf5.matrix_dim * col + row] = value;
@@ -352,38 +351,36 @@ size_t h5_matrix_bytes(void)
 					    g_hdf5.full_matrix_b;
 }
 
-static bool h5_triangle_indices_calculate(void);
+static bool h5_indices_calculate(void);
 
-u64 *h5_triangle_indices(void)
+u64 *h5_indices(void)
 {
 	if (!g_hdf5.mode_write)
 		return NULL;
 
-	if (!g_hdf5.triangle_indices && !h5_triangle_indices_calculate()) {
-		print(M_NONE, ERR "Failed to calculate result offsets");
+	if (!g_hdf5.indices && !h5_indices_calculate()) {
+		print(M_NONE, ERR "Failed to calculate indices");
 		return NULL;
 	}
 
-	return g_hdf5.triangle_indices;
+	return g_hdf5.indices;
 }
 
-static bool h5_triangle_indices_calculate(void)
+static bool h5_indices_calculate(void)
 {
 	if (!g_hdf5.mode_write || !g_hdf5.is_init)
 		return false;
 
-	if (g_hdf5.triangle_indices)
+	if (g_hdf5.indices)
 		return true;
 
-	if (!(g_hdf5.triangle_indices =
-		      MALLOC(g_hdf5.triangle_indices, g_hdf5.matrix_dim))) {
-		print(M_NONE,
-		      ERR "Failed to allocate memory for result offsets");
+	if (!(g_hdf5.indices = MALLOC(g_hdf5.indices, g_hdf5.matrix_dim))) {
+		print(M_NONE, ERR "Failed to allocate memory for indices");
 		return false;
 	}
 
 	for (u64 i = 0; i < g_hdf5.matrix_dim; i++)
-		g_hdf5.triangle_indices[i] = (i * (i - 1)) / 2;
+		g_hdf5.indices[i] = (i * (i - 1)) / 2;
 
 	return true;
 }
@@ -506,9 +503,9 @@ static void h5_file_close(void)
 	}
 
 #ifdef USE_CUDA
-	if (g_hdf5.triangle_indices) {
-		free(g_hdf5.triangle_indices);
-		g_hdf5.triangle_indices = NULL;
+	if (g_hdf5.indices) {
+		free(g_hdf5.indices);
+		g_hdf5.indices = NULL;
 	}
 
 #endif
@@ -640,8 +637,7 @@ static void h5_flush_memory_map(void)
 			for (u32 j = i + 1; j < matrix_dim; j++) {
 				buffer[row + j] =
 					g_hdf5.memory_map
-						.matrix[matrix_triangle_index(
-							i, j)];
+						.matrix[matrix_index(i, j)];
 			}
 
 			for (u32 j = 0; j < i; j++) {
@@ -651,8 +647,8 @@ static void h5_flush_memory_map(void)
 						       i];
 				} else {
 					buffer[row + j] =
-						g_hdf5.memory_map.matrix
-							[matrix_triangle_index(
+						g_hdf5.memory_map
+							.matrix[matrix_index(
 								j, i)];
 				}
 			}

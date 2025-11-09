@@ -66,7 +66,7 @@ u64 file_extract_entry(struct FileText *restrict file, char *restrict out);
 struct FileScoreMatrix file_matrix_open(const char *path, u64 matrix_dim);
 void file_matrix_close(struct FileScoreMatrix *file);
 
-u64 matrix_triangle_index(u32 row, u32 col);
+u64 matrix_index(u32 row, u32 col);
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *path);
 

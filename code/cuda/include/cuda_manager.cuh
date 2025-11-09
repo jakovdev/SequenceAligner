@@ -44,10 +44,10 @@ struct KernelResults {
 	cudaStream_t s_copy{ nullptr };
 	s32 *h_scores{ nullptr };
 	u64 *h_indices{ nullptr };
-	u64 h_batch_size{ 0 };
-	u64 h_last_batch{ 0 };
-	u64 h_total_count{ 0 };
-	u64 h_completed_batch{ 0 };
+	u64 h_batch{ 0 };
+	u64 h_batch_last{ 0 };
+	u64 h_batch_done{ 0 };
+	u64 h_alignments{ 0 };
 	ull h_progress{ 0 };
 	int h_active{ 0 };
 	bool use_batching{ false };
@@ -79,11 +79,10 @@ class Cuda {
 
 	bool hasEnoughMemory(size_t bytes);
 
-	bool uploadSequences(char *sequences_letters, u32 *sequences_offsets,
-			     u32 *sequences_lengths, u32 sequences_count,
-			     u64 total_sequences_length);
+	bool uploadSequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total);
 
-	bool uploadScoring(int *sub_matrix, int *sequence_lookup);
+	bool uploadScoring(const int sub_mat[SUB_MATDIM][SUB_MATDIM],
+			   const int seq_lup[SEQ_LUPSIZ]);
 	bool uploadGaps(s32 linear, s32 start, s32 extend);
 	bool uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes);
 

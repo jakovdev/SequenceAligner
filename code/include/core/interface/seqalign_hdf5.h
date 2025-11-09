@@ -25,7 +25,7 @@ s32 *h5_matrix_data(void);
 
 size_t h5_matrix_bytes(void);
 
-u64 *h5_triangle_indices(void);
+u64 *h5_indices(void);
 #endif
 
 #endif // INTERFACE_SEQALIGN_HDF5_H

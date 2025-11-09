@@ -1,7 +1,8 @@
 #include "cuda_manager.cuh"
 #include "host_types.h"
+#include <memory>
 
-constexpr u64 CUDA_BATCH_SIZE = (UINT64_C(64) << 20);
+constexpr u64 CUDA_BATCH = (UINT64_C(64) << 20);
 
 Cuda &Cuda::getInstance()
 {
@@ -32,31 +33,24 @@ bool Cuda::initialize()
 	return true;
 }
 
-bool Cuda::uploadSequences(char *sequences_letters, u32 *sequences_offsets,
-			   u32 *sequences_lengths, u32 sequences_count,
-			   u64 total_sequences_length)
+bool Cuda::uploadSequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total)
 {
-	if (!m_init || !sequences_letters || !sequences_offsets ||
-	    !sequences_lengths || !sequences_count || !total_sequences_length) {
+	if (!m_init || !seqs || seq_n < SEQUENCE_COUNT_MIN) {
 		setHostError("Invalid parameters for sequence upload");
 		return false;
 	}
 
-	m_seqs.n_seqs = sequences_count;
-	m_seqs.n_letters = total_sequences_length;
-	m_kr.h_total_count = (u64)sequences_count * (sequences_count - 1) / 2;
+	m_seqs.n_seqs = seq_n;
+	m_seqs.n_letters = seq_len_total;
+	m_kr.h_alignments = (u64)seq_n * (seq_n - 1) / 2;
 	constexpr size_t cell_size = sizeof(*m_kr.h_scores);
 
-	if (!hasEnoughMemory(cell_size * sequences_count * sequences_count)) {
-		if (!hasEnoughMemory(cell_size * m_kr.h_total_count)) {
-			if (!hasEnoughMemory(cell_size * CUDA_BATCH_SIZE))
-				return false;
-
-			if (!copyTriangularMatrixFlag(true))
+	if (!hasEnoughMemory(cell_size * seq_n * seq_n)) {
+		if (!hasEnoughMemory(cell_size * m_kr.h_alignments)) {
+			if (!hasEnoughMemory(cell_size * CUDA_BATCH))
 				return false;
 
 			m_kr.use_batching = true;
-			setHostError("No errors in program");
 		}
 
 		if (!copyTriangularMatrixFlag(true))
@@ -65,14 +59,27 @@ bool Cuda::uploadSequences(char *sequences_letters, u32 *sequences_offsets,
 		setHostError("No errors in program");
 	}
 
-	cudaError_t err;
-	D_MALLOC(m_seqs.d_letters, total_sequences_length);
-	D_MALLOC(m_seqs.d_offsets, sequences_count);
-	D_MALLOC(m_seqs.d_lengths, sequences_count);
+	auto offs_flat = std::make_unique<u32[]>(seq_n);
+	auto lens_flat = std::make_unique<u32[]>(seq_n);
+	auto seqs_flat = std::make_unique<char[]>(seq_len_total);
 
-	HD_COPY(m_seqs.d_letters, sequences_letters, total_sequences_length);
-	HD_COPY(m_seqs.d_offsets, sequences_offsets, sequences_count);
-	HD_COPY(m_seqs.d_lengths, sequences_lengths, sequences_count);
+	u32 offs = 0;
+	for (u32 i = 0; i < seq_n; i++) {
+		offs_flat[i] = offs;
+		lens_flat[i] = static_cast<u32>(seqs[i].length);
+		memcpy(seqs_flat.get() + offs, seqs[i].letters, seqs[i].length);
+		offs += static_cast<u32>(seqs[i].length);
+	}
+
+	cudaError_t err;
+
+	D_MALLOC(m_seqs.d_offsets, seq_n);
+	D_MALLOC(m_seqs.d_lengths, seq_n);
+	D_MALLOC(m_seqs.d_letters, seq_len_total);
+
+	HD_COPY(m_seqs.d_offsets, offs_flat.get(), seq_n);
+	HD_COPY(m_seqs.d_lengths, lens_flat.get(), seq_n);
+	HD_COPY(m_seqs.d_letters, seqs_flat.get(), seq_len_total);
 
 	return true;
 }
@@ -85,17 +92,15 @@ bool Cuda::uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes)
 		return false;
 	}
 
-	const size_t expected_size = m_kr.h_total_count * sizeof(*scores);
+	const size_t expected_size = m_kr.h_alignments * sizeof(*scores);
 
-	if (scores_bytes <= expected_size) {
-		if (scores_bytes == expected_size) {
-			if (!copyTriangularMatrixFlag(true))
-				return false;
-		} else {
-			setHostError("Buffer size is too small for results");
-			return false;
-		}
+	if (scores_bytes < expected_size) {
+		setHostError("Buffer size is too small for results");
+		return false;
 	}
+
+	if (scores_bytes == expected_size && !copyTriangularMatrixFlag(true))
+		return false;
 
 	m_kr.h_scores = scores;
 	m_kr.h_indices = indices;
@@ -125,14 +130,13 @@ bool Cuda::launchKernel(int kernel_id)
 		CUDA_ERROR("Failed to create copy stream");
 
 		if (m_kr.d_triangular) {
-			m_kr.h_batch_size =
-				std::min(CUDA_BATCH_SIZE, m_kr.h_total_count);
-			d_scores_size = m_kr.h_batch_size;
+			m_kr.h_batch = std::min(CUDA_BATCH, m_kr.h_alignments);
+			d_scores_size = m_kr.h_batch;
 
 			D_MALLOC(m_kr.d_scores0, d_scores_size);
 			D_MALLOC(m_kr.d_scores1, d_scores_size);
 		} else {
-			m_kr.h_batch_size = m_kr.h_total_count;
+			m_kr.h_batch = m_kr.h_alignments;
 			d_scores_size = m_seqs.n_seqs * m_seqs.n_seqs;
 
 			D_MALLOC(m_kr.d_scores0, d_scores_size);
@@ -162,20 +166,20 @@ bool Cuda::getResults()
 
 	if (!m_kr.d_triangular) {
 		static bool matrix_copied = false;
-		if (!matrix_copied) {
-			err = cudaStreamSynchronize(m_kr.s_comp);
-			CUDA_ERROR("Compute stream synchronization failed");
-			DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
+		if (matrix_copied)
+			return true;
 
-			const u64 n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
-			DH_COPY(m_kr.h_scores, m_kr.d_scores0, n_scores);
-			matrix_copied = true;
-		}
+		err = cudaStreamSynchronize(m_kr.s_comp);
+		CUDA_ERROR("Compute stream synchronization failed");
+		DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 
+		const u64 n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
+		DH_COPY(m_kr.h_scores, m_kr.d_scores0, n_scores);
+		matrix_copied = true;
 		return true;
 	}
 
-	if (m_kr.h_completed_batch >= m_kr.h_total_count) {
+	if (m_kr.h_batch_done >= m_kr.h_alignments) {
 		if (m_kr.copy_in_progress) {
 			err = cudaStreamSynchronize(m_kr.s_copy);
 			CUDA_ERROR("Copy stream synchronization failed");
@@ -194,12 +198,12 @@ bool Cuda::getResults()
 		m_kr.copy_in_progress = false;
 	}
 
-	if (!m_kr.h_after_first && m_kr.h_batch_size < m_kr.h_total_count) {
+	if (!m_kr.h_after_first && m_kr.h_batch < m_kr.h_alignments) {
 		m_kr.h_after_first = true;
 		return true;
 	}
 
-	u64 batch_offset = m_kr.h_completed_batch;
+	u64 batch_offset = m_kr.h_batch_done;
 	s32 *buffer = nullptr;
 
 	if (m_kr.h_after_first) {
@@ -211,22 +215,20 @@ bool Cuda::getResults()
 		buffer = m_kr.d_scores0;
 	}
 
-	u64 n_scores =
-		std::min(m_kr.h_batch_size, m_kr.h_total_count - batch_offset);
+	u64 n_scores = std::min(m_kr.h_batch, m_kr.h_alignments - batch_offset);
+	if (!n_scores)
+		return true;
 
-	if (n_scores > 0) {
-		s32 *scores = m_kr.h_scores + batch_offset;
+	s32 *scores = m_kr.h_scores + batch_offset;
 
-		if (m_kr.h_after_first) {
-			DH_COPY_ASYNC(scores, buffer, n_scores, m_kr.s_copy);
-			m_kr.copy_in_progress = true;
-		} else {
-			DH_COPY(scores, buffer, n_scores);
-		}
-
-		m_kr.h_completed_batch += n_scores;
+	if (m_kr.h_after_first) {
+		DH_COPY_ASYNC(scores, buffer, n_scores, m_kr.s_copy);
+		m_kr.copy_in_progress = true;
+	} else {
+		DH_COPY(scores, buffer, n_scores);
 	}
 
+	m_kr.h_batch_done += n_scores;
 	return true;
 }
 
