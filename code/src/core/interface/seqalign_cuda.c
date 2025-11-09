@@ -48,8 +48,7 @@ bool cuda_align(void)
 	if (!cuda_upload_scoring(SUB_MAT, SEQ_LUP))
 		RETURN_CUDA_ERRORS("Failed uploading scoring data");
 
-	if (!cuda_upload_gaps(args_gap_penalty(), args_gap_open(),
-			      args_gap_extend()))
+	if (!cuda_upload_gaps(args_gap_pen(), args_gap_open(), args_gap_ext()))
 		RETURN_CUDA_ERRORS("Failed uploading gaps");
 
 	if (!cuda_upload_indices(h5_indices(), h5_matrix_data(),

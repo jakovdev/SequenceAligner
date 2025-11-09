@@ -18,9 +18,9 @@
 
 static struct {
 	double filter;
-	s32 gap_penalty;
+	s32 gap_pen;
 	s32 gap_open;
-	s32 gap_extend;
+	s32 gap_ext;
 	enum SequenceType seq_type;
 	enum AlignmentMethod method_id;
 	int matrix_id;
@@ -30,9 +30,9 @@ static struct {
 	unsigned seq_type_set : 1;
 	unsigned matrix_set : 1;
 	unsigned method_id_set : 1;
-	unsigned gap_penalty_set : 1;
+	unsigned gap_pen_set : 1;
 	unsigned gap_open_set : 1;
-	unsigned gap_extend_set : 1;
+	unsigned gap_ext_set : 1;
 	unsigned mode_write : 1;
 	unsigned mode_filter : 1;
 	unsigned mode_benchmark : 1;
@@ -78,9 +78,9 @@ static struct option long_options[] = {
 
 GETTER(const char *, input, args.path_input)
 GETTER(const char *, output, args.path_output)
-GETTER(s32, gap_penalty, args.gap_penalty)
+GETTER(s32, gap_pen, args.gap_pen)
 GETTER(s32, gap_open, args.gap_open)
-GETTER(s32, gap_extend, args.gap_extend)
+GETTER(s32, gap_ext, args.gap_ext)
 GETTER(int, thread_num, args.thread_num)
 GETTER(enum AlignmentMethod, align_method, args.method_id)
 GETTER(enum SequenceType, sequence_type, args.seq_type)
@@ -186,28 +186,23 @@ static bool args_validate_required(void)
 		print(M_NONE, ERR
 		      "Missing parameter: alignment method [-a] or [--align]");
 		valid = false;
-	}
-
-	if (args.method_id_set && args.method_id >= 0 &&
-	    args.method_id < ALIGN_COUNT) {
-		if (alignment_linear(args.method_id) && !args.gap_penalty_set) {
+	} else if (alignment_linear(args.method_id) && !args.gap_pen_set) {
+		print(M_NONE, ERR
+		      "Missing parameter: gap penalty [-p] or [--gap-penalty]");
+		valid = false;
+	} else if (alignment_affine(args.method_id)) {
+		if (!args.gap_open_set) {
 			print(M_NONE, ERR
-			      "Missing parameter: gap penalty [-p] or [--gap-penalty]");
+			      "Missing parameter: gap open [-s] or [--gap-open]");
 			valid = false;
-		} else if (alignment_affine(args.method_id)) {
-			if (!args.gap_open_set) {
-				print(M_NONE, ERR
-				      "Missing parameter: gap open [-s] or [--gap-open]");
-				valid = false;
-			}
+		}
 
-			if (!args.gap_extend_set) {
-				print(M_NONE, ERR
-				      "Missing parameter: gap extend [-e] or [--gap-extend]");
-				valid = false;
-			}
-		} /* EXPANDABLE: enum GapPenaltyType */
-	}
+		if (!args.gap_ext_set) {
+			print(M_NONE, ERR
+			      "Missing parameter: gap extend [-e] or [--gap-extend]");
+			valid = false;
+		}
+	} /* EXPANDABLE: enum GapPenaltyType */
 
 	return valid;
 }
@@ -290,13 +285,11 @@ void args_print_config(void)
 	print(M_LOC(MIDDLE), INFO "Matrix: %s",
 	      matrix_id_name(args.seq_type, args.matrix_id));
 	print(M_LOC(MIDDLE), INFO "Method: %s", alignment_name(args.method_id));
-	if (alignment_linear(args.method_id) && args.gap_penalty_set)
-		print(M_LOC(MIDDLE), INFO "Gap penalty: " Ps32,
-		      args.gap_penalty);
-	else if (alignment_affine(args.method_id) &&
-		 (args.gap_open_set && args.gap_extend_set))
+	if (alignment_linear(args.method_id))
+		print(M_LOC(MIDDLE), INFO "Gap penalty: " Ps32, args.gap_pen);
+	else if (alignment_affine(args.method_id))
 		print(M_LOC(MIDDLE), INFO "Gap open: " Ps32 ", extend: " Ps32,
-		      args.gap_open, args.gap_extend);
+		      args.gap_open, args.gap_ext);
 	/* EXPANDABLE: enum GapPenaltyType */
 
 	if (args.mode_filter)
@@ -323,10 +316,14 @@ static int args_parse_sub_matrix(const char *arg, enum SequenceType seq_type)
 
 	if (isdigit(arg[0])) {
 		int matrix = atoi(arg);
-		int max_matrix = (seq_type == SEQ_TYPE_AMINO) ?
-					 NUM_AMINO_MATRICES :
-					 NUM_NUCLEO_MATRICES;
+		int max_matrix = 0;
+
+		if (seq_type == SEQ_TYPE_AMINO)
+			max_matrix = NUM_AMINO_MATRICES;
+		else if (seq_type == SEQ_TYPE_NUCLEO)
+			max_matrix = NUM_NUCLEO_MATRICES;
 		/* EXPANDABLE: enum SequenceType */
+
 		if (matrix >= 0 && matrix < max_matrix)
 			return matrix;
 
@@ -336,8 +333,20 @@ static int args_parse_sub_matrix(const char *arg, enum SequenceType seq_type)
 	return matrix_name_id(seq_type, arg);
 }
 
-static s32 args_parse_gap(const char *arg)
+static s32 args_parse_gap(const char *arg, enum GapPenaltyType gap_type)
 {
+	if (!args.method_id_set) {
+		print(M_NONE, ERR
+		      "Must specify alignment method (-a) before gap penalty");
+		exit(EXIT_FAILURE);
+	}
+
+	if (!alignment_gap_type(args.method_id, gap_type)) {
+		print(M_NONE, ERR
+		      "Gap type is not valid for the selected alignment method");
+		exit(EXIT_FAILURE);
+	}
+
 	char *endptr = NULL;
 	long gap = strtol(arg, &endptr, 10);
 	if (endptr == arg || *endptr != '\0' || gap < 0 || gap > INT32_MAX) {
@@ -403,8 +412,7 @@ static void args_parse(int argc, char *argv[])
 		switch (opt) {
 		case 'i':
 			if (strlen(optarg) >= MAX_PATH) {
-				print(M_NONE,
-				      ERR "Input file path is too long");
+				print(M_NONE, ERR "Input path is too long");
 				exit(EXIT_FAILURE);
 			}
 
@@ -424,7 +432,7 @@ static void args_parse(int argc, char *argv[])
 		case 'm':
 			if (!args.seq_type_set) {
 				print(M_NONE, ERR
-				      "Must specify sequence type (-t) before matrix");
+				      "Must specify sequence type (-t) before matrix (-m)");
 				exit(EXIT_FAILURE);
 			}
 
@@ -451,22 +459,21 @@ static void args_parse(int argc, char *argv[])
 			args.method_id_set = 1;
 			break;
 		case 'p':
-			args.gap_penalty = args_parse_gap(optarg);
-			args.gap_penalty_set = 1;
+			args.gap_pen = args_parse_gap(optarg, GAP_TYPE_LINEAR);
+			args.gap_pen_set = 1;
 			break;
 		case 's':
-			args.gap_open = args_parse_gap(optarg);
+			args.gap_open = args_parse_gap(optarg, GAP_TYPE_AFFINE);
 			args.gap_open_set = 1;
 			break;
 		case 'e':
-			args.gap_extend = args_parse_gap(optarg);
-			args.gap_extend_set = 1;
+			args.gap_ext = args_parse_gap(optarg, GAP_TYPE_AFFINE);
+			args.gap_ext_set = 1;
 			break;
 		/* EXPANDABLE: enum GapPenaltyType */
 		case 'o':
 			if (strlen(optarg) >= MAX_PATH) {
-				print(M_NONE,
-				      ERR "Output file path is too long");
+				print(M_NONE, ERR "Output path is too long");
 				exit(EXIT_FAILURE);
 			}
 
@@ -524,17 +531,17 @@ static void args_parse(int argc, char *argv[])
 
 	omp_set_num_threads(args.thread_num);
 	if (args.method_id == ALIGN_GOTOH_AFFINE &&
-	    args.gap_open == args.gap_extend) {
+	    args.gap_open == args.gap_ext) {
 		if (args.force ||
 		    print_Yn(
 			    "Equal gap penalties found, switch to Needleman-Wunsch?")) {
 			args.method_id = ALIGN_NEEDLEMAN_WUNSCH;
-			args.gap_penalty = args.gap_open;
-			args.gap_penalty_set = 1;
+			args.gap_pen = args.gap_open;
+			args.gap_pen_set = 1;
 			args.gap_open = PARAM_UNSET;
-			args.gap_extend = PARAM_UNSET;
+			args.gap_ext = PARAM_UNSET;
 			args.gap_open_set = 0;
-			args.gap_extend_set = 0;
+			args.gap_ext_set = 0;
 		}
 	}
 }

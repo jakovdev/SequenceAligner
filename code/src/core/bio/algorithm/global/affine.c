@@ -18,12 +18,11 @@ void affine_global_init(s32 *restrict match, s32 *restrict gap_x,
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
 	const s32 gap_open = args_gap_open();
-	const s32 gap_extend = args_gap_extend();
+	const s32 gap_ext = args_gap_ext();
 
 	UNROLL(8)
 	for (u64 j = 1; j <= len1; j++) {
-		gap_x[j] =
-			max(match[j - 1] - gap_open, gap_x[j - 1] - gap_extend);
+		gap_x[j] = max(match[j - 1] - gap_open, gap_x[j - 1] - gap_ext);
 		match[j] = gap_x[j];
 		gap_y[j] = SCORE_MIN;
 	}
@@ -32,7 +31,7 @@ void affine_global_init(s32 *restrict match, s32 *restrict gap_x,
 	for (u64 i = 1; i <= len2; i++) {
 		const u64 idx = i * cols;
 		gap_y[idx] = max(match[idx - cols] - gap_open,
-				 gap_y[idx - cols] - gap_extend);
+				 gap_y[idx - cols] - gap_ext);
 		match[idx] = gap_y[idx];
 		gap_x[idx] = SCORE_MIN;
 	}
@@ -46,7 +45,7 @@ void affine_global_fill(s32 *restrict match, s32 *restrict gap_x,
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
 	const s32 gap_open = args_gap_open();
-	const s32 gap_extend = args_gap_extend();
+	const s32 gap_ext = args_gap_ext();
 
 	for (u64 i = 1; i <= len2; ++i) {
 		const u64 row = i * cols;
@@ -68,12 +67,12 @@ void affine_global_fill(s32 *restrict match, s32 *restrict gap_x,
 			const s32 p_gap_y = gap_y[p_row + j];
 
 			const s32 open_x = p_match_x - gap_open;
-			const s32 extend_x = p_gap_x - gap_extend;
+			const s32 extend_x = p_gap_x - gap_ext;
 			gap_x[row + j] = (open_x > extend_x) ? open_x :
 							       extend_x;
 
 			const s32 open_y = p_match_y - gap_open;
-			const s32 extend_y = p_gap_y - gap_extend;
+			const s32 extend_y = p_gap_y - gap_ext;
 			gap_y[row + j] = (open_y > extend_y) ? open_y :
 							       extend_y;
 

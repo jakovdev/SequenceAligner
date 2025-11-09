@@ -38,7 +38,7 @@ s32 affine_local_fill(s32 *restrict match, s32 *restrict gap_x,
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
 	const s32 gap_open = args_gap_open();
-	const s32 gap_extend = args_gap_extend();
+	const s32 gap_ext = args_gap_ext();
 	s32 score = 0;
 	for (u64 i = 1; i <= len2; ++i) {
 		const u64 row = i * cols;
@@ -59,9 +59,9 @@ s32 affine_local_fill(s32 *restrict match, s32 *restrict gap_x,
 			const s32 p_gap_y = gap_y[p_row + j];
 
 			const s32 open_x = p_match_x - (gap_open);
-			const s32 extend_x = p_gap_x - (gap_extend);
+			const s32 extend_x = p_gap_x - (gap_ext);
 			const s32 open_y = p_match_y - (gap_open);
-			const s32 extend_y = p_gap_y - (gap_extend);
+			const s32 extend_y = p_gap_y - (gap_ext);
 
 			gap_x[row + j] = (open_x > extend_x) ? open_x :
 							       extend_x;

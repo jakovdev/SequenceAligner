@@ -56,6 +56,7 @@ typedef s32 (*align_func_t)(sequence_ptr_t, sequence_ptr_t);
 
 align_func_t align_function(enum AlignmentMethod method);
 const char *alignment_name(enum AlignmentMethod method);
+bool alignment_gap_type(enum AlignmentMethod method, enum GapPenaltyType type);
 bool alignment_linear(enum AlignmentMethod method);
 bool alignment_affine(enum AlignmentMethod method);
 const char *gap_type_name(enum AlignmentMethod method);

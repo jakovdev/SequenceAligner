@@ -5,9 +5,9 @@ __constant__ int c_sub_mat[SUB_MATDIM * SUB_MATDIM];
 #define SUB_MAT(i, j) c_sub_mat[(i) * SUB_MATDIM + (j)]
 __constant__ int c_seq_lup[SEQ_LUPSIZ];
 
-__constant__ int c_gap_penalty;
+__constant__ int c_gap_pen;
 __constant__ int c_gap_open;
-__constant__ int c_gap_extend;
+__constant__ int c_gap_ext;
 __constant__ bool c_triangular = false;
 
 bool Cuda::copyTriangularMatrixFlag(bool triangular)
@@ -55,9 +55,9 @@ bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend)
 
 	cudaError_t err;
 
-	C_COPY(c_gap_penalty, &linear, sizeof(c_gap_penalty));
+	C_COPY(c_gap_pen, &linear, sizeof(c_gap_pen));
 	C_COPY(c_gap_open, &open, sizeof(c_gap_open));
-	C_COPY(c_gap_extend, &extend, sizeof(c_gap_extend));
+	C_COPY(c_gap_ext, &extend, sizeof(c_gap_ext));
 
 	return true;
 }
@@ -144,9 +144,9 @@ __global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++)
-		dp_prev[col] = col * -(c_gap_penalty);
+		dp_prev[col] = col * -(c_gap_pen);
 	for (u32 row = 1; row <= len1; ++row) {
-		dp_curr[0] = row * -(c_gap_penalty);
+		dp_curr[0] = row * -(c_gap_pen);
 
 		for (u32 col = 1; col <= len2; col++) {
 			const int idx1 =
@@ -155,8 +155,8 @@ __global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
 				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 match =
 				dp_prev[col - 1] + SUB_MAT(idx1, idx2);
-			const s32 gap_v = dp_prev[col] - c_gap_penalty;
-			const s32 gap_h = dp_curr[col - 1] - c_gap_penalty;
+			const s32 gap_v = dp_prev[col] - c_gap_pen;
+			const s32 gap_h = dp_curr[col - 1] - c_gap_pen;
 
 			s32 max = match > gap_v ? match : gap_v;
 			max = max > gap_h ? max : gap_h;
@@ -215,7 +215,7 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 	gap_x[0] = gap_y[0] = SCORE_MIN;
 	for (u32 col = 1; col <= len2; col++) {
 		gap_x[col] = max(match[col - 1] - c_gap_open,
-				 gap_x[col - 1] - c_gap_extend);
+				 gap_x[col - 1] - c_gap_ext);
 		match[col] = gap_x[col];
 		gap_y[col] = SCORE_MIN;
 	}
@@ -228,10 +228,9 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 	}
 
 	for (u32 row = 1; row <= len1; ++row) {
-		match[0] = row * -(c_gap_penalty);
+		match[0] = row * -(c_gap_pen);
 		gap_x[0] = SCORE_MIN;
-		gap_y[0] =
-			max(p_match[0] - c_gap_open, p_gap_y[0] - c_gap_extend);
+		gap_y[0] = max(p_match[0] - c_gap_open, p_gap_y[0] - c_gap_ext);
 		match[0] = gap_y[0];
 
 		const int idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
@@ -240,18 +239,17 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SUB_MAT(idx1, idx2);
 
-			const s32 diag_score = p_match[col - 1] + similarity;
+			const s32 d_score = p_match[col - 1] + similarity;
 
 			const s32 open_x = match[col - 1] - c_gap_open;
-			const s32 extend_x = gap_x[col - 1] - c_gap_extend;
+			const s32 extend_x = gap_x[col - 1] - c_gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
 			const s32 open_y = p_match[col] - c_gap_open;
-			const s32 extend_y = p_gap_y[col] - c_gap_extend;
+			const s32 extend_y = p_gap_y[col] - c_gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
-			match[col] =
-				max(diag_score, max(gap_x[col], gap_y[col]));
+			match[col] = max(d_score, max(gap_x[col], gap_y[col]));
 		}
 
 		for (u32 col = 0; col <= len2; col++) {
@@ -327,19 +325,18 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SUB_MAT(idx1, idx2);
 
-			const s32 diag_score = p_match[col - 1] + similarity;
+			const s32 d_score = p_match[col - 1] + similarity;
 
 			const s32 open_x = match[col - 1] - c_gap_open;
-			const s32 extend_x = gap_x[col - 1] - c_gap_extend;
+			const s32 extend_x = gap_x[col - 1] - c_gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
 			const s32 open_y = p_match[col] - c_gap_open;
-			const s32 extend_y = p_gap_y[col] - c_gap_extend;
+			const s32 extend_y = p_gap_y[col] - c_gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
-			const s32 best =
-				max(0, max(diag_score,
-					   max(gap_x[col], gap_y[col])));
+			const s32 best = max(
+				0, max(d_score, max(gap_x[col], gap_y[col])));
 			match[col] = best;
 			if (best > max_score)
 				max_score = best;

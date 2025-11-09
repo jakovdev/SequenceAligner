@@ -65,14 +65,19 @@ const char *alignment_name(enum AlignmentMethod method)
 	return ALIGNMENT_METHODS[method].name;
 }
 
+bool alignment_gap_type(enum AlignmentMethod method, enum GapPenaltyType type)
+{
+	return ALIGNMENT_METHODS[method].gap_type == type;
+}
+
 bool alignment_linear(enum AlignmentMethod method)
 {
-	return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_LINEAR;
+	return alignment_gap_type(method, GAP_TYPE_LINEAR);
 }
 
 bool alignment_affine(enum AlignmentMethod method)
 {
-	return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
+	return alignment_gap_type(method, GAP_TYPE_AFFINE);
 }
 
 /* EXPANDABLE: enum GapPenaltyType */

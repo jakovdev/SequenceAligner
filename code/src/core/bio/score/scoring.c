@@ -6,11 +6,11 @@
 #include "core/bio/types.h"
 #include "system/compiler.h"
 
-#if USE_SIMD == 1
+#if 0 // USE_SIMD == 1
 veci_t g_first_row_indices;
-veci_t g_gap_penalty_vec;
+veci_t g_gap_pen_vec;
 veci_t g_gap_open_vec;
-veci_t g_gap_extend_vec;
+veci_t g_gap_ext_vec;
 #endif
 
 int SEQ_LUP[SCHAR_MAX + 1];
@@ -38,10 +38,10 @@ void scoring_init(void)
 		UNREACHABLE();
 	}
 
-#if USE_SIMD == 1
+#if 0 // USE_SIMD == 1
 	g_first_row_indices = set_row_indices();
-	g_gap_penalty_vec = set1_epi32(args_gap_penalty());
+	g_gap_pen_vec = set1_epi32(args_gap_pen());
 	g_gap_open_vec = set1_epi32(args_gap_open());
-	g_gap_extend_vec = set1_epi32(args_gap_extend());
+	g_gap_ext_vec = set1_epi32(args_gap_ext());
 #endif
 }

@@ -200,7 +200,7 @@ static bool validate_sequence(sequence_ptr_t sequence)
 
 static bool seq_len_valid(u64 length)
 {
-	const s32 gap_pen = args_gap_penalty();
+	const s32 gap_pen = args_gap_pen();
 	if (!gap_pen)
 		return length <= SEQUENCE_LENGTH_MAX;
 
