@@ -31,7 +31,7 @@ void scoring_init(void)
 	case SEQ_TYPE_NUCLEO:
 		SEQ_TYPE_INIT(NUCLEO);
 		break;
-	// Expandable
+	/* EXPANDABLE: enum SequenceType */
 	default:
 	case SEQ_TYPE_COUNT:
 	case SEQ_TYPE_INVALID:

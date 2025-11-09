@@ -206,7 +206,7 @@ static bool args_validate_required(void)
 				      "Missing parameter: gap extend [-e] or [--gap-extend]");
 				valid = false;
 			}
-		}
+		} /* EXPANDABLE: enum GapPenaltyType */
 	}
 
 	return valid;
@@ -223,6 +223,8 @@ static void args_print_matrices(void)
 	printf("Nucleotide Matrices (%d):\n", NUM_NUCLEO_MATRICES);
 	matrix_seq_type_list(SEQ_TYPE_NUCLEO);
 	printf("\n");
+
+	// EXPANDABLE: enum SequenceType
 }
 
 static void args_print_usage(const char *program_name)
@@ -295,6 +297,7 @@ void args_print_config(void)
 		 (args.gap_open_set && args.gap_extend_set))
 		print(M_LOC(MIDDLE), INFO "Gap open: " Ps32 ", extend: " Ps32,
 		      args.gap_open, args.gap_extend);
+	/* EXPANDABLE: enum GapPenaltyType */
 
 	if (args.mode_filter)
 		print(M_LOC(MIDDLE), INFO "Filter threshold: %.1f%%",
@@ -323,6 +326,7 @@ static int args_parse_sub_matrix(const char *arg, enum SequenceType seq_type)
 		int max_matrix = (seq_type == SEQ_TYPE_AMINO) ?
 					 NUM_AMINO_MATRICES :
 					 NUM_NUCLEO_MATRICES;
+		/* EXPANDABLE: enum SequenceType */
 		if (matrix >= 0 && matrix < max_matrix)
 			return matrix;
 
@@ -458,6 +462,7 @@ static void args_parse(int argc, char *argv[])
 			args.gap_extend = args_parse_gap(optarg);
 			args.gap_extend_set = 1;
 			break;
+		/* EXPANDABLE: enum GapPenaltyType */
 		case 'o':
 			if (strlen(optarg) >= MAX_PATH) {
 				print(M_NONE,

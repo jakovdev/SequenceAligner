@@ -2,12 +2,17 @@
 #ifndef CORE_BIO_TYPES_H
 #define CORE_BIO_TYPES_H
 
+/* NOTE: All EXPANDABLE comments are markers for places which need to be
+ *       updated when adding new enum values. */
+
 enum SequenceType {
 	SEQ_TYPE_INVALID = -1,
 	SEQ_TYPE_AMINO,
 	SEQ_TYPE_NUCLEO,
-	// NOTE: This enum is kept minimal by design. Only standard biological sequence types
-	//       are included as they're the only ones with established substitution matrices.
+	/* NOTE: Additional sequence types can be added here if needed.
+	 *       However, this requires defining the corresponding alphabet
+	 *       and substitution matrices.
+	 * EXPANDABLE: enum SequenceType */
 	SEQ_TYPE_COUNT
 };
 
@@ -16,15 +21,18 @@ enum AlignmentMethod {
 	ALIGN_GOTOH_AFFINE,
 	ALIGN_NEEDLEMAN_WUNSCH,
 	ALIGN_SMITH_WATERMAN,
-	// NOTE: Additional alignment methods can be added here if needed.
-	//       However, this requires implementing the corresponding algorithm.
-	// Expandable
+	/* NOTE: Additional alignment methods can be added here if needed.
+	 *       However, this requires implementing the corresponding algorithm.
+	 * EXPANDABLE: enum AlignmentMethod */
 	ALIGN_COUNT
 };
 
 enum GapPenaltyType {
 	GAP_TYPE_LINEAR,
 	GAP_TYPE_AFFINE,
+	/* NOTE: Additional types can be added here if needed.
+	 *       However, this requires implementing new arguments.
+	 * EXPANDABLE: enum GapPenaltyType */
 };
 
 #include <stdbool.h>

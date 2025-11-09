@@ -21,6 +21,7 @@ static struct {
 } SEQUENCE_TYPES[] = {
 	{ "Amino acids", "Protein sequences", AMINO_ALIASES, SEQ_TYPE_AMINO },
 	{ "Nucleotides", "DNA/RNA sequences", NUCLEO_ALIASES, SEQ_TYPE_NUCLEO },
+	/* EXPANDABLE: enum SequenceType, struct SEQUENCE_TYPES */
 };
 
 #define GA_ALIASES ((const char *[]){ "ga", "gotoh", NULL })
@@ -32,12 +33,15 @@ static struct {
 	const char **aliases;
 	enum AlignmentMethod method;
 	enum GapPenaltyType gap_type;
-} ALIGNMENT_METHODS[] = { { "Gotoh (affine)", "global alignment", GA_ALIASES,
-			    ALIGN_GOTOH_AFFINE, GAP_TYPE_AFFINE },
-			  { "Needleman-Wunsch", "global alignment", NW_ALIASES,
-			    ALIGN_NEEDLEMAN_WUNSCH, GAP_TYPE_LINEAR },
-			  { "Smith-Waterman", "local alignment", SW_ALIASES,
-			    ALIGN_SMITH_WATERMAN, GAP_TYPE_AFFINE } };
+} ALIGNMENT_METHODS[] = {
+	{ "Gotoh (affine)", "global alignment", GA_ALIASES, ALIGN_GOTOH_AFFINE,
+	  GAP_TYPE_AFFINE },
+	{ "Needleman-Wunsch", "global alignment", NW_ALIASES,
+	  ALIGN_NEEDLEMAN_WUNSCH, GAP_TYPE_LINEAR },
+	{ "Smith-Waterman", "local alignment", SW_ALIASES, ALIGN_SMITH_WATERMAN,
+	  GAP_TYPE_AFFINE }
+	/* EXPANDABLE: enum AlignmentMethod, enum GapPenaltyType, struct ALIGNMENT_METHODS */
+};
 
 align_func_t align_function(enum AlignmentMethod method)
 {
@@ -48,6 +52,7 @@ align_func_t align_function(enum AlignmentMethod method)
 		return align_nw;
 	case ALIGN_SMITH_WATERMAN:
 		return align_sw;
+	/* EXPANDABLE: enum AlignmentMethod */
 	case ALIGN_INVALID:
 	case ALIGN_COUNT:
 	default:
@@ -69,6 +74,8 @@ bool alignment_affine(enum AlignmentMethod method)
 {
 	return ALIGNMENT_METHODS[method].gap_type == GAP_TYPE_AFFINE;
 }
+
+/* EXPANDABLE: enum GapPenaltyType */
 
 const char *gap_type_name(enum AlignmentMethod method)
 {
@@ -126,8 +133,9 @@ const char *matrix_id_name(enum SequenceType seq_type, int matrix_id)
 
 	if (seq_type == SEQ_TYPE_AMINO && matrix_id < NUM_AMINO_MATRICES)
 		return AMINO_MATRIX[matrix_id].name;
-	else if (seq_type == SEQ_TYPE_NUCLEO && matrix_id < NUM_NUCLEO_MATRICES)
+	if (seq_type == SEQ_TYPE_NUCLEO && matrix_id < NUM_NUCLEO_MATRICES)
 		return NUCLEO_MATRIX[matrix_id].name;
+	/* EXPANDABLE: enum SequenceType */
 
 	return "Unknown";
 }
@@ -146,7 +154,7 @@ int matrix_name_id(enum SequenceType seq_type, const char *name)
 	} else if (seq_type == SEQ_TYPE_NUCLEO) {
 		num_matrices = NUM_NUCLEO_MATRICES;
 		matrices = NUCLEO_MATRIX;
-	} else {
+	} else /* EXPANDABLE: enum SequenceType */ {
 		return -1;
 	}
 
@@ -154,8 +162,9 @@ int matrix_name_id(enum SequenceType seq_type, const char *name)
 		const char *matrix_name = NULL;
 		if (seq_type == SEQ_TYPE_AMINO)
 			matrix_name = ((const AminoMatrix *)matrices)[i].name;
-		else
+		else if (seq_type == SEQ_TYPE_NUCLEO)
 			matrix_name = ((const NucleoMatrix *)matrices)[i].name;
+		/* EXPANDABLE: enum SequenceType */
 
 		if (strcasecmp(name, matrix_name) == 0)
 			return i;
@@ -178,7 +187,7 @@ void matrix_seq_type_list(enum SequenceType seq_type)
 			       (i + 1) % 5 == 0		      ? "\n" :
 			       (i == NUM_NUCLEO_MATRICES - 1) ? "\n" :
 								", ");
-	}
+	} /* EXPANDABLE: enum SequenceType */
 }
 
 const char *sequence_type_name(enum SequenceType seq_type)
