@@ -5,6 +5,7 @@
 #include <limits.h>
 
 #include "matrices.h"
+#include "system/types.h"
 // #include "system/simd.h"
 
 #if 0 // USE_SIMD == 1
