@@ -1,71 +1,66 @@
-#include "cuda_manager.cuh"
 #include "host_interface.h"
-#include "host_types.h"
+
+#include "cuda_manager.cuh"
 
 extern "C" {
-bool cuda_initialize()
-{
-	return Cuda::getInstance().initialize();
-}
-
 bool cuda_triangular(size_t buffer_bytes)
 {
-	return !Cuda::getInstance().hasEnoughMemory(buffer_bytes);
+	return !Cuda::Instance().memoryCheck(buffer_bytes);
 }
 
 bool cuda_upload_sequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 {
-	return Cuda::getInstance().uploadSequences(seqs, seq_n, seq_len_sum);
+	return Cuda::Instance().uploadSequences(seqs, seq_n, seq_len_sum);
 }
 
 bool cuda_upload_scoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 			 const s32 seq_lup[SEQ_LUPSIZ])
 {
-	return Cuda::getInstance().uploadScoring(sub_mat, seq_lup);
+	return Cuda::Instance().uploadScoring(sub_mat, seq_lup);
 }
 
 bool cuda_upload_gaps(s32 linear, s32 open, s32 extend)
 {
-	return Cuda::getInstance().uploadGaps(linear, open, extend);
+	return Cuda::Instance().uploadGaps(linear, open, extend);
 }
 
 bool cuda_upload_storage(s32 *scores, size_t scores_bytes)
 {
-	return Cuda::getInstance().uploadStorage(scores, scores_bytes);
+	return Cuda::Instance().uploadStorage(scores, scores_bytes);
 }
 
 bool cuda_kernel_launch(int kernel_id)
 {
-	return Cuda::getInstance().launchKernel(kernel_id);
+	return Cuda::Instance().kernelLaunch(kernel_id);
 }
 
-bool cuda_results_get()
+bool cuda_kernel_results(void)
 {
-	return Cuda::getInstance().getResults();
+	return Cuda::Instance().kernelResults();
 }
 
-ull cuda_results_progress()
+ull cuda_kernel_progress(void)
 {
-	return Cuda::getInstance().getProgress();
+	return Cuda::Instance().kernelProgress();
 }
 
-sll cuda_results_checksum()
+sll cuda_kernel_checksum(void)
 {
-	return Cuda::getInstance().getChecksum();
+	return Cuda::Instance().kernelChecksum();
 }
 
-const char *cuda_error_device_get()
+const char *cuda_error_device(void)
 {
-	return Cuda::getInstance().getDeviceError();
+	return Cuda::Instance().deviceError();
 }
 
-const char *cuda_error_host_get()
+const char *cuda_error_host(void)
 {
-	return Cuda::getInstance().getHostError();
+	return Cuda::Instance().hostError();
 }
 
-const char *cuda_device_name()
+const char *cuda_device_name(void)
 {
-	return Cuda::getInstance().getDeviceName();
+	return Cuda::Instance().deviceName();
 }
 }

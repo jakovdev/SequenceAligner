@@ -14,7 +14,7 @@ __constant__ bool c_triangular;
 bool Cuda::copyTriangularMatrixFlag(bool triangular)
 {
 	if (!m_init) {
-		setHostError("CUDA not initialized");
+		hostError("CUDA not initialized");
 		return false;
 	}
 
@@ -29,7 +29,7 @@ bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 			 const s32 seq_lup[SEQ_LUPSIZ])
 {
 	if (!m_init) {
-		setHostError("CUDA not initialized");
+		hostError("CUDA not initialized");
 		return false;
 	}
 
@@ -47,7 +47,7 @@ bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend)
 {
 	if (!m_init) {
-		setHostError("CUDA not initialized");
+		hostError("CUDA not initialized");
 		return false;
 	}
 
@@ -357,9 +357,44 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 	atomicAdd(reinterpret_cast<ull *>(sum), static_cast<ull>(score));
 }
 
-bool Cuda::switchKernel(int kernel_id)
+bool Cuda::kernelLaunch(int kernel_id)
 {
+	if (!m_init || !m_seqs.n_seqs || kernel_id > 2 || kernel_id < 0) {
+		hostError("Invalid context, sequence data or kernel ID");
+		return false;
+	}
+
 	cudaError_t err;
+
+	if (!m_kr.h_after_first) {
+		u64 d_scores_size = 0;
+
+		err = cudaStreamCreate(&m_kr.s_comp);
+		CUDA_ERROR("Failed to create compute stream");
+
+		err = cudaStreamCreate(&m_kr.s_copy);
+		CUDA_ERROR("Failed to create copy stream");
+
+		if (m_kr.d_triangular) {
+			m_kr.h_batch = std::min(CUDA_BATCH, m_kr.h_alignments);
+			d_scores_size = m_kr.h_batch;
+
+			D_MALLOC(m_kr.d_scores0, d_scores_size);
+			D_MALLOC(m_kr.d_scores1, d_scores_size);
+		} else {
+			m_kr.h_batch = m_kr.h_alignments;
+			d_scores_size = m_seqs.n_seqs * m_seqs.n_seqs;
+
+			D_MALLOC(m_kr.d_scores0, d_scores_size);
+		}
+
+		D_MALLOC(m_kr.d_progress, 1);
+		D_MALLOC(m_kr.d_checksum, 1);
+
+		D_MEMSET(m_kr.d_progress, 0, 1);
+		D_MEMSET(m_kr.d_checksum, 0, 1);
+	}
+
 	u64 offset = m_kr.h_batch_last;
 	u64 batch = m_kr.h_batch;
 	s32 *d_buffer = m_kr.d_scores0;
@@ -403,38 +438,30 @@ bool Cuda::switchKernel(int kernel_id)
 			d_buffer = m_kr.d_scores1;
 	}
 
-	const uint block_dim = (uint)(m_dev.maxThreadsPerBlock);
-	const uint grid_dim = (uint)((batch + block_dim - 1) / block_dim);
-
-	if (!grid_dim || grid_dim > (uint)(m_dev.maxGridSize[0])) {
-		setHostError("Grid size exceeds device limit");
+	const uint grid_dim = (uint)((batch + m_block_dim - 1) / m_block_dim);
+	if (!grid_dim || grid_dim > m_grid_size_max) {
+		hostError("Grid size exceeds device limit");
 		return false;
 	}
 
-	ull *d_progress = m_kr.d_progress;
-	sll *d_checksum = m_kr.d_checksum;
-
 	switch (kernel_id) {
 	default:
-		setHostError("Invalid kernel ID");
+		hostError("Invalid kernel ID");
 		return false;
 	case 0: // Gotoh Affine
-		k_ga<<<grid_dim, block_dim, 0, m_kr.s_comp>>>(m_seqs, d_buffer,
-							      d_progress,
-							      d_checksum,
-							      offset, batch);
+		k_ga<<<grid_dim, m_block_dim, 0, m_kr.s_comp>>>(
+			m_seqs, d_buffer, m_kr.d_progress, m_kr.d_checksum,
+			offset, batch);
 		break;
 	case 1: // Needleman-Wunsch
-		k_nw<<<grid_dim, block_dim, 0, m_kr.s_comp>>>(m_seqs, d_buffer,
-							      d_progress,
-							      d_checksum,
-							      offset, batch);
+		k_nw<<<grid_dim, m_block_dim, 0, m_kr.s_comp>>>(
+			m_seqs, d_buffer, m_kr.d_progress, m_kr.d_checksum,
+			offset, batch);
 		break;
 	case 2: // Smith-Waterman
-		k_sw<<<grid_dim, block_dim, 0, m_kr.s_comp>>>(m_seqs, d_buffer,
-							      d_progress,
-							      d_checksum,
-							      offset, batch);
+		k_sw<<<grid_dim, m_block_dim, 0, m_kr.s_comp>>>(
+			m_seqs, d_buffer, m_kr.d_progress, m_kr.d_checksum,
+			offset, batch);
 		break;
 	}
 

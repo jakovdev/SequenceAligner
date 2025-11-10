@@ -7,13 +7,13 @@
 
 bool sequences_load_from_file(void);
 
-sequence_t *sequences_get(void);
+sequence_t *sequences(void);
 
 u32 sequences_count(void);
 
 u64 sequences_alignment_count(void);
 
-sequence_t *sequence_get(u32 index);
+sequence_t *sequence(u32 index);
 
 #ifdef USE_CUDA
 u64 sequences_length_sum(void);

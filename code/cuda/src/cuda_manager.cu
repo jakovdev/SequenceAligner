@@ -3,10 +3,32 @@
 #include <vector>
 #include <cstring>
 
-Cuda &Cuda::getInstance()
+Cuda &Cuda::Instance()
 {
 	static Cuda instance;
 	return instance;
+}
+
+Cuda::~Cuda()
+{
+	if (!m_init)
+		return;
+
+	cudaFree(m_seqs.d_letters);
+	cudaFree(m_seqs.d_offsets);
+	cudaFree(m_seqs.d_lengths);
+	cudaFree(m_seqs.d_indices);
+
+	cudaFree(m_kr.d_progress);
+	cudaFree(m_kr.d_checksum);
+	cudaFree(m_kr.d_scores0);
+	if (m_kr.use_batching)
+		cudaFree(m_kr.d_scores1);
+	if (m_kr.s_comp)
+		cudaStreamDestroy(m_kr.s_comp);
+	if (m_kr.s_copy)
+		cudaStreamDestroy(m_kr.s_copy);
+	cudaDeviceReset();
 }
 
 bool Cuda::initialize()
@@ -19,15 +41,20 @@ bool Cuda::initialize()
 	CUDA_ERROR("Failed to get device count or none available");
 
 	if (!device_count) {
-		setError("No CUDA devices available", err);
+		error("No CUDA devices available", err);
 		return false;
 	}
 
-	err = cudaSetDevice(m_id);
+	err = cudaSetDevice(0);
 	CUDA_ERROR("Failed to set CUDA device");
 
-	err = cudaGetDeviceProperties(&m_dev, m_id);
+	cudaDeviceProp dev_prop;
+	err = cudaGetDeviceProperties(&dev_prop, 0);
 	CUDA_ERROR("Failed to get device properties");
+	std::strncpy(m_device_name, dev_prop.name, sizeof(m_device_name));
+	m_device_name[sizeof(m_device_name) - 1] = '\0';
+	m_block_dim = static_cast<uint>(dev_prop.maxThreadsPerBlock);
+	m_grid_size_max = static_cast<uint>(dev_prop.maxGridSize[0]);
 
 	cudaGetLastError();
 	m_init = true;
@@ -38,7 +65,7 @@ bool Cuda::initialize()
 bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 {
 	if (!m_init || !seqs || seq_n < SEQUENCE_COUNT_MIN) {
-		setHostError("Invalid parameters for sequence upload");
+		hostError("Invalid parameters for sequence upload");
 		return false;
 	}
 
@@ -47,9 +74,9 @@ bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 	m_kr.h_alignments = static_cast<u64>(seq_n) * (seq_n - 1) / 2;
 	constexpr size_t cell_size = sizeof(*m_kr.h_scores);
 
-	if (!hasEnoughMemory(cell_size * seq_n * seq_n)) {
-		if (!hasEnoughMemory(cell_size * m_kr.h_alignments)) {
-			if (!hasEnoughMemory(cell_size * CUDA_BATCH))
+	if (!memoryCheck(cell_size * seq_n * seq_n)) {
+		if (!memoryCheck(cell_size * m_kr.h_alignments)) {
+			if (!memoryCheck(cell_size * CUDA_BATCH))
 				return false;
 
 			m_kr.use_batching = true;
@@ -58,7 +85,7 @@ bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 		if (!copyTriangularMatrixFlag(true))
 			return false;
 
-		setHostError("No errors in program");
+		hostError("No errors in program");
 	}
 
 	std::vector<u64> indices_f(seq_n);
@@ -97,7 +124,7 @@ bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes)
 {
 	if (!m_init || !scores || !scores_bytes) {
-		setHostError(
+		hostError(
 			"Invalid parameters for storage upload, or using --no-write");
 		return false;
 	}
@@ -105,7 +132,7 @@ bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes)
 	const size_t expected_size = m_kr.h_alignments * sizeof(*scores);
 
 	if (scores_bytes < expected_size) {
-		setHostError("Buffer size is too small for results");
+		hostError("Buffer size is too small for results");
 		return false;
 	}
 
@@ -117,53 +144,10 @@ bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes)
 	return true;
 }
 
-bool Cuda::launchKernel(int kernel_id)
-{
-	if (!m_init || !m_seqs.n_seqs || kernel_id > 2 || kernel_id < 0) {
-		setHostError("Invalid context, sequence data or kernel ID");
-		return false;
-	}
-
-	if (!m_kr.h_after_first) {
-		cudaError_t err;
-		u64 d_scores_size = 0;
-
-		err = cudaStreamCreate(&m_kr.s_comp);
-		CUDA_ERROR("Failed to create compute stream");
-
-		err = cudaStreamCreate(&m_kr.s_copy);
-		CUDA_ERROR("Failed to create copy stream");
-
-		if (m_kr.d_triangular) {
-			m_kr.h_batch = std::min(CUDA_BATCH, m_kr.h_alignments);
-			d_scores_size = m_kr.h_batch;
-
-			D_MALLOC(m_kr.d_scores0, d_scores_size);
-			D_MALLOC(m_kr.d_scores1, d_scores_size);
-		} else {
-			m_kr.h_batch = m_kr.h_alignments;
-			d_scores_size = m_seqs.n_seqs * m_seqs.n_seqs;
-
-			D_MALLOC(m_kr.d_scores0, d_scores_size);
-		}
-
-		D_MALLOC(m_kr.d_progress, 1);
-		D_MALLOC(m_kr.d_checksum, 1);
-
-		D_MEMSET(m_kr.d_progress, 0, 1);
-		D_MEMSET(m_kr.d_checksum, 0, 1);
-	}
-
-	if (!switchKernel(kernel_id))
-		return false;
-
-	return true;
-}
-
-bool Cuda::getResults()
+bool Cuda::kernelResults()
 {
 	if (!m_init || !m_kr.h_scores) {
-		setHostError("Invalid context or results storage");
+		hostError("Invalid context or results storage");
 		return false;
 	}
 
@@ -237,7 +221,7 @@ bool Cuda::getResults()
 	return true;
 }
 
-ull Cuda::getProgress()
+ull Cuda::kernelProgress()
 {
 	if (!m_init)
 		return 0;
@@ -245,22 +229,26 @@ ull Cuda::getProgress()
 	return m_kr.h_progress;
 }
 
-sll Cuda::getChecksum()
+sll Cuda::kernelChecksum()
 {
 	if (!m_init || !m_kr.d_checksum)
 		return 0;
-
-	sll checksum = 0;
 
 	cudaError_t err;
 	err = cudaStreamSynchronize(m_kr.s_comp);
 	CUDA_ERROR("Failed to synchronize compute stream");
 
+	sll checksum = 0;
 	DH_COPY(&checksum, m_kr.d_checksum, 1);
 	return checksum;
 }
 
-const char *Cuda::getDeviceError() const
+const char *Cuda::hostError() const
+{
+	return m_h_err;
+}
+
+const char *Cuda::deviceError() const
 {
 	if (strcmp(m_d_err, "no error") == 0)
 		return "No errors in GPU";
@@ -268,7 +256,22 @@ const char *Cuda::getDeviceError() const
 	return m_d_err;
 }
 
-bool Cuda::getMemoryStats(size_t *free, size_t *total)
+const char *Cuda::deviceName() const
+{
+	return m_init ? m_device_name : nullptr;
+}
+
+void Cuda::hostError(const char *error)
+{
+	m_h_err = error;
+}
+
+void Cuda::deviceError(cudaError_t error)
+{
+	m_d_err = cudaGetErrorString(error);
+}
+
+bool Cuda::memoryQuery(size_t *free, size_t *total)
 {
 	if (!m_init)
 		return false;
@@ -279,16 +282,16 @@ bool Cuda::getMemoryStats(size_t *free, size_t *total)
 	return true;
 }
 
-bool Cuda::hasEnoughMemory(size_t bytes)
+bool Cuda::memoryCheck(size_t bytes)
 {
 	size_t free = 0;
 	size_t total = 0;
 
-	if (!getMemoryStats(&free, &total))
+	if (!memoryQuery(&free, &total))
 		return false;
 
 	if (free < bytes * 4 / 3) {
-		setHostError("Not enough memory for results");
+		hostError("Not enough memory for results");
 		return false;
 	}
 

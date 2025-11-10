@@ -3,8 +3,6 @@
 #define CUDA_MANAGER_CUH
 
 #include "host_types.h"
-#include <cuda.h>
-#include <cuda_runtime.h>
 
 #define R __restrict__
 
@@ -21,21 +19,6 @@ struct Sequences {
 
 struct KernelResults {
 	KernelResults() = default;
-	~KernelResults()
-	{
-		cudaFree(d_scores0);
-		if (use_batching)
-			cudaFree(d_scores1);
-
-		cudaFree(d_progress);
-		cudaFree(d_checksum);
-
-		if (s_comp != nullptr)
-			cudaStreamDestroy(s_comp);
-		if (s_copy != nullptr)
-			cudaStreamDestroy(s_copy);
-	}
-
 	s32 *d_scores0{ nullptr };
 	s32 *d_scores1{ nullptr };
 	ull *d_progress{ nullptr };
@@ -59,26 +42,16 @@ constexpr u64 CUDA_BATCH = (UINT64_C(64) << 20);
 
 class Cuda {
     public:
-	static Cuda &getInstance();
 	Cuda(const Cuda &) = delete;
 	Cuda &operator=(const Cuda &) = delete;
 	Cuda(Cuda &&) = delete;
 	Cuda &operator=(Cuda &&) = delete;
-	~Cuda()
-	{
-		if (!m_init)
-			return;
-
-		cudaFree(m_seqs.d_letters);
-		cudaFree(m_seqs.d_offsets);
-		cudaFree(m_seqs.d_lengths);
-		cudaFree(m_seqs.d_indices);
-		cudaDeviceReset();
-	}
+	static Cuda &Instance();
+	~Cuda();
 
 	bool initialize();
 
-	bool hasEnoughMemory(size_t bytes);
+	bool memoryCheck(size_t bytes);
 
 	bool uploadSequences(const sequence_t *seqs, u32 seq_n,
 			     u64 seq_len_sum);
@@ -87,63 +60,49 @@ class Cuda {
 	bool uploadGaps(s32 linear, s32 start, s32 extend);
 	bool uploadStorage(s32 *scores, size_t scores_bytes);
 
-	bool launchKernel(int kernel_id);
-	bool getResults();
+	bool kernelLaunch(int kernel_id);
+	bool kernelResults();
+	ull kernelProgress();
+	sll kernelChecksum();
 
-	ull getProgress();
-	sll getChecksum();
-
-	const char *getDeviceError() const;
-
-	const char *getHostError() const
-	{
-		return m_h_err;
-	}
-
-	const char *getDeviceName() const
-	{
-		return m_init ? m_dev.name : nullptr;
-	}
+	const char *hostError() const;
+	const char *deviceError() const;
+	const char *deviceName() const;
 
     private:
-	Cuda() = default;
-
-	void setHostError(const char *error)
+	Cuda()
 	{
-		m_h_err = error;
+		initialize();
 	}
 
-	void setDeviceError(cudaError_t error)
+	void hostError(const char *error);
+	void deviceError(cudaError_t error);
+	void error(const char *host_error, cudaError_t cuda_error)
 	{
-		m_d_err = cudaGetErrorString(error);
+		hostError(host_error);
+		deviceError(cuda_error);
 	}
 
-	void setError(const char *host_error, cudaError_t cuda_error)
-	{
-		setHostError(host_error);
-		setDeviceError(cuda_error);
-	}
+	bool memoryQuery(size_t *free, size_t *total);
 
-	bool getMemoryStats(size_t *free, size_t *total);
 	bool copyTriangularMatrixFlag(bool triangular);
 
-	bool switchKernel(int kernel_id);
-
-	cudaDeviceProp m_dev;
 	KernelResults m_kr;
 	Sequences m_seqs;
 	const char *m_h_err{ "No errors in program" };
 	const char *m_d_err{ "No errors from GPU" };
-	int m_id{ 0 };
+	uint m_block_dim{ 0 };
+	uint m_grid_size_max{ 0 };
 	bool m_init{ false };
+	char m_device_name[256]{ "Unknown Device" };
 };
 
-#define CUDA_ERROR(msg)                     \
-	do {                                \
-		if (err != cudaSuccess) {   \
-			setError(msg, err); \
-			return false;       \
-		}                           \
+#define CUDA_ERROR(msg)                   \
+	do {                              \
+		if (err != cudaSuccess) { \
+			error(msg, err);  \
+			return false;     \
+		}                         \
 	} while (0)
 
 #define D_MEMSET(ptr, value, n)                                 \

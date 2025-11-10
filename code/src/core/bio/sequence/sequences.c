@@ -460,12 +460,12 @@ cleanup_seqs:
 	return false;
 }
 
-sequence_t *sequence_get(u32 index)
+sequence_t *sequence(u32 index)
 {
 	return &g_seqs[index];
 }
 
-sequence_t *sequences_get(void)
+sequence_t *sequences(void)
 {
 	return g_seqs;
 }

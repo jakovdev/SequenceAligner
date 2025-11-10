@@ -34,8 +34,8 @@ bool align(void)
 	OMP_FOR_DYNAMIC(i, 0, sequence_count) {
 		OMP_START_DYNAMIC(i);
 		for (u32 j = i + 1; j < sequence_count; j++) {
-			sequence_ptr_t seq1 = sequence_get(i);
-			sequence_ptr_t seq2 = sequence_get(j);
+			sequence_ptr_t seq1 = sequence(i);
+			sequence_ptr_t seq2 = sequence(j);
 			s32 score = align_func(seq1, seq2);
 			checksum += score;
 			h5_matrix_set(i, j, score);
