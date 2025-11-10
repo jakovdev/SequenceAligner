@@ -10,6 +10,7 @@
 #define MAX_CUDA_SEQUENCE_LENGTH (1024)
 
 #define SUB_MATDIM (24)
+#define SUB_MATSIZE (SUB_MATDIM * SUB_MATDIM)
 #define SEQ_LUPSIZ (128)
 
 #ifdef __cplusplus

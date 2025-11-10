@@ -1,8 +1,7 @@
 #include "cuda_manager.cuh"
-#include "host_types.h"
-#include <memory>
 
-constexpr u64 CUDA_BATCH = (UINT64_C(64) << 20);
+#include <vector>
+#include <cstring>
 
 Cuda &Cuda::getInstance()
 {
@@ -12,11 +11,14 @@ Cuda &Cuda::getInstance()
 
 bool Cuda::initialize()
 {
+	if (m_init)
+		return true;
+
 	int device_count = 0;
 	cudaError_t err = cudaGetDeviceCount(&device_count);
 	CUDA_ERROR("Failed to get device count or none available");
 
-	if (device_count == 0) {
+	if (!device_count) {
 		setError("No CUDA devices available", err);
 		return false;
 	}
@@ -33,7 +35,7 @@ bool Cuda::initialize()
 	return true;
 }
 
-bool Cuda::uploadSequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total)
+bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 {
 	if (!m_init || !seqs || seq_n < SEQUENCE_COUNT_MIN) {
 		setHostError("Invalid parameters for sequence upload");
@@ -41,8 +43,8 @@ bool Cuda::uploadSequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total)
 	}
 
 	m_seqs.n_seqs = seq_n;
-	m_seqs.n_letters = seq_len_total;
-	m_kr.h_alignments = (u64)seq_n * (seq_n - 1) / 2;
+	m_seqs.n_letters = seq_len_sum;
+	m_kr.h_alignments = static_cast<u64>(seq_n) * (seq_n - 1) / 2;
 	constexpr size_t cell_size = sizeof(*m_kr.h_scores);
 
 	if (!hasEnoughMemory(cell_size * seq_n * seq_n)) {
@@ -59,36 +61,44 @@ bool Cuda::uploadSequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total)
 		setHostError("No errors in program");
 	}
 
-	auto offs_flat = std::make_unique<u32[]>(seq_n);
-	auto lens_flat = std::make_unique<u32[]>(seq_n);
-	auto seqs_flat = std::make_unique<char[]>(seq_len_total);
+	std::vector<u64> indices_f(seq_n);
+	std::vector<u64> offsets_f(seq_n);
+	std::vector<u32> lengths_f(seq_n);
+	std::vector<char> letters_f(seq_len_sum);
 
-	u32 offs = 0;
-	for (u32 i = 0; i < seq_n; i++) {
-		offs_flat[i] = offs;
-		lens_flat[i] = static_cast<u32>(seqs[i].length);
-		memcpy(seqs_flat.get() + offs, seqs[i].letters, seqs[i].length);
-		offs += static_cast<u32>(seqs[i].length);
+	auto indices_p = indices_f.data();
+	auto offsets_p = offsets_f.data();
+	auto lengths_p = lengths_f.data();
+	auto letters_p = letters_f.data();
+
+	for (u64 i = 0, offs = 0; i < seq_n; i++) {
+		indices_p[i] = (i * (i - 1)) / 2;
+		offsets_p[i] = offs;
+		lengths_p[i] = static_cast<u32>(seqs[i].length);
+		std::memcpy(letters_p + offs, seqs[i].letters, seqs[i].length);
+		offs += seqs[i].length;
 	}
 
 	cudaError_t err;
 
+	D_MALLOC(m_seqs.d_indices, seq_n);
 	D_MALLOC(m_seqs.d_offsets, seq_n);
 	D_MALLOC(m_seqs.d_lengths, seq_n);
-	D_MALLOC(m_seqs.d_letters, seq_len_total);
+	D_MALLOC(m_seqs.d_letters, seq_len_sum);
 
-	HD_COPY(m_seqs.d_offsets, offs_flat.get(), seq_n);
-	HD_COPY(m_seqs.d_lengths, lens_flat.get(), seq_n);
-	HD_COPY(m_seqs.d_letters, seqs_flat.get(), seq_len_total);
+	HD_COPY(m_seqs.d_indices, indices_p, seq_n);
+	HD_COPY(m_seqs.d_offsets, offsets_p, seq_n);
+	HD_COPY(m_seqs.d_lengths, lengths_p, seq_n);
+	HD_COPY(m_seqs.d_letters, letters_p, seq_len_sum);
 
 	return true;
 }
 
-bool Cuda::uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes)
+bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes)
 {
-	if (!m_init || !indices || !scores || !scores_bytes) {
+	if (!m_init || !scores || !scores_bytes) {
 		setHostError(
-			"Invalid parameters for uploading indices, or using --no-write");
+			"Invalid parameters for storage upload, or using --no-write");
 		return false;
 	}
 
@@ -103,11 +113,6 @@ bool Cuda::uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes)
 		return false;
 
 	m_kr.h_scores = scores;
-	m_kr.h_indices = indices;
-
-	cudaError_t err;
-	D_MALLOC(m_seqs.d_indices, m_seqs.n_seqs);
-	HD_COPY(m_seqs.d_indices, indices, m_seqs.n_seqs);
 
 	return true;
 }
@@ -282,8 +287,7 @@ bool Cuda::hasEnoughMemory(size_t bytes)
 	if (!getMemoryStats(&free, &total))
 		return false;
 
-	const size_t required_memory = bytes;
-	if (free < required_memory * 4 / 3) {
+	if (free < bytes * 4 / 3) {
 		setHostError("Not enough memory for results");
 		return false;
 	}

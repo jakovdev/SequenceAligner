@@ -24,7 +24,7 @@ bool cuda_init(void)
 {
 	print_error_context("CUDA");
 
-	if (sequences_length_max() > 1024)
+	if (sequences_length_max() > MAX_CUDA_SEQUENCE_LENGTH)
 		RETURN_CUDA_ERRORS("Sequence length exceeds maximum of 1024");
 
 	if (!cuda_initialize())
@@ -51,8 +51,7 @@ bool cuda_align(void)
 	if (!cuda_upload_gaps(args_gap_pen(), args_gap_open(), args_gap_ext()))
 		RETURN_CUDA_ERRORS("Failed uploading gaps");
 
-	if (!cuda_upload_indices(h5_indices(), h5_matrix_data(),
-				 h5_matrix_bytes()))
+	if (!cuda_upload_storage(h5_matrix_data(), h5_matrix_bytes()))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
 	bench_align_start();

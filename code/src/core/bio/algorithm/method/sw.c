@@ -29,7 +29,7 @@ s32 align_sw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 #endif
 		affine_local_init(match, gap_x, gap_y, seq1, seq2);
 
-	int *restrict seq1_i = { 0 };
+	s32 *restrict seq1_i = { 0 };
 	bool is_stack = false;
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
 		seq1_i = MALLOC(seq1_i, len1);

@@ -50,7 +50,7 @@ void affine_global_fill(s32 *restrict match, s32 *restrict gap_x,
 	for (u64 i = 1; i <= len2; ++i) {
 		const u64 row = i * cols;
 		const u64 p_row = (i - 1) * cols;
-		const int c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
+		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
 		prefetch(&match[row + PREFETCH_DISTANCE]);
 		prefetch(&gap_x[row + PREFETCH_DISTANCE]);

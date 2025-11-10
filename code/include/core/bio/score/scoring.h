@@ -14,8 +14,8 @@ extern veci_t g_gap_open_vec;
 extern veci_t g_gap_ext_vec;
 #endif
 
-extern int SEQ_LUP[SCHAR_MAX + 1];
-extern int SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
+extern s32 SEQ_LUP[SCHAR_MAX + 1];
+extern s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 void scoring_init(void);
 

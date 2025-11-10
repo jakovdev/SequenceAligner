@@ -1,14 +1,15 @@
 #include "cuda_manager.cuh"
-#include "host_types.h"
 
-__constant__ int c_sub_mat[SUB_MATDIM * SUB_MATDIM];
+#include <cstring>
+
+__constant__ s32 c_sub_mat[SUB_MATSIZE];
 #define SUB_MAT(i, j) c_sub_mat[(i) * SUB_MATDIM + (j)]
-__constant__ int c_seq_lup[SEQ_LUPSIZ];
+__constant__ s32 c_seq_lup[SEQ_LUPSIZ];
 
-__constant__ int c_gap_pen;
-__constant__ int c_gap_open;
-__constant__ int c_gap_ext;
-__constant__ bool c_triangular = false;
+__constant__ s32 c_gap_pen;
+__constant__ s32 c_gap_open;
+__constant__ s32 c_gap_ext;
+__constant__ bool c_triangular;
 
 bool Cuda::copyTriangularMatrixFlag(bool triangular)
 {
@@ -24,19 +25,16 @@ bool Cuda::copyTriangularMatrixFlag(bool triangular)
 	return true;
 }
 
-bool Cuda::uploadScoring(const int sub_mat[SUB_MATDIM][SUB_MATDIM],
-			 const int seq_lup[SEQ_LUPSIZ])
+bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
+			 const s32 seq_lup[SEQ_LUPSIZ])
 {
 	if (!m_init) {
 		setHostError("CUDA not initialized");
 		return false;
 	}
 
-	int sub_mat_f[SUB_MATDIM * SUB_MATDIM] = { 0 };
-	for (int i = 0; i < SUB_MATDIM; i++) {
-		for (int j = 0; j < SUB_MATDIM; j++)
-			sub_mat_f[i * SUB_MATDIM + j] = sub_mat[i][j];
-	}
+	s32 sub_mat_f[SUB_MATSIZE] = { 0 };
+	std::memcpy(sub_mat_f, sub_mat, sizeof(*sub_mat_f) * SUB_MATSIZE);
 
 	cudaError_t err;
 
@@ -80,8 +78,7 @@ __forceinline__ __device__ u64 d_tri_idx(const Sequences *const seqs,
 	return seqs->d_indices[j];
 }
 
-template <typename T>
-__forceinline__ __device__ u32 d_binary_search(const T *const elements,
+__forceinline__ __device__ u32 d_binary_search(const u64 *const elements,
 					       const u32 length,
 					       const u64 target)
 {
@@ -149,9 +146,9 @@ __global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
 		dp_curr[0] = row * -(c_gap_pen);
 
 		for (u32 col = 1; col <= len2; col++) {
-			const int idx1 =
+			const s32 idx1 =
 				c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
-			const int idx2 =
+			const s32 idx2 =
 				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 match =
 				dp_prev[col - 1] + SUB_MAT(idx1, idx2);
@@ -233,9 +230,9 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 		gap_y[0] = max(p_match[0] - c_gap_open, p_gap_y[0] - c_gap_ext);
 		match[0] = gap_y[0];
 
-		const int idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
+		const s32 idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
 		for (u32 col = 1; col <= len2; col++) {
-			const int idx2 =
+			const s32 idx2 =
 				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SUB_MAT(idx1, idx2);
 
@@ -319,9 +316,9 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 		match[0] = 0;
 		gap_x[0] = gap_y[0] = SCORE_MIN;
 
-		const int idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
+		const s32 idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
 		for (u32 col = 1; col <= len2; col++) {
-			const int idx2 =
+			const s32 idx2 =
 				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
 			const s32 similarity = SUB_MAT(idx1, idx2);
 

@@ -13,8 +13,8 @@ veci_t g_gap_open_vec;
 veci_t g_gap_ext_vec;
 #endif
 
-int SEQ_LUP[SCHAR_MAX + 1];
-int SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
+s32 SEQ_LUP[SCHAR_MAX + 1];
+s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 #define SEQ_TYPE_INIT(TYPE)                             \
 	for (int i = 0; i < TYPE##_SIZE; i++)           \

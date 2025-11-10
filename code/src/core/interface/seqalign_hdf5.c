@@ -23,9 +23,6 @@ static struct {
 	hid_t sequences_id;
 	hid_t lengths_id;
 	const char *file_path;
-#ifdef USE_CUDA
-	u64 *indices;
-#endif
 	s32 *full_matrix;
 	size_t full_matrix_b;
 	struct FileScoreMatrix memory_map;
@@ -351,40 +348,6 @@ size_t h5_matrix_bytes(void)
 					    g_hdf5.full_matrix_b;
 }
 
-static bool h5_indices_calculate(void);
-
-u64 *h5_indices(void)
-{
-	if (!g_hdf5.mode_write)
-		return NULL;
-
-	if (!g_hdf5.indices && !h5_indices_calculate()) {
-		print(M_NONE, ERR "Failed to calculate indices");
-		return NULL;
-	}
-
-	return g_hdf5.indices;
-}
-
-static bool h5_indices_calculate(void)
-{
-	if (!g_hdf5.mode_write || !g_hdf5.is_init)
-		return false;
-
-	if (g_hdf5.indices)
-		return true;
-
-	if (!(g_hdf5.indices = MALLOC(g_hdf5.indices, g_hdf5.matrix_dim))) {
-		print(M_NONE, ERR "Failed to allocate memory for indices");
-		return false;
-	}
-
-	for (u64 i = 0; i < g_hdf5.matrix_dim; i++)
-		g_hdf5.indices[i] = (i * (i - 1)) / 2;
-
-	return true;
-}
-
 #endif
 
 #define H5_MIN_CHUNK_SIZE (1 << 7)
@@ -501,14 +464,6 @@ static void h5_file_close(void)
 
 		g_hdf5.full_matrix_b = 0;
 	}
-
-#ifdef USE_CUDA
-	if (g_hdf5.indices) {
-		free(g_hdf5.indices);
-		g_hdf5.indices = NULL;
-	}
-
-#endif
 
 	if (g_hdf5.sequences_id > 0) {
 		H5Dclose(g_hdf5.sequences_id);

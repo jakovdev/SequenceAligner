@@ -1,6 +1,6 @@
 #pragma once
-#ifndef CUDA_MANAGER_HPP
-#define CUDA_MANAGER_HPP
+#ifndef CUDA_MANAGER_CUH
+#define CUDA_MANAGER_CUH
 
 #include "host_types.h"
 #include <cuda.h>
@@ -11,8 +11,8 @@
 struct Sequences {
 	Sequences() = default;
 	char *d_letters{ nullptr };
-	u32 *d_offsets{ nullptr };
 	u32 *d_lengths{ nullptr };
+	u64 *d_offsets{ nullptr };
 	u64 *d_indices{ nullptr };
 	u64 n_letters{ 0 };
 	u32 n_seqs{ 0 };
@@ -43,7 +43,6 @@ struct KernelResults {
 	cudaStream_t s_comp{ nullptr };
 	cudaStream_t s_copy{ nullptr };
 	s32 *h_scores{ nullptr };
-	u64 *h_indices{ nullptr };
 	u64 h_batch{ 0 };
 	u64 h_batch_last{ 0 };
 	u64 h_batch_done{ 0 };
@@ -55,6 +54,8 @@ struct KernelResults {
 	bool d_triangular{ false };
 	bool copy_in_progress{ false };
 };
+
+constexpr u64 CUDA_BATCH = (UINT64_C(64) << 20);
 
 class Cuda {
     public:
@@ -79,12 +80,12 @@ class Cuda {
 
 	bool hasEnoughMemory(size_t bytes);
 
-	bool uploadSequences(sequence_t *seqs, u32 seq_n, u64 seq_len_total);
-
-	bool uploadScoring(const int sub_mat[SUB_MATDIM][SUB_MATDIM],
-			   const int seq_lup[SEQ_LUPSIZ]);
+	bool uploadSequences(const sequence_t *seqs, u32 seq_n,
+			     u64 seq_len_sum);
+	bool uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
+			   const s32 seq_lup[SEQ_LUPSIZ]);
 	bool uploadGaps(s32 linear, s32 start, s32 extend);
-	bool uploadIndices(u64 *indices, s32 *scores, size_t scores_bytes);
+	bool uploadStorage(s32 *scores, size_t scores_bytes);
 
 	bool launchKernel(int kernel_id);
 	bool getResults();
@@ -199,4 +200,4 @@ class Cuda {
 		CUDA_ERROR("DH_COPY_ASYNC: " #src " -> " #dst " @ " #stream); \
 	} while (0)
 
-#endif // CUDA_MANAGER_HPP
+#endif // CUDA_MANAGER_CUH

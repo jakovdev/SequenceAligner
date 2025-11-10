@@ -36,7 +36,7 @@ void linear_global_fill(s32 *restrict matrix, const s32 *restrict seq1_i,
 	for (u64 i = 1; i <= len2; ++i) {
 		const u64 row = i * cols;
 		const u64 p_row = (i - 1) * cols;
-		const int c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
+		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
 		prefetch(&matrix[row + PREFETCH_DISTANCE]);
 
