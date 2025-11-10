@@ -97,6 +97,18 @@ class Cuda {
 	char m_device_name[256]{ "Unknown Device" };
 };
 
+#define TOSTR(x) _TOSTR(x)
+#define _TOSTR(x) #x
+#define _LINE TOSTR(__LINE__)
+#define _FILE TOSTR(__FILE__)
+#define MSIZ(p, n) (n * sizeof(*(p)))
+#define TO(p, v) p " -> " v
+#define N(p, n) p " * " n
+#define S(p, s) p " ~ " s
+
+#define ASSERT_PTR_SIZES(a, b) \
+	static_assert(sizeof(*(a)) == sizeof(*(b)), "Pointer size mismatch")
+
 #define CUDA_ERROR(msg)                   \
 	do {                              \
 		if (err != cudaSuccess) { \
@@ -105,58 +117,47 @@ class Cuda {
 		}                         \
 	} while (0)
 
-#define D_MEMSET(ptr, value, n)                                 \
-	do {                                                    \
-		err = cudaMemset(ptr, value, n * sizeof(*ptr)); \
-		CUDA_ERROR("D_MEMSET: " #ptr " -> " #value);    \
+#define CUDA(Func, MACRO, error_message_lit)                                \
+	do {                                                                \
+		err = cuda##Func;                                           \
+		CUDA_ERROR(#MACRO ": " error_message_lit " @ line " _LINE); \
 	} while (0)
 
-#define D_MALLOC(ptr, n)                                  \
-	do {                                              \
-		err = cudaMalloc(&ptr, n * sizeof(*ptr)); \
-		CUDA_ERROR("D_MALLOC: " #ptr);            \
-	} while (0)
+#define D_MEMSET(p, v, n) \
+	CUDA(Memset(p, v, MSIZ(p, n)), D_MEMSET, N(TO(#p, #v), #n))
 
-#define HD_COPY(dst, src, n)                                 \
-	do {                                                 \
-		static_assert(sizeof(*dst) == sizeof(*src),  \
-			      "Pointer types must match");   \
-		err = cudaMemcpy(dst, src, n * sizeof(*dst), \
-				 cudaMemcpyHostToDevice);    \
-		CUDA_ERROR("HD_COPY: " #src " -> " #dst);    \
-	} while (0)
+#define D_MALLOC(p, n) CUDA(Malloc(&p, MSIZ(p, n)), D_MALLOC, N(#p, #n))
 
-#define DH_COPY(dst, src, n)                                 \
-	do {                                                 \
-		static_assert(sizeof(*dst) == sizeof(*src),  \
-			      "Pointer types must match");   \
-		err = cudaMemcpy(dst, src, n * sizeof(*dst), \
-				 cudaMemcpyDeviceToHost);    \
-		CUDA_ERROR("DH_COPY: " #src " -> " #dst);    \
-	} while (0)
+#define HD_COPY(d, h, n)                                                \
+	ASSERT_PTR_SIZES(d, h);                                         \
+	CUDA(Memcpy(d, h, MSIZ(d, n), cudaMemcpyHostToDevice), HD_COPY, \
+	     TO(#h, #d))
 
-#define DD_COPY(dst, src, n)                                 \
-	do {                                                 \
-		static_assert(sizeof(*dst) == sizeof(*src),  \
-			      "Pointer types must match");   \
-		err = cudaMemcpy(dst, src, n * sizeof(*dst), \
-				 cudaMemcpyDeviceToDevice);  \
-		CUDA_ERROR("DD_COPY: " #src " -> " #dst);    \
-	} while (0)
+#define DH_COPY(h, d, n)                                                \
+	ASSERT_PTR_SIZES(h, d);                                         \
+	CUDA(Memcpy(h, d, MSIZ(h, n), cudaMemcpyDeviceToHost), DH_COPY, \
+	     TO(#d, #h))
 
-#define C_COPY(dst, src, n)                              \
-	do {                                             \
-		err = cudaMemcpyToSymbol(dst, src, n);   \
-		CUDA_ERROR("C_COPY: " #src " -> " #dst); \
-	} while (0)
+#define DD_COPY(d, s, n)                                                  \
+	ASSERT_PTR_SIZES(d, s);                                           \
+	CUDA(Memcpy(d, s, MSIZ(d, n), cudaMemcpyDeviceToDevice), DD_COPY, \
+	     TO(#s, #d))
 
-#define DH_COPY_ASYNC(dst, src, n, stream)                                    \
-	do {                                                                  \
-		static_assert(sizeof(*dst) == sizeof(*src),                   \
-			      "Pointer types must match");                    \
-		err = cudaMemcpyAsync(dst, src, n * sizeof(*dst),             \
-				      cudaMemcpyDeviceToHost, stream);        \
-		CUDA_ERROR("DH_COPY_ASYNC: " #src " -> " #dst " @ " #stream); \
-	} while (0)
+#define C_COPY(d, h) CUDA(MemcpyToSymbol(d, h, sizeof(d)), C_COPY, TO(#h, #d))
+
+#define DH_ACOPY(h, d, n, s)                                           \
+	ASSERT_PTR_SIZES(h, d);                                        \
+	CUDA(MemcpyAsync(h, d, MSIZ(h, n), cudaMemcpyDeviceToHost, s), \
+	     DH_ACOPY, S(TO(#d, #h), #s))
+
+#define D_SYNC(msg_lit) CUDA(DeviceSynchronize(), D_SYNC, msg_lit)
+
+#define S_CREATE(s) CUDA(StreamCreate(&s), S_CREATE, #s)
+
+#define S_SYNC(s) CUDA(StreamSynchronize(s), S_SYNC, #s)
+
+#define S_QUERY(s)           \
+	CUDA(StreamQuery(s); \
+	     if (err == cudaErrorNotReady) return true, S_QUERY, #s)
 
 #endif // CUDA_MANAGER_CUH

@@ -19,8 +19,8 @@ bool Cuda::copyTriangularMatrixFlag(bool triangular)
 	}
 
 	cudaError_t err;
+	C_COPY(c_triangular, &triangular);
 	m_kr.d_triangular = triangular;
-	C_COPY(c_triangular, &triangular, sizeof(c_triangular));
 
 	return true;
 }
@@ -38,8 +38,8 @@ bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 
 	cudaError_t err;
 
-	C_COPY(c_sub_mat, sub_mat_f, sizeof(c_sub_mat));
-	C_COPY(c_seq_lup, seq_lup, sizeof(c_seq_lup));
+	C_COPY(c_sub_mat, sub_mat_f);
+	C_COPY(c_seq_lup, seq_lup);
 
 	return true;
 }
@@ -53,9 +53,9 @@ bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend)
 
 	cudaError_t err;
 
-	C_COPY(c_gap_pen, &linear, sizeof(c_gap_pen));
-	C_COPY(c_gap_open, &open, sizeof(c_gap_open));
-	C_COPY(c_gap_ext, &extend, sizeof(c_gap_ext));
+	C_COPY(c_gap_pen, &linear);
+	C_COPY(c_gap_open, &open);
+	C_COPY(c_gap_ext, &extend);
 
 	return true;
 }
@@ -369,11 +369,8 @@ bool Cuda::kernelLaunch(int kernel_id)
 	if (!m_kr.h_after_first) {
 		u64 d_scores_size = 0;
 
-		err = cudaStreamCreate(&m_kr.s_comp);
-		CUDA_ERROR("Failed to create compute stream");
-
-		err = cudaStreamCreate(&m_kr.s_copy);
-		CUDA_ERROR("Failed to create copy stream");
+		S_CREATE(m_kr.s_comp);
+		S_CREATE(m_kr.s_copy);
 
 		if (m_kr.d_triangular) {
 			m_kr.h_batch = std::min(CUDA_BATCH, m_kr.h_alignments);
@@ -401,9 +398,7 @@ bool Cuda::kernelLaunch(int kernel_id)
 
 	if (offset >= m_kr.h_alignments) {
 		if (m_kr.h_after_first) {
-			err = cudaDeviceSynchronize();
-			CUDA_ERROR(
-				"Device synchronization failed on final check");
+			D_SYNC("Device synchronization failed on final check");
 			DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 			m_kr.h_active = 1 - m_kr.h_active;
 		}
@@ -418,9 +413,7 @@ bool Cuda::kernelLaunch(int kernel_id)
 
 		if (!batch) {
 			if (m_kr.h_after_first) {
-				err = cudaDeviceSynchronize();
-				CUDA_ERROR(
-					"Device synchronization failed on final check");
+				D_SYNC("Device synchronization failed on final check");
 				DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 			}
 
@@ -428,8 +421,7 @@ bool Cuda::kernelLaunch(int kernel_id)
 		}
 
 		if (m_kr.h_after_first) {
-			err = cudaDeviceSynchronize();
-			CUDA_ERROR("Device synchronization failed");
+			D_SYNC("Device synchronization failed");
 			DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 			m_kr.h_active = 1 - m_kr.h_active;
 		}

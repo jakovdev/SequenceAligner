@@ -158,8 +158,7 @@ bool Cuda::kernelResults()
 		if (matrix_copied)
 			return true;
 
-		err = cudaStreamSynchronize(m_kr.s_comp);
-		CUDA_ERROR("Compute stream synchronization failed");
+		S_SYNC(m_kr.s_comp);
 		DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 
 		const u64 n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
@@ -170,8 +169,7 @@ bool Cuda::kernelResults()
 
 	if (m_kr.h_batch_done >= m_kr.h_alignments) {
 		if (m_kr.copy_in_progress) {
-			err = cudaStreamSynchronize(m_kr.s_copy);
-			CUDA_ERROR("Copy stream synchronization failed");
+			S_SYNC(m_kr.s_copy);
 			m_kr.copy_in_progress = false;
 		}
 
@@ -179,11 +177,7 @@ bool Cuda::kernelResults()
 	}
 
 	if (m_kr.copy_in_progress) {
-		err = cudaStreamQuery(m_kr.s_copy);
-		if (err == cudaErrorNotReady)
-			return true;
-
-		CUDA_ERROR("Copy stream query failed");
+		S_QUERY(m_kr.s_copy);
 		m_kr.copy_in_progress = false;
 	}
 
@@ -198,8 +192,7 @@ bool Cuda::kernelResults()
 	if (m_kr.h_after_first) {
 		buffer = (m_kr.h_active == 0) ? m_kr.d_scores1 : m_kr.d_scores0;
 	} else {
-		err = cudaStreamSynchronize(m_kr.s_comp);
-		CUDA_ERROR("Compute stream synchronization failed");
+		S_SYNC(m_kr.s_comp);
 		DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
 		buffer = m_kr.d_scores0;
 	}
@@ -211,7 +204,7 @@ bool Cuda::kernelResults()
 	s32 *scores = m_kr.h_scores + batch_offset;
 
 	if (m_kr.h_after_first) {
-		DH_COPY_ASYNC(scores, buffer, n_scores, m_kr.s_copy);
+		DH_ACOPY(scores, buffer, n_scores, m_kr.s_copy);
 		m_kr.copy_in_progress = true;
 	} else {
 		DH_COPY(scores, buffer, n_scores);
@@ -235,8 +228,7 @@ sll Cuda::kernelChecksum()
 		return 0;
 
 	cudaError_t err;
-	err = cudaStreamSynchronize(m_kr.s_comp);
-	CUDA_ERROR("Failed to synchronize compute stream");
+	S_SYNC(m_kr.s_comp);
 
 	sll checksum = 0;
 	DH_COPY(&checksum, m_kr.d_checksum, 1);
