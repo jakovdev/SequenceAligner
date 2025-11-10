@@ -198,7 +198,7 @@ static struct {
 #define PCOLSIZ(t) (PCOL(t) <= COLOR_UNDER ? 4 : 5)
     .codes = {
         [COLOR_RESET]       = "\x1b[0m",
-	[COLOR_UNDER]       = "\x1b[4m",
+        [COLOR_UNDER]       = "\x1b[4m",
         [COLOR_RED]         = "\x1b[31m",
         [COLOR_GREEN]       = "\x1b[32m",
         [COLOR_YELLOW]      = "\x1b[33m",
