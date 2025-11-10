@@ -33,7 +33,7 @@ typedef uint64_t u64;
 typedef int64_t s64;
 typedef unsigned char uchar;
 
-#ifndef CORE_BIO_TYPES_H
+#ifndef BIO_TYPES_H
 #define SEQUENCE_LENGTH_MAX (INT32_MAX)
 #define SEQUENCE_COUNT_MAX (UINT32_MAX)
 #define SEQUENCE_COUNT_MIN (2)
@@ -43,6 +43,6 @@ typedef struct {
 	char *letters;
 	u64 length;
 } sequence_t;
-#endif // CORE_BIO_TYPES_H
+#endif // BIO_TYPES_H
 
 #endif // HOST_TYPES_H

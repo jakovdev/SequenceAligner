@@ -120,8 +120,8 @@ def format_matrix_as_c_array(matrix):
 def generate_header_file(matrix_types):
     header_content = [
         "#pragma once",
-        "#ifndef CORE_BIO_SCORE_MATRICES_H",
-        "#define CORE_BIO_SCORE_MATRICES_H",
+        "#ifndef BIO_SCORE_MATRICES_H",
+        "#define BIO_SCORE_MATRICES_H",
         "// clang-format off",
         "",
     ]
@@ -190,7 +190,7 @@ def generate_header_file(matrix_types):
 
     header_content.append("")
     header_content.append("// clang-format on")
-    header_content.append("#endif // CORE_BIO_SCORE_MATRICES_H")
+    header_content.append("#endif // BIO_SCORE_MATRICES_H")
     header_content.append("")
     return "\n".join(header_content)
 
@@ -198,7 +198,7 @@ def generate_header_file(matrix_types):
 def generate_source_file(matrix_types):
     source_content = [
         "// clang-format off",
-        '#include "core/bio/score/matrices.h"',
+        '#include "bio/score/matrices.h"',
         "",
     ]
 
