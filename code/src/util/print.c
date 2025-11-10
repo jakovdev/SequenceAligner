@@ -119,6 +119,7 @@ enum m_type {
 
 enum color {
 	COLOR_RESET,
+	COLOR_UNDER,
 	COLOR_RED,
 	COLOR_GREEN,
 	COLOR_YELLOW,
@@ -194,9 +195,10 @@ static struct {
         [M_SECTION]  = { COLOR_BLUE,        ICON_NONE,    P_OPTIONAL },
     },
 #define PCOL(t) p.map[(t)].color
-#define PCOLSIZ(t) (PCOL(t) == COLOR_RESET ? 4 : 5)
+#define PCOLSIZ(t) (PCOL(t) <= COLOR_UNDER ? 4 : 5)
     .codes = {
         [COLOR_RESET]       = "\x1b[0m",
+	[COLOR_UNDER]       = "\x1b[4m",
         [COLOR_RED]         = "\x1b[31m",
         [COLOR_GREEN]       = "\x1b[32m",
         [COLOR_YELLOW]      = "\x1b[33m",
@@ -452,7 +454,6 @@ skip_fmt:
 			print(M_NONE, NULL);
 		}
 
-		/* Top border */
 		ouwcol(type);
 		ouwbox(BOX_FANCY, BOX_TOP_LEFT);
 
@@ -464,7 +465,6 @@ skip_fmt:
 		ouwcol(COLOR_RESET);
 		ouputc('\n');
 
-		/* Content with centering */
 		const size_t l_pad = (p.width - 2 - p_buflen) / 2;
 		const size_t r_pad = p.width - 2 - p_buflen - l_pad;
 
@@ -479,7 +479,6 @@ skip_fmt:
 		ouwcol(COLOR_RESET);
 		ouputc('\n');
 
-		/* Bottom border */
 		ouwcol(type);
 		ouwbox(BOX_FANCY, BOX_BOTTOM_LEFT);
 		for (iwlrp = 0; iwlrp < p.width - 2; iwlrp++)
@@ -493,14 +492,8 @@ skip_fmt:
 
 		goto cleanup;
 	} else if (type == M_SECTION) {
-		/* Close previous section if open */
 		if (p.in_section && (!fmt || p.content_printed)) {
-			if (simple) {
-				ouputc('\n');
-
-				p.in_section = 0;
-				p.content_printed = 0;
-			} else {
+			if (!simple) {
 				ouwcol(M_SECTION);
 				ouwbox(BOX_NORMAL, BOX_BOTTOM_LEFT);
 
@@ -510,17 +503,16 @@ skip_fmt:
 
 				ouwbox(BOX_NORMAL, BOX_BOTTOM_RIGHT);
 				ouwcol(COLOR_RESET);
-				ouputc('\n');
-
-				p.in_section = 0;
-				p.content_printed = 0;
 			}
+
+			ouputc('\n');
+			p.in_section = 0;
+			p.content_printed = 0;
 		}
 
 		if (!fmt)
 			goto cleanup;
 
-		/* Open new section */
 		if (simple) {
 			ouwrite(p_buf, p_buflen);
 			ouputc('\n');
@@ -544,7 +536,10 @@ skip_fmt:
 
 		if (p_buf[0]) {
 			ouputc(' ');
+			ouwrite(p.codes[COLOR_UNDER], PCOLSIZ(COLOR_UNDER));
 			ouwrite(p_buf, p_buflen);
+			ouwcol(COLOR_RESET);
+			ouwcol(type);
 			ouputc(' ');
 		}
 
