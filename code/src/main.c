@@ -18,10 +18,8 @@ int main(int argc, char *argv[])
 	args_print_config();
 	print(M_NONE, SECTION "Setting Up Alignment");
 
-	bench_io_start();
 	if (!sequences_load_from_file())
 		return 1;
-	bench_io_end();
 
 	print_error_context("HDF5");
 	bench_io_start();

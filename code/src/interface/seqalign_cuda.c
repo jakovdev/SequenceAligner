@@ -45,37 +45,25 @@ bool cuda_align(void)
 	if (!cuda_upload_storage(h5_matrix_data(), h5_matrix_bytes()))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
-	bench_align_start();
-
-	if (!cuda_kernel_launch(args_align_method()))
-		RETURN_CUDA_ERRORS("Failed to launch alignment");
-
-	const u64 alignments = sequences_alignment_count();
-
 	print(M_PERCENT(0) "Aligning sequences");
-
+	bench_align_start();
 	while (true) {
+		if (!cuda_kernel_launch(args_align_method()))
+			RETURN_CUDA_ERRORS("Failed to launch alignment");
+
 		if (!cuda_kernel_results())
 			RETURN_CUDA_ERRORS("Failed to get results");
 
 		ull progress = cuda_kernel_progress();
+		const u64 alignments = sequences_alignment_count();
 		print(M_PROPORT(progress / alignments) "Aligning sequences");
 		if (progress >= alignments)
 			break;
-
-		if (!cuda_kernel_launch(args_align_method()))
-			RETURN_CUDA_ERRORS("Failed to launch next batch");
 	}
 
-	if (!cuda_kernel_results())
-		RETURN_CUDA_ERRORS("Failed to get results");
-
-	print(M_PERCENT(100) "Aligning sequences");
-
-	h5_checksum_set(cuda_kernel_checksum() * 2);
-
 	bench_align_end();
-
+	print(M_PERCENT(100) "Aligning sequences");
+	h5_checksum_set(cuda_kernel_checksum() * 2);
 	return true;
 }
 

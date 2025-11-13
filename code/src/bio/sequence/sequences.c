@@ -253,6 +253,7 @@ bool sequences_load_from_file(void)
 	sequence_t seq_curr = { 0 };
 
 	print(M_PERCENT(0) "Loading sequences");
+	bench_io_start();
 
 	for (u32 seq_index = 0; seq_index < total; seq_index++) {
 		u64 seq_len_next = file_sequence_next_length(&input_file);
@@ -264,11 +265,11 @@ bool sequences_load_from_file(void)
 
 		if (!seq_len_valid(seq_len_next)) {
 			if (!ask_long) {
+				bench_io_end();
 				print(M_NONE,
 				      WARNING
 				      "Overflow from large sequence length: " Pu64,
 				      seq_len_next);
-				bench_io_end();
 				skip_long = print_yN("Skip long sequences?");
 				ask_long = true;
 				bench_io_start();
@@ -346,6 +347,7 @@ bool sequences_load_from_file(void)
 		print(M_PROPORT(seq_n_actual / total) "Loading sequences");
 	}
 
+	bench_io_end();
 	print(M_PERCENT(100) "Loading sequences");
 	free(seq_curr.letters);
 
@@ -371,10 +373,8 @@ bool sequences_load_from_file(void)
 	if (!apply_filtering)
 		goto skip_filtering;
 
-	bench_io_end();
 	bench_filter_start();
 	print_error_context("FILTERING");
-
 	bool *keep_flags = MALLOC(keep_flags, seq_n);
 	if (!keep_flags) {
 		print(M_NONE,
@@ -408,11 +408,10 @@ bool sequences_load_from_file(void)
 
 	seq_n = write_index;
 	free(keep_flags);
-
 	bench_filter_end();
 	bench_filter_print(n_seqs_filtered);
-	bench_io_start();
 
+	bench_io_start();
 	if (seq_n < 2) {
 		print(M_NONE, ERR "Filtering removed too many sequences");
 		goto cleanup_seqs;
