@@ -75,8 +75,7 @@ bool h5_open(const char *file_path, u64 mat_dim, u8 compression, bool write)
 	if (g_hdf5.memory_map_required) {
 		file_matrix_name(g_hdf5.file_matrix_name, MAX_PATH,
 				 g_hdf5.file_path);
-		print(M_LOC(FIRST), INFO
-		      "Matrix size exceeds RAM threshold, using memory-mapping");
+		print(M_LOC(FIRST), INFO "Matrix size exceeds memory limits");
 		g_hdf5.memory_map = file_matrix_open(g_hdf5.file_matrix_name,
 						     g_hdf5.matrix_dim);
 		if (!g_hdf5.memory_map.matrix)
