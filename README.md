@@ -327,7 +327,8 @@ All implementations use dynamic programming with optimized matrix operations.
 - **Sequences**:
   - For protein sequences: IUPAC amino acid single letter codes (ARNDCQEGHILKMFPSTWYVBZX*)
   - For nucleotide sequences: IUPAC nucleotide single letter codes (ATGCSWRYKMBVHDN*)
-- **CSV Requirements**:
+  - At least 2 sequences
+- **CSV Specific Requirements**:
   - Must contain one column with biological sequence data (amino acids or nucleotides)
   - No specific header requirements - the program will scan and identify the sequence column
   - The program will prompt you to select the correct one if it can't find one automatically
@@ -335,6 +336,7 @@ All implementations use dynamic programming with optimized matrix operations.
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format
 - **Content**:
+  - Sequences used during alignment (original or filtered) and their lengths
   - Contains a similarity matrix where each cell represents the alignment score between sequence pairs
   - Also stores the original or filtered sequences and their lengths
 - **Size Considerations**:
