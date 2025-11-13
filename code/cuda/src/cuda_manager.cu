@@ -218,11 +218,6 @@ bool Cuda::kernelResults() noexcept
 		return true;
 	}
 
-	if (!h.subsequent) {
-		S_SYNC(d.s_comp);
-		DH_COPY(&h.progress, d.progress, 1);
-	}
-
 	u64 n_scores = std::min(h.batch, h.alignments - h.batch_done);
 	if (!n_scores)
 		return true;
@@ -231,6 +226,8 @@ bool Cuda::kernelResults() noexcept
 		DH_ACOPY(h.scores + h.batch_done, d.next(), n_scores, d.s_copy);
 		d.s_sync = true;
 	} else {
+		S_SYNC(d.s_comp);
+		DH_COPY(&h.progress, d.progress, 1);
 		DH_COPY(h.scores + h.batch_done, d.current(), n_scores);
 	}
 
