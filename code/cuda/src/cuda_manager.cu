@@ -9,89 +9,93 @@ Cuda &Cuda::Instance()
 	return instance;
 }
 
-Cuda::~Cuda()
+Cuda::~Cuda() noexcept
 {
-	if (!m_init)
+	if (!s.init)
 		return;
 
-	cudaFree(m_seqs.d_letters);
-	cudaFree(m_seqs.d_offsets);
-	cudaFree(m_seqs.d_lengths);
-	cudaFree(m_seqs.d_indices);
+	if (s.seqs) {
+		cudaFree(d.letters);
+		cudaFree(d.offsets);
+		cudaFree(d.lengths);
+		cudaFree(d.indices);
+	}
 
-	cudaFree(m_kr.d_progress);
-	cudaFree(m_kr.d_checksum);
-	cudaFree(m_kr.d_scores0);
-	if (m_kr.use_batching)
-		cudaFree(m_kr.d_scores1);
-	if (m_kr.s_comp)
-		cudaStreamDestroy(m_kr.s_comp);
-	if (m_kr.s_copy)
-		cudaStreamDestroy(m_kr.s_copy);
+	if (!s.ready())
+		return;
+
+	cudaFree(d.progress);
+	cudaFree(d.checksum);
+
+	if (d.s_comp)
+		cudaStreamDestroy(d.s_comp);
+	if (d.s_copy)
+		cudaStreamDestroy(d.s_copy);
+
+	cudaFree(d.scores[0]);
+	if (d.triangular)
+		cudaFree(d.scores[1]);
+
 	cudaDeviceReset();
 }
 
-bool Cuda::initialize()
+Cuda::Cuda() noexcept
 {
-	if (m_init)
-		return true;
+	if (s.init)
+		return;
 
 	int device_count = 0;
 	cudaError_t err = cudaGetDeviceCount(&device_count);
-	CUDA_ERROR("Failed to get device count or none available");
+	CUDA_ERROR("Failed to get device count or none available", );
 
 	if (!device_count) {
-		error("No CUDA devices available", err);
-		return false;
+		deviceError(err);
+		hostError("No CUDA devices available");
+		return;
 	}
 
 	err = cudaSetDevice(0);
-	CUDA_ERROR("Failed to set CUDA device");
+	CUDA_ERROR("Failed to set CUDA device", );
 
 	cudaDeviceProp dev_prop;
 	err = cudaGetDeviceProperties(&dev_prop, 0);
-	CUDA_ERROR("Failed to get device properties");
-	std::strncpy(m_device_name, dev_prop.name, sizeof(m_device_name));
-	m_device_name[sizeof(m_device_name) - 1] = '\0';
-	m_block_dim = static_cast<uint>(dev_prop.maxThreadsPerBlock);
-	m_grid_size_max = static_cast<uint>(dev_prop.maxGridSize[0]);
+	CUDA_ERROR("Failed to get device properties", );
+	std::strcpy(d.name, dev_prop.name);
+	d.bdim = static_cast<uint>(dev_prop.maxThreadsPerBlock);
+	d.gdim_max = static_cast<uint>(dev_prop.maxGridSize[0]);
 
 	cudaGetLastError();
-	m_init = true;
-
-	return true;
+	s.init = true;
 }
 
-bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
+template <typename T> bool vecalloc(std::vector<T> &v, const size_t n) noexcept
 {
-	if (!m_init || !seqs || seq_n < SEQUENCE_COUNT_MIN) {
+	try {
+		v.resize(n);
+	} catch (const std::bad_alloc &) {
+		return false;
+	}
+	return !v.empty();
+}
+
+bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n,
+			   u64 seq_len_sum) noexcept
+{
+	if (!s.init || !seqs || seq_n < SEQUENCE_COUNT_MIN) {
 		hostError("Invalid parameters for sequence upload");
 		return false;
 	}
 
-	m_seqs.n_seqs = seq_n;
-	m_seqs.n_letters = seq_len_sum;
-	m_kr.h_alignments = static_cast<u64>(seq_n) * (seq_n - 1) / 2;
-	constexpr size_t cell_size = sizeof(*m_kr.h_scores);
+	std::vector<u64> indices_f;
+	std::vector<u64> offsets_f;
+	std::vector<u32> lengths_f;
+	std::vector<char> letters_f;
 
-	if (!memoryCheck(cell_size * seq_n * seq_n)) {
-		if (!memoryCheck(cell_size * m_kr.h_alignments)) {
-			if (!memoryCheck(cell_size * CUDA_BATCH))
-				return false;
-
-			m_kr.use_batching = true;
-		}
-
-		if (!copyTriangularMatrixFlag(true))
-			return false;
-
-		hostError("No errors in program");
+	if (!vecalloc(indices_f, seq_n) || !vecalloc(offsets_f, seq_n) ||
+	    !vecalloc(lengths_f, seq_n) || !vecalloc(letters_f, seq_len_sum)) {
+		hostError("Memory allocation failed for sequence upload");
+		return false;
 	}
-
-	std::vector<u64> indices_f(seq_n);
-	std::vector<u64> offsets_f(seq_n);
-	std::vector<u32> lengths_f(seq_n);
-	std::vector<char> letters_f(seq_len_sum);
 
 	auto indices_p = indices_f.data();
 	auto offsets_p = offsets_f.data();
@@ -108,173 +112,193 @@ bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
 
 	cudaError_t err;
 
-	D_MALLOC(m_seqs.d_indices, seq_n);
-	D_MALLOC(m_seqs.d_offsets, seq_n);
-	D_MALLOC(m_seqs.d_lengths, seq_n);
-	D_MALLOC(m_seqs.d_letters, seq_len_sum);
+	D_MALLOC(d.indices, seq_n);
+	D_MALLOC(d.offsets, seq_n);
+	D_MALLOC(d.lengths, seq_n);
+	D_MALLOC(d.letters, seq_len_sum);
 
-	HD_COPY(m_seqs.d_indices, indices_p, seq_n);
-	HD_COPY(m_seqs.d_offsets, offsets_p, seq_n);
-	HD_COPY(m_seqs.d_lengths, lengths_p, seq_n);
-	HD_COPY(m_seqs.d_letters, letters_p, seq_len_sum);
+	HD_COPY(d.indices, indices_p, seq_n);
+	HD_COPY(d.offsets, offsets_p, seq_n);
+	HD_COPY(d.lengths, lengths_p, seq_n);
+	HD_COPY(d.letters, letters_p, seq_len_sum);
+
+	d.seqs_n = seq_n;
+	s.seqs = true;
 
 	return true;
 }
 
-bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes)
+bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 {
-	if (!m_init || !scores || !scores_bytes) {
-		hostError(
-			"Invalid parameters for storage upload, or using --no-write");
+	if (!s.init || !s.seqs || !scores || !scores_bytes) {
+		hostError("Invalid context, storage, or using --no-write");
 		return false;
 	}
 
-	const size_t expected_size = m_kr.h_alignments * sizeof(*scores);
+	h.alignments = static_cast<u64>(d.seqs_n) * (d.seqs_n - 1) / 2;
+	constexpr u64 batch_size = UINT64_C(64) << 20;
+
+	if (!memoryCheck(sizeof(*h.scores) * d.seqs_n * d.seqs_n)) {
+		if (!memoryCheck(sizeof(*h.scores) * h.alignments)) {
+			if (!memoryCheck(sizeof(*h.scores) * batch_size))
+				return false;
+		}
+
+		d.triangular = true;
+		hostError("No errors from Host");
+	}
+
+	const size_t expected_size = h.alignments * sizeof(*scores);
 
 	if (scores_bytes < expected_size) {
 		hostError("Buffer size is too small for results");
 		return false;
 	}
 
-	if (scores_bytes == expected_size && !copyTriangularMatrixFlag(true))
-		return false;
+	if (scores_bytes == expected_size)
+		d.triangular = true;
 
-	m_kr.h_scores = scores;
+	cudaError_t err;
+
+	S_CREATE(d.s_comp);
+	S_CREATE(d.s_copy);
+
+	if (d.triangular) {
+		h.batch = std::min(batch_size, h.alignments);
+		D_MALLOC(d.scores[0], h.batch);
+		D_MALLOC(d.scores[1], h.batch);
+	} else {
+		h.batch = h.alignments;
+		D_MALLOC(d.scores[0], d.seqs_n * d.seqs_n);
+	}
+
+	h.scores = scores;
+	s.storage = true;
 
 	return true;
 }
 
-bool Cuda::kernelResults()
+bool Cuda::kernelResults() noexcept
 {
-	if (!m_init || !m_kr.h_scores) {
-		hostError("Invalid context or results storage");
+	if (!s.ready()) {
+		hostError("Invalid context or upload steps not completed");
 		return false;
 	}
 
 	cudaError_t err;
 
-	if (!m_kr.d_triangular) {
+	if (!d.triangular) {
 		static bool matrix_copied = false;
 		if (matrix_copied)
 			return true;
 
-		S_SYNC(m_kr.s_comp);
-		DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
-
-		const u64 n_scores = m_seqs.n_seqs * m_seqs.n_seqs;
-		DH_COPY(m_kr.h_scores, m_kr.d_scores0, n_scores);
+		S_SYNC(d.s_comp);
+		DH_COPY(&h.progress, d.progress, 1);
+		DH_COPY(h.scores, d.scores[0], d.seqs_n * d.seqs_n);
 		matrix_copied = true;
 		return true;
 	}
 
-	if (m_kr.h_batch_done >= m_kr.h_alignments) {
-		if (m_kr.copy_in_progress) {
-			S_SYNC(m_kr.s_copy);
-			m_kr.copy_in_progress = false;
+	if (h.batch_done >= h.alignments) {
+		if (d.s_sync) {
+			S_SYNC(d.s_copy);
+			d.s_sync = false;
 		}
 
 		return true;
 	}
 
-	if (m_kr.copy_in_progress) {
-		S_QUERY(m_kr.s_copy);
-		m_kr.copy_in_progress = false;
+	if (d.s_sync) {
+		S_QUERY(d.s_copy);
+		d.s_sync = false;
 	}
 
-	if (!m_kr.h_after_first && m_kr.h_batch < m_kr.h_alignments) {
-		m_kr.h_after_first = true;
+	if (!h.subsequent && h.batch < h.alignments) {
+		h.subsequent = true;
 		return true;
 	}
 
-	u64 batch_offset = m_kr.h_batch_done;
-	s32 *buffer = nullptr;
-
-	if (m_kr.h_after_first) {
-		buffer = (m_kr.h_active == 0) ? m_kr.d_scores1 : m_kr.d_scores0;
-	} else {
-		S_SYNC(m_kr.s_comp);
-		DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
-		buffer = m_kr.d_scores0;
+	if (!h.subsequent) {
+		S_SYNC(d.s_comp);
+		DH_COPY(&h.progress, d.progress, 1);
 	}
 
-	u64 n_scores = std::min(m_kr.h_batch, m_kr.h_alignments - batch_offset);
+	u64 n_scores = std::min(h.batch, h.alignments - h.batch_done);
 	if (!n_scores)
 		return true;
 
-	s32 *scores = m_kr.h_scores + batch_offset;
-
-	if (m_kr.h_after_first) {
-		DH_ACOPY(scores, buffer, n_scores, m_kr.s_copy);
-		m_kr.copy_in_progress = true;
+	if (h.subsequent) {
+		DH_ACOPY(h.scores + h.batch_done, d.next(), n_scores, d.s_copy);
+		d.s_sync = true;
 	} else {
-		DH_COPY(scores, buffer, n_scores);
+		DH_COPY(h.scores + h.batch_done, d.current(), n_scores);
 	}
 
-	m_kr.h_batch_done += n_scores;
+	h.batch_done += n_scores;
 	return true;
 }
 
-ull Cuda::kernelProgress()
+ull Cuda::kernelProgress() const noexcept
 {
-	if (!m_init)
+	if (!s.ready() || !d.progress)
 		return 0;
 
-	return m_kr.h_progress;
+	return h.progress;
 }
 
-sll Cuda::kernelChecksum()
+sll Cuda::kernelChecksum() noexcept
 {
-	if (!m_init || !m_kr.d_checksum)
+	if (!s.ready() || !d.checksum)
 		return 0;
 
 	cudaError_t err;
-	S_SYNC(m_kr.s_comp);
+	S_SYNC(d.s_comp);
 
 	sll checksum = 0;
-	DH_COPY(&checksum, m_kr.d_checksum, 1);
+	DH_COPY(&checksum, d.checksum, 1);
 	return checksum;
 }
 
-const char *Cuda::hostError() const
+const char *Cuda::hostError() const noexcept
 {
-	return m_h_err;
+	return h.err;
 }
 
-const char *Cuda::deviceError() const
+const char *Cuda::deviceError() const noexcept
 {
-	if (strcmp(m_d_err, "no error") == 0)
-		return "No errors in GPU";
+	if (strcmp(d.err, "no error") == 0)
+		return "No errors from Device";
 
-	return m_d_err;
+	return d.err;
 }
 
-const char *Cuda::deviceName() const
+const char *Cuda::deviceName() const noexcept
 {
-	return m_init ? m_device_name : nullptr;
+	return d.name;
 }
 
-void Cuda::hostError(const char *error)
+void Cuda::hostError(const char *error) noexcept
 {
-	m_h_err = error;
+	h.err = error;
 }
 
-void Cuda::deviceError(cudaError_t error)
+void Cuda::deviceError(cudaError_t error) noexcept
 {
-	m_d_err = cudaGetErrorString(error);
+	d.err = cudaGetErrorString(error);
 }
 
-bool Cuda::memoryQuery(size_t *free, size_t *total)
+bool Cuda::memoryQuery(size_t *free, size_t *total) noexcept
 {
-	if (!m_init)
+	if (!s.init)
 		return false;
 
 	cudaError_t err = cudaMemGetInfo(free, total);
-	CUDA_ERROR("Failed to get memory information");
+	CUDA_ERROR("Failed to get memory information", false);
 
 	return true;
 }
 
-bool Cuda::memoryCheck(size_t bytes)
+bool Cuda::memoryCheck(size_t bytes) noexcept
 {
 	size_t free = 0;
 	size_t total = 0;

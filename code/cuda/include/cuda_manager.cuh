@@ -6,39 +6,77 @@
 
 #define R __restrict__
 
-struct Sequences {
-	Sequences() = default;
-	char *d_letters{ nullptr };
-	u32 *d_lengths{ nullptr };
-	u64 *d_offsets{ nullptr };
-	u64 *d_indices{ nullptr };
-	u64 n_letters{ 0 };
-	u32 n_seqs{ 0 };
-	bool constant{ false };
+struct Constants {
+	Constants() = default;
+	char *letters{ nullptr };
+	u32 *lengths{ nullptr };
+	u64 *offsets{ nullptr };
+	u64 *indices{ nullptr };
+	ull *progress{ nullptr };
+	sll *checksum{ nullptr };
+	s32 sub_mat[SUB_MATSIZE]{ 0 };
+	s32 seq_lup[SEQ_LUPSIZ]{ 0 };
+	u32 seqs_n{ 0 };
+	s32 gap_pen{ 0 };
+	s32 gap_open{ 0 };
+	s32 gap_ext{ 0 };
+	bool triangular{ false };
 };
 
-struct KernelResults {
-	KernelResults() = default;
-	s32 *d_scores0{ nullptr };
-	s32 *d_scores1{ nullptr };
-	ull *d_progress{ nullptr };
-	sll *d_checksum{ nullptr };
+struct Device : Constants {
+	Device() = default;
+	const char *err{ "No errors from Device" };
+	s32 *scores[2]{ nullptr, nullptr };
 	cudaStream_t s_comp{ nullptr };
 	cudaStream_t s_copy{ nullptr };
-	s32 *h_scores{ nullptr };
-	u64 h_batch{ 0 };
-	u64 h_batch_last{ 0 };
-	u64 h_batch_done{ 0 };
-	u64 h_alignments{ 0 };
-	ull h_progress{ 0 };
-	int h_active{ 0 };
-	bool use_batching{ false };
-	bool h_after_first{ false };
-	bool d_triangular{ false };
-	bool copy_in_progress{ false };
+	uint bdim{ 0 };
+	uint gdim_max{ 0 };
+	bool s_sync{ false };
+	char name[256]{ "Unknown Device" };
+
+	s32 *current() const noexcept
+	{
+		return scores[m_active];
+	}
+
+	s32 *next() const noexcept
+	{
+		return scores[1 - m_active];
+	}
+
+	void swap() noexcept
+	{
+		m_active = 1 - m_active;
+	}
+
+    private:
+	int m_active{ 0 };
 };
 
-constexpr u64 CUDA_BATCH = (UINT64_C(64) << 20);
+struct States {
+	States() = default;
+	bool init{ false };
+	bool seqs{ false };
+	bool scoring{ false };
+	bool gaps{ false };
+	bool storage{ false };
+
+	bool ready() const noexcept
+	{
+		return seqs && scoring && gaps && storage;
+	}
+};
+
+struct Host {
+	const char *err{ "No errors from Host" };
+	s32 *scores{ nullptr };
+	u64 batch{ 0 };
+	u64 batch_last{ 0 };
+	u64 batch_done{ 0 };
+	u64 alignments{ 0 };
+	ull progress{ 0 };
+	bool subsequent{ false };
+};
 
 class Cuda {
     public:
@@ -47,54 +85,37 @@ class Cuda {
 	Cuda(Cuda &&) = delete;
 	Cuda &operator=(Cuda &&) = delete;
 	static Cuda &Instance();
-	~Cuda();
+	~Cuda() noexcept;
 
-	bool initialize();
-
-	bool memoryCheck(size_t bytes);
+	bool memoryCheck(size_t bytes) noexcept;
 
 	bool uploadSequences(const sequence_t *seqs, u32 seq_n,
-			     u64 seq_len_sum);
+			     u64 seq_len_sum) noexcept;
 	bool uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
-			   const s32 seq_lup[SEQ_LUPSIZ]);
-	bool uploadGaps(s32 linear, s32 start, s32 extend);
-	bool uploadStorage(s32 *scores, size_t scores_bytes);
+			   const s32 seq_lup[SEQ_LUPSIZ]) noexcept;
+	bool uploadGaps(s32 linear, s32 start, s32 extend) noexcept;
+	bool uploadStorage(s32 *scores, size_t scores_bytes) noexcept;
 
-	bool kernelLaunch(int kernel_id);
-	bool kernelResults();
-	ull kernelProgress();
-	sll kernelChecksum();
+	bool kernelLaunch(int kernel_id) noexcept;
+	bool kernelResults() noexcept;
+	ull kernelProgress() const noexcept;
+	sll kernelChecksum() noexcept;
 
-	const char *hostError() const;
-	const char *deviceError() const;
-	const char *deviceName() const;
+	const char *hostError() const noexcept;
+	const char *deviceError() const noexcept;
+	const char *deviceName() const noexcept;
 
     private:
-	Cuda()
-	{
-		initialize();
-	}
+	Cuda() noexcept;
 
-	void hostError(const char *error);
-	void deviceError(cudaError_t error);
-	void error(const char *host_error, cudaError_t cuda_error)
-	{
-		hostError(host_error);
-		deviceError(cuda_error);
-	}
+	void hostError(const char *error) noexcept;
+	void deviceError(cudaError_t error) noexcept;
 
-	bool memoryQuery(size_t *free, size_t *total);
+	bool memoryQuery(size_t *free, size_t *total) noexcept;
 
-	bool copyTriangularMatrixFlag(bool triangular);
-
-	KernelResults m_kr;
-	Sequences m_seqs;
-	const char *m_h_err{ "No errors in program" };
-	const char *m_d_err{ "No errors from GPU" };
-	uint m_block_dim{ 0 };
-	uint m_grid_size_max{ 0 };
-	bool m_init{ false };
-	char m_device_name[256]{ "Unknown Device" };
+	Device d;
+	Host h;
+	States s;
 };
 
 #define TOSTR(x) _TOSTR(x)
@@ -109,18 +130,19 @@ class Cuda {
 #define ASSERT_PTR_SIZES(a, b) \
 	static_assert(sizeof(*(a)) == sizeof(*(b)), "Pointer size mismatch")
 
-#define CUDA_ERROR(msg)                   \
+#define CUDA_ERROR(msg, retval)           \
 	do {                              \
 		if (err != cudaSuccess) { \
-			error(msg, err);  \
-			return false;     \
+			deviceError(err); \
+			hostError(msg);   \
+			return retval;    \
 		}                         \
 	} while (0)
 
-#define CUDA(Func, MACRO, error_message_lit)                                \
-	do {                                                                \
-		err = cuda##Func;                                           \
-		CUDA_ERROR(#MACRO ": " error_message_lit " @ line " _LINE); \
+#define CUDA(Func, MACRO, error_msg_lit)                                       \
+	do {                                                                   \
+		err = cuda##Func;                                              \
+		CUDA_ERROR(#MACRO ": " error_msg_lit " @ line " _LINE, false); \
 	} while (0)
 
 #define D_MEMSET(p, v, n) \

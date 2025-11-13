@@ -2,94 +2,58 @@
 
 #include <cstring>
 
-__constant__ s32 c_sub_mat[SUB_MATSIZE];
-#define SUB_MAT(i, j) c_sub_mat[(i) * SUB_MATDIM + (j)]
-__constant__ s32 c_seq_lup[SEQ_LUPSIZ];
-
-__constant__ s32 c_gap_pen;
-__constant__ s32 c_gap_open;
-__constant__ s32 c_gap_ext;
-__constant__ bool c_triangular;
-
-bool Cuda::copyTriangularMatrixFlag(bool triangular)
-{
-	if (!m_init) {
-		hostError("CUDA not initialized");
-		return false;
-	}
-
-	cudaError_t err;
-	C_COPY(c_triangular, &triangular);
-	m_kr.d_triangular = triangular;
-
-	return true;
-}
+__constant__ Constants c;
 
 bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
-			 const s32 seq_lup[SEQ_LUPSIZ])
+			 const s32 seq_lup[SEQ_LUPSIZ]) noexcept
 {
-	if (!m_init) {
+	if (!s.init) {
 		hostError("CUDA not initialized");
 		return false;
 	}
 
-	s32 sub_mat_f[SUB_MATSIZE] = { 0 };
-	std::memcpy(sub_mat_f, sub_mat, sizeof(*sub_mat_f) * SUB_MATSIZE);
-
-	cudaError_t err;
-
-	C_COPY(c_sub_mat, sub_mat_f);
-	C_COPY(c_seq_lup, seq_lup);
+	std::memcpy(d.sub_mat, sub_mat, sizeof(d.sub_mat));
+	std::memcpy(d.seq_lup, seq_lup, sizeof(d.seq_lup));
+	s.scoring = true;
 
 	return true;
 }
 
-bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend)
+bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend) noexcept
 {
-	if (!m_init) {
+	if (!s.init) {
 		hostError("CUDA not initialized");
 		return false;
 	}
 
-	cudaError_t err;
-
-	C_COPY(c_gap_pen, &linear);
-	C_COPY(c_gap_open, &open);
-	C_COPY(c_gap_ext, &extend);
+	d.gap_pen = linear;
+	d.gap_open = open;
+	d.gap_ext = extend;
+	s.gaps = true;
 
 	return true;
 }
 
-__forceinline__ __device__ uchar d_seq_letter(const Sequences *const seqs,
-					      const u32 ij, const u32 pos)
+__forceinline__ __device__ s32 d_seq_lup(const u32 ij, const u32 pos)
 {
-	return (uchar)seqs->d_letters[seqs->d_offsets[ij] + pos];
+	return c.seq_lup[(uchar)c.letters[c.offsets[ij] + pos]];
 }
 
-__forceinline__ __device__ u32 d_seq_length(const Sequences *const seqs,
-					    const u32 ij)
+__forceinline__ __device__ s32 d_sub_mat(const s32 a, const s32 b)
 {
-	return seqs->d_lengths[ij];
+	return c.sub_mat[a * SUB_MATDIM + b];
 }
 
-__forceinline__ __device__ u64 d_tri_idx(const Sequences *const seqs,
-					 const u32 j)
+__forceinline__ __device__ u32 d_find_j(const u64 id)
 {
-	return seqs->d_indices[j];
-}
-
-__forceinline__ __device__ u32 d_binary_search(const u64 *const elements,
-					       const u32 length,
-					       const u64 target)
-{
-	u32 low = 1, high = length - 1;
+	u32 low = 1, high = c.seqs_n - 1;
 	u32 result = 1;
 
 	while (low <= high) {
-		u32 mid = (low + high) / 2;
+		const u32 mid = (low + high) / 2;
 
-		if (elements[mid] <= target) {
-			if (mid + 1 >= length || elements[mid + 1] > target) {
+		if (c.indices[mid] <= id) {
+			if (mid + 1 >= c.seqs_n || c.indices[mid + 1] > id) {
 				result = mid;
 				break;
 			}
@@ -103,57 +67,39 @@ __forceinline__ __device__ u32 d_binary_search(const u64 *const elements,
 	return result;
 }
 
-__forceinline__ __device__ u32 find_sequence_column_binary_search(
-	const Sequences *const seqs, const u64 alignment)
-{
-	return d_binary_search(seqs->d_indices, seqs->n_seqs, alignment);
-}
-
-__global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
-		     sll *R sum, u64 start, u64 batch)
+__global__ void k_nw(s32 *R scores, u64 start, u64 batch)
 {
 	const u64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
 		return;
 
 	const u64 alignment = start + tid;
-	const u32 n = seqs.n_seqs;
+	const u32 j = d_find_j(alignment);
+	const u32 i = alignment - c.indices[j];
 
-	const u32 j = find_sequence_column_binary_search(&seqs, alignment);
-	const u32 i = alignment - d_tri_idx(&seqs, j);
-
-	if (i >= n || j >= n || i >= j) {
-		// Should never happen
-		atomicAdd(progress, 1);
-		return;
-	}
-
-	const u32 len1 = d_seq_length(&seqs, i);
-	const u32 len2 = d_seq_length(&seqs, j);
+	const u32 len1 = c.lengths[i];
+	const u32 len2 = c.lengths[j];
 
 	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
 	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
 		// Temporary fix, ignore for now
-		atomicAdd(progress, 1);
+		atomicAdd(c.progress, 1);
 		return;
 	}
 
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++)
-		dp_prev[col] = col * -(c_gap_pen);
+		dp_prev[col] = col * -(c.gap_pen);
 	for (u32 row = 1; row <= len1; ++row) {
-		dp_curr[0] = row * -(c_gap_pen);
+		dp_curr[0] = row * -(c.gap_pen);
 
 		for (u32 col = 1; col <= len2; col++) {
-			const s32 idx1 =
-				c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
-			const s32 idx2 =
-				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
-			const s32 match =
-				dp_prev[col - 1] + SUB_MAT(idx1, idx2);
-			const s32 gap_v = dp_prev[col] - c_gap_pen;
-			const s32 gap_h = dp_curr[col - 1] - c_gap_pen;
+			const s32 c1 = d_seq_lup(i, row - 1);
+			const s32 c2 = d_seq_lup(j, col - 1);
+			const s32 match = dp_prev[col - 1] + d_sub_mat(c1, c2);
+			const s32 gap_v = dp_prev[col] - c.gap_pen;
+			const s32 gap_h = dp_curr[col - 1] - c.gap_pen;
 
 			s32 max = match > gap_v ? match : gap_v;
 			max = max > gap_h ? max : gap_h;
@@ -165,43 +111,34 @@ __global__ void k_nw(const Sequences seqs, s32 *R scores, ull *R progress,
 	}
 
 	const s32 score = dp_prev[len2];
-	if (!c_triangular) {
-		scores[(u64)i * n + j] = score;
-		scores[(u64)j * n + i] = score;
+	if (!c.triangular) {
+		scores[(u64)i * c.seqs_n + j] = score;
+		scores[(u64)j * c.seqs_n + i] = score;
 	} else {
 		scores[tid] = score;
 	}
 
-	atomicAdd(progress, 1);
-	atomicAdd(reinterpret_cast<ull *>(sum), static_cast<ull>(score));
+	atomicAdd(reinterpret_cast<ull *>(c.checksum), static_cast<ull>(score));
+	atomicAdd(c.progress, 1);
 }
 
-__global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
-		     sll *R sum, u64 start, u64 batch)
+__global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 {
 	const u64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
 		return;
 
 	const u64 alignment = start + tid;
-	const u32 n = seqs.n_seqs;
+	const u32 j = d_find_j(alignment);
+	const u32 i = alignment - c.indices[j];
 
-	const u32 j = find_sequence_column_binary_search(&seqs, alignment);
-	const u32 i = alignment - d_tri_idx(&seqs, j);
-
-	if (i >= n || j >= n || i >= j) {
-		// Should never happen
-		atomicAdd(progress, 1);
-		return;
-	}
-
-	const u32 len1 = d_seq_length(&seqs, i);
-	const u32 len2 = d_seq_length(&seqs, j);
+	const u32 len1 = c.lengths[i];
+	const u32 len2 = c.lengths[j];
 
 	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
 	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
 		// Temporary fix, ignore for now
-		atomicAdd(progress, 1);
+		atomicAdd(c.progress, 1);
 		return;
 	}
 
@@ -211,8 +148,8 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 	match[0] = 0;
 	gap_x[0] = gap_y[0] = SCORE_MIN;
 	for (u32 col = 1; col <= len2; col++) {
-		gap_x[col] = max(match[col - 1] - c_gap_open,
-				 gap_x[col - 1] - c_gap_ext);
+		gap_x[col] = max(match[col - 1] - c.gap_open,
+				 gap_x[col - 1] - c.gap_ext);
 		match[col] = gap_x[col];
 		gap_y[col] = SCORE_MIN;
 	}
@@ -225,25 +162,24 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 	}
 
 	for (u32 row = 1; row <= len1; ++row) {
-		match[0] = row * -(c_gap_pen);
+		match[0] = row * -(c.gap_pen);
 		gap_x[0] = SCORE_MIN;
-		gap_y[0] = max(p_match[0] - c_gap_open, p_gap_y[0] - c_gap_ext);
+		gap_y[0] = max(p_match[0] - c.gap_open, p_gap_y[0] - c.gap_ext);
 		match[0] = gap_y[0];
 
-		const s32 idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
+		const s32 c1 = d_seq_lup(i, row - 1);
 		for (u32 col = 1; col <= len2; col++) {
-			const s32 idx2 =
-				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
-			const s32 similarity = SUB_MAT(idx1, idx2);
+			const s32 c2 = d_seq_lup(j, col - 1);
+			const s32 similarity = d_sub_mat(c1, c2);
 
 			const s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] - c_gap_open;
-			const s32 extend_x = gap_x[col - 1] - c_gap_ext;
+			const s32 open_x = match[col - 1] - c.gap_open;
+			const s32 extend_x = gap_x[col - 1] - c.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] - c_gap_open;
-			const s32 extend_y = p_gap_y[col] - c_gap_ext;
+			const s32 open_y = p_match[col] - c.gap_open;
+			const s32 extend_y = p_gap_y[col] - c.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			match[col] = max(d_score, max(gap_x[col], gap_y[col]));
@@ -256,43 +192,34 @@ __global__ void k_ga(const Sequences seqs, s32 *R scores, ull *R progress,
 	}
 
 	const s32 score = match[len2];
-	if (!c_triangular) {
-		scores[(u64)i * n + j] = score;
-		scores[(u64)j * n + i] = score;
+	if (!c.triangular) {
+		scores[(u64)i * c.seqs_n + j] = score;
+		scores[(u64)j * c.seqs_n + i] = score;
 	} else {
 		scores[tid] = score;
 	}
 
-	atomicAdd(progress, 1);
-	atomicAdd(reinterpret_cast<ull *>(sum), static_cast<ull>(score));
+	atomicAdd(c.progress, 1);
+	atomicAdd(reinterpret_cast<ull *>(c.checksum), static_cast<ull>(score));
 }
 
-__global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
-		     sll *R sum, u64 start, u64 batch)
+__global__ void k_sw(s32 *R scores, u64 start, u64 batch)
 {
 	const u64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
 		return;
 
 	const u64 alignment = start + tid;
-	const u32 n = seqs.n_seqs;
+	const u32 j = d_find_j(alignment);
+	const u32 i = alignment - c.indices[j];
 
-	const u32 j = find_sequence_column_binary_search(&seqs, alignment);
-	const u32 i = alignment - d_tri_idx(&seqs, j);
-
-	if (i >= n || j >= n || i >= j) {
-		// Should never happen
-		atomicAdd(progress, 1);
-		return;
-	}
-
-	const u32 len1 = d_seq_length(&seqs, i);
-	const u32 len2 = d_seq_length(&seqs, j);
+	const u32 len1 = c.lengths[i];
+	const u32 len2 = c.lengths[j];
 
 	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
 	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
 		// Temporary fix, ignore for now
-		atomicAdd(progress, 1);
+		atomicAdd(c.progress, 1);
 		return;
 	}
 
@@ -316,20 +243,19 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 		match[0] = 0;
 		gap_x[0] = gap_y[0] = SCORE_MIN;
 
-		const s32 idx1 = c_seq_lup[d_seq_letter(&seqs, i, row - 1)];
+		const s32 c1 = d_seq_lup(i, row - 1);
 		for (u32 col = 1; col <= len2; col++) {
-			const s32 idx2 =
-				c_seq_lup[d_seq_letter(&seqs, j, col - 1)];
-			const s32 similarity = SUB_MAT(idx1, idx2);
+			const s32 c2 = d_seq_lup(j, col - 1);
+			const s32 similarity = d_sub_mat(c1, c2);
 
 			const s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] - c_gap_open;
-			const s32 extend_x = gap_x[col - 1] - c_gap_ext;
+			const s32 open_x = match[col - 1] - c.gap_open;
+			const s32 extend_x = gap_x[col - 1] - c.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] - c_gap_open;
-			const s32 extend_y = p_gap_y[col] - c_gap_ext;
+			const s32 open_y = p_match[col] - c.gap_open;
+			const s32 extend_y = p_gap_y[col] - c.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			const s32 best = max(
@@ -346,92 +272,71 @@ __global__ void k_sw(const Sequences seqs, s32 *R scores, ull *R progress,
 	}
 
 	const s32 score = max_score;
-	if (!c_triangular) {
-		scores[(u64)i * n + j] = score;
-		scores[(u64)j * n + i] = score;
+	if (!c.triangular) {
+		scores[(u64)i * c.seqs_n + j] = score;
+		scores[(u64)j * c.seqs_n + i] = score;
 	} else {
 		scores[tid] = score;
 	}
 
-	atomicAdd(progress, 1);
-	atomicAdd(reinterpret_cast<ull *>(sum), static_cast<ull>(score));
+	atomicAdd(c.progress, 1);
+	atomicAdd(reinterpret_cast<ull *>(c.checksum), static_cast<ull>(score));
 }
 
-bool Cuda::kernelLaunch(int kernel_id)
+bool Cuda::kernelLaunch(int kernel_id) noexcept
 {
-	if (!m_init || !m_seqs.n_seqs || kernel_id > 2 || kernel_id < 0) {
-		hostError("Invalid context, sequence data or kernel ID");
+	if (!s.ready() || kernel_id > 2 || kernel_id < 0) {
+		hostError("Invalid kernel ID or upload steps not completed");
 		return false;
 	}
 
 	cudaError_t err;
 
-	if (!m_kr.h_after_first) {
-		u64 d_scores_size = 0;
+	if (!h.subsequent) {
+		D_MALLOC(d.progress, 1);
+		D_MALLOC(d.checksum, 1);
 
-		S_CREATE(m_kr.s_comp);
-		S_CREATE(m_kr.s_copy);
+		D_MEMSET(d.progress, 0, 1);
+		D_MEMSET(d.checksum, 0, 1);
 
-		if (m_kr.d_triangular) {
-			m_kr.h_batch = std::min(CUDA_BATCH, m_kr.h_alignments);
-			d_scores_size = m_kr.h_batch;
-
-			D_MALLOC(m_kr.d_scores0, d_scores_size);
-			D_MALLOC(m_kr.d_scores1, d_scores_size);
-		} else {
-			m_kr.h_batch = m_kr.h_alignments;
-			d_scores_size = m_seqs.n_seqs * m_seqs.n_seqs;
-
-			D_MALLOC(m_kr.d_scores0, d_scores_size);
-		}
-
-		D_MALLOC(m_kr.d_progress, 1);
-		D_MALLOC(m_kr.d_checksum, 1);
-
-		D_MEMSET(m_kr.d_progress, 0, 1);
-		D_MEMSET(m_kr.d_checksum, 0, 1);
+		C_COPY(c, static_cast<Constants *>(&d));
 	}
 
-	u64 offset = m_kr.h_batch_last;
-	u64 batch = m_kr.h_batch;
-	s32 *d_buffer = m_kr.d_scores0;
+	u64 offset = h.batch_last;
+	u64 batch = h.batch;
 
-	if (offset >= m_kr.h_alignments) {
-		if (m_kr.h_after_first) {
+	if (offset >= h.alignments) {
+		if (h.subsequent) {
 			D_SYNC("Device synchronization failed on final check");
-			DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
-			m_kr.h_active = 1 - m_kr.h_active;
+			DH_COPY(&h.progress, d.progress, 1);
+			d.swap();
 		}
 
 		return true;
 	}
 
-	if (m_kr.d_triangular) {
-		offset = m_kr.h_batch_last;
-		if (offset + batch > m_kr.h_alignments)
-			batch = m_kr.h_alignments - offset;
+	if (d.triangular) {
+		if (offset + batch > h.alignments)
+			batch = h.alignments - offset;
 
 		if (!batch) {
-			if (m_kr.h_after_first) {
+			if (h.subsequent) {
 				D_SYNC("Device synchronization failed on final check");
-				DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
+				DH_COPY(&h.progress, d.progress, 1);
 			}
 
 			return true;
 		}
 
-		if (m_kr.h_after_first) {
+		if (h.subsequent) {
 			D_SYNC("Device synchronization failed");
-			DH_COPY(&m_kr.h_progress, m_kr.d_progress, 1);
-			m_kr.h_active = 1 - m_kr.h_active;
+			DH_COPY(&h.progress, d.progress, 1);
+			d.swap();
 		}
-
-		if (m_kr.h_active == 1)
-			d_buffer = m_kr.d_scores1;
 	}
 
-	const uint grid_dim = (uint)((batch + m_block_dim - 1) / m_block_dim);
-	if (!grid_dim || grid_dim > m_grid_size_max) {
+	const uint gdim = (uint)((batch + d.bdim - 1) / d.bdim);
+	if (!gdim || gdim > d.gdim_max) {
 		hostError("Grid size exceeds device limit");
 		return false;
 	}
@@ -441,26 +346,20 @@ bool Cuda::kernelLaunch(int kernel_id)
 		hostError("Invalid kernel ID");
 		return false;
 	case 0: // Gotoh Affine
-		k_ga<<<grid_dim, m_block_dim, 0, m_kr.s_comp>>>(
-			m_seqs, d_buffer, m_kr.d_progress, m_kr.d_checksum,
-			offset, batch);
+		k_ga<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
 		break;
 	case 1: // Needleman-Wunsch
-		k_nw<<<grid_dim, m_block_dim, 0, m_kr.s_comp>>>(
-			m_seqs, d_buffer, m_kr.d_progress, m_kr.d_checksum,
-			offset, batch);
+		k_nw<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
 		break;
 	case 2: // Smith-Waterman
-		k_sw<<<grid_dim, m_block_dim, 0, m_kr.s_comp>>>(
-			m_seqs, d_buffer, m_kr.d_progress, m_kr.d_checksum,
-			offset, batch);
+		k_sw<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
 		break;
 	}
 
 	err = cudaGetLastError();
-	CUDA_ERROR("Kernel launch failed");
+	CUDA_ERROR("Kernel launch failed", false);
 
-	m_kr.h_batch_last += batch;
+	h.batch_last += batch;
 
 	return true;
 }
