@@ -229,7 +229,7 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 > [!NOTE]
 > - To get these datasets, clone the repository with `--recurse-submodules`:
 > ```bash
-> git clone --recurse-submodules https://github.com/user/SequenceAligner.git
+> git clone --recurse-submodules https://github.com/jakovdev/SequenceAligner.git
 > ```
 
 ### CPU Threading Performance (AMP dataset)
