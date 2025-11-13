@@ -4,36 +4,6 @@
 
 __constant__ Constants c;
 
-bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
-			 const s32 seq_lup[SEQ_LUPSIZ]) noexcept
-{
-	if (!s.init) {
-		hostError("CUDA not initialized");
-		return false;
-	}
-
-	std::memcpy(d.sub_mat, sub_mat, sizeof(d.sub_mat));
-	std::memcpy(d.seq_lup, seq_lup, sizeof(d.seq_lup));
-	s.scoring = true;
-
-	return true;
-}
-
-bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend) noexcept
-{
-	if (!s.init) {
-		hostError("CUDA not initialized");
-		return false;
-	}
-
-	d.gap_pen = linear;
-	d.gap_open = open;
-	d.gap_ext = extend;
-	s.gaps = true;
-
-	return true;
-}
-
 __forceinline__ __device__ s32 d_seq_lup(const u32 ij, const u32 pos)
 {
 	return c.seq_lup[(uchar)c.letters[c.offsets[ij] + pos]];
@@ -362,4 +332,82 @@ bool Cuda::kernelLaunch(int kernel_id) noexcept
 	h.batch_last += batch;
 
 	return true;
+}
+
+bool Cuda::kernelResults() noexcept
+{
+	if (!s.ready()) {
+		hostError("Invalid context or upload steps not completed");
+		return false;
+	}
+
+	cudaError_t err;
+
+	if (!d.triangular) {
+		static bool matrix_copied = false;
+		if (matrix_copied)
+			return true;
+
+		S_SYNC(d.s_comp);
+		DH_COPY(&h.progress, d.progress, 1);
+		DH_COPY(h.scores, d.scores[0], d.seqs_n * d.seqs_n);
+		matrix_copied = true;
+		return true;
+	}
+
+	if (h.batch_done >= h.alignments) {
+		if (d.s_sync) {
+			S_SYNC(d.s_copy);
+			d.s_sync = false;
+		}
+
+		return true;
+	}
+
+	if (d.s_sync) {
+		S_QUERY(d.s_copy);
+		d.s_sync = false;
+	}
+
+	if (!h.subsequent && h.batch < h.alignments) {
+		h.subsequent = true;
+		return true;
+	}
+
+	u64 n_scores = std::min(h.batch, h.alignments - h.batch_done);
+	if (!n_scores)
+		return true;
+
+	if (h.subsequent) {
+		DH_ACOPY(h.scores + h.batch_done, d.next(), n_scores, d.s_copy);
+		d.s_sync = true;
+	} else {
+		S_SYNC(d.s_comp);
+		DH_COPY(&h.progress, d.progress, 1);
+		DH_COPY(h.scores + h.batch_done, d.current(), n_scores);
+	}
+
+	h.batch_done += n_scores;
+	return true;
+}
+
+ull Cuda::kernelProgress() const noexcept
+{
+	if (!s.ready() || !d.progress)
+		return 0;
+
+	return h.progress;
+}
+
+sll Cuda::kernelChecksum() noexcept
+{
+	if (!s.ready() || !d.checksum)
+		return 0;
+
+	cudaError_t err;
+	S_SYNC(d.s_comp);
+
+	sll checksum = 0;
+	DH_COPY(&checksum, d.checksum, 1);
+	return checksum;
 }
