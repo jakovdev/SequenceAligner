@@ -155,7 +155,7 @@ void file_text_close(struct FileText *file)
 	file_format_data_reset(&file->data);
 }
 
-bool file_text_open(struct FileText *file, const char *file_path)
+bool file_text_open(struct FileText *restrict file, const char *restrict path)
 {
 	print_error_context("FILE");
 
@@ -163,7 +163,7 @@ bool file_text_open(struct FileText *file, const char *file_path)
 	file_format_data_reset(&file->data);
 	file->text = NULL;
 
-	const char *file_name = file_name_path(file_path);
+	const char *file_name = file_name_path(path);
 #define file_error_defer(message_lit)                              \
 	do {                                                       \
 		print(M_NONE, ERR message_lit " '%s'", file_name); \
@@ -171,7 +171,7 @@ bool file_text_open(struct FileText *file, const char *file_path)
 	} while (0)
 
 #ifdef _WIN32
-	file->meta.hFile = CreateFileA(file_path, GENERIC_READ, FILE_SHARE_READ,
+	file->meta.hFile = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ,
 				       NULL, OPEN_EXISTING,
 				       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
@@ -195,7 +195,7 @@ bool file_text_open(struct FileText *file, const char *file_path)
 
 	file->meta.bytes = (size_t)file_size.QuadPart;
 #else
-	file->meta.fd = open(file_path, O_RDONLY);
+	file->meta.fd = open(path, O_RDONLY);
 	if (file->meta.fd == -1)
 		file_error_defer("Could not open input file '%s'");
 
@@ -220,7 +220,7 @@ bool file_text_open(struct FileText *file, const char *file_path)
 	file->data.end = file->text + file->meta.bytes;
 	file->data.cursor = file->data.start;
 
-	enum FileFormat type = file_format_detect(file_path);
+	enum FileFormat type = file_format_detect(path);
 	file->data.type = type;
 
 	switch (type) {
@@ -312,20 +312,20 @@ u64 file_extract_entry(struct FileText *restrict file, char *restrict out)
 	exit(EXIT_FAILURE);
 }
 
-struct FileScoreMatrix file_matrix_open(const char *file_path, u64 matrix_dim)
+bool file_matrix_open(struct FileScoreMatrix *restrict file,
+		      const char *restrict path, u64 matrix_dim)
 {
-	struct FileScoreMatrix file = { 0 };
-	file_metadata_init(&file.meta);
+	file_metadata_init(&file->meta);
 
 	size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
-	size_t bytes = triangle_elements * sizeof(*file.matrix);
-	file.meta.bytes = bytes;
-	const char *file_name = file_name_path(file_path);
+	size_t bytes = triangle_elements * sizeof(*file->matrix);
+	file->meta.bytes = bytes;
+	const char *file_name = file_name_path(path);
 #define file_error_return(message_lit)                             \
 	do {                                                       \
 		print(M_NONE, ERR message_lit " '%s'", file_name); \
-		file_matrix_close(&file);                          \
-		return file;                                       \
+		file_matrix_close(file);                           \
+		return false;                                      \
 	} while (0)
 
 	const double mmap_size = (double)bytes / (double)GiB;
@@ -334,45 +334,45 @@ struct FileScoreMatrix file_matrix_open(const char *file_path, u64 matrix_dim)
 	print_error_context("MATRIXFILE");
 
 #ifdef _WIN32
-	file.meta.hFile = CreateFileA(file_path, GENERIC_READ | GENERIC_WRITE,
-				      0, NULL, CREATE_ALWAYS,
-				      FILE_ATTRIBUTE_NORMAL, NULL);
+	file->meta.hFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0,
+				       NULL, CREATE_ALWAYS,
+				       FILE_ATTRIBUTE_NORMAL, NULL);
 
-	if (file.meta.hFile == INVALID_HANDLE_VALUE)
+	if (file->meta.hFile == INVALID_HANDLE_VALUE)
 		file_error_return("Could not create memory-mapped file '%s'");
 
 	LARGE_INTEGER file_size;
 	file_size.QuadPart = (LONGLONG)bytes;
-	SetFilePointerEx(file.meta.hFile, file_size, NULL, FILE_BEGIN);
-	SetEndOfFile(file.meta.hFile);
+	SetFilePointerEx(file->meta.hFile, file_size, NULL, FILE_BEGIN);
+	SetEndOfFile(file->meta.hFile);
 
-	file.meta.hMapping = CreateFileMapping(file.meta.hFile, NULL,
-					       PAGE_READWRITE, 0, 0, NULL);
-	if (!file.meta.hMapping)
+	file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL,
+						PAGE_READWRITE, 0, 0, NULL);
+	if (!file->meta.hMapping)
 		file_error_return("Could not create file mapping for '%s'");
 
-	file.matrix =
-		MapViewOfFile(file.meta.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-	if (!file.matrix)
+	file->matrix = MapViewOfFile(file->meta.hMapping, FILE_MAP_ALL_ACCESS,
+				     0, 0, 0);
+	if (!file->matrix)
 		file_error_return("Could not map view of file '%s'");
 
 #else
-	file.meta.fd = open(file_path, O_RDWR | O_CREAT | O_TRUNC, 0644);
-	if (file.meta.fd == -1)
+	file->meta.fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0644);
+	if (file->meta.fd == -1)
 		file_error_return("Could not create memory-mapped file '%s'");
 
-	if (ftruncate(file.meta.fd, (off_t)bytes) == -1)
+	if (ftruncate(file->meta.fd, (off_t)bytes) == -1)
 		file_error_return("Could not set size for file '%s'");
 
-	file.matrix = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
-			   file.meta.fd, 0);
-	if (file.matrix == MAP_FAILED)
+	file->matrix = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
+			    file->meta.fd, 0);
+	if (file->matrix == MAP_FAILED)
 		file_error_return("Could not memory map file '%s'");
 
-	madvise(file.matrix, bytes, MADV_RANDOM);
-	madvise(file.matrix, bytes, MADV_HUGEPAGE);
-	madvise(file.matrix, bytes, MADV_DONTFORK);
-	madvise(file.matrix, bytes, MADV_DONTDUMP);
+	madvise(file->matrix, bytes, MADV_RANDOM);
+	madvise(file->matrix, bytes, MADV_HUGEPAGE);
+	madvise(file->matrix, bytes, MADV_DONTFORK);
+	madvise(file->matrix, bytes, MADV_DONTDUMP);
 
 #endif
 
@@ -383,16 +383,16 @@ struct FileScoreMatrix file_matrix_open(const char *file_path, u64 matrix_dim)
 
 	bool is_zeroed = true;
 	for (size_t i = 0; i < ARRAY_SIZE(check_indices); i++) {
-		if (file.matrix[check_indices[i]] != 0) {
+		if (file->matrix[check_indices[i]] != 0) {
 			is_zeroed = false;
 			break;
 		}
 	}
 
 	if (!is_zeroed)
-		memset(file.matrix, 0, bytes);
+		memset(file->matrix, 0, bytes);
 
-	return file;
+	return true;
 }
 
 void file_matrix_close(struct FileScoreMatrix *file)

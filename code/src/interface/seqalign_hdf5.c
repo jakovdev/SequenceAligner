@@ -76,9 +76,9 @@ bool h5_open(const char *file_path, u64 mat_dim, u8 compression, bool write)
 		file_matrix_name(g_hdf5.file_matrix_name, MAX_PATH,
 				 g_hdf5.file_path);
 		print(M_LOC(FIRST), INFO "Matrix size exceeds memory limits");
-		g_hdf5.memory_map = file_matrix_open(g_hdf5.file_matrix_name,
-						     g_hdf5.matrix_dim);
-		if (!g_hdf5.memory_map.matrix)
+		if (!file_matrix_open(&g_hdf5.memory_map,
+				      g_hdf5.file_matrix_name,
+				      g_hdf5.matrix_dim))
 			return false;
 	} else {
 		size_t bytes = sizeof(*g_hdf5.full_matrix) * g_hdf5.matrix_dim *

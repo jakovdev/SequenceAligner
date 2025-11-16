@@ -63,7 +63,8 @@ bool file_sequence_next(struct FileText *file);
 
 u64 file_extract_entry(struct FileText *restrict file, char *restrict out);
 
-struct FileScoreMatrix file_matrix_open(const char *path, u64 matrix_dim);
+bool file_matrix_open(struct FileScoreMatrix *restrict file,
+		      const char *restrict path, u64 matrix_dim);
 void file_matrix_close(struct FileScoreMatrix *file);
 
 u64 matrix_index(u32 row, u32 col);
