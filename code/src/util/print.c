@@ -722,8 +722,7 @@ skip_fmt:
 
 			funlockfile(out);
 			print(M_NONE,
-			      WARNING
-			      "Please enter a number between 1 and %zu.",
+			      WARNING "Please enter a number between 1 and %zu",
 			      c_count);
 			flockfile(out);
 		} while (1);
@@ -734,7 +733,7 @@ skip_fmt:
 			funlockfile(out);
 #ifndef NDEBUG
 			print_error_context("_TO_DEV_");
-			print(M_NONE, ERR "Input buffer size is too small.");
+			print(M_NONE, ERR "Input buffer size is too small");
 #endif
 			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}

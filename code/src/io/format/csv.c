@@ -194,7 +194,7 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 			bench_io_start();
 		} else {
 			print(M_LOC(LAST), INFO
-			      "Only one column present; using it as the sequence column.");
+			      "Only one column present; using it as the sequence column");
 			*seq_col = 0;
 			*no_header = true;
 		}
