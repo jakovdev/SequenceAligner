@@ -1,10 +1,11 @@
 #include "util/print.h"
 
+#include <errno.h>
+#include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
 #include <string.h>
 
 #ifdef __cplusplus
@@ -679,10 +680,11 @@ skip_fmt:
 			funlockfile(out);
 			terminal_read_input(i_buffer, sizeof(i_buffer));
 			flockfile(out);
+			errno = 0;
 			char *endptr = NULL;
 			unsigned long selected = strtoul(i_buffer, &endptr, 10);
 			if (endptr == i_buffer || *endptr != '\0' ||
-			    selected > INT_MAX)
+			    errno == ERANGE || selected > INT_MAX)
 				selected = 0;
 
 			if (!simple) {
