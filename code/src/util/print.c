@@ -517,7 +517,7 @@ skip_fmt:
 			goto cleanup;
 		}
 
-		size_t l_dashes = (p.width - 2 - p_buflen - 2) / 2;
+		size_t l_dashes = 2;
 		size_t r_dashes = p.width - 2 - l_dashes - p_buflen - 2;
 
 		ouwcol(M_SECTION);
