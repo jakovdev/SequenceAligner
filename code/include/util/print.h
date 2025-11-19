@@ -175,6 +175,7 @@ enum p_return {
 	PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
 	PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
 	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
+	PRINT_TO_DEV_NDEBUG__ERROR = -0xDEAD
 };
 
 void print_verbose_flip(void);
@@ -189,6 +190,9 @@ enum p_return print(M_ARG, const char *P_RESTRICT format, ...);
 bool print_yN(const char *P_RESTRICT prompt);
 bool print_Yn(const char *P_RESTRICT prompt);
 bool print_yn(const char *P_RESTRICT prompt);
+
+/* Doesn't print in RELEASE (NDEBUG defined), _TO_DEV_ error context */
+enum p_return print_dev(const char *fmt, ...);
 
 #undef P_RESTRICT
 #endif /* UTIL_PRINT_H */

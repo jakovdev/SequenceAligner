@@ -416,10 +416,7 @@ enum p_return print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 	va_end(v_args);
 
 	if (p_bufsiz < 0) {
-#ifndef NDEBUG
-		print_error_context("_TO_DEV_");
-		print(M_NONE, ERR "Failed to format string");
-#endif
+		print_dev("Failed to format string");
 		return PRINT_INVALID_FORMAT_ARGS__ERROR;
 	}
 
@@ -428,10 +425,7 @@ skip_fmt:
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
 	if (p_buflen > available) { /* Overflow, no box/icon/color then */
-#ifndef NDEBUG
-		print_error_context("_TO_DEV_");
-		print(M_NONE, ERR "Message too long, doing a simple print");
-#endif
+		print_dev("Message too long, doing a simple print");
 		simple = true;
 	}
 
@@ -632,10 +626,7 @@ skip_fmt:
 
 		if (c_count < 2) {
 			funlockfile(out);
-#ifndef NDEBUG
-			print_error_context("_TO_DEV_");
-			print(M_NONE, ERR "Not enough choices (<2)");
-#endif
+			print_dev("Not enough choices (<2)");
 			return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
 		}
 
@@ -731,10 +722,7 @@ skip_fmt:
 		const size_t rsz = arg.uinput.out_size;
 		if (rsz < 2) {
 			funlockfile(out);
-#ifndef NDEBUG
-			print_error_context("_TO_DEV_");
-			print(M_NONE, ERR "Input buffer size is too small");
-#endif
+			print_dev("Input buffer size is too small");
 			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}
 
@@ -809,4 +797,21 @@ skip_fmt:
 cleanup:
 	funlockfile(out);
 	return PRINT_SUCCESS;
+}
+
+enum p_return print_dev(const char *fmt, ...)
+{
+#ifndef NDEBUG
+	va_list v_args;
+	va_start(v_args, fmt);
+	char buf[BUFSIZ];
+	vsnprintf(buf, sizeof(buf), fmt, v_args);
+	va_end(v_args);
+
+	print_error_context("_TO_DEV_");
+	return print(M_NONE, ERR "%s", buf);
+#else
+	(void)fmt;
+	return PRINT_TO_DEV_NDEBUG__ERROR;
+#endif
 }
