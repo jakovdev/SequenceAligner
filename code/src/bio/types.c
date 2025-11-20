@@ -21,7 +21,7 @@ static struct {
 } SEQUENCE_TYPES[] = {
 	{ "Amino acids", "Protein sequences", AMINO_ALIASES, SEQ_TYPE_AMINO },
 	{ "Nucleotides", "DNA/RNA sequences", NUCLEO_ALIASES, SEQ_TYPE_NUCLEO },
-	/* EXPANDABLE: enum SequenceType, struct SEQUENCE_TYPES */
+	/* NOTE: EXPANDABLE enum SequenceType */
 };
 
 #define GA_ALIASES ((const char *[]){ "ga", "gotoh", NULL })
@@ -40,7 +40,7 @@ static struct {
 	  ALIGN_NEEDLEMAN_WUNSCH, GAP_TYPE_LINEAR },
 	{ "Smith-Waterman", "local alignment", SW_ALIASES, ALIGN_SMITH_WATERMAN,
 	  GAP_TYPE_AFFINE }
-	/* EXPANDABLE: enum AlignmentMethod, enum GapPenaltyType, struct ALIGNMENT_METHODS */
+	/* NOTE: EXPANDABLE enum AlignmentMethod, enum GapPenaltyType */
 };
 
 align_func_t align_function(enum AlignmentMethod method)
@@ -52,10 +52,9 @@ align_func_t align_function(enum AlignmentMethod method)
 		return align_nw;
 	case ALIGN_SMITH_WATERMAN:
 		return align_sw;
-	/* EXPANDABLE: enum AlignmentMethod */
 	case ALIGN_INVALID:
 	case ALIGN_COUNT:
-	default:
+	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
 		UNREACHABLE();
 	}
 }

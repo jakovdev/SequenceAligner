@@ -7,4 +7,4 @@
 
 s32 align_nw(sequence_ptr_t seq1, sequence_ptr_t seq2);
 
-#endif // BIO_ALGORITHM_METHOD_NW_H
+#endif /* BIO_ALGORITHM_METHOD_NW_H */

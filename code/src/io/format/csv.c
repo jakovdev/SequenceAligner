@@ -55,7 +55,7 @@ static inline void csv_column_sequence(char **headers, u64 num_cols,
 				    "rna",	"amino", "peptide", "chain" };
 	const size_t num_words = ARRAY_SIZE(seq_words);
 
-	// exact match
+	/* exact match */
 	for (size_t column = 0; column < num_cols; column++) {
 		for (size_t key = 0; key < num_words; key++) {
 			if (strcasecmp(headers[column], seq_words[key]) == 0) {
@@ -65,7 +65,7 @@ static inline void csv_column_sequence(char **headers, u64 num_cols,
 		}
 	}
 
-	// partial match
+	/* partial match */
 	for (size_t column = 0; column < num_cols; column++) {
 		for (size_t key = 0; key < num_words; key++) {
 			if (strcasestr(headers[column], seq_words[key])) {
@@ -75,7 +75,7 @@ static inline void csv_column_sequence(char **headers, u64 num_cols,
 		}
 	}
 
-	// No match found
+	/* No match found */
 	*seq_col = SIZE_MAX;
 }
 

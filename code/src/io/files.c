@@ -4,12 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "bio/types.h"
 #include "io/format/csv.h"
 #include "io/format/fasta.h"
-#include "system/os.h"
 #include "system/memory.h"
+#include "system/os.h"
 #include "util/print.h"
-#include "bio/types.h"
 
 static void file_metadata_init(struct FileMetadata *meta)
 {

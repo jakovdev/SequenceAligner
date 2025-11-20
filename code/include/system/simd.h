@@ -103,4 +103,4 @@ int __builtin_ctz(unsigned int x);
 int __builtin_ctzll(unsigned long long x);
 #endif
 
-#endif // SYSTEM_SIMD_H
+#endif /* SYSTEM_SIMD_H */

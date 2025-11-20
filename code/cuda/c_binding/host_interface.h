@@ -37,4 +37,4 @@ const char *cuda_device_name(void);
 
 #endif
 
-#endif // HOST_INTERFACE_H
+#endif /* HOST_INTERFACE_H */

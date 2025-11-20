@@ -24,4 +24,4 @@ s32 *matrix_alloc(s32 *stack_matrix, size_t bytes);
 
 void matrix_free(s32 *matrix, s32 *stack_matrix);
 
-#endif // BIO_ALGORITHM_MATRIX_H
+#endif /* BIO_ALGORITHM_MATRIX_H */

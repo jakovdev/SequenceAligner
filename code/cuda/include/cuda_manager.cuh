@@ -182,4 +182,4 @@ class Cuda {
 	CUDA(StreamQuery(s); \
 	     if (err == cudaErrorNotReady) return true, S_QUERY, #s)
 
-#endif // CUDA_MANAGER_CUH
+#endif /* CUDA_MANAGER_CUH */

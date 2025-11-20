@@ -6,4 +6,4 @@
 
 bool cuda_align(void);
 
-#endif // INTERFACE_SEQALIGN_CUDA_H
+#endif /* INTERFACE_SEQALIGN_CUDA_H */

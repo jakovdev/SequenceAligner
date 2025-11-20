@@ -6,9 +6,9 @@
 
 #include "matrices.h"
 #include "system/types.h"
-// #include "system/simd.h"
+/* #include "system/simd.h" */
 
-#if 0 // USE_SIMD == 1
+#if /* USE_SIMD == 1 */ 0
 extern veci_t g_first_row_indices;
 extern veci_t g_gap_pen_vec;
 extern veci_t g_gap_open_vec;
@@ -20,4 +20,4 @@ extern s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 void scoring_init(void);
 
-#endif // BIO_SCORE_SCORING_H
+#endif /* BIO_SCORE_SCORING_H */

@@ -1,7 +1,7 @@
 #pragma once
 #ifndef BIO_SCORE_MATRICES_H
 #define BIO_SCORE_MATRICES_H
-// clang-format off
+/* clang-format off */
 
 #define AMINO_SIZE 24
 #define AMINO_MATSIZE (AMINO_SIZE * AMINO_SIZE * sizeof(int))
@@ -29,5 +29,5 @@ typedef struct {
 extern const AminoMatrix AMINO_MATRIX[NUM_AMINO_MATRICES];
 extern const NucleoMatrix NUCLEO_MATRIX[NUM_NUCLEO_MATRICES];
 
-// clang-format on
-#endif // BIO_SCORE_MATRICES_H
+/* clang-format on */
+#endif /* BIO_SCORE_MATRICES_H */

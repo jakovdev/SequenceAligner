@@ -71,4 +71,4 @@ u64 matrix_index(u32 row, u32 col);
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *path);
 
-#endif // IO_FILES_H
+#endif /* IO_FILES_H */

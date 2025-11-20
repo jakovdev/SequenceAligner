@@ -22,4 +22,4 @@ u64 csv_line_column_length(char *cursor, u64 target_column);
 bool csv_validate(const char *restrict file_start,
 		  const char *restrict file_end);
 
-#endif // IO_FORMAT_CSV_H
+#endif /* IO_FORMAT_CSV_H */

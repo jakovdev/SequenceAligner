@@ -11,7 +11,7 @@
 #include <windows.h>
 #if __has_include(<Shlwapi.h>)
 #include <Shlwapi.h>
-#else // MinGW
+#else /* MinGW */
 #include <shlwapi.h>
 #endif
 
@@ -33,7 +33,7 @@ typedef HANDLE pthread_t;
 
 void time_init(void);
 
-#else // POSIX/Linux
+#else /* POSIX/Linux */
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -70,4 +70,4 @@ bool path_special_exists(const char *path);
 bool path_file_exists(const char *path);
 bool path_directories_create(const char *path);
 
-#endif // SYSTEM_OS_H
+#endif /* SYSTEM_OS_H */

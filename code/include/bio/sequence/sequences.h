@@ -20,4 +20,4 @@ u64 sequences_length_sum(void);
 u32 sequences_length_max(void);
 #endif
 
-#endif // BIO_SEQUENCE_SEQUENCES_H
+#endif /* BIO_SEQUENCE_SEQUENCES_H */

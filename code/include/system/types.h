@@ -25,4 +25,4 @@ typedef unsigned char uchar;
 typedef unsigned long ul;
 typedef unsigned long long ull;
 
-#endif // SYSTEM_TYPES_H
+#endif /* SYSTEM_TYPES_H */

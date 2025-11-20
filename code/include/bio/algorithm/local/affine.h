@@ -20,4 +20,4 @@ void affine_local_init_simd(s32 *restrict match, s32 *restrict gap_x,
 			    sequence_ptr_t seq2);
 #endif
 
-#endif // BIO_ALGORITHM_LOCAL_AFFINE_H
+#endif /* BIO_ALGORITHM_LOCAL_AFFINE_H */

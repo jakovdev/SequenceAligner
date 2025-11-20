@@ -13,4 +13,4 @@ void affine_global_fill(s32 *restrict match, s32 *restrict gap_x,
 			s32 *restrict gap_y, const s32 *restrict seq1_i,
 			sequence_ptr_t seq1, sequence_ptr_t seq2);
 
-#endif // BIO_ALGORITHM_GLOBAL_AFFINE_H
+#endif /* BIO_ALGORITHM_GLOBAL_AFFINE_H */

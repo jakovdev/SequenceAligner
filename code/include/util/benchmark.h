@@ -18,4 +18,4 @@ void bench_filter_print(u64 filtered);
 
 void bench_total_print(u64 alignments);
 
-#endif // UTIL_BENCHMARK_H
+#endif /* UTIL_BENCHMARK_H */

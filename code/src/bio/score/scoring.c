@@ -6,7 +6,7 @@
 #include "bio/types.h"
 #include "system/compiler.h"
 
-#if 0 // USE_SIMD == 1
+#if /* USE_SIMD == 1 */ 0
 veci_t g_first_row_indices;
 veci_t g_gap_pen_vec;
 veci_t g_gap_open_vec;
@@ -31,14 +31,13 @@ void scoring_init(void)
 	case SEQ_TYPE_NUCLEO:
 		SEQ_TYPE_INIT(NUCLEO);
 		break;
-	/* EXPANDABLE: enum SequenceType */
-	default:
+	default: /* NOTE: EXPANDABLE enum SequenceType */
 	case SEQ_TYPE_COUNT:
 	case SEQ_TYPE_INVALID:
 		UNREACHABLE();
 	}
 
-#if 0 // USE_SIMD == 1
+#if /* USE_SIMD == 1 */ 0
 	g_first_row_indices = set_row_indices();
 	g_gap_pen_vec = set1_epi32(args_gap_pen());
 	g_gap_open_vec = set1_epi32(args_gap_open());

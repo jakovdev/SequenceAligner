@@ -14,10 +14,10 @@
 #if defined(__clang__)
 #define UNROLL(n) PRAGMA(unroll n)
 #define VECTORIZE PRAGMA(clang loop vectorize(assume_safety))
-#else // GCC
+#else /* GCC */
 #define UNROLL(n) PRAGMA(GCC unroll n)
 #define VECTORIZE PRAGMA(GCC ivdep)
-#endif // clang
+#endif /* clang */
 #elif defined(_MSC_VER)
 #define LIKELY(x) (x)
 #define UNLIKELY(x) (x)
@@ -50,4 +50,4 @@
 	for (u32 var = (start); var < (end); var++)
 #endif
 
-#endif // SYSTEM_COMPILER_H
+#endif /* SYSTEM_COMPILER_H */

@@ -18,4 +18,4 @@ u64 fasta_entry_length(char *cursor, char *file_end);
 
 bool fasta_validate(char *restrict file_start, char *restrict file_end);
 
-#endif // IO_FORMAT_FASTA_H
+#endif /* IO_FORMAT_FASTA_H */

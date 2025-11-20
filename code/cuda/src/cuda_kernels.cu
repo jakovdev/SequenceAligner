@@ -315,13 +315,13 @@ bool Cuda::kernelLaunch(int kernel_id) noexcept
 	default:
 		hostError("Invalid kernel ID");
 		return false;
-	case 0: // Gotoh Affine
+	case 0: /* Gotoh Affine */
 		k_ga<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
 		break;
-	case 1: // Needleman-Wunsch
+	case 1: /* Needleman-Wunsch */
 		k_nw<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
 		break;
-	case 2: // Smith-Waterman
+	case 2: /* Smith-Waterman */
 		k_sw<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
 		break;
 	}

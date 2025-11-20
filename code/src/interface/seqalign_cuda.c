@@ -76,4 +76,4 @@ bool cuda_align(void)
 	return false;
 }
 
-#endif // USE_CUDA
+#endif /* USE_CUDA */

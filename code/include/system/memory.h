@@ -33,4 +33,4 @@ ALLOC void *alloc_huge_page(size_t size);
 
 size_t available_memory(void);
 
-#endif // SYSTEM_MEMORY_H
+#endif /* SYSTEM_MEMORY_H */

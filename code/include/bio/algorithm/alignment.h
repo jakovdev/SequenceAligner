@@ -6,4 +6,4 @@
 
 bool align(void);
 
-#endif // BIO_ALGORITHM_ALIGNMENT_H
+#endif /* BIO_ALGORITHM_ALIGNMENT_H */

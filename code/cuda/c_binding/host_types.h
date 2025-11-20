@@ -43,6 +43,6 @@ typedef struct {
 	char *letters;
 	u64 length;
 } sequence_t;
-#endif // BIO_TYPES_H
+#endif /* BIO_TYPES_H */
 
-#endif // HOST_TYPES_H
+#endif /* HOST_TYPES_H */

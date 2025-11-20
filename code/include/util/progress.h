@@ -11,4 +11,4 @@ bool progress_start(_Atomic(u64) *progress, u64 total, const char *message);
 
 void progress_end(void);
 
-#endif // UTIL_PROGRESS_H
+#endif /* UTIL_PROGRESS_H */

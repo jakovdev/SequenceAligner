@@ -25,4 +25,4 @@ s32 *h5_matrix_data(void);
 size_t h5_matrix_bytes(void);
 #endif
 
-#endif // INTERFACE_SEQALIGN_HDF5_H
+#endif /* INTERFACE_SEQALIGN_HDF5_H */

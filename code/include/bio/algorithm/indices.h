@@ -10,4 +10,4 @@ void seq_indices_precompute(s32 *restrict indices, sequence_ptr_t seq);
 
 void seq_indices_free(s32 *restrict indices, bool is_stack);
 
-#endif // BIO_ALGORITHM_INDICES_H
+#endif /* BIO_ALGORITHM_INDICES_H */

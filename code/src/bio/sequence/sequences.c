@@ -171,10 +171,9 @@ static bool validate_sequence(sequence_ptr_t sequence)
 		valid_alphabet = NUCLEO_ALPHABET;
 		alphabet_size = NUCLEO_SIZE;
 		break;
-	/* EXPANDABLE: enum SequenceType */
 	case SEQ_TYPE_INVALID:
 	case SEQ_TYPE_COUNT:
-	default:
+	default: /* NOTE: EXPANDABLE enum SequenceType */
 		UNREACHABLE();
 	}
 

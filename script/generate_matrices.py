@@ -9,11 +9,11 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 if os.path.exists("script/generate_matrices.py"):
-    HEADER_FILE = "code/include/core/bio/score/matrices.h"
-    SOURCE_FILE = "code/src/core/bio/score/matrices.c"
+    HEADER_FILE = "code/include/bio/score/matrices.h"
+    SOURCE_FILE = "code/src/bio/score/matrices.c"
 else:
-    HEADER_FILE = "../code/include/core/bio/score/matrices.h"
-    SOURCE_FILE = "../code/src/core/bio/score/matrices.c"
+    HEADER_FILE = "../code/include/bio/score/matrices.h"
+    SOURCE_FILE = "../code/src/bio/score/matrices.c"
 
 AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYVBZX*"
 NUCLEOTIDES = "ATGCSWRYKMBVHDN*"
@@ -111,7 +111,7 @@ def format_matrix_as_c_array(matrix):
             formatted_val = f"{val:>{FIXED_WIDTH}}"
             row_values.append(formatted_val)
 
-        formatted_row = "{" + ", ".join(row_values) + "}, // " + aa1
+        formatted_row = "{" + ", ".join(row_values) + "}, /* " + aa1 + " */"
         formatted_rows.append(formatted_row)
 
     return "{\n" + "\n".join(formatted_rows) + "\n}"
@@ -122,7 +122,7 @@ def generate_header_file(matrix_types):
         "#pragma once",
         "#ifndef BIO_SCORE_MATRICES_H",
         "#define BIO_SCORE_MATRICES_H",
-        "// clang-format off",
+        "/* clang-format off */",
         "",
     ]
 
@@ -189,15 +189,15 @@ def generate_header_file(matrix_types):
         )
 
     header_content.append("")
-    header_content.append("// clang-format on")
-    header_content.append("#endif // BIO_SCORE_MATRICES_H")
+    header_content.append("/* clang-format on */")
+    header_content.append("#endif /* BIO_SCORE_MATRICES_H */")
     header_content.append("")
     return "\n".join(header_content)
 
 
 def generate_source_file(matrix_types):
     source_content = [
-        "// clang-format off",
+        "/* clang-format off */",
         '#include "bio/score/matrices.h"',
         "",
     ]
@@ -219,7 +219,7 @@ def generate_source_file(matrix_types):
         if not type_info["matrices"]:
             continue
 
-        source_content.append(f"// {type_name.capitalize()} matrix identifiers")
+        source_content.append(f"/* {type_name.capitalize()} matrix identifiers */")
         source_content.append(f"typedef enum {{")
         for i, (name, _) in enumerate(type_info["matrices"]):
             source_content.append(f"{name}_ID = {i},")
@@ -231,7 +231,7 @@ def generate_source_file(matrix_types):
             continue
 
         alphabet_name = type_name.upper()
-        source_content.append(f"// {type_name.capitalize()} matrices")
+        source_content.append(f"/* {type_name.capitalize()} matrices */")
 
         for name, matrix_obj in type_info["matrices"]:
             source_content.append(
@@ -252,7 +252,7 @@ def generate_source_file(matrix_types):
         source_content.append("};")
         source_content.append("")
 
-    source_content.append("// clang-format on")
+    source_content.append("/* clang-format on */")
     source_content.append("")
     return "\n".join(source_content)
 
