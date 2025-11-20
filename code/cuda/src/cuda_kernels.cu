@@ -2,28 +2,28 @@
 
 #include <cstring>
 
-__constant__ Constants c;
+__constant__ Constants C;
 
 __forceinline__ __device__ s32 d_seq_lup(const u32 ij, const u32 pos)
 {
-	return c.seq_lup[(uchar)c.letters[c.offsets[ij] + pos]];
+	return C.seq_lup[(uchar)C.letters[C.offsets[ij] + pos]];
 }
 
 __forceinline__ __device__ s32 d_sub_mat(const s32 a, const s32 b)
 {
-	return c.sub_mat[a * SUB_MATDIM + b];
+	return C.sub_mat[a * SUB_MATDIM + b];
 }
 
 __forceinline__ __device__ u32 d_find_j(const u64 id)
 {
-	u32 low = 1, high = c.seqs_n - 1;
+	u32 low = 1, high = C.seqs_n - 1;
 	u32 result = 1;
 
 	while (low <= high) {
 		const u32 mid = (low + high) / 2;
 
-		if (c.indices[mid] <= id) {
-			if (mid + 1 >= c.seqs_n || c.indices[mid + 1] > id) {
+		if (C.indices[mid] <= id) {
+			if (mid + 1 >= C.seqs_n || C.indices[mid + 1] > id) {
 				result = mid;
 				break;
 			}
@@ -45,31 +45,31 @@ __global__ void k_nw(s32 *R scores, u64 start, u64 batch)
 
 	const u64 alignment = start + tid;
 	const u32 j = d_find_j(alignment);
-	const u32 i = alignment - c.indices[j];
+	const u32 i = alignment - C.indices[j];
 
-	const u32 len1 = c.lengths[i];
-	const u32 len2 = c.lengths[j];
+	const u32 len1 = C.lengths[i];
+	const u32 len2 = C.lengths[j];
 
 	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
 	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
 		// Temporary fix, ignore for now
-		atomicAdd(c.progress, 1);
+		atomicAdd(C.progress, 1);
 		return;
 	}
 
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++)
-		dp_prev[col] = col * -(c.gap_pen);
+		dp_prev[col] = col * -(C.gap_pen);
 	for (u32 row = 1; row <= len1; ++row) {
-		dp_curr[0] = row * -(c.gap_pen);
+		dp_curr[0] = row * -(C.gap_pen);
 
 		for (u32 col = 1; col <= len2; col++) {
 			const s32 c1 = d_seq_lup(i, row - 1);
 			const s32 c2 = d_seq_lup(j, col - 1);
 			const s32 match = dp_prev[col - 1] + d_sub_mat(c1, c2);
-			const s32 gap_v = dp_prev[col] - c.gap_pen;
-			const s32 gap_h = dp_curr[col - 1] - c.gap_pen;
+			const s32 gap_v = dp_prev[col] - C.gap_pen;
+			const s32 gap_h = dp_curr[col - 1] - C.gap_pen;
 
 			s32 max = match > gap_v ? match : gap_v;
 			max = max > gap_h ? max : gap_h;
@@ -81,15 +81,15 @@ __global__ void k_nw(s32 *R scores, u64 start, u64 batch)
 	}
 
 	const s32 score = dp_prev[len2];
-	if (!c.triangular) {
-		scores[(u64)i * c.seqs_n + j] = score;
-		scores[(u64)j * c.seqs_n + i] = score;
+	if (!C.triangular) {
+		scores[(u64)i * C.seqs_n + j] = score;
+		scores[(u64)j * C.seqs_n + i] = score;
 	} else {
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(c.checksum), static_cast<ull>(score));
-	atomicAdd(c.progress, 1);
+	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
+	atomicAdd(C.progress, 1);
 }
 
 __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
@@ -100,15 +100,15 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 
 	const u64 alignment = start + tid;
 	const u32 j = d_find_j(alignment);
-	const u32 i = alignment - c.indices[j];
+	const u32 i = alignment - C.indices[j];
 
-	const u32 len1 = c.lengths[i];
-	const u32 len2 = c.lengths[j];
+	const u32 len1 = C.lengths[i];
+	const u32 len2 = C.lengths[j];
 
 	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
 	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
 		// Temporary fix, ignore for now
-		atomicAdd(c.progress, 1);
+		atomicAdd(C.progress, 1);
 		return;
 	}
 
@@ -118,8 +118,8 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 	match[0] = 0;
 	gap_x[0] = gap_y[0] = SCORE_MIN;
 	for (u32 col = 1; col <= len2; col++) {
-		gap_x[col] = max(match[col - 1] - c.gap_open,
-				 gap_x[col - 1] - c.gap_ext);
+		gap_x[col] = max(match[col - 1] - C.gap_open,
+				 gap_x[col - 1] - C.gap_ext);
 		match[col] = gap_x[col];
 		gap_y[col] = SCORE_MIN;
 	}
@@ -132,9 +132,9 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 	}
 
 	for (u32 row = 1; row <= len1; ++row) {
-		match[0] = row * -(c.gap_pen);
+		match[0] = row * -(C.gap_pen);
 		gap_x[0] = SCORE_MIN;
-		gap_y[0] = max(p_match[0] - c.gap_open, p_gap_y[0] - c.gap_ext);
+		gap_y[0] = max(p_match[0] - C.gap_open, p_gap_y[0] - C.gap_ext);
 		match[0] = gap_y[0];
 
 		const s32 c1 = d_seq_lup(i, row - 1);
@@ -144,12 +144,12 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 
 			const s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] - c.gap_open;
-			const s32 extend_x = gap_x[col - 1] - c.gap_ext;
+			const s32 open_x = match[col - 1] - C.gap_open;
+			const s32 extend_x = gap_x[col - 1] - C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] - c.gap_open;
-			const s32 extend_y = p_gap_y[col] - c.gap_ext;
+			const s32 open_y = p_match[col] - C.gap_open;
+			const s32 extend_y = p_gap_y[col] - C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			match[col] = max(d_score, max(gap_x[col], gap_y[col]));
@@ -162,15 +162,15 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 	}
 
 	const s32 score = match[len2];
-	if (!c.triangular) {
-		scores[(u64)i * c.seqs_n + j] = score;
-		scores[(u64)j * c.seqs_n + i] = score;
+	if (!C.triangular) {
+		scores[(u64)i * C.seqs_n + j] = score;
+		scores[(u64)j * C.seqs_n + i] = score;
 	} else {
 		scores[tid] = score;
 	}
 
-	atomicAdd(c.progress, 1);
-	atomicAdd(reinterpret_cast<ull *>(c.checksum), static_cast<ull>(score));
+	atomicAdd(C.progress, 1);
+	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 }
 
 __global__ void k_sw(s32 *R scores, u64 start, u64 batch)
@@ -181,15 +181,15 @@ __global__ void k_sw(s32 *R scores, u64 start, u64 batch)
 
 	const u64 alignment = start + tid;
 	const u32 j = d_find_j(alignment);
-	const u32 i = alignment - c.indices[j];
+	const u32 i = alignment - C.indices[j];
 
-	const u32 len1 = c.lengths[i];
-	const u32 len2 = c.lengths[j];
+	const u32 len1 = C.lengths[i];
+	const u32 len2 = C.lengths[j];
 
 	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
 	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
 		// Temporary fix, ignore for now
-		atomicAdd(c.progress, 1);
+		atomicAdd(C.progress, 1);
 		return;
 	}
 
@@ -220,12 +220,12 @@ __global__ void k_sw(s32 *R scores, u64 start, u64 batch)
 
 			const s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] - c.gap_open;
-			const s32 extend_x = gap_x[col - 1] - c.gap_ext;
+			const s32 open_x = match[col - 1] - C.gap_open;
+			const s32 extend_x = gap_x[col - 1] - C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] - c.gap_open;
-			const s32 extend_y = p_gap_y[col] - c.gap_ext;
+			const s32 open_y = p_match[col] - C.gap_open;
+			const s32 extend_y = p_gap_y[col] - C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			const s32 best = max(
@@ -242,15 +242,15 @@ __global__ void k_sw(s32 *R scores, u64 start, u64 batch)
 	}
 
 	const s32 score = max_score;
-	if (!c.triangular) {
-		scores[(u64)i * c.seqs_n + j] = score;
-		scores[(u64)j * c.seqs_n + i] = score;
+	if (!C.triangular) {
+		scores[(u64)i * C.seqs_n + j] = score;
+		scores[(u64)j * C.seqs_n + i] = score;
 	} else {
 		scores[tid] = score;
 	}
 
-	atomicAdd(c.progress, 1);
-	atomicAdd(reinterpret_cast<ull *>(c.checksum), static_cast<ull>(score));
+	atomicAdd(C.progress, 1);
+	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 }
 
 bool Cuda::kernelLaunch(int kernel_id) noexcept
@@ -269,7 +269,7 @@ bool Cuda::kernelLaunch(int kernel_id) noexcept
 		D_MEMSET(d.progress, 0, 1);
 		D_MEMSET(d.checksum, 0, 1);
 
-		C_COPY(c, static_cast<Constants *>(&d));
+		C_COPY(C, static_cast<Constants *>(&d));
 	}
 
 	u64 offset = h.batch_last;
