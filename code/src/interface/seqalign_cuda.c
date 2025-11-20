@@ -1,12 +1,13 @@
 #include "interface/seqalign_cuda.h"
 
+#include "util/args.h"
+#include "util/print.h"
+
 #ifdef USE_CUDA
-#include "app/args.h"
 #include "bio/score/scoring.h"
 #include "bio/sequence/sequences.h"
 #include "interface/seqalign_hdf5.h"
 #include "util/benchmark.h"
-#include "util/print.h"
 
 #include "host_interface.h"
 
@@ -37,7 +38,7 @@ bool cuda_align(void)
 	if (!cuda_upload_scoring(SUB_MAT, SEQ_LUP))
 		RETURN_CUDA_ERRORS("Failed uploading scoring data");
 
-	if (!cuda_upload_gaps(args_gap_pen(), args_gap_open(), args_gap_ext()))
+	if (!cuda_upload_gaps(arg_gap_pen(), arg_gap_open(), arg_gap_ext()))
 		RETURN_CUDA_ERRORS("Failed uploading gaps");
 
 	if (!cuda_upload_storage(h5_matrix_data(), h5_matrix_bytes()))
@@ -46,7 +47,7 @@ bool cuda_align(void)
 	print(M_PERCENT(0) "Aligning sequences");
 	bench_align_start();
 	while (true) {
-		if (!cuda_kernel_launch(args_align_method()))
+		if (!cuda_kernel_launch(arg_align_method()))
 			RETURN_CUDA_ERRORS("Failed to launch alignment");
 
 		if (!cuda_kernel_results())
@@ -65,6 +66,30 @@ bool cuda_align(void)
 	return true;
 }
 
+static bool no_cuda;
+
+bool arg_mode_cuda(void)
+{
+	return !no_cuda;
+}
+
+static void print_no_cuda(void)
+
+{
+	print(M_LOC(MIDDLE), INFO "CUDA: Enabled");
+}
+
+ARGUMENT(disable_cuda) = {
+	.opt = 'C',
+	.lopt = "no-cuda",
+	.help = "Disable CUDA",
+	.set = &no_cuda,
+	.action_callback = print_no_cuda,
+	.action_phase = ARG_CALLBACK_IF_UNSET,
+	.action_weight = 400,
+	.help_weight = 350,
+};
+
 #undef RETURN_CUDA_ERRORS
 
 #else
@@ -73,5 +98,25 @@ bool cuda_align(void)
 {
 	return false;
 }
+
+bool arg_mode_cuda(void)
+{
+	return false;
+}
+
+static void print_cuda_ignored(void)
+{
+	print(M_LOC(MIDDLE), WARNING "CUDA: Ignored");
+}
+
+ARGUMENT(disable_cuda) = {
+	.opt = 'C',
+	.lopt = "no-cuda",
+	.help = "Disable CUDA (ignored, not compiled with CUDA)",
+	.action_callback = print_cuda_ignored,
+	.action_phase = ARG_CALLBACK_IF_SET,
+	.action_weight = 400,
+	.help_weight = 350,
+};
 
 #endif /* USE_CUDA */

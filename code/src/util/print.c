@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "util/args.h"
+
 #ifdef __cplusplus
 #define P_RESTRICT __restrict
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
@@ -170,18 +172,19 @@ static struct {
 		enum icon icon;
 		enum requirement requirement;
 	} map[M_TYPES];
-	unsigned verbose : 1;
-	unsigned quiet : 1;
-	unsigned nodetail : 1;
-	unsigned in_section : 1;
-	unsigned content_printed : 1;
-	unsigned is_init : 1;
 	const char boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT][sizeof("╔")];
 	char err_ctx[TERMINAL_WIDTH];
 	const char progress_filled_char[sizeof("■")];
 	const char progress_empty_char[sizeof("·")];
 	const char ansi_escape_start[sizeof("\x1b")];
 	char ansi_carriage_return[sizeof("\r")];
+	bool force;
+	bool verbose;
+	bool quiet;
+	bool nodetail;
+	bool in_section;
+	bool content_printed;
+	bool is_init;
 } p = {
     .map = {
         [0]          = { COLOR_RESET,       ICON_NONE,    P_OPTIONAL },
@@ -231,21 +234,6 @@ static struct {
     .width = TERMINAL_WIDTH,
 };
 
-void print_verbose_flip(void)
-{
-	p.verbose = !p.verbose;
-}
-
-void print_quiet_flip(void)
-{
-	p.quiet = !p.quiet;
-}
-
-void print_detail_flip(void)
-{
-	p.nodetail = !p.nodetail;
-}
-
 void print_error_context(const char *context)
 {
 	if (!context) {
@@ -272,12 +260,14 @@ static void print_section_end(void)
 static void print_init(void)
 {
 	terminal_init();
-	if (!terminal_environment())
+	if (!terminal_environment()) {
 		p.ansi_carriage_return[0] = '\n';
+		p.nodetail = true;
+	}
 
 	print_streams(stdin, stdout, stderr);
 	atexit(print_section_end);
-	p.is_init = 1;
+	p.is_init = true;
 }
 
 static void terminal_read_input(char *buf, size_t buf_sz)
@@ -315,6 +305,9 @@ static void terminal_read_input(char *buf, size_t buf_sz)
 
 bool print_yN(const char *P_RESTRICT prompt)
 {
+	if (p.force)
+		return true;
+
 	char result[2] = { 0 };
 	print(M_UINS(result) "%s [y/N]", prompt);
 	return result[0] == 'y' || result[0] == 'Y';
@@ -322,6 +315,9 @@ bool print_yN(const char *P_RESTRICT prompt)
 
 bool print_Yn(const char *P_RESTRICT prompt)
 {
+	if (p.force)
+		return true;
+
 	char result[2] = { 0 };
 	print(M_UINS(result) "%s [Y/n]", prompt);
 	return !(result[0] == 'n' || result[0] == 'N');
@@ -329,6 +325,8 @@ bool print_Yn(const char *P_RESTRICT prompt)
 
 bool print_yn(const char *P_RESTRICT prompt)
 {
+	if (p.force)
+		return true;
 repeat:
 	char result[2] = { 0 };
 	print(M_UINS(result) "%s [y/n]", prompt);
@@ -440,7 +438,7 @@ skip_fmt:
 			ouputc('\n');
 			ouwrite(p_buf, p_buflen);
 			ouwrite("\n\n", 2);
-			p.in_section = 0;
+			p.in_section = false;
 			goto cleanup;
 		}
 
@@ -483,7 +481,7 @@ skip_fmt:
 		ouwcol(COLOR_RESET);
 		ouputc('\n');
 
-		p.in_section = 0;
+		p.in_section = false;
 
 		goto cleanup;
 	} else if (type == M_SECTION) {
@@ -501,8 +499,8 @@ skip_fmt:
 			}
 
 			ouputc('\n');
-			p.in_section = 0;
-			p.content_printed = 0;
+			p.in_section = false;
+			p.content_printed = false;
 		}
 
 		if (!fmt)
@@ -512,8 +510,8 @@ skip_fmt:
 			ouwrite(p_buf, p_buflen);
 			ouputc('\n');
 
-			p.in_section = 1;
-			p.content_printed = 0;
+			p.in_section = true;
+			p.content_printed = false;
 			goto cleanup;
 		}
 
@@ -545,8 +543,8 @@ skip_fmt:
 		ouwcol(COLOR_RESET);
 		ouputc('\n');
 
-		p.in_section = 1;
-		p.content_printed = 0;
+		p.in_section = true;
+		p.content_printed = false;
 		goto cleanup;
 	} else if (type == M_PROGRESS) {
 		const int percent = CLAMP(arg.percent, 0, 100);
@@ -569,7 +567,7 @@ skip_fmt:
 			}
 
 			fflush(out);
-			p.content_printed = 1;
+			p.content_printed = true;
 			goto cleanup;
 		}
 
@@ -618,7 +616,7 @@ skip_fmt:
 			ouputc('\n');
 
 		fflush(out);
-		p.content_printed = 1;
+		p.content_printed = true;
 
 		goto cleanup;
 	} else if (type == M_CHOICE) {
@@ -707,7 +705,7 @@ skip_fmt:
 			ouputc('\n');
 
 			if (selected >= 1 && selected <= c_count) {
-				p.content_printed = 1;
+				p.content_printed = true;
 				funlockfile(out);
 				return (int)selected - 1 +
 				       PRINT_FIRST_CHOICE_INDEX__SUCCESS;
@@ -757,7 +755,7 @@ skip_fmt:
 		}
 
 		ouputc('\n');
-		p.content_printed = 1;
+		p.content_printed = true;
 
 		goto cleanup;
 	} else {
@@ -790,7 +788,7 @@ skip_fmt:
 
 		ouputc('\n');
 
-		p.content_printed = 1;
+		p.content_printed = true;
 	}
 
 #undef ouwico
@@ -817,3 +815,31 @@ enum p_return print_dev(const char *fmt, ...)
 	return PRINT_TO_DEV_NDEBUG__ERROR;
 #endif
 }
+
+ARGUMENT(force) = {
+	.opt = 'F',
+	.lopt = "force-proceed",
+	.help = "Force proceed without user prompts (for CI)",
+	.set = &p.force,
+};
+
+ARGUMENT(verbose) = {
+	.opt = 'v',
+	.lopt = "verbose",
+	.help = "Enable verbose printing",
+	.set = &p.verbose,
+};
+
+ARGUMENT(quiet) = {
+	.opt = 'q',
+	.lopt = "quiet",
+	.help = "Suppress all non-error printing",
+	.set = &p.quiet,
+};
+
+ARGUMENT(disable_detail) = {
+	.opt = 'D',
+	.lopt = "no-detail",
+	.help = "Disable detailed printing",
+	.set = &p.nodetail,
+};

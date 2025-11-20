@@ -1,15 +1,19 @@
 #include "bio/types.h"
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "bio/algorithm/method/ga.h"
 #include "bio/algorithm/method/nw.h"
 #include "bio/algorithm/method/sw.h"
 #include "bio/score/matrices.h"
 #include "system/compiler.h"
+#include "util/args.h"
+#include "util/print.h"
 
 #define AMINO_ALIASES ((const char *[]){ "amino", "aa", "protein", NULL })
 #define NUCLEO_ALIASES ((const char *[]){ "nucleo", "dna", "rna", "nt", NULL })
@@ -59,174 +63,362 @@ align_func_t align_function(enum AlignmentMethod method)
 	}
 }
 
-const char *alignment_name(enum AlignmentMethod method)
+static enum SequenceType seq_type = SEQ_TYPE_INVALID;
+static int matrix_id = -1;
+
+static enum AlignmentMethod method_id = ALIGN_INVALID;
+static s32 gap_pen;
+static s32 gap_open;
+static s32 gap_ext;
+
+enum AlignmentMethod arg_align_method(void)
 {
-	return ALIGNMENT_METHODS[method].name;
+	return method_id;
+}
+s32 arg_gap_pen(void)
+{
+	return gap_pen;
+}
+s32 arg_gap_open(void)
+{
+	return gap_open;
+}
+s32 arg_gap_ext(void)
+{
+	return gap_ext;
+}
+enum SequenceType arg_sequence_type(void)
+{
+	return seq_type;
+}
+int arg_sub_matrix(void)
+{
+	return matrix_id;
 }
 
-bool alignment_gap_type(enum AlignmentMethod method, enum GapPenaltyType type)
+static struct arg_callback parse_seq_type(const char *str, void *dest)
 {
-	return ALIGNMENT_METHODS[method].gap_type == type;
+	enum SequenceType type = SEQ_TYPE_INVALID;
+	errno = 0;
+	char *endptr = NULL;
+	long id = strtol(str, &endptr, 10);
+	if (endptr != str && *endptr == '\0' && errno != ERANGE &&
+	    id > SEQ_TYPE_INVALID && id < SEQ_TYPE_COUNT)
+		type = (enum SequenceType)id;
+
+	for (int i = 0; i < SEQ_TYPE_COUNT; i++) {
+		for (const char **alias = SEQUENCE_TYPES[i].aliases;
+		     *alias != NULL; alias++) {
+			if (strcasecmp(str, *alias) == 0)
+				type = SEQUENCE_TYPES[i].type;
+		}
+	}
+
+	if (type == SEQ_TYPE_INVALID)
+		return ARG_INVALID("Invalid sequence type");
+
+	*(enum SequenceType *)dest = type;
+	return ARG_VALID();
 }
 
-bool alignment_linear(enum AlignmentMethod method)
+static struct arg_callback parse_matrix(const char *str, void *dest)
 {
-	return alignment_gap_type(method, GAP_TYPE_LINEAR);
+	int id = -1;
+	switch (seq_type) {
+	case SEQ_TYPE_AMINO:
+		for (int i = 0; i < NUM_AMINO_MATRICES; i++) {
+			if (strcasecmp(str, AMINO_MATRIX[i].name) == 0) {
+				id = i;
+				break;
+			}
+		}
+		break;
+	case SEQ_TYPE_NUCLEO:
+		for (int i = 0; i < NUM_NUCLEO_MATRICES; i++) {
+			if (strcasecmp(str, NUCLEO_MATRIX[i].name) == 0) {
+				id = i;
+				break;
+			}
+		}
+		break;
+	case SEQ_TYPE_INVALID:
+	case SEQ_TYPE_COUNT:
+	default: /* NOTE: EXPANDABLE enum SequenceType */
+		UNREACHABLE();
+	}
+
+	if (id < 0)
+		return ARG_INVALID("Invalid substitution matrix name");
+
+	*(int *)dest = id;
+	return ARG_VALID();
 }
 
-bool alignment_affine(enum AlignmentMethod method)
+static struct arg_callback parse_align_method(const char *str, void *dest)
 {
-	return alignment_gap_type(method, GAP_TYPE_AFFINE);
+	enum AlignmentMethod method = ALIGN_INVALID;
+	errno = 0;
+	char *endptr = NULL;
+	long id = strtol(str, &endptr, 10);
+	if (endptr != str && *endptr == '\0' && errno != ERANGE &&
+	    id > ALIGN_INVALID && id < ALIGN_COUNT)
+		method = (enum AlignmentMethod)id;
+
+	if (method == ALIGN_INVALID) {
+		for (int i = 0; i < ALIGN_COUNT; i++) {
+			for (const char **alias = ALIGNMENT_METHODS[i].aliases;
+			     *alias != NULL; alias++) {
+				if (strcasecmp(str, *alias) == 0)
+					method = ALIGNMENT_METHODS[i].method;
+			}
+		}
+	}
+
+	if (method == ALIGN_INVALID)
+		return ARG_INVALID("Invalid alignment method");
+
+	*(enum AlignmentMethod *)dest = method;
+	return ARG_VALID();
 }
 
-/* EXPANDABLE: enum GapPenaltyType */
+/* TODO: Negate gap value */
+ARG_PARSE_L(gap_value, 10, s32, /* -(s32) */ (s32), (val < 0 || val > INT_MAX),
+	    "Gap values must be positive integers")
 
-const char *gap_type_name(enum AlignmentMethod method)
+static struct arg_callback validate_gap_pen(void)
+{
+	if (ALIGNMENT_METHODS[method_id].gap_type != GAP_TYPE_LINEAR)
+		return ARG_INVALID(
+			"Gap penalty cannot be set for non-linear methods");
+
+	return ARG_VALID();
+}
+
+static struct arg_callback validate_gap_affine(void)
+{
+	if (ALIGNMENT_METHODS[method_id].gap_type != GAP_TYPE_AFFINE)
+		return ARG_INVALID(
+			"Gap open/extend cannot be set for non-affine methods");
+
+	if (method_id == ALIGN_GOTOH_AFFINE && gap_open == gap_ext) {
+		if (print_Yn(
+			    "Equal gap penalties found, switch to Needleman-Wunsch?")) {
+			method_id = ALIGN_NEEDLEMAN_WUNSCH;
+			gap_pen = gap_open;
+			gap_open = INT32_MAX;
+			gap_ext = INT32_MAX;
+		}
+	}
+
+	return ARG_VALID();
+}
+
+static void print_config_seq_type(void)
+{
+	print(M_LOC(MIDDLE), INFO "Sequence type: %s",
+	      SEQUENCE_TYPES[seq_type].name);
+}
+
+static void print_config_matrix(void)
+{
+	const char *name = "Unknown";
+	switch (seq_type) {
+	case SEQ_TYPE_AMINO:
+		name = AMINO_MATRIX[matrix_id].name;
+		break;
+	case SEQ_TYPE_NUCLEO:
+		name = NUCLEO_MATRIX[matrix_id].name;
+		break;
+	case SEQ_TYPE_INVALID:
+	case SEQ_TYPE_COUNT:
+	default: /* NOTE: EXPANDABLE enum SequenceType */
+		UNREACHABLE();
+	}
+
+	print(M_LOC(MIDDLE), INFO "Matrix: %s", name);
+}
+
+static void print_config_method(void)
+{
+	print(M_LOC(MIDDLE), INFO "Method: %s",
+	      ALIGNMENT_METHODS[method_id].name);
+}
+
+static void print_config_gaps(void)
+{
+	if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_LINEAR)
+		print(M_LOC(MIDDLE), INFO "Gap penalty: %d", gap_pen);
+	else if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_AFFINE)
+		print(M_LOC(MIDDLE), INFO "Gap open: %d, extend: %d", gap_open,
+		      gap_ext);
+}
+
+static char seq_type_help[512];
+static char align_help[512];
+
+static const char *gap_type_name(enum AlignmentMethod method)
 {
 	switch (ALIGNMENT_METHODS[method].gap_type) {
 	case GAP_TYPE_LINEAR:
 		return "Linear";
 	case GAP_TYPE_AFFINE:
 		return "Affine";
-	default:
+	default: /* NOTE: EXPANDABLE enum GapPenaltyType */
 		UNREACHABLE();
 	}
 }
 
-enum AlignmentMethod alignment_arg(const char *arg)
+_ARGS_CONSTRUCTOR(build_help_strings)
 {
-	if (!arg)
-		return ALIGN_INVALID;
-
-	// numeric
-	if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1]))) {
-		int method = atoi(arg);
-		if (method >= 0 && method < ALIGN_COUNT)
-			return (enum AlignmentMethod)method;
-
-		return ALIGN_INVALID;
-	}
-
-	// alias
-	for (int i = 0; i < ALIGN_COUNT; i++) {
-		for (const char **alias = ALIGNMENT_METHODS[i].aliases;
-		     *alias != NULL; alias++) {
-			if (strcasecmp(arg, *alias) == 0)
-				return ALIGNMENT_METHODS[i].method;
-		}
-	}
-
-	return ALIGN_INVALID;
-}
-
-void alignment_list(void)
-{
-	for (int i = 0; i < ALIGN_COUNT; i++) {
-		printf("                           %s: %s (%s, %s gap)\n",
-		       ALIGNMENT_METHODS[i].aliases[0],
-		       ALIGNMENT_METHODS[i].name,
-		       ALIGNMENT_METHODS[i].description,
-		       gap_type_name((enum AlignmentMethod)i));
-	}
-}
-
-const char *matrix_id_name(enum SequenceType seq_type, int matrix_id)
-{
-	if (seq_type < 0 || matrix_id < 0)
-		return "Unknown";
-
-	if (seq_type == SEQ_TYPE_AMINO && matrix_id < NUM_AMINO_MATRICES)
-		return AMINO_MATRIX[matrix_id].name;
-	if (seq_type == SEQ_TYPE_NUCLEO && matrix_id < NUM_NUCLEO_MATRICES)
-		return NUCLEO_MATRIX[matrix_id].name;
-	/* EXPANDABLE: enum SequenceType */
-
-	return "Unknown";
-}
-
-int matrix_name_id(enum SequenceType seq_type, const char *name)
-{
-	if (!name)
-		return -1;
-
-	int num_matrices = 0;
-	const void *matrices = NULL;
-
-	if (seq_type == SEQ_TYPE_AMINO) {
-		num_matrices = NUM_AMINO_MATRICES;
-		matrices = AMINO_MATRIX;
-	} else if (seq_type == SEQ_TYPE_NUCLEO) {
-		num_matrices = NUM_NUCLEO_MATRICES;
-		matrices = NUCLEO_MATRIX;
-	} else /* EXPANDABLE: enum SequenceType */ {
-		return -1;
-	}
-
-	for (int i = 0; i < num_matrices; i++) {
-		const char *matrix_name = NULL;
-		if (seq_type == SEQ_TYPE_AMINO)
-			matrix_name = ((const AminoMatrix *)matrices)[i].name;
-		else if (seq_type == SEQ_TYPE_NUCLEO)
-			matrix_name = ((const NucleoMatrix *)matrices)[i].name;
-		/* EXPANDABLE: enum SequenceType */
-
-		if (strcasecmp(name, matrix_name) == 0)
-			return i;
-	}
-
-	return -1;
-}
-
-void matrix_seq_type_list(enum SequenceType seq_type)
-{
-	if (seq_type == SEQ_TYPE_AMINO) {
-		for (int i = 0; i < NUM_AMINO_MATRICES; i++)
-			printf("  %s%s", AMINO_MATRIX[i].name,
-			       (i + 1) % 5 == 0		     ? "\n" :
-			       (i == NUM_AMINO_MATRICES - 1) ? "\n" :
-							       ", ");
-	} else if (seq_type == SEQ_TYPE_NUCLEO) {
-		for (int i = 0; i < NUM_NUCLEO_MATRICES; i++)
-			printf("  %s%s", NUCLEO_MATRIX[i].name,
-			       (i + 1) % 5 == 0		      ? "\n" :
-			       (i == NUM_NUCLEO_MATRICES - 1) ? "\n" :
-								", ");
-	} /* EXPANDABLE: enum SequenceType */
-}
-
-const char *sequence_type_name(enum SequenceType seq_type)
-{
-	return SEQUENCE_TYPES[seq_type].name;
-}
-
-enum SequenceType sequence_type_arg(const char *arg)
-{
-	if (!arg)
-		return SEQ_TYPE_INVALID;
-
-	if (isdigit(arg[0]) || (arg[0] == '-' && isdigit(arg[1]))) {
-		int type = atoi(arg);
-		if (type >= 0 && type < SEQ_TYPE_COUNT)
-			return (enum SequenceType)type;
-
-		return SEQ_TYPE_INVALID;
-	}
-
+	snprintf(seq_type_help, sizeof(seq_type_help), "Sequence type\n");
 	for (int i = 0; i < SEQ_TYPE_COUNT; i++) {
-		for (const char **alias = SEQUENCE_TYPES[i].aliases;
-		     *alias != NULL; alias++) {
-			if (strcasecmp(arg, *alias) == 0)
-				return SEQUENCE_TYPES[i].type;
-		}
+		const char *newline = (i == SEQ_TYPE_COUNT - 1) ? "" : "\n";
+		size_t len = strlen(seq_type_help);
+		snprintf(seq_type_help + len, sizeof(seq_type_help) - len,
+			 "  %s: %s%s", SEQUENCE_TYPES[i].aliases[0],
+			 SEQUENCE_TYPES[i].name, newline);
 	}
 
-	return SEQ_TYPE_INVALID;
+	snprintf(align_help, sizeof(align_help), "Alignment method\n");
+	for (int i = 0; i < ALIGN_COUNT; i++) {
+		const char *newline = (i == ALIGN_COUNT - 1) ? "" : "\n";
+		size_t len = strlen(align_help);
+		snprintf(align_help + len, sizeof(align_help) - len,
+			 "  %s: %s (%s, %s gap)%s",
+			 ALIGNMENT_METHODS[i].aliases[0],
+			 ALIGNMENT_METHODS[i].name,
+			 ALIGNMENT_METHODS[i].description, gap_type_name(i),
+			 newline);
+	}
 }
 
-void sequence_types_list(void)
+static struct arg_callback list_matrices(const char *str, void *dest)
 {
-	for (int i = 0; i < SEQ_TYPE_COUNT; i++)
-		printf("                           %s: %s (%s)\n",
-		       SEQUENCE_TYPES[i].aliases[0], SEQUENCE_TYPES[i].name,
-		       SEQUENCE_TYPES[i].description);
+	(void)str;
+	(void)dest;
+	printf("Listing available substitution matrices\n\n");
+
+	printf("Amino Acid Matrices (%d):\n", NUM_AMINO_MATRICES);
+	for (int i = 0; i < NUM_AMINO_MATRICES; i++) {
+		const char *sep = ((i + 1) % 5 == 0)		? "\n" :
+				  (i == NUM_AMINO_MATRICES - 1) ? "\n" :
+								  ", ";
+		printf("  %s%s", AMINO_MATRIX[i].name, sep);
+	}
+
+	printf("\nNucleotide Matrices (%d):\n", NUM_NUCLEO_MATRICES);
+	for (int i = 0; i < NUM_NUCLEO_MATRICES; i++) {
+		const char *sep = ((i + 1) % 5 == 0)		 ? "\n" :
+				  (i == NUM_NUCLEO_MATRICES - 1) ? "\n" :
+								   ", ";
+		printf("  %s%s", NUCLEO_MATRIX[i].name, sep);
+	}
+
+	/* NOTE: EXPANDABLE enum SequenceType */
+
+	exit(EXIT_SUCCESS);
 }
+
+ARGUMENT(sequence_type) = {
+	.opt = 't',
+	.lopt = "type",
+	.help = seq_type_help,
+	.param = "TYPE",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = &seq_type,
+	.parse_callback = parse_seq_type,
+	.action_callback = print_config_seq_type,
+	.action_weight = 700,
+	.help_weight = 700,
+};
+
+ARGUMENT(substitution_matrix) = {
+	.opt = 'm',
+	.lopt = "matrix",
+	.help = "Substitution matrix\n  Use -l, --list-matrices to see all available matrices",
+	.param = "MATRIX",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = &matrix_id,
+	.parse_callback = parse_matrix,
+	.action_callback = print_config_matrix,
+	.action_weight = 650,
+	.help_weight = 650,
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(sequence_type)),
+};
+
+ARGUMENT(alignment_method) = {
+	.opt = 'a',
+	.lopt = "align",
+	.help = align_help,
+	.param = "METHOD",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = &method_id,
+	.parse_callback = parse_align_method,
+	.action_callback = print_config_method,
+	.action_weight = 600,
+	.help_weight = 600,
+};
+
+ARG_DECLARE(gap_open);
+ARG_DECLARE(gap_extend);
+
+ARGUMENT(gap_penalty) = {
+	.opt = 'p',
+	.lopt = "gap-penalty",
+	.help = "Linear gap penalty",
+	.param = "N",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = &gap_pen,
+	.parse_callback = parse_gap_value,
+	.validate_callback = validate_gap_pen,
+	.validate_phase = ARG_CALLBACK_IF_SET,
+	.validate_weight = 510,
+	.action_callback = print_config_gaps,
+	.action_weight = 510,
+	.help_weight = 590,
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
+	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_open), ARG(gap_extend)),
+};
+
+ARGUMENT(gap_open) = {
+	.opt = 's',
+	.lopt = "gap-open",
+	.help = "Affine gap open penalty",
+	.param = "N",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = &gap_open,
+	.parse_callback = parse_gap_value,
+	.validate_callback = validate_gap_affine,
+	.validate_phase = ARG_CALLBACK_IF_SET,
+	.validate_weight = 550,
+	.help_weight = 550,
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
+	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
+};
+
+ARGUMENT(gap_extend) = {
+	.opt = 'e',
+	.lopt = "gap-extend",
+	.help = "Affine gap extend penalty",
+	.param = "N",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = &gap_ext,
+	.parse_callback = parse_gap_value,
+	.help_weight = 510,
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
+	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
+};
+
+ARGUMENT(list_matrices) = {
+	.opt = 'l',
+	.lopt = "list-matrices",
+	.help = "List available substitution matrices",
+	.parse_callback = list_matrices,
+	.help_weight = 9999,
+};

@@ -1,6 +1,5 @@
 #include "io/format/fasta.h"
 
-#include "app/args.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -51,7 +50,7 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 	u64 line_number = 1;
 	bool in_sequence = false;
 	bool found_sequence_data = false;
-	bool asked_user_about_skipping = false;
+	bool ask_skip = false;
 	bool skip = false;
 
 	cursor = fasta_skip_empty(cursor, file_end);
@@ -74,18 +73,18 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 
 			if (cursor + 1 < file_end &&
 			    (*(cursor + 1) == '\n' || *(cursor + 1) == '\r')) {
-				if (!asked_user_about_skipping) {
+				if (!ask_skip) {
 					bench_io_end();
 					print(M_NONE,
 					      WARNING
 					      "Empty header found on line " Pu64,
 					      line_number);
 					skip = print_yN("Skip empty headers?");
-					asked_user_about_skipping = true;
+					ask_skip = true;
 					bench_io_start();
 				}
 
-				if (!args_force() && !skip) {
+				if (!skip) {
 					print(M_NONE,
 					      ERR
 					      "Empty header found on line " Pu64,

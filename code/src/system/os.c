@@ -3,6 +3,10 @@
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
+#include <omp.h>
+
+#include "util/args.h"
+#include "util/print.h"
 
 #ifdef _WIN32
 #include <direct.h>
@@ -155,3 +159,47 @@ bool path_directories_create(const char *path)
 	free(dirbuf);
 	return true;
 }
+
+static int thread_num;
+
+int arg_thread_num(void)
+{
+	if (!thread_num)
+		thread_num = omp_get_max_threads();
+	return thread_num;
+}
+
+static struct arg_callback parse_thread_num(const char *str, void *dest)
+{
+	errno = 0;
+	char *endptr = NULL;
+	unsigned long threads = strtoul(str, &endptr, 10);
+	if (endptr == str || *endptr != '\0' || errno == ERANGE ||
+	    threads > INT_MAX)
+		return ARG_INVALID("Invalid thread count");
+
+	if (threads) {
+		*(int *)dest = (int)threads;
+		omp_set_num_threads((int)threads);
+	}
+
+	return ARG_VALID();
+}
+
+static void print_threads(void)
+{
+	print(M_LOC(LAST), INFO "CPU Threads: %d", arg_thread_num());
+}
+
+ARGUMENT(threads) = {
+	.opt = 'T',
+	.lopt = "threads",
+	.help = "Number of threads (0 = auto)",
+	.param = "N",
+	.param_req = ARG_PARAM_REQUIRED,
+	.dest = &thread_num,
+	.parse_callback = parse_thread_num,
+	.action_callback = print_threads,
+	.action_weight = 1,
+	.help_weight = 450,
+};

@@ -8,7 +8,7 @@
 #include "bio/types.h"
 #include "system/types.h"
 
-bool h5_open(const char *file_path, u64 mat_dim, u8 compression, bool write);
+bool h5_open(const char *file_path, u64 mat_dim);
 
 bool h5_sequences_store(sequence_t *sequences, u32 seq_count);
 

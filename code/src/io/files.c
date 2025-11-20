@@ -9,6 +9,7 @@
 #include "io/format/fasta.h"
 #include "system/memory.h"
 #include "system/os.h"
+#include "util/args.h"
 #include "util/print.h"
 
 static void file_metadata_init(struct FileMetadata *meta)
@@ -446,3 +447,126 @@ void file_matrix_name(char *buffer, size_t buffer_size, const char *output_path)
 
 	snprintf(buffer, buffer_size, "%s%s.mmap", dir, base);
 }
+
+static bool no_write;
+
+ARGUMENT(disable_write) = {
+	.opt = 'W',
+	.lopt = "no-write",
+	.help = "Disable writing to output file",
+	.set = &no_write,
+	.help_weight = 400,
+};
+
+bool arg_mode_write(void)
+{
+	return !no_write;
+}
+
+static char input_path[MAX_PATH];
+static char output_path[MAX_PATH];
+
+const char *arg_input(void)
+{
+	return input_path;
+}
+
+const char *arg_output(void)
+{
+	return output_path;
+}
+
+static void print_input_path(void)
+{
+	print(M_LOC(FIRST), INFO "Input: %s", file_name_path(input_path));
+}
+
+static void print_output_path(void)
+{
+	if (no_write)
+		print(M_LOC(MIDDLE), WARNING "Output: Ignored");
+	else
+		print(M_LOC(MIDDLE), INFO "Output: %s",
+		      file_name_path(output_path));
+}
+
+static struct arg_callback parse_path(const char *str, void *dest)
+{
+	if (strlen(str) >= MAX_PATH)
+		return ARG_INVALID("File path is too long");
+
+	if (path_special_exists(str))
+		return ARG_INVALID("Path is a directory or non-regular file");
+
+	snprintf(dest, MAX_PATH, "%s", str);
+	return ARG_VALID();
+}
+
+static struct arg_callback validate_input_path(void)
+{
+	if (!path_file_exists(input_path))
+		return ARG_INVALID("Input file does not exist");
+
+	return ARG_VALID();
+}
+
+static struct arg_callback validate_output_path(void)
+{
+	if (no_write)
+		return ARG_VALID();
+
+	if (path_file_exists(output_path)) {
+		print(M_NONE, WARNING "Output file already exists: %s",
+		      file_name_path(output_path));
+		if (!print_yN("Do you want to DELETE it?"))
+			return ARG_INVALID(
+				"Output file exists and will not be overwritten");
+		if (remove(output_path) != 0)
+			return ARG_INVALID(
+				"Failed to delete existing output file");
+		print(M_NONE, INFO "Deleted existing output file");
+	}
+
+	if (!path_directories_create(output_path))
+		return ARG_INVALID(
+			"Failed to create directories for output file");
+
+	return ARG_VALID();
+}
+
+ARGUMENT(input_path) = {
+	.opt = 'i',
+	.lopt = "input",
+	.help = "Input file path (FASTA, CSV)",
+	.param = "FILE",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = input_path,
+	.parse_callback = parse_path,
+	.validate_callback = validate_input_path,
+	.validate_phase = ARG_CALLBACK_IF_SET,
+	.validate_weight = 1000,
+	.action_callback = print_input_path,
+	.action_phase = ARG_CALLBACK_ALWAYS,
+	.action_weight = 1000,
+	.help_weight = 1000,
+};
+
+ARGUMENT(output_path) = {
+	.opt = 'o',
+	.lopt = "output",
+	.help = "Output file path (HDF5)",
+	.param = "FILE",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = output_path,
+	.parse_callback = parse_path,
+	.validate_callback = validate_output_path,
+	.validate_phase = ARG_CALLBACK_IF_SET,
+	.validate_weight = 900,
+	.action_callback = print_output_path,
+	.action_phase = ARG_CALLBACK_IF_SET,
+	.action_weight = 900,
+	.help_weight = 900,
+	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(disable_write)),
+};

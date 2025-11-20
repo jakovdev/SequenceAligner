@@ -4,10 +4,10 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "app/args.h"
 #include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
 #include "bio/types.h"
+#include "interface/seqalign_cuda.h"
 #include "io/files.h"
 #include "system/compiler.h"
 #include "system/memory.h"
@@ -162,7 +162,7 @@ static bool validate_sequence(sequence_ptr_t sequence)
 	const char *valid_alphabet = NULL;
 	int alphabet_size = 0;
 
-	switch (args_sequence_type()) {
+	switch (arg_sequence_type()) {
 	case SEQ_TYPE_AMINO:
 		valid_alphabet = AMINO_ALPHABET;
 		alphabet_size = AMINO_SIZE;
@@ -199,7 +199,7 @@ static bool validate_sequence(sequence_ptr_t sequence)
 
 static bool seq_len_valid(u64 length)
 {
-	const s32 gap_pen = args_gap_pen();
+	const s32 gap_pen = arg_gap_pen();
 	if (!gap_pen)
 		return length <= SEQUENCE_LENGTH_MAX;
 
@@ -221,7 +221,7 @@ static bool seq_len_valid(u64 length)
 bool sequences_load_from_file(void)
 {
 	struct FileText input_file = { 0 };
-	if (!file_text_open(&input_file, args_input()))
+	if (!file_text_open(&input_file, arg_input()))
 		return false;
 
 	print_error_context("SEQUENCES");
@@ -233,9 +233,6 @@ bool sequences_load_from_file(void)
 		file_text_close(&input_file);
 		return false;
 	}
-
-	double filter_threshold = args_filter();
-	bool apply_filtering = filter_threshold > 0.0;
 
 	u64 seqs_len_sum = 0;
 #ifdef USE_CUDA
@@ -274,7 +271,7 @@ bool sequences_load_from_file(void)
 				bench_io_start();
 			}
 
-			if (args_force() || skip_long) {
+			if (skip_long) {
 				file_sequence_next(&input_file);
 				seq_n_skip++;
 				continue;
@@ -319,7 +316,7 @@ bool sequences_load_from_file(void)
 				bench_io_start();
 			}
 
-			if (args_force() || skip_invalid) {
+			if (skip_invalid) {
 				seq_n_invalid++;
 				continue;
 			} else {
@@ -337,7 +334,7 @@ bool sequences_load_from_file(void)
 
 		seqs_len_sum += seq_curr.length;
 #ifdef USE_CUDA
-		if (args_mode_cuda() && seq_curr.length > seq_len_max)
+		if (arg_mode_cuda() && seq_curr.length > seq_len_max)
 			seq_len_max = (u32)seq_curr.length;
 #endif
 		seq_n_curr++;
@@ -369,7 +366,7 @@ bool sequences_load_from_file(void)
 		      seq_n_invalid);
 
 	u32 n_seqs_filtered = 0;
-	if (!apply_filtering)
+	if (!arg_mode_filter())
 		goto skip_filtering;
 
 	bench_filter_start();
@@ -381,8 +378,7 @@ bool sequences_load_from_file(void)
 		goto cleanup_seqs;
 	}
 
-	if (!filter_sequences(seqs, seq_n, filter_threshold, keep_flags,
-			      &n_seqs_filtered)) {
+	if (!filter_sequences(seqs, seq_n, keep_flags, &n_seqs_filtered)) {
 		free(keep_flags);
 		goto cleanup_seqs;
 	}
@@ -399,7 +395,7 @@ bool sequences_load_from_file(void)
 
 		seqs_len_sum += seqs[write_index].length;
 #ifdef USE_CUDA
-		if (args_mode_cuda() && seqs[write_index].length > seq_len_max)
+		if (arg_mode_cuda() && seqs[write_index].length > seq_len_max)
 			seq_len_max = (u32)seqs[write_index].length;
 #endif
 		write_index++;

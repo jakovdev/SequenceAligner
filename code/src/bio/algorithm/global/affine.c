@@ -1,6 +1,5 @@
 #include "bio/algorithm/global/affine.h"
 
-#include "app/args.h"
 #include "bio/score/scoring.h"
 #include "bio/types.h"
 #include "system/compiler.h"
@@ -17,8 +16,8 @@ void affine_global_init(s32 *restrict match, s32 *restrict gap_x,
 	const u64 len1 = seq1->length;
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
-	const s32 gap_open = args_gap_open();
-	const s32 gap_ext = args_gap_ext();
+	const s32 gap_open = arg_gap_open();
+	const s32 gap_ext = arg_gap_ext();
 
 	UNROLL(8)
 	for (u64 j = 1; j <= len1; j++) {
@@ -44,8 +43,8 @@ void affine_global_fill(s32 *restrict match, s32 *restrict gap_x,
 	const u64 len1 = seq1->length;
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
-	const s32 gap_open = args_gap_open();
-	const s32 gap_ext = args_gap_ext();
+	const s32 gap_open = arg_gap_open();
+	const s32 gap_ext = arg_gap_ext();
 
 	for (u64 i = 1; i <= len2; ++i) {
 		const u64 row = i * cols;

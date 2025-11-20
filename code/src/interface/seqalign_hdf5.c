@@ -1,16 +1,18 @@
 #include "interface/seqalign_hdf5.h"
 
+#include <errno.h>
 #include <hdf5.h>
 #include <string.h>
 
 #include "bio/types.h"
 #include "io/files.h"
+#include "interface/seqalign_cuda.h"
 #include "system/os.h"
 #include "system/memory.h"
 #include "util/print.h"
+#include "util/args.h"
 
 #ifdef USE_CUDA
-#include "app/args.h"
 #include "host_interface.h"
 #endif
 
@@ -29,7 +31,7 @@ static struct {
 	u64 matrix_dim;
 	s64 checksum;
 	char file_matrix_name[MAX_PATH];
-	u8 compression_level;
+	u8 compression;
 	bool sequences_stored;
 	bool mode_write;
 	bool memory_map_required;
@@ -39,16 +41,18 @@ static struct {
 static void h5_chunk_dimensions_calculate(void);
 static bool h5_file_setup(void);
 
-bool h5_open(const char *file_path, u64 mat_dim, u8 compression, bool write)
+bool h5_open(const char *file_path, u64 mat_dim)
 {
-	g_hdf5.matrix_dim = mat_dim;
 	g_hdf5.file_id = H5I_INVALID_HID;
 	g_hdf5.matrix_id = H5I_INVALID_HID;
 	g_hdf5.sequences_id = H5I_INVALID_HID;
 	g_hdf5.lengths_id = H5I_INVALID_HID;
-	g_hdf5.file_path = file_path;
-	g_hdf5.compression_level = compression;
-	g_hdf5.mode_write = write;
+	g_hdf5.mode_write = arg_mode_write();
+	if (file_path)
+		g_hdf5.file_path = file_path;
+	else
+		g_hdf5.mode_write = false;
+	g_hdf5.matrix_dim = mat_dim;
 
 	if (!g_hdf5.mode_write) {
 		g_hdf5.is_init = true;
@@ -67,7 +71,7 @@ bool h5_open(const char *file_path, u64 mat_dim, u8 compression, bool write)
 #ifdef USE_CUDA
 	g_hdf5.memory_map_required =
 		(bytes_needed > safe_memory) ||
-		(args_mode_cuda() && cuda_triangular(bytes_needed));
+		(arg_mode_cuda() && cuda_triangular(bytes_needed));
 #else
 	g_hdf5.memory_map_required = bytes_needed > safe_memory;
 #endif
@@ -430,8 +434,8 @@ static bool h5_file_setup(void)
 	if (g_hdf5.matrix_dim > H5_MIN_CHUNK_SIZE) {
 		H5Pset_chunk(plist_id, 2, g_hdf5.chunk_dims);
 
-		if (g_hdf5.compression_level > 0)
-			H5Pset_deflate(plist_id, g_hdf5.compression_level);
+		if (g_hdf5.compression > 0)
+			H5Pset_deflate(plist_id, g_hdf5.compression);
 	}
 
 	g_hdf5.matrix_id = H5Dcreate2(g_hdf5.file_id, "/similarity_matrix",
@@ -646,3 +650,28 @@ static void h5_flush_memory_map(void)
 	free(buffer);
 	return;
 }
+
+ARG_PARSE_L(compression, 10, u8, (u8), (val < 0 || val > 9),
+	    "Compression level must be between 0-9")
+
+static void print_compression(void)
+{
+	print(M_LOC(MIDDLE), INFO "Compression: " Pu8, g_hdf5.compression);
+}
+
+ARG_EXTERN(output_path);
+
+ARGUMENT(compression) = {
+	.opt = 'z',
+	.lopt = "compression",
+	.help = "Compression level for HDF5 datasets [0-9]",
+	.param = "N",
+	.param_req = ARG_PARAM_REQUIRED,
+	.dest = &g_hdf5.compression,
+	.parse_callback = parse_compression,
+	.action_callback = print_compression,
+	.action_phase = ARG_CALLBACK_IF_SET,
+	.action_weight = 450,
+	.help_weight = 500,
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(output_path)),
+};

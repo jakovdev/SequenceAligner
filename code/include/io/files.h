@@ -71,4 +71,8 @@ u64 matrix_index(u32 row, u32 col);
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *path);
 
+bool arg_mode_write(void);
+const char *arg_input(void);
+const char *arg_output(void);
+
 #endif /* IO_FILES_H */

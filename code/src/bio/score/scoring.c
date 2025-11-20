@@ -2,7 +2,6 @@
 
 #include <string.h>
 
-#include "app/args.h"
 #include "bio/types.h"
 #include "system/compiler.h"
 
@@ -19,12 +18,12 @@ s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 #define SEQ_TYPE_INIT(TYPE)                             \
 	for (int i = 0; i < TYPE##_SIZE; i++)           \
 		SEQ_LUP[(uchar)TYPE##_ALPHABET[i]] = i; \
-	memcpy(SUB_MAT, TYPE##_MATRIX[args_sub_matrix()].matrix, TYPE##_MATSIZE)
+	memcpy(SUB_MAT, TYPE##_MATRIX[arg_sub_matrix()].matrix, TYPE##_MATSIZE)
 
 void scoring_init(void)
 {
 	memset(SEQ_LUP, -1, sizeof(SEQ_LUP));
-	switch (args_sequence_type()) {
+	switch (arg_sequence_type()) {
 	case SEQ_TYPE_AMINO:
 		SEQ_TYPE_INIT(AMINO);
 		break;
@@ -39,8 +38,8 @@ void scoring_init(void)
 
 #if /* USE_SIMD == 1 */ 0
 	g_first_row_indices = set_row_indices();
-	g_gap_pen_vec = set1_epi32(args_gap_pen());
-	g_gap_open_vec = set1_epi32(args_gap_open());
-	g_gap_ext_vec = set1_epi32(args_gap_ext());
+	g_gap_pen_vec = set1_epi32(arg_gap_pen());
+	g_gap_open_vec = set1_epi32(arg_gap_open());
+	g_gap_ext_vec = set1_epi32(arg_gap_ext());
 #endif
 }

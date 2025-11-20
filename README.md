@@ -156,28 +156,28 @@ cd path\to\where\you\unzipped\release
 **Required arguments:**
 | Argument | Description |
 |--------|-------------|
-| `-i, --input FILE` | Input FASTA or CSV file path |
-| `-t, --type TYPE` | Sequence type: amino (protein), nucleotide (DNA/RNA) |
+| `-i, --input FILE` | Input file path (FASTA, CSV) |
+| `-o, --output FILE` | Output file path (HDF5) |
+| `-t, --type TYPE` | Sequence type: amino (protein), nucleo (DNA/RNA) |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see options) |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
-| `-p, --gap-penalty N` | Linear gap penalty (required for Needleman-Wunsch) |
-| `-s, --gap-open N` | Affine gap open penalty (required for affine gap methods) |
-| `-e, --gap-extend N` | Affine gap extend penalty (required for affine gap methods) |
+| `-p, --gap-penalty N` | Linear gap penalty |
+| `-s, --gap-open N` | Affine gap open penalty |
+| `-e, --gap-extend N` | Affine gap extend penalty |
 
 **Optional arguments:**
 | Argument | Description |
 |--------|-------------|
-| `-o, --output FILE` | Output HDF5 file path (required if writing results) |
-| `-f, --filter THRESHOLD` | Filter sequences with similarity above threshold (0.0-1.0) |
-| `-T, --threads N` | Number of threads (0 = auto) [default: auto] |
+| `-f, --filter FLOAT` | Filter sequences with similarity above threshold [0.0-1.0] |
 | `-z, --compression N` | HDF5 compression level (0-9) [default: 0 (no compression)] |
-| `-B, --benchmark` | Enable benchmarking mode |
-| `-C, --no-cuda` | Disable CUDA |
+| `-T, --threads N` | Number of threads (0 = auto) [default: auto] |
+| `-B, --benchmark` | Enable timing of various steps |
 | `-W, --no-write` | Disable writing to output file |
+| `-C, --no-cuda` | Disable CUDA |
 | `-D, --no-detail` | Disable detailed printing |
-| `-F, --force-proceed` | Force proceed without user prompts (for CI) |
-| `-v, --verbose` | Enable verbose printing |
 | `-q, --quiet` | Suppress all non-error printing |
+| `-v, --verbose` | Enable verbose printing |
+| `-F, --force-proceed` | Force proceed without user prompts (for CI) |
 | `-l, --list-matrices` | List all available substitution matrices |
 | `-h, --help` | Display help message |
 

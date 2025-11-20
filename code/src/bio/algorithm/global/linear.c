@@ -1,7 +1,7 @@
 #include "bio/algorithm/global/linear.h"
 
-#include "app/args.h"
 #include "bio/score/scoring.h"
+#include "bio/types.h"
 #include "system/compiler.h"
 #include "system/simd.h"
 
@@ -11,7 +11,7 @@ void linear_global_init(s32 *restrict matrix, sequence_ptr_t seq1,
 	const u64 len1 = seq1->length;
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
-	const s32 gap_pen = args_gap_pen();
+	const s32 gap_pen = arg_gap_pen();
 
 	matrix[0] = 0;
 
@@ -32,7 +32,7 @@ void linear_global_fill(s32 *restrict matrix, const s32 *restrict seq1_i,
 	const u64 len1 = seq1->length;
 	const u64 len2 = seq2->length;
 	const u64 cols = len1 + 1;
-	const s32 gap_pen = args_gap_pen();
+	const s32 gap_pen = arg_gap_pen();
 	for (u64 i = 1; i <= len2; ++i) {
 		const u64 row = i * cols;
 		const u64 p_row = (i - 1) * cols;

@@ -10,9 +10,6 @@
  **Will automatically adjust to this terminal width
  *
  **Also available:
- * print_verbose_flip();
- * print_quiet_flip();
- * print_detail_flip();
  * print_streams(stdin, stdout, stderr);
  *
  **You can freely customize icons, colors, return codes etc. in print.h and print.c
@@ -181,10 +178,6 @@ enum p_return {
 	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
 	PRINT_TO_DEV_NDEBUG__ERROR = -0xDEAD
 };
-
-void print_verbose_flip(void);
-void print_quiet_flip(void);
-void print_detail_flip(void);
 
 void print_error_context(const char *prefix);
 

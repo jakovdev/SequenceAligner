@@ -63,6 +63,8 @@ typedef void *T_Func;
 #define atomic_add_relaxed(p, v) \
 	atomic_fetch_add_explicit((p), (v), memory_order_relaxed)
 
+int arg_thread_num(void);
+
 double time_current(void);
 
 const char *file_name_path(const char *path);

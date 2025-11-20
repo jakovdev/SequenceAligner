@@ -2,7 +2,7 @@
 
 #include <stdatomic.h>
 
-#include "app/args.h"
+#include "util/args.h"
 #include "bio/types.h"
 #include "system/compiler.h"
 #include "system/memory.h"
@@ -11,6 +11,8 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 #include "util/progress.h"
+
+static double filter;
 
 static double similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
@@ -52,21 +54,20 @@ static double similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
 }
 
 bool filter_sequences(sequence_t *sequences, u32 sequence_count,
-		      double filter_threshold, bool *keep_flags,
-		      u32 *filtered_count)
+		      bool *keep_flags, u32 *filtered_count)
 {
 	if (!sequences || !keep_flags || !filtered_count) {
 		print(M_NONE, ERR "Invalid parameters to filter sequences");
 		return false;
 	}
 
-	if ((sequence_count <= SEQUENCE_COUNT_MIN) ||
-	    (filter_threshold <= 0.0) || (filter_threshold > 1.0)) {
+	if ((sequence_count <= SEQUENCE_COUNT_MIN) || (filter <= 0.0) ||
+	    (filter > 1.0)) {
 		print(M_NONE, ERR "Invalid sequence count or filter threshold");
 		return false;
 	}
 
-	const u64 num_threads = (u64)args_thread_num();
+	const u64 num_threads = (u64)arg_thread_num();
 	const u64 progress_total = sequence_count - 1;
 	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
 	*filtered_count = 0;
@@ -92,7 +93,7 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 
 			double similarity = similarity_pairwise(&sequences[i],
 								&sequences[j]);
-			if (similarity >= filter_threshold) {
+			if (similarity >= filter) {
 				should_keep = false;
 				filtered++;
 				break;
@@ -119,3 +120,34 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 	*filtered_count = filtered_total;
 	return true;
 }
+
+bool arg_mode_filter(void)
+{
+	return filter > 0.0;
+}
+
+ARG_PARSE_D(filter, double, , (val < 0.0 || val > 1.0),
+	    "Filter threshold must be between 0.0 and 1.0")
+
+static void print_filter(void)
+{
+	if (arg_mode_filter())
+		print(M_LOC(MIDDLE), INFO "Filter threshold: %.1f%%",
+		      filter * 100.0);
+	else
+		print(M_LOC(MIDDLE), WARNING "Filter: Ignored");
+}
+
+ARGUMENT(filter_threshold) = {
+	.opt = 'f',
+	.lopt = "filter",
+	.help = "Filter sequences with similarity above threshold [0.0-1.0]",
+	.param = "FLOAT",
+	.param_req = ARG_PARAM_REQUIRED,
+	.dest = &filter,
+	.parse_callback = parse_filter,
+	.action_callback = print_filter,
+	.action_phase = ARG_CALLBACK_IF_SET,
+	.action_weight = 500,
+	.help_weight = 950,
+};
