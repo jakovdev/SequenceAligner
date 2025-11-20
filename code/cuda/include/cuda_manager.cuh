@@ -89,7 +89,7 @@ class Cuda {
 
 	bool memoryCheck(size_t bytes) noexcept;
 
-	bool uploadSequences(const sequence_t *seqs, u32 seq_n,
+	bool uploadSequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
 			     u64 seq_len_sum) noexcept;
 	bool uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 			   const s32 seq_lup[SEQ_LUPSIZ]) noexcept;

@@ -8,9 +8,11 @@ bool cuda_triangular(size_t buffer_bytes)
 	return !Cuda::Instance().memoryCheck(buffer_bytes);
 }
 
-bool cuda_upload_sequences(const sequence_t *seqs, u32 seq_n, u64 seq_len_sum)
+bool cuda_upload_sequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
+			   u64 seq_len_sum)
 {
-	return Cuda::Instance().uploadSequences(seqs, seq_n, seq_len_sum);
+	return Cuda::Instance().uploadSequences(seqs, seq_n, seq_len_max,
+						seq_len_sum);
 }
 
 bool cuda_upload_scoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],

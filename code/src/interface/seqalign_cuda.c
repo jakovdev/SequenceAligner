@@ -23,9 +23,6 @@ bool cuda_align(void)
 {
 	print_error_context("CUDA");
 
-	if (sequences_length_max() > MAX_CUDA_SEQUENCE_LENGTH)
-		RETURN_CUDA_ERRORS("Sequence length exceeds maximum of 1024");
-
 	const char *device_name = cuda_device_name();
 	if (!device_name)
 		RETURN_CUDA_ERRORS("Failed to query device name");
@@ -33,6 +30,7 @@ bool cuda_align(void)
 	print(M_NONE, INFO "Using CUDA device: %s", device_name);
 
 	if (!cuda_upload_sequences(sequences(), sequences_count(),
+				   sequences_length_max(),
 				   sequences_length_sum()))
 		RETURN_CUDA_ERRORS("Failed uploading sequences");
 

@@ -78,11 +78,16 @@ template <typename T> bool vecalloc(std::vector<T> &v, const size_t n) noexcept
 	return !v.empty();
 }
 
-bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n,
+bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
 			   u64 seq_len_sum) noexcept
 {
-	if (!s.init || !seqs || seq_n < SEQUENCE_COUNT_MIN) {
+	if (!s.init || !seqs || seq_len_sum < 2 || seq_n < SEQUENCE_COUNT_MIN) {
 		hostError("Invalid parameters for sequence upload");
+		return false;
+	}
+
+	if (seq_len_max > MAX_CUDA_SEQUENCE_LENGTH) {
+		hostError("Sequence length exceeds cuda limits");
 		return false;
 	}
 

@@ -50,13 +50,6 @@ __global__ void k_nw(s32 *R scores, u64 start, u64 batch)
 	const u32 len1 = C.lengths[i];
 	const u32 len2 = C.lengths[j];
 
-	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
-	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
-		// Temporary fix, ignore for now
-		atomicAdd(C.progress, 1);
-		return;
-	}
-
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++)
@@ -104,13 +97,6 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 
 	const u32 len1 = C.lengths[i];
 	const u32 len2 = C.lengths[j];
-
-	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
-	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
-		// Temporary fix, ignore for now
-		atomicAdd(C.progress, 1);
-		return;
-	}
 
 	s32 match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -185,13 +171,6 @@ __global__ void k_sw(s32 *R scores, u64 start, u64 batch)
 
 	const u32 len1 = C.lengths[i];
 	const u32 len2 = C.lengths[j];
-
-	if (len1 > MAX_CUDA_SEQUENCE_LENGTH ||
-	    len2 > MAX_CUDA_SEQUENCE_LENGTH) {
-		// Temporary fix, ignore for now
-		atomicAdd(C.progress, 1);
-		return;
-	}
 
 	s32 match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
