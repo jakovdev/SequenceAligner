@@ -430,8 +430,8 @@ skip_filtering:
 	print(M_NONE, INFO "Loaded " Pu32 " sequences", seq_n);
 
 already_printed:
-	double seq_len_avg = (double)seqs_len_sum / (double)seq_n;
-	print(M_NONE, INFO "Average sequence length: %.2f", seq_len_avg);
+	print(M_NONE, INFO "Average sequence length: %.2f",
+	      (double)seqs_len_sum / (double)seq_n);
 
 	g_seqs = seqs;
 	g_seq_n = seq_n;

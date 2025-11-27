@@ -327,8 +327,9 @@ bool print_yn(const char *P_RESTRICT prompt)
 {
 	if (p.force)
 		return true;
-repeat:
+
 	char result[2] = { 0 };
+repeat:
 	print(M_UINS(result) "%s [y/n]", prompt);
 	if (result[0] == 'y' || result[0] == 'Y')
 		return true;

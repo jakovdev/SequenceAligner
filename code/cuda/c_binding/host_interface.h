@@ -17,8 +17,8 @@ bool cuda_triangular(size_t buffer_bytes);
 
 bool cuda_upload_sequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
 			   u64 seq_len_sum);
-bool cuda_upload_scoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
-			 const s32 seq_lup[SEQ_LUPSIZ]);
+bool cuda_upload_scoring(s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
+			 s32 seq_lup[SEQ_LUPSIZ]);
 bool cuda_upload_gaps(s32 linear, s32 start, s32 extend);
 bool cuda_upload_storage(s32 *scores, size_t scores_bytes);
 
