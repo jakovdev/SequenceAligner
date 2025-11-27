@@ -48,12 +48,12 @@ OR PLATFORM_TYPE STREQUAL "MSYS2")
 	set(GCC_FLAGS_TO_CHECK
 	-fprefetch-loop-arrays
 	-fanalyzer
-	-Wuseless-cast
 	-Warith-conversion
 	-Wduplicated-branches
 	-Wduplicated-cond
 	-Wlogical-op
 	-Wopenmp
+	-Wuseless-cast
 	)
 	set(SUPPORTS_GCC_FLAGS TRUE)
 	foreach(_flag IN LISTS GCC_FLAGS_TO_CHECK)
@@ -292,7 +292,6 @@ elseif(PLATFORM_TYPE STREQUAL "GCC")
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=-O2>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fstack-protector-strong>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-Xcompiler=-ggdb3>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-DNDEBUG>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fdata-sections>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-ffunction-sections>
@@ -308,6 +307,7 @@ elseif(PLATFORM_TYPE STREQUAL "GCC")
 		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wduplicated-cond>
 		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wlogical-op>
 		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wuseless-cast>
+		$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-Xcompiler=-ggdb3>
 		$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fprefetch-loop-arrays>
 		)
 	endif()
