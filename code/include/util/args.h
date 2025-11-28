@@ -521,28 +521,33 @@ extern struct args_raw {
 
 void _args_register(struct argument *a);
 
-#ifdef _MSC_VER
-#define _ARGS_CRT_INIT ".CRT$XCU"
-#define _ARGS_SECTION_READ(sect) section(sect, read)
-#pragma _ARGS_SECTION_READ(_ARGS_CRT_INIT)
-
-#define _ARGS_PRAGMA(x) __pragma(x)
-#define _ARGS_DECLSPEC(x) __declspec(x)
-#define _ARGS_ALLOCATE(x) _ARGS_DECLSPEC(allocate(x))
-#define _ARGS_LINKER(x) _ARGS_PRAGMA(comment(linker, "/include:" x))
-
-/* Use this to run functions before main() */
-#define _ARGS_CONSTRUCTOR(name)                   \
-	static void name(void);                   \
-	_ARGS_LINKER(_##name)                     \
-	_ARGS_ALLOCATE(_ARGS_CRT_INIT)            \
-	static void (*_##name##_fp)(void) = name; \
-	static void name(void)
-#else /* GCC/Clang */
-/* Use this to run functions before main() */
-#define _ARGS_CONSTRUCTOR(name)                              \
-	static void name(void) __attribute__((constructor)); \
-	static void name(void)
+/* https://stackoverflow.com/questions/1113409/attribute-constructor-equivalent-in-vc */
+#ifdef __cplusplus
+#define _ARGS_CONSTRUCTOR(f) \
+	static void f(void); \
+	struct f##_t_ {      \
+		f##_t_(void) \
+		{            \
+			f(); \
+		}            \
+	};                   \
+	static f##_t_ f##_;  \
+	static void f(void)
+#elif defined(_MSC_VER)
+#pragma section(".CRT$XCU", read)
+#define _ARGS_CONSTRUCTOR2_(f, p)                                \
+	static void f(void);                                     \
+	__declspec(allocate(".CRT$XCU")) void (*f##_)(void) = f; \
+	__pragma(comment(linker, "/include:" p #f "_")) static void f(void)
+#ifdef _WIN64
+#define _ARGS_CONSTRUCTOR(f) _ARGS_CONSTRUCTOR2_(f, "")
+#else /* _WIN32 */
+#define _ARGS_CONSTRUCTOR(f) _ARGS_CONSTRUCTOR2_(f, "_")
+#endif
+#else /* GCC, Clang */
+#define _ARGS_CONSTRUCTOR(f)                              \
+	static void f(void) __attribute__((constructor)); \
+	static void f(void)
 #endif
 
 #endif /* UTIL_ARGS_H */

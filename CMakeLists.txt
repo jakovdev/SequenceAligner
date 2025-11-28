@@ -80,9 +80,7 @@ if(USE_ASAN AND NOT PLATFORM_TYPE STREQUAL "GCC")
 	message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
 endif()
 
-if(IS_GCC_LIKE)
-	set(CMAKE_C_STANDARD 11)
-endif()
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
@@ -112,10 +110,6 @@ else()
 	endif()
 endif()
 
-if(PLATFORM_TYPE STREQUAL "MSVC")
-	find_package(unofficial-getopt-win32 REQUIRED)
-endif()
-
 if(USE_CUDA)
 	find_package(CUDAToolkit REQUIRED)
 endif()
@@ -126,7 +120,6 @@ function(set_c_compiler_options target)
 if(PLATFORM_TYPE STREQUAL "MSVC")
 	target_compile_options(${target} PRIVATE
 	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL}>
-	$<$<COMPILE_LANGUAGE:C>:/std:clatest>
 	$<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>
 	$<$<COMPILE_LANGUAGE:C>:/Zc:preprocessor>
 	$<$<COMPILE_LANGUAGE:C>:/utf-8>
@@ -339,7 +332,6 @@ endif()
 if(WIN32)
 	if(PLATFORM_TYPE STREQUAL "MSVC")
 		target_link_libraries(seqalign PRIVATE Shlwapi)
-		target_link_libraries(seqalign PRIVATE unofficial::getopt-win32::getopt)
 	else()
 		target_link_libraries(seqalign PRIVATE shlwapi)
 	endif()
