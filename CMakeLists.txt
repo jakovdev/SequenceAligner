@@ -139,6 +139,7 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ob3>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/GL>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/wd9025> # overriding /Ob2 with /Ob3
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/GA>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gy>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gw>
