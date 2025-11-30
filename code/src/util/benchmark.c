@@ -18,66 +18,57 @@ static bool mode_benchmark;
 
 void bench_io_start(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		g_times.io_start = time_current();
-	}
 }
 
 void bench_align_start(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		g_times.align_start = time_current();
-	}
 }
 
 void bench_filter_start(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		g_times.filter_start = time_current();
-	}
 }
 
 void bench_io_end(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		g_times.io += time_current() - g_times.io_start;
-	}
 }
 
 void bench_align_end(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		g_times.align += time_current() - g_times.align_start;
-	}
 }
 
 void bench_filter_end(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		g_times.filter += time_current() - g_times.filter_start;
-	}
 }
 
 void bench_io_print(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		pinfo("I/O operations: %.3f sec", g_times.io);
-	}
 }
 
 void bench_align_print(void)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		pinfo("Computation: %.3f sec", g_times.align);
-	}
 }
 
 void bench_filter_print(u64 filtered)
 {
-	if (mode_benchmark) {
+	if (mode_benchmark)
 		pinfo("Filtered " Pu64 " sequences in %.3f seconds", filtered,
 		      g_times.filter);
-	}
 }
 
 void bench_total_print(u64 alignments)
@@ -100,7 +91,7 @@ void bench_total_print(u64 alignments)
 			       f_percent);
 		}
 
-		pinfol("Total: %.3f sec", time_total, 100.0);
+		pinfol("Total: %.3f sec", time_total);
 
 		double aps = (double)alignments / g_times.align;
 		pinfo("Alignments per second: %.2f", aps);

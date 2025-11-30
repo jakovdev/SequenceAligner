@@ -393,7 +393,6 @@ bool sequences_load_from_file(void)
 	bench_filter_end();
 	bench_filter_print(n_seqs_filtered);
 
-	bench_io_start();
 	if (seq_n < 2) {
 		perror("Filtering removed too many sequences");
 		goto cleanup_seqs;
