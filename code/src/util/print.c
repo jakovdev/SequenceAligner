@@ -107,17 +107,18 @@ static void terminal_mode_restore(void)
 #endif
 }
 
-enum m_type {
-	M_INFO = 1,
-	M_VERBOSE,
-	M_WARNING,
-	M_ERROR,
-	M_CHOICE,
-	M_PROMPT,
-	M_PROGRESS,
-	M_HEADER,
-	M_SECTION,
-	M_TYPES
+enum p_type {
+	T_NONE,
+	T_INFO,
+	T_VERBOSE,
+	T_WARNING,
+	T_ERROR,
+	T_CHOICE,
+	T_INPUT,
+	T_PROGRESS,
+	T_HEADER,
+	T_SECTION,
+	T_TYPES
 };
 
 enum color {
@@ -171,7 +172,7 @@ static struct {
 		enum color color;
 		enum icon icon;
 		enum requirement requirement;
-	} map[M_TYPES];
+	} map[T_TYPES];
 	const char boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT][sizeof("╔")];
 	char err_ctx[TERMINAL_WIDTH];
 	const char progress_filled_char[sizeof("■")];
@@ -187,16 +188,16 @@ static struct {
 	bool is_init;
 } p = {
     .map = {
-        [0]          = { COLOR_RESET,       ICON_NONE,    P_OPTIONAL },
-        [M_INFO]     = { COLOR_BLUE,        ICON_INFO,    P_OPTIONAL },
-        [M_VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     P_REQUIRED },
-        [M_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, P_REQUIRED },
-        [M_ERROR]    = { COLOR_RED,         ICON_ERROR,   P_REQUIRED },
-        [M_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    P_REQUIRED },
-        [M_PROMPT]   = { COLOR_BLUE,        ICON_INFO,    P_REQUIRED },
-        [M_PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   P_OPTIONAL },
-        [M_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    P_OPTIONAL },
-        [M_SECTION]  = { COLOR_BLUE,        ICON_NONE,    P_OPTIONAL },
+        [T_NONE]     = { COLOR_RESET,       ICON_NONE,    P_OPTIONAL },
+        [T_INFO]     = { COLOR_BLUE,        ICON_INFO,    P_OPTIONAL },
+        [T_VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     P_REQUIRED },
+        [T_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, P_REQUIRED },
+        [T_ERROR]    = { COLOR_RED,         ICON_ERROR,   P_REQUIRED },
+        [T_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    P_REQUIRED },
+        [T_INPUT]    = { COLOR_BLUE,        ICON_INFO,    P_REQUIRED },
+        [T_PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   P_OPTIONAL },
+        [T_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    P_OPTIONAL },
+        [T_SECTION]  = { COLOR_BLUE,        ICON_NONE,    P_OPTIONAL },
     },
 #define PCOL(t) p.map[(t)].color
 #define PCOLSIZ(t) (PCOL(t) <= COLOR_UNDER ? 4 : 5)
@@ -234,7 +235,7 @@ static struct {
     .width = TERMINAL_WIDTH,
 };
 
-void print_error_context(const char *context)
+void perror_context(const char *context)
 {
 	if (!context) {
 		p.err_ctx[0] = '\0';
@@ -254,7 +255,7 @@ void print_streams(FILE *in, FILE *out, FILE *err)
 static void print_section_end(void)
 {
 	if (p.in_section)
-		print(M_NONE, NULL);
+		psection_end();
 }
 
 static void print_init(void)
@@ -309,7 +310,7 @@ bool print_yN(const char *P_RESTRICT prompt)
 		return true;
 
 	char result[2] = { 0 };
-	print(M_UINS(result) "%s [y/N]", prompt);
+	pinput_s(result, "%s [y/N]", prompt);
 	return result[0] == 'y' || result[0] == 'Y';
 }
 
@@ -319,7 +320,7 @@ bool print_Yn(const char *P_RESTRICT prompt)
 		return true;
 
 	char result[2] = { 0 };
-	print(M_UINS(result) "%s [Y/n]", prompt);
+	pinput_s(result, "%s [Y/n]", prompt);
 	return !(result[0] == 'n' || result[0] == 'N');
 }
 
@@ -330,7 +331,7 @@ bool print_yn(const char *P_RESTRICT prompt)
 
 	char result[2] = { 0 };
 repeat:
-	print(M_UINS(result) "%s [y/n]", prompt);
+	pinput_s(result, "%s [y/n]", prompt);
 	if (result[0] == 'y' || result[0] == 'Y')
 		return true;
 	else if (result[0] == 'n' || result[0] == 'N')
@@ -344,27 +345,27 @@ enum p_return print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 	if (!p.is_init)
 		print_init();
 
-	enum m_type type = 0;
+	enum p_type type = 0;
 	if (fmt && fmt[0] >= '0' && fmt[0] <= '9') {
-		type = (enum m_type)fmt[0] - '0';
+		type = (enum p_type)fmt[0] - '0';
 		fmt++;
 	}
 
-	FILE *out = (type == M_ERROR) ? p.err : p.out;
+	FILE *out = (type == T_ERROR) ? p.err : p.out;
 #define ouputc(c) fputc_unlocked((c), out)
 #define oprintf(...) fprintf(out, __VA_ARGS__)
 #define ouwrite(buf, size) fwrite_unlocked((buf), 1, (size), out)
 
-	const bool is_verbose = type == M_VERBOSE && !p.verbose;
+	const bool is_verbose = type == T_VERBOSE && !p.verbose;
 	const bool is_required = p.map[type].requirement == P_REQUIRED;
 	if ((p.quiet && !is_required) || is_verbose)
 		return PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS;
 
-	if (!p.in_section && type != M_HEADER && type != M_SECTION)
-		print(M_NONE, SECTION);
+	if (!p.in_section && type != T_HEADER && type != T_SECTION)
+		psection();
 
 	static int last_percentage = -1;
-	if (type == M_PROGRESS) {
+	if (type == T_PROGRESS) {
 		const int percent = CLAMP(arg.percent, 0, 100);
 		if (percent == last_percentage ||
 		    (percent == 100 && last_percentage == -1))
@@ -387,7 +388,7 @@ enum p_return print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 	int p_bufsiz = 0;
 
 	if (!fmt) { /* Section end only */
-		type = M_SECTION;
+		type = T_SECTION;
 		goto skip_fmt;
 	}
 
@@ -396,7 +397,7 @@ enum p_return print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 
 	fmt_copy[0] = '\0';
 
-	if (type == M_ERROR && p.err_ctx[0] != '\0') {
+	if (type == T_ERROR && p.err_ctx[0] != '\0') {
 		size_t ctxlen = strnlen(p.err_ctx, sizeof(fmt_copy) - 1);
 		if (ctxlen) {
 			memcpy(fmt_copy + fmt_i, p.err_ctx, ctxlen);
@@ -416,7 +417,7 @@ enum p_return print(M_ARG arg, const char *P_RESTRICT fmt, ...)
 	va_end(v_args);
 
 	if (p_bufsiz < 0) {
-		print_dev("Failed to format string");
+		pdev("Failed to format string");
 		return PRINT_INVALID_FORMAT_ARGS__ERROR;
 	}
 
@@ -425,13 +426,13 @@ skip_fmt:
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
 	if (p_buflen > available) { /* Overflow, no box/icon/color then */
-		print_dev("Message too long, doing a simple print");
+		pdev("Message too long, doing a simple print");
 		simple = true;
 	}
 
 	flockfile(out);
 
-	if (type == M_HEADER) {
+	if (type == T_HEADER) {
 		if (!fmt)
 			goto cleanup;
 
@@ -445,7 +446,7 @@ skip_fmt:
 
 		if (p.in_section) {
 			funlockfile(out);
-			print(M_NONE, NULL);
+			psection_end();
 		}
 
 		ouwcol(type);
@@ -485,10 +486,10 @@ skip_fmt:
 		p.in_section = false;
 
 		goto cleanup;
-	} else if (type == M_SECTION) {
+	} else if (type == T_SECTION) {
 		if (p.in_section && (!fmt || p.content_printed)) {
 			if (!simple) {
-				ouwcol(M_SECTION);
+				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_BOTTOM_LEFT);
 
 				size_t iw;
@@ -519,7 +520,7 @@ skip_fmt:
 		size_t l_dashes = 2;
 		size_t r_dashes = p.width - 2 - l_dashes - p_buflen - 2;
 
-		ouwcol(M_SECTION);
+		ouwcol(T_SECTION);
 		ouwbox(BOX_NORMAL, BOX_TOP_LEFT);
 
 		if (!p_buf[0])
@@ -547,10 +548,9 @@ skip_fmt:
 		p.in_section = true;
 		p.content_printed = false;
 		goto cleanup;
-	} else if (type == M_PROGRESS) {
+	} else if (type == T_PROGRESS) {
 		const int percent = CLAMP(arg.percent, 0, 100);
-		const int percent_width =
-			percent < 10 ? 1 : (percent < 100 ? 2 : 3);
+		const int digits = percent < 10 ? 1 : (percent < 100 ? 2 : 3);
 
 		if (simple) {
 			if (p.in_section)
@@ -572,7 +572,7 @@ skip_fmt:
 			goto cleanup;
 		}
 
-		const size_t meta_width = (size_t)percent_width + 2 + 1 + 1 + 1;
+		const size_t meta_width = (size_t)digits + 2 + 1 + 1 + 1;
 		const size_t bar_width = available - p_buflen - meta_width - 1;
 		const size_t filled_width = bar_width * (size_t)percent / 100;
 		const size_t empty_width = bar_width - filled_width;
@@ -580,7 +580,7 @@ skip_fmt:
 		if (p.in_section)
 			ouwrite(p.ansi_carriage_return, 1);
 
-		ouwcol(M_SECTION);
+		ouwcol(T_SECTION);
 		ouwbox(BOX_NORMAL, BOX_VERTICAL);
 		if (percent % 2)
 			ouwcol(COLOR_CYAN);
@@ -610,7 +610,7 @@ skip_fmt:
 			ouwrite("% ", 2);
 		}
 
-		ouwcol(M_SECTION);
+		ouwcol(T_SECTION);
 		ouwbox(BOX_NORMAL, BOX_VERTICAL);
 		ouwcol(COLOR_RESET);
 		if (percent == 100)
@@ -620,13 +620,13 @@ skip_fmt:
 		p.content_printed = true;
 
 		goto cleanup;
-	} else if (type == M_CHOICE) {
+	} else if (type == T_CHOICE) {
 		char **choices = arg.choice.choices;
 		size_t c_count = arg.choice.n;
 
 		if (c_count < 2) {
 			funlockfile(out);
-			print_dev("Not enough choices (<2)");
+			pdev("Not enough choices (<2)");
 			return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
 		}
 
@@ -647,12 +647,12 @@ skip_fmt:
 						available - label_len + 2 :
 						0;
 
-				ouwcol(M_SECTION);
+				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_VERTICAL);
 				ouwcol(type);
 				oprintf(" %zu: %s%*s", c + 1, choices[c],
 					(int)padding, "");
-				ouwcol(M_SECTION);
+				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_VERTICAL);
 				ouwcol(COLOR_RESET);
 				ouputc('\n');
@@ -663,7 +663,7 @@ skip_fmt:
 
 		do {
 			if (!simple) {
-				ouwcol(M_SECTION);
+				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_VERTICAL);
 				ouwcol(type);
 				ouputc(' ');
@@ -698,7 +698,7 @@ skip_fmt:
 
 				while (p_padding--)
 					ouputc(' ');
-				ouwcol(M_SECTION);
+				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_VERTICAL);
 				ouwcol(COLOR_RESET);
 			}
@@ -713,22 +713,21 @@ skip_fmt:
 			}
 
 			funlockfile(out);
-			print(M_NONE,
-			      WARNING "Please enter a number between 1 and %zu",
-			      c_count);
+			pwarn("Please enter a number between 1 and %zu",
+				 c_count);
 			flockfile(out);
 		} while (1);
-	} else if (type == M_PROMPT) {
-		char *result = arg.uinput.out;
-		const size_t rsz = arg.uinput.out_size;
+	} else if (type == T_INPUT) {
+		char *result = arg.input.out;
+		const size_t rsz = arg.input.out_size;
 		if (rsz < 2) {
 			funlockfile(out);
-			print_dev("Input buffer size is too small");
-			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
+			pdev("Input buffer size is too small");
+			return PRINT_INPUT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}
 
 		if (!simple) {
-			ouwcol(M_SECTION);
+			ouwcol(T_SECTION);
 			ouwbox(BOX_NORMAL, BOX_VERTICAL);
 			ouwcol(type);
 			ouputc(' ');
@@ -750,7 +749,7 @@ skip_fmt:
 
 			while (p_padding--)
 				ouputc(' ');
-			ouwcol(M_SECTION);
+			ouwcol(T_SECTION);
 			ouwbox(BOX_NORMAL, BOX_VERTICAL);
 			ouwcol(COLOR_RESET);
 		}
@@ -763,13 +762,13 @@ skip_fmt:
 		if (simple) {
 			ouwrite(p_buf, p_buflen);
 		} else {
-			ouwcol(M_SECTION);
+			ouwcol(T_SECTION);
 			ouwbox(BOX_NORMAL, BOX_VERTICAL);
 			ouwcol(type);
 			ouputc(' ');
 
 			if (PICO(type) != ICON_NONE) {
-				if (arg.loc != FIRST)
+				if (arg.loc != LOC_FIRST)
 					ouwbox(BOX_NORMAL, arg.loc);
 				else
 					ouwico(type);
@@ -782,7 +781,7 @@ skip_fmt:
 				available > p_buflen ? available - p_buflen : 0;
 			while (padding--)
 				ouputc(' ');
-			ouwcol(M_SECTION);
+			ouwcol(T_SECTION);
 			ouwbox(BOX_NORMAL, BOX_VERTICAL);
 			ouwcol(COLOR_RESET);
 		}
@@ -800,7 +799,7 @@ cleanup:
 	return PRINT_SUCCESS;
 }
 
-enum p_return print_dev(const char *fmt, ...)
+enum p_return pdev(const char *fmt, ...)
 {
 #ifndef NDEBUG
 	va_list v_args;
@@ -809,8 +808,8 @@ enum p_return print_dev(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, v_args);
 	va_end(v_args);
 
-	print_error_context("_TO_DEV_");
-	return print(M_NONE, ERR "%s", buf);
+	perror_context("_TO_DEV_");
+	return perror("%s", buf);
 #else
 	(void)fmt;
 	return PRINT_TO_DEV_NDEBUG__ERROR;

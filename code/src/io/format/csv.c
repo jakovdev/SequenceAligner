@@ -89,22 +89,19 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	char **headers = NULL;
 
 	num_columns = csv_column_count(header_start);
-	print(M_NONE, VERBOSE "Found " Pu64 " column(s) in input file",
-	      num_columns);
+	pverb("Found " Pu64 " column(s) in input file", num_columns);
 
 	if (!num_columns) {
-		print_error_context("CSV");
-		print(M_NONE, ERR
-		      "Invalid header (do you have an empty first line or file?)");
+		perror_context("CSV");
+		perror("Invalid header (do you have an empty first line or file?)");
 		exit(EXIT_FAILURE);
 	}
 
 	headers = MALLOC(headers, num_columns);
 
 	if (!headers) {
-		print_error_context("CSV");
-		print(M_NONE,
-		      ERR "Memory allocation failed for column headers");
+		perror_context("CSV");
+		perror("Memory allocation failed for column headers");
 		exit(EXIT_FAILURE);
 	}
 
@@ -145,12 +142,11 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	csv_column_sequence(headers, num_columns, seq_col);
 	if (*seq_col == SIZE_MAX) {
 		bench_io_end();
-		char **choices = MALLOC(choices, num_columns + 2);
+		char **chs = MALLOC(chs, num_columns + 2);
 
-		if (!choices) {
-			print_error_context("CSV");
-			print(M_NONE,
-			      ERR "Memory allocation failed for choices array");
+		if (!chs) {
+			perror_context("CSV");
+			perror("Memory allocation failed for choices array");
 			if (headers) {
 				for (u64 i = 0; i < num_columns; i++) {
 					if (headers[i])
@@ -164,37 +160,30 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 		}
 
 		for (column = 0; column < num_columns; column++)
-			choices[column] = headers[column];
+			chs[column] = headers[column];
 
-		char headerless_choice[] =
-			"My csv file does not have a header line";
-		choices[num_columns] = headerless_choice;
-		size_t choice_n = num_columns + 1;
+		char c_headerless[] = "My csv file does not have a header line";
+		chs[num_columns] = c_headerless;
+		size_t cn = num_columns + 1;
 
-		print(M_LOC(FIRST), INFO
-		      "Could not automatically detect the sequence column");
-		print(M_LOC(LAST),
-		      INFO "Which column contains your sequences?");
-		*seq_col = (u64)print(
-			M_CHOICE(choices, choice_n) "Enter column number");
-		free(choices);
+		pinfo("Could not automatically detect the sequence column");
+		pinfol("Which column contains your sequences?");
+		*seq_col = (u64)pchoice(chs, cn, "Enter column number");
+		free(chs);
 		bench_io_start();
 	}
 
 	if (*seq_col == num_columns) {
 		if (num_columns >= 2) {
 			bench_io_end();
-			print(M_LOC(LAST), INFO
-			      "OK, select the column that displays a sequence");
-			char **choices = headers;
-			size_t choice_n = num_columns;
-			*seq_col = (u64)print(M_CHOICE(
-				choices, choice_n) "Enter column number");
+			pinfol("OK, select the column that displays a sequence");
+			char **chs = headers;
+			size_t cn = num_columns;
+			*seq_col = (u64)pchoice(chs, cn, "Enter column number");
 			*no_header = true;
 			bench_io_start();
 		} else {
-			print(M_LOC(LAST), INFO
-			      "Only one column present; using it as the sequence column");
+			pinfol("Only one column present; using it as the sequence column");
 			*seq_col = 0;
 			*no_header = true;
 		}
@@ -202,8 +191,8 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 
 	if (*seq_col < num_columns && headers && headers[*seq_col]) {
 		const char *sequence_column = headers[*seq_col];
-		print(M_NONE, VERBOSE "Using column #" Pu64 " ('%s')",
-		      *seq_col + 1, sequence_column);
+		pverb("Using column #" Pu64 " ('%s')", *seq_col + 1,
+			 sequence_column);
 	}
 
 	if (headers) {
@@ -334,7 +323,7 @@ bool csv_validate(const char *restrict file_start,
 		  const char *restrict file_end)
 {
 	if (!file_start || !file_end || file_start >= file_end) {
-		print(M_NONE, ERR "Invalid file bounds for validation");
+		perror("Invalid file bounds for validation");
 		return false;
 	}
 
@@ -379,9 +368,8 @@ bool csv_validate(const char *restrict file_start,
 					break;
 				}
 			} else if (ch == '\0') {
-				print(M_NONE,
-				      ERR "Null character found on line " Pu64,
-				      line_number);
+				perror("Null character found on line " Pu64,
+				       line_number);
 				return false;
 			} else {
 				field_started = true;
@@ -398,8 +386,7 @@ bool csv_validate(const char *restrict file_start,
 
 		if (first_line) {
 			if (current_columns == 0) {
-				print(M_NONE,
-				      ERR "Header line has zero columns");
+				perror("Header line has zero columns");
 				return false;
 			}
 
@@ -407,12 +394,11 @@ bool csv_validate(const char *restrict file_start,
 			first_line = false;
 		} else if (current_columns > 0) {
 			if (current_columns != expected_columns) {
-				print(M_NONE,
-				      ERR "Expected " Pu64
-					  " column(s), found " Pu64
-					  " on line " Pu64,
-				      expected_columns, current_columns,
-				      line_number);
+				perror("Expected " Pu64
+				       " column(s), found " Pu64
+				       " on line " Pu64,
+				       expected_columns, current_columns,
+				       line_number);
 				return false;
 			}
 		}

@@ -41,7 +41,7 @@ static inline char *fasta_skip_line(char *cursor, char *file_end)
 bool fasta_validate(char *restrict file_start, char *restrict file_end)
 {
 	if (!file_start || !file_end || file_start >= file_end) {
-		print(M_NONE, ERR "Invalid file bounds for validation");
+		perror("Invalid file bounds for validation");
 		return false;
 	}
 
@@ -58,16 +58,15 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 		char ch = *cursor;
 
 		if (ch == '\0') {
-			print(M_NONE, ERR "Null character found on line " Pu64,
-			      line_number);
+			perror("Null character found on line " Pu64,
+			       line_number);
 			return false;
 		}
 
 		if (ch == '>') {
 			if (in_sequence && !found_sequence_data) {
-				print(M_NONE,
-				      ERR "Empty sequence found on line " Pu64,
-				      line_number);
+				perror("Empty sequence found on line " Pu64,
+				       line_number);
 				return false;
 			}
 
@@ -75,9 +74,7 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 			    (*(cursor + 1) == '\n' || *(cursor + 1) == '\r')) {
 				if (!ask_skip) {
 					bench_io_end();
-					print(M_NONE,
-					      WARNING
-					      "Empty header found on line " Pu64,
+					pwarn("Empty header found on line " Pu64,
 					      line_number);
 					skip = print_yN("Skip empty headers?");
 					ask_skip = true;
@@ -85,10 +82,8 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 				}
 
 				if (!skip) {
-					print(M_NONE,
-					      ERR
-					      "Empty header found on line " Pu64,
-					      line_number);
+					perror("Empty header found on line " Pu64,
+					       line_number);
 					return false;
 				}
 			}
@@ -110,21 +105,19 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 				cursor++;
 			}
 		} else {
-			print(M_NONE,
-			      ERR
-			      "Data found before first header on line " Pu64,
-			      line_number);
+			perror("Data found before first header on line " Pu64,
+			       line_number);
 			return false;
 		}
 	}
 
 	if (sequence_count == 0) {
-		print(M_NONE, ERR "No sequences found in input file");
+		perror("No sequences found in input file");
 		return false;
 	}
 
 	if (in_sequence && !found_sequence_data) {
-		print(M_NONE, ERR "Last sequence header has no sequence data");
+		perror("Last sequence header has no sequence data");
 		return false;
 	}
 
@@ -203,7 +196,7 @@ u64 fasta_entry_extract(char *restrict *restrict p_cursor,
 			char *restrict file_end, char *restrict output)
 {
 	if (!p_cursor || !output) {
-		print(M_NONE, ERR "Invalid parameters for fasta extraction");
+		perror("Invalid parameters for fasta extraction");
 		return 0;
 	}
 

@@ -208,13 +208,12 @@ static bool seq_len_valid(u64 length)
 		return true;
 
 	if (gap_pen > 1000)
-		print(M_NONE, WARNING "Very suspicious gap penalty (>1000)");
+		pwarn("Very suspicious gap penalty (>1000)");
 	else if (gap_pen > 100)
-		print(M_NONE, WARNING "Unusually high gap penalty (>100)");
+		pwarn("Unusually high gap penalty (>100)");
 
-	print(M_NONE,
-	      ERR "Sequence length " Pu64 " exceeds limits for gap penalty %d",
-	      length, gap_pen);
+	perror("Sequence length " Pu64 " exceeds limits for gap penalty %d",
+	       length, gap_pen);
 	return false;
 }
 
@@ -224,12 +223,12 @@ bool sequences_load_from_file(void)
 	if (!file_text_open(&input_file, arg_input()))
 		return false;
 
-	print_error_context("SEQUENCES");
+	perror_context("SEQUENCES");
 
 	u32 total = file_sequence_total(&input_file);
 	sequence_t *seqs = MALLOC(seqs, total);
 	if (!seqs) {
-		print(M_NONE, ERR "Failed to allocate memory for sequences");
+		perror("Failed to allocate memory for sequences");
 		file_text_close(&input_file);
 		return false;
 	}
@@ -248,7 +247,7 @@ bool sequences_load_from_file(void)
 
 	sequence_t seq_curr = { 0 };
 
-	print(M_PERCENT(0) "Loading sequences");
+	ppercent(0, "Loading sequences");
 	bench_io_start();
 
 	for (u32 seq_index = 0; seq_index < total; seq_index++) {
@@ -262,9 +261,7 @@ bool sequences_load_from_file(void)
 		if (!seq_len_valid(seq_len_next)) {
 			if (!ask_long) {
 				bench_io_end();
-				print(M_NONE,
-				      WARNING
-				      "Overflow from large sequence length: " Pu64,
+				pwarn("Overflow from large sequence length: " Pu64,
 				      seq_len_next);
 				skip_long = print_yN("Skip long sequences?");
 				ask_long = true;
@@ -276,9 +273,8 @@ bool sequences_load_from_file(void)
 				seq_n_skip++;
 				continue;
 			} else {
-				print(M_NONE,
-				      ERR "Sequence #" Pu32 " is too long",
-				      seq_index + 1);
+				perror("Sequence #" Pu32 " is too long",
+				       seq_index + 1);
 				goto cleanup_seq_curr_seqs;
 			}
 		}
@@ -292,8 +288,7 @@ bool sequences_load_from_file(void)
 			seq_curr.letters = MALLOC(seq_curr.letters, count);
 
 			if (!seq_curr.letters) {
-				print(M_NONE,
-				      ERR "Failed to allocate sequence");
+				perror("Failed to allocate sequence");
 				goto cleanup_seqs;
 			}
 		}
@@ -305,11 +300,9 @@ bool sequences_load_from_file(void)
 		if (!validate_sequence(&seq_curr)) {
 			if (!ask_invalid) {
 				bench_io_end();
-				print(M_LOC(FIRST), WARNING
-				      "Found sequence with invalid letters");
-				print(M_LOC(LAST),
-				      WARNING "Sequence #" Pu32 " is invalid",
-				      seq_index + 1);
+				pwarn("Found invalid sequence");
+				pwarnl("Sequence #" Pu32 " is invalid",
+				       seq_index + 1);
 				skip_invalid =
 					print_yN("Skip invalid sequences?");
 				ask_invalid = true;
@@ -320,15 +313,14 @@ bool sequences_load_from_file(void)
 				seq_n_invalid++;
 				continue;
 			} else {
-				print(M_NONE, ERR
-				      "Found sequence with invalid letters");
+				perror("Found invalid sequence");
 				goto cleanup_seq_curr_seqs;
 			}
 		}
 
 		sequence_init(&seqs[seq_n_curr], &seq_curr);
 		if (!seqs[seq_n_curr].letters) {
-			print(M_NONE, ERR "Failed to allocate sequence");
+			perror("Failed to allocate sequence");
 			goto cleanup_seq_curr_seqs;
 		}
 
@@ -340,29 +332,25 @@ bool sequences_load_from_file(void)
 		seq_n_curr++;
 
 		u32 seq_n_actual = seq_n_curr + seq_n_skip + seq_n_invalid;
-		print(M_PROPORT(seq_n_actual / total) "Loading sequences");
+		pproport(seq_n_actual / total, "Loading sequences");
 	}
 
 	bench_io_end();
-	print(M_PERCENT(100) "Loading sequences");
+	ppercent(100, "Loading sequences");
 	free(seq_curr.letters);
 
 	u32 seq_n = seq_n_curr;
 	if (seq_n < 2) {
-		print(M_NONE,
-		      ERR "At least 2 sequences are required, found " Pu32,
-		      seq_n);
+		perror("At least 2 sequences are required, found " Pu32, seq_n);
 		goto cleanup_seqs;
 	}
 
 	if (seq_n_skip > 0)
-		print(M_NONE,
-		      INFO "Skipped " Pu32 " sequences that were too long",
+		pinfo("Skipped " Pu32 " sequences that were too long",
 		      seq_n_skip);
 
 	if (seq_n_invalid > 0)
-		print(M_NONE,
-		      INFO "Skipped " Pu32 " sequences with invalid letters",
+		pinfo("Skipped " Pu32 " sequences with invalid letters",
 		      seq_n_invalid);
 
 	u32 n_seqs_filtered = 0;
@@ -370,11 +358,10 @@ bool sequences_load_from_file(void)
 		goto skip_filtering;
 
 	bench_filter_start();
-	print_error_context("FILTERING");
+	perror_context("FILTERING");
 	bool *keep_flags = MALLOC(keep_flags, seq_n);
 	if (!keep_flags) {
-		print(M_NONE,
-		      ERR "Failed to allocate memory for filtering flags");
+		perror("Failed to allocate memory for filtering flags");
 		goto cleanup_seqs;
 	}
 
@@ -408,29 +395,27 @@ bool sequences_load_from_file(void)
 
 	bench_io_start();
 	if (seq_n < 2) {
-		print(M_NONE, ERR "Filtering removed too many sequences");
+		perror("Filtering removed too many sequences");
 		goto cleanup_seqs;
 	}
 
 	if (n_seqs_filtered > 0 && n_seqs_filtered >= total / 4) {
-		print(M_NONE,
-		      VERBOSE "Reallocating memory to save " Pu32
-			      " sequence slots",
+		pverb("Removing " Pu32 " filtered sequences from memory",
 		      n_seqs_filtered);
 		sequence_t *_sequences_new = REALLOC(seqs, seq_n);
 		if (_sequences_new)
 			seqs = _sequences_new;
 	}
 
-	print(M_NONE, INFO "Loaded " Pu32 " sequences (filtered " Pu32 ")",
-	      seq_n, n_seqs_filtered);
+	pinfo("Loaded " Pu32 " sequences (filtered " Pu32 ")", seq_n,
+	      n_seqs_filtered);
 	goto already_printed;
 
 skip_filtering:
-	print(M_NONE, INFO "Loaded " Pu32 " sequences", seq_n);
+	pinfo("Loaded " Pu32 " sequences", seq_n);
 
 already_printed:
-	print(M_NONE, INFO "Average sequence length: %.2f",
+	pinfo("Average sequence length: %.2f",
 	      (double)seqs_len_sum / (double)seq_n);
 
 	g_seqs = seqs;

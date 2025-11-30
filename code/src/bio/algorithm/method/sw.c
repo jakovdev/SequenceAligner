@@ -34,9 +34,8 @@ s32 align_sw(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	if (len1 > MAX_STACK_SEQUENCE_LENGTH) {
 		seq1_i = MALLOC(seq1_i, len1);
 		if (UNLIKELY(!seq1_i)) {
-			print_error_context("SEQALIGN - SW");
-			print(M_NONE, ERR
-			      "Failed to allocate memory for sequence indices");
+			perror_context("SEQALIGN - SW");
+			perror("Failed to allocate memory for sequence indices");
 			exit(EXIT_FAILURE);
 		}
 

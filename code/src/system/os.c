@@ -188,7 +188,7 @@ static struct arg_callback parse_thread_num(const char *str, void *dest)
 
 static void print_threads(void)
 {
-	print(M_LOC(LAST), INFO "CPU Threads: %d", arg_thread_num());
+	pinfol("CPU Threads: %d", arg_thread_num());
 }
 
 ARGUMENT(threads) = {

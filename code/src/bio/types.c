@@ -215,8 +215,7 @@ static struct arg_callback validate_gap_affine(void)
 
 static void print_config_seq_type(void)
 {
-	print(M_LOC(MIDDLE), INFO "Sequence type: %s",
-	      SEQUENCE_TYPES[seq_type].name);
+	pinfom("Sequence type: %s", SEQUENCE_TYPES[seq_type].name);
 }
 
 static void print_config_matrix(void)
@@ -235,22 +234,20 @@ static void print_config_matrix(void)
 		UNREACHABLE();
 	}
 
-	print(M_LOC(MIDDLE), INFO "Matrix: %s", name);
+	pinfom("Matrix: %s", name);
 }
 
 static void print_config_method(void)
 {
-	print(M_LOC(MIDDLE), INFO "Method: %s",
-	      ALIGNMENT_METHODS[method_id].name);
+	pinfom("Method: %s", ALIGNMENT_METHODS[method_id].name);
 }
 
 static void print_config_gaps(void)
 {
 	if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_LINEAR)
-		print(M_LOC(MIDDLE), INFO "Gap penalty: %d", gap_pen);
+		pinfom("Gap penalty: %d", gap_pen);
 	else if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_AFFINE)
-		print(M_LOC(MIDDLE), INFO "Gap open: %d, extend: %d", gap_open,
-		      gap_ext);
+		pinfom("Gap open: %d, extend: %d", gap_open, gap_ext);
 }
 
 static char seq_type_help[512];

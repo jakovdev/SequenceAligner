@@ -57,13 +57,13 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 		      bool *keep_flags, u32 *filtered_count)
 {
 	if (!sequences || !keep_flags || !filtered_count) {
-		print(M_NONE, ERR "Invalid parameters to filter sequences");
+		perror("Invalid parameters to filter sequences");
 		return false;
 	}
 
 	if ((sequence_count <= SEQUENCE_COUNT_MIN) || (filter <= 0.0) ||
 	    (filter > 1.0)) {
-		print(M_NONE, ERR "Invalid sequence count or filter threshold");
+		perror("Invalid sequence count or filter threshold");
 		return false;
 	}
 
@@ -132,10 +132,9 @@ ARG_PARSE_D(filter, double, , (val < 0.0 || val > 1.0),
 static void print_filter(void)
 {
 	if (arg_mode_filter())
-		print(M_LOC(MIDDLE), INFO "Filter threshold: %.1f%%",
-		      filter * 100.0);
+		pinfom("Filter threshold: %.1f%%", filter * 100.0);
 	else
-		print(M_LOC(MIDDLE), WARNING "Filter: Ignored");
+		pwarnm("Filter: Ignored");
 }
 
 ARGUMENT(filter_threshold) = {

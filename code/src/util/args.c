@@ -12,22 +12,22 @@
 #endif
 
 #ifndef args_perr
-#define args_perr(...) print(M_NONE, ERR __VA_ARGS__)
+#define args_perr(...) perror(__VA_ARGS__)
 #endif
 
 #ifndef args_pdev
-#define args_pdev(...) print_dev(__VA_ARGS__)
+#define args_pdev(...) pdev(__VA_ARGS__)
 #endif
 
 #ifndef args_ierr
-#define args_ierr(arg) print(M_NONE, ERR "Internal error for %s", arg_str(arg))
+#define args_ierr(arg) perror("Internal error for %s", arg_str(arg))
 #endif
 
 #ifndef args_abort
-#define args_abort()                 \
-	do {                         \
-		print(M_NONE, NULL); \
-		abort();             \
+#define args_abort()            \
+	do {                    \
+		psection_end(); \
+		abort();        \
 	} while (0)
 #endif
 
