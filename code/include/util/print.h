@@ -58,7 +58,7 @@
  *
  **For getting user input
  * char result[16] = { 0 };
- * print(M_IS(result) "Enter a character: ");
+ * pinput_s(result, "Enter a character: ");
  **│ • Enter a character: hello                                                   │
  **result will now contain "hello"
  *
@@ -105,59 +105,32 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-enum p_location {
-	LOC_FIRST,
-	LOC_MIDDLE,
-	LOC_LAST,
-#define _M_LOC(l) ((M_ARG){ .loc = (l) })
-};
-
-struct p_choice {
-	char **choices;
-	const size_t n;
-#define _M_CHOICE(c, s) \
-	((M_ARG){ .choice = { .choices = (c), .n = (s) } }), P_CHOICE
-};
-
-struct p_input {
-	char *out;
-	const size_t out_size;
-#define _M_INPUT(o, s) \
-	((M_ARG){ .input = { .out = (o), .out_size = (s) } }), P_INPUT
-};
-
 typedef const union {
-	const enum p_location loc;
-	const int percent;
-#define _M_PERCENT(p) ((M_ARG){ .percent = (p) }), P_PROGRESS
-	const struct p_choice choice;
-	const struct p_input input;
-} M_ARG;
-
-#define M_LOC(location) _M_LOC(location)
-
-#define M_PERCENT(percentage) _M_PERCENT(percentage)
-#define M_PROPORT(proportion) _M_PERCENT((int)(100 * proportion))
-
-#define M_CHOICE(choices, n) _M_CHOICE(choices, n)
-#define M_CS(choices) _M_CHOICE(choices, sizeof(choices))
-
-#define M_INPUT(out, s) _M_INPUT(out, s)
-#define M_IS(out) _M_INPUT(out, sizeof(out))
-
-#define M_NONE ((M_ARG){ 0 })
+	const struct {
+		char **ccoll;
+		const size_t n;
+	} choices;
+#define INPUT_C(c, s) (INPUT){ .choices = { .ccoll = (c), .n = (s) } }, P_CHOICE
+#define INPUT_CS(choices) INPUT_C(choices, sizeof(choices))
+	const struct {
+		char *out;
+		const size_t size;
+	} prompt;
+#define INPUT_P(o, s) (INPUT){ .prompt = { .out = (o), .size = (s) } }, P_PROMPT
+#define INPUT_PS(out) INPUT_P(out, sizeof(out))
+} INPUT;
 
 /* clang-format off */
-#define P_NONE	   "0" /* No special message type */
-#define P_INFO     "1" /* Regular info message */
-#define P_VERBOSE  "2" /* Info message controlled by verbose flag */
-#define P_WARNING  "3" /* Warning message, something is ignored, assumption */
-#define P_ERROR    "4" /* Error message, reason why program has to exit */
-#define P_CHOICE   "5" /* User choice prompt, numbered range */
-#define P_INPUT    "6" /* User input prompt, free text */
-#define P_PROGRESS "7" /* Progress bar display */
-#define P_HEADER   "8" /* Header box, for large titles */
-#define P_SECTION  "9" /* Section box, for separating by context */
+#define P_INFO    "\x01"
+#define P_VERBOSE "\x02"
+#define P_WARNING "\x03"
+#define P_ERROR   "\x04"
+#define P_HEADER  "\x05"
+#define P_SECTION "\x06"
+#define P_CHOICE  "\x07"
+#define P_PROMPT  "\x08"
+#define P_MIDDLE  "\x11"
+#define P_LAST    "\x12"
 /* clang-format on */
 
 /* Useful for debugging */
@@ -169,13 +142,16 @@ enum p_return {
 	PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0, /* Editable first choice index */
 	PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
 	PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
-	PRINT_INPUT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
+	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
+	PRINT_INVALID_INPUT_TYPE__ERROR = -3,
 	PRINT_TO_DEV_NDEBUG__ERROR = -0xDEAD
 };
 
 void print_streams(FILE *in, FILE *out, FILE *err);
 
-enum p_return print(M_ARG, const char *P_RESTRICT fmt, ...);
+enum p_return print(const char *P_RESTRICT fmt, ...);
+enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...);
+enum p_return input(INPUT, const char *P_RESTRICT fmt, ...);
 
 /* "prompt [y/N]: " */
 bool print_yN(const char *P_RESTRICT prompt);
@@ -184,43 +160,43 @@ bool print_Yn(const char *P_RESTRICT prompt);
 /* "prompt [y/n]: " */
 bool print_yn(const char *P_RESTRICT prompt);
 
-#define pinfo(...) print(M_NONE, P_INFO __VA_ARGS__)
-#define pinfom(...) print(M_LOC(LOC_MIDDLE), P_INFO __VA_ARGS__)
-#define pinfol(...) print(M_LOC(LOC_LAST), P_INFO __VA_ARGS__)
+#define pinfo(...) print(P_INFO __VA_ARGS__)
+#define pinfom(...) print(P_INFO P_MIDDLE __VA_ARGS__)
+#define pinfol(...) print(P_INFO P_LAST __VA_ARGS__)
 
-#define pwarning(...) print(M_NONE, P_WARNING __VA_ARGS__)
-#define pwarningm(...) print(M_LOC(LOC_MIDDLE), P_WARNING __VA_ARGS__)
-#define pwarningl(...) print(M_LOC(LOC_LAST), P_WARNING __VA_ARGS__)
+#define pwarning(...) print(P_WARNING __VA_ARGS__)
+#define pwarningm(...) print(P_WARNING P_MIDDLE __VA_ARGS__)
+#define pwarningl(...) print(P_WARNING P_LAST __VA_ARGS__)
 
 #define pwarn(...) pwarning(__VA_ARGS__)
 #define pwarnm(...) pwarningm(__VA_ARGS__)
 #define pwarnl(...) pwarningl(__VA_ARGS__)
 
-#define pverbose(...) print(M_NONE, P_VERBOSE __VA_ARGS__)
-#define pverbosem(...) print(M_LOC(LOC_MIDDLE), P_VERBOSE __VA_ARGS__)
-#define pverbosel(...) print(M_LOC(LOC_LAST), P_VERBOSE __VA_ARGS__)
+#define pverbose(...) print(P_VERBOSE __VA_ARGS__)
+#define pverbosem(...) print(P_VERBOSE P_MIDDLE __VA_ARGS__)
+#define pverbosel(...) print(P_VERBOSE P_LAST __VA_ARGS__)
 
 #define pverb(...) pverbose(__VA_ARGS__)
 #define pverbm(...) pverbosem(__VA_ARGS__)
 #define pverbl(...) pverbosel(__VA_ARGS__)
 
 void perror_context(const char *prefix);
-#define perror(...) print(M_NONE, P_ERROR __VA_ARGS__)
-#define perrorm(...) print(M_LOC(LOC_MIDDLE), P_ERROR __VA_ARGS__)
-#define perrorl(...) print(M_LOC(LOC_LAST), P_ERROR __VA_ARGS__)
+#define perror(...) print(P_ERROR __VA_ARGS__)
+#define perrorm(...) print(P_ERROR P_MIDDLE __VA_ARGS__)
+#define perrorl(...) print(P_ERROR P_LAST __VA_ARGS__)
 
-#define pchoice(choices, n, ...) print(M_CHOICE(choices, n) __VA_ARGS__)
-#define pchoice_s(choices, ...) print(M_CS(choices) __VA_ARGS__)
-#define pinput(out, size, ...) print(M_INPUT(out, size) __VA_ARGS__)
-#define pinput_s(out, ...) print(M_IS(out) __VA_ARGS__)
+#define pchoice(choices, n, ...) input(INPUT_C(choices, n) __VA_ARGS__)
+#define pchoice_s(choices, ...) input(INPUT_CS(choices) __VA_ARGS__)
+#define pinput(out, size, ...) input(INPUT_P(out, size) __VA_ARGS__)
+#define pinput_s(out, ...) input(INPUT_PS(out) __VA_ARGS__)
 
-#define ppercent(pct, ...) print(M_PERCENT(pct) __VA_ARGS__)
-#define pproport(prp, ...) print(M_PROPORT(prp) __VA_ARGS__)
+#define ppercent(pct, ...) progress_bar(pct, __VA_ARGS__)
+#define pproport(prp, ...) progress_bar((int)(100 * prp), __VA_ARGS__)
 
-#define pheader(...) print(M_NONE, P_HEADER __VA_ARGS__)
+#define pheader(...) print(P_HEADER __VA_ARGS__)
 
-#define psection(...) print(M_NONE, P_SECTION __VA_ARGS__)
-#define psection_end() print(M_NONE, NULL)
+#define psection(...) print(P_SECTION __VA_ARGS__)
+#define psection_end() print(NULL)
 
 /* Doesn't print in RELEASE (NDEBUG defined), _TO_DEV_ error context */
 enum p_return pdev(const char *fmt, ...);
