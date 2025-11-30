@@ -181,8 +181,7 @@ static struct arg_callback parse_align_method(const char *str, void *dest)
 	return ARG_VALID();
 }
 
-/* TODO: Negate gap value */
-ARG_PARSE_L(gap_value, 10, s32, /* -(s32) */ (s32), (val < 0 || val > INT_MAX),
+ARG_PARSE_L(gap_value, 10, s32, -(s32), (val < 0 || val > INT_MAX),
 	    "Gap values must be positive integers")
 
 static struct arg_callback validate_gap_pen(void)
@@ -205,8 +204,8 @@ static struct arg_callback validate_gap_affine(void)
 			    "Equal gap penalties found, switch to Needleman-Wunsch?")) {
 			method_id = ALIGN_NEEDLEMAN_WUNSCH;
 			gap_pen = gap_open;
-			gap_open = INT32_MAX;
-			gap_ext = INT32_MAX;
+			gap_open = INT32_MIN;
+			gap_ext = INT32_MIN;
 		}
 	}
 

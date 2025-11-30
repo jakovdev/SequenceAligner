@@ -53,16 +53,16 @@ __global__ void k_nw(s32 *R scores, u64 start, u64 batch)
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (u32 col = 0; col <= len2; col++)
-		dp_prev[col] = col * -(C.gap_pen);
+		dp_prev[col] = col * C.gap_pen;
 	for (u32 row = 1; row <= len1; ++row) {
-		dp_curr[0] = row * -(C.gap_pen);
+		dp_curr[0] = row * C.gap_pen;
 
 		for (u32 col = 1; col <= len2; col++) {
 			const s32 c1 = d_seq_lup(i, row - 1);
 			const s32 c2 = d_seq_lup(j, col - 1);
 			const s32 match = dp_prev[col - 1] + d_sub_mat(c1, c2);
-			const s32 gap_v = dp_prev[col] - C.gap_pen;
-			const s32 gap_h = dp_curr[col - 1] - C.gap_pen;
+			const s32 gap_v = dp_prev[col] + C.gap_pen;
+			const s32 gap_h = dp_curr[col - 1] + C.gap_pen;
 
 			s32 max = match > gap_v ? match : gap_v;
 			max = max > gap_h ? max : gap_h;
@@ -104,8 +104,8 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 	match[0] = 0;
 	gap_x[0] = gap_y[0] = SCORE_MIN;
 	for (u32 col = 1; col <= len2; col++) {
-		gap_x[col] = max(match[col - 1] - C.gap_open,
-				 gap_x[col - 1] - C.gap_ext);
+		gap_x[col] = max(match[col - 1] + C.gap_open,
+				 gap_x[col - 1] + C.gap_ext);
 		match[col] = gap_x[col];
 		gap_y[col] = SCORE_MIN;
 	}
@@ -118,9 +118,8 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 	}
 
 	for (u32 row = 1; row <= len1; ++row) {
-		match[0] = row * -(C.gap_pen);
 		gap_x[0] = SCORE_MIN;
-		gap_y[0] = max(p_match[0] - C.gap_open, p_gap_y[0] - C.gap_ext);
+		gap_y[0] = max(p_match[0] + C.gap_open, p_gap_y[0] + C.gap_ext);
 		match[0] = gap_y[0];
 
 		const s32 c1 = d_seq_lup(i, row - 1);
@@ -130,12 +129,12 @@ __global__ void k_ga(s32 *R scores, u64 start, u64 batch)
 
 			const s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] - C.gap_open;
-			const s32 extend_x = gap_x[col - 1] - C.gap_ext;
+			const s32 open_x = match[col - 1] + C.gap_open;
+			const s32 extend_x = gap_x[col - 1] + C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] - C.gap_open;
-			const s32 extend_y = p_gap_y[col] - C.gap_ext;
+			const s32 open_y = p_match[col] + C.gap_open;
+			const s32 extend_y = p_gap_y[col] + C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			match[col] = max(d_score, max(gap_x[col], gap_y[col]));
@@ -199,12 +198,12 @@ __global__ void k_sw(s32 *R scores, u64 start, u64 batch)
 
 			const s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] - C.gap_open;
-			const s32 extend_x = gap_x[col - 1] - C.gap_ext;
+			const s32 open_x = match[col - 1] + C.gap_open;
+			const s32 extend_x = gap_x[col - 1] + C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] - C.gap_open;
-			const s32 extend_y = p_gap_y[col] - C.gap_ext;
+			const s32 open_y = p_match[col] + C.gap_open;
+			const s32 extend_y = p_gap_y[col] + C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			const s32 best = max(
