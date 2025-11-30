@@ -247,7 +247,18 @@ void perror_context(const char *context)
 		return;
 	}
 
-	p.err_len = snprintf(p.err_ctx, sizeof(p.err_ctx), "%s | ", context);
+	int len = snprintf(p.err_ctx, sizeof(p.err_ctx), "%s | ", context);
+	if (len < 0) {
+		p.err_ctx[0] = '\0';
+		p.err_len = 0;
+		return;
+	}
+
+	p.err_len = (size_t)len;
+	if (p.err_len >= sizeof(p.err_ctx)) {
+		p.err_len = sizeof(p.err_ctx) - 1;
+		p.err_ctx[p.err_len] = '\0';
+	}
 }
 
 void print_streams(FILE *in, FILE *out, FILE *err)
