@@ -2,6 +2,8 @@
 
 #include <stdatomic.h>
 
+#include "bio/algorithm/matrix.h"
+#include "bio/algorithm/indices.h"
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
@@ -27,13 +29,16 @@ bool align(void)
 		return false;
 
 	OMP_PARALLEL_REDUCTION(g_checksum, +)
+	matrix_buffers_init(sequences_length_max());
+	indices_buffers_init(sequences_length_max());
 	s64 checksum = 0;
 	u64 progress = 0;
 
 	OMP_FOR_DYNAMIC(i, 0, sequence_count) {
 		OMP_START_DYNAMIC(i);
+		sequence_ptr_t seq1 = sequence(i);
+		indices_precompute(seq1);
 		for (u32 j = i + 1; j < sequence_count; j++) {
-			sequence_ptr_t seq1 = sequence(i);
 			sequence_ptr_t seq2 = sequence(j);
 			s32 score = align_func(seq1, seq2);
 			checksum += score;
@@ -51,6 +56,8 @@ bool align(void)
 		atomic_add_relaxed(&g_progress, progress);
 
 	g_checksum += checksum;
+	indices_buffers_free();
+	matrix_buffers_free();
 	OMP_PARALLEL_REDUCTION_END()
 
 	bench_align_end();

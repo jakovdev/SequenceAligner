@@ -35,8 +35,8 @@ static sequence_t *g_seqs;
 static u64 g_align_n;
 #ifdef USE_CUDA
 static u64 g_seq_len_sum;
-static u32 g_seq_len_max;
 #endif
+static u32 g_seq_len_max;
 static u32 g_seq_n;
 
 static void seq_pool_free(void)
@@ -137,8 +137,8 @@ static void sequences_free(void)
 	g_align_n = 0;
 #ifdef USE_CUDA
 	g_seq_len_sum = 0;
-	g_seq_len_max = 0;
 #endif
+	g_seq_len_max = 0;
 	g_seq_n = 0;
 }
 
@@ -234,9 +234,7 @@ bool sequences_load_from_file(void)
 	}
 
 	u64 seqs_len_sum = 0;
-#ifdef USE_CUDA
 	u32 seq_len_max = 0;
-#endif
 	u32 seq_n_curr = 0;
 	u32 seq_n_skip = 0;
 	u32 seq_n_invalid = 0;
@@ -325,12 +323,10 @@ bool sequences_load_from_file(void)
 		}
 
 		seqs_len_sum += seq_curr.length;
-#ifdef USE_CUDA
-		if (arg_mode_cuda() && seq_curr.length > seq_len_max)
+		if (seq_curr.length > seq_len_max)
 			seq_len_max = (u32)seq_curr.length;
-#endif
-		seq_n_curr++;
 
+		seq_n_curr++;
 		u32 seq_n_actual = seq_n_curr + seq_n_skip + seq_n_invalid;
 		pproport(seq_n_actual / total, "Loading sequences");
 	}
@@ -381,10 +377,9 @@ bool sequences_load_from_file(void)
 			seqs[write_index] = seqs[read_index];
 
 		seqs_len_sum += seqs[write_index].length;
-#ifdef USE_CUDA
-		if (arg_mode_cuda() && seqs[write_index].length > seq_len_max)
+		if (seqs[write_index].length > seq_len_max)
 			seq_len_max = (u32)seqs[write_index].length;
-#endif
+
 		write_index++;
 	}
 
@@ -422,8 +417,8 @@ already_printed:
 	g_align_n = ((u64)seq_n * (seq_n - 1)) / 2;
 #ifdef USE_CUDA
 	g_seq_len_sum = seqs_len_sum;
-	g_seq_len_max = seq_len_max;
 #endif
+	g_seq_len_max = seq_len_max;
 	atexit(sequences_free);
 	file_text_close(&input_file);
 	return true;
@@ -458,16 +453,16 @@ u64 sequences_alignment_count(void)
 	return g_align_n;
 }
 
+u32 sequences_length_max(void)
+{
+	return g_seq_len_max;
+}
+
 #ifdef USE_CUDA
 
 u64 sequences_length_sum(void)
 {
 	return g_seq_len_sum;
-}
-
-u32 sequences_length_max(void)
-{
-	return g_seq_len_max;
 }
 
 #endif

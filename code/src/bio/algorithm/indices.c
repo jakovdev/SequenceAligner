@@ -3,8 +3,30 @@
 #include "bio/score/scoring.h"
 #include "system/compiler.h"
 #include "system/simd.h"
+#include "system/memory.h"
+#include "system/os.h"
+#include "util/print.h"
 
-void seq_indices_precompute(s32 *restrict indices, sequence_ptr_t seq)
+_Thread_local s32 *restrict g_seq1_i;
+
+void indices_buffers_init(u32 lenmax)
+{
+	g_seq1_i = alloc_huge_page(lenmax * sizeof(*g_seq1_i));
+	if (UNLIKELY(!g_seq1_i)) {
+		perror_context("SEQALIGN - INDICES");
+		perror("Failed to allocate memory for sequence indices");
+		exit(EXIT_FAILURE);
+	}
+}
+
+void indices_buffers_free(void)
+{
+	if (g_seq1_i)
+		aligned_free(g_seq1_i);
+	g_seq1_i = NULL;
+}
+
+void indices_precompute(sequence_ptr_t seq)
 {
 #if USE_SIMD == 1
 	const u64 vector_len = (seq->length / BYTES) * BYTES;
@@ -14,23 +36,15 @@ void seq_indices_precompute(s32 *restrict indices, sequence_ptr_t seq)
 		prefetch(seq->letters + i + BYTES * 2);
 		VECTORIZE
 		for (u64 j = 0; j < BYTES; j++)
-			indices[i + j] = SEQ_LUP[(uchar)seq->letters[i + j]];
+			g_seq1_i[i + j] = SEQ_LUP[(uchar)seq->letters[i + j]];
 	}
 
 	for (; i < seq->length; i++)
-		indices[i] = SEQ_LUP[(uchar)seq->letters[i]];
+		g_seq1_i[i] = SEQ_LUP[(uchar)seq->letters[i]];
 #else
 	VECTORIZE
 	UNROLL(8)
 	for (u64 i = 0; i < seq->length; ++i)
-		indices[i] = SEQ_LUP[(uchar)seq->letters[i]];
+		g_seq1_i[i] = SEQ_LUP[(uchar)seq->letters[i]];
 #endif
-}
-
-void seq_indices_free(s32 *restrict indices, bool is_stack)
-{
-	if (!is_stack && indices) {
-		free(indices);
-		indices = NULL;
-	}
 }

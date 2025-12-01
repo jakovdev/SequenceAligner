@@ -2,12 +2,15 @@
 #ifndef BIO_ALGORITHM_INDICES_H
 #define BIO_ALGORITHM_INDICES_H
 
-#include <stdbool.h>
-
 #include "bio/types.h"
+#include "system/types.h"
 
-void seq_indices_precompute(s32 *restrict indices, sequence_ptr_t seq);
+extern _Thread_local s32 *restrict g_seq1_i;
 
-void seq_indices_free(s32 *restrict indices, bool is_stack);
+void indices_buffers_init(u32 lenmax);
+
+void indices_buffers_free(void);
+
+void indices_precompute(sequence_ptr_t seq);
 
 #endif /* BIO_ALGORITHM_INDICES_H */

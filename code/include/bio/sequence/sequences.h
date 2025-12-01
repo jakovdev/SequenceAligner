@@ -15,9 +15,10 @@ u64 sequences_alignment_count(void);
 
 sequence_t *sequence(u32 index);
 
+u32 sequences_length_max(void);
+
 #ifdef USE_CUDA
 u64 sequences_length_sum(void);
-u32 sequences_length_max(void);
 #endif
 
 #endif /* BIO_SEQUENCE_SEQUENCES_H */
