@@ -573,10 +573,12 @@ skip_fmt:
 			ouputc(' ');
 		}
 
-		if (type == T_ERROR && p.err_ctx[0])
-			ouwrite(p.err_ctx, p.err_len);
-		ouwrite(p_buf, p_buflen);
 		size_t padding = available - p_buflen;
+		if (type == T_ERROR && p.err_ctx[0]) {
+			ouwrite(p.err_ctx, p.err_len);
+			padding -= p.err_len;
+		}
+		ouwrite(p_buf, p_buflen);
 		while (padding--)
 			ouputc(' ');
 		ouwcol(T_SECTION);
