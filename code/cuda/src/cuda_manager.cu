@@ -165,8 +165,8 @@ bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend) noexcept
 
 bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 {
-	if (!s.init || !s.seqs || !scores || !scores_bytes) {
-		hostError("Invalid context, storage, or using --no-write");
+	if (!s.init || !s.seqs) {
+		hostError("Invalid context or sequences not uploaded");
 		return false;
 	}
 
@@ -183,9 +183,9 @@ bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 		hostError("No errors from Host");
 	}
 
-	const size_t expected_size = h.alignments * sizeof(*scores);
+	const size_t expected_size = h.alignments * sizeof(*h.scores);
 
-	if (scores_bytes < expected_size) {
+	if (scores && scores_bytes < expected_size) {
 		hostError("Buffer size is too small for results");
 		return false;
 	}

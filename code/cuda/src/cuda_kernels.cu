@@ -320,7 +320,8 @@ bool Cuda::kernelResults() noexcept
 
 		S_SYNC(d.s_comp);
 		DH_COPY(&h.progress, d.progress, 1);
-		DH_COPY(h.scores, d.scores[0], d.seqs_n * d.seqs_n);
+		if (h.scores)
+			DH_COPY(h.scores, d.scores[0], d.seqs_n * d.seqs_n);
 		matrix_copied = true;
 		return true;
 	}
@@ -349,12 +350,15 @@ bool Cuda::kernelResults() noexcept
 		return true;
 
 	if (h.subsequent) {
-		DH_ACOPY(h.scores + h.batch_done, d.next(), n_scores, d.s_copy);
+		if (h.scores)
+			DH_ACOPY(h.scores + h.batch_done, d.next(), n_scores,
+				 d.s_copy);
 		d.s_sync = true;
 	} else {
 		S_SYNC(d.s_comp);
 		DH_COPY(&h.progress, d.progress, 1);
-		DH_COPY(h.scores + h.batch_done, d.current(), n_scores);
+		if (h.scores)
+			DH_COPY(h.scores + h.batch_done, d.current(), n_scores);
 	}
 
 	h.batch_done += n_scores;

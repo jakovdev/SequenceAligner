@@ -151,26 +151,26 @@ class Cuda {
 #define D_MALLOC(p, n) CUDA(Malloc(&p, MSIZ(p, n)), D_MALLOC, N(#p, #n))
 
 #define HD_COPY(d, h, n)                                                \
-	ASSERT_PTR_SIZES(d, h);                                         \
 	CUDA(Memcpy(d, h, MSIZ(d, n), cudaMemcpyHostToDevice), HD_COPY, \
-	     TO(#h, #d))
+	     TO(#h, #d));                                               \
+	ASSERT_PTR_SIZES(d, h)
 
 #define DH_COPY(h, d, n)                                                \
-	ASSERT_PTR_SIZES(h, d);                                         \
 	CUDA(Memcpy(h, d, MSIZ(h, n), cudaMemcpyDeviceToHost), DH_COPY, \
-	     TO(#d, #h))
+	     TO(#d, #h));                                               \
+	ASSERT_PTR_SIZES(h, d)
 
 #define DD_COPY(d, s, n)                                                  \
-	ASSERT_PTR_SIZES(d, s);                                           \
 	CUDA(Memcpy(d, s, MSIZ(d, n), cudaMemcpyDeviceToDevice), DD_COPY, \
-	     TO(#s, #d))
+	     TO(#s, #d));                                                 \
+	ASSERT_PTR_SIZES(d, s)
 
 #define C_COPY(d, h) CUDA(MemcpyToSymbol(d, h, sizeof(d)), C_COPY, TO(#h, #d))
 
 #define DH_ACOPY(h, d, n, s)                                           \
-	ASSERT_PTR_SIZES(h, d);                                        \
 	CUDA(MemcpyAsync(h, d, MSIZ(h, n), cudaMemcpyDeviceToHost, s), \
-	     DH_ACOPY, S(TO(#d, #h), #s))
+	     DH_ACOPY, S(TO(#d, #h), #s));                             \
+	ASSERT_PTR_SIZES(h, d)
 
 #define D_SYNC(msg_lit) CUDA(DeviceSynchronize(), D_SYNC, msg_lit)
 
