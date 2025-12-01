@@ -16,25 +16,17 @@ __forceinline__ __device__ s32 d_sub_mat(const s32 a, const s32 b)
 
 __forceinline__ __device__ u32 d_find_j(const u64 id)
 {
-	u32 low = 1, high = C.seqs_n - 1;
-	u32 result = 1;
+	u32 low = 1, high = C.seqs_n;
 
-	while (low <= high) {
-		const u32 mid = (low + high) / 2;
-
-		if (C.indices[mid] <= id) {
-			if (mid + 1 >= C.seqs_n || C.indices[mid + 1] > id) {
-				result = mid;
-				break;
-			}
-
+	while (low < high) {
+		const u32 mid = low + (high - low) / 2;
+		if (C.indices[mid] <= id)
 			low = mid + 1;
-		} else {
-			high = mid - 1;
-		}
+		else
+			high = mid;
 	}
 
-	return result;
+	return low - 1;
 }
 
 __global__ void k_nw(s32 *R scores, u64 start, u64 batch)
