@@ -7,7 +7,7 @@
  * On an 8GB card, the limit is around 20000-22000.
  * If over the limit, it will write out of memory error message.
  */
-#define MAX_CUDA_SEQUENCE_LENGTH (1024)
+#define MAX_CUDA_SEQUENCE_LENGTH (1023)
 
 #define SUB_MATDIM (24)
 #define SUB_MATSIZE (SUB_MATDIM * SUB_MATDIM)

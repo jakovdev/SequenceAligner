@@ -394,8 +394,7 @@ bool sequences_load_from_file(void)
 	}
 
 	if (n_seqs_filtered > 0 && n_seqs_filtered >= total / 4) {
-		pverb("Removing " Pu32 " filtered sequences from memory",
-		      n_seqs_filtered);
+		pverb("Reallocating sequences to save memory");
 		sequence_t *_sequences_new = REALLOC(seqs, seq_n);
 		if (_sequences_new)
 			seqs = _sequences_new;

@@ -28,7 +28,7 @@ bool align(void)
 	if (!progress_start(&g_progress, alignment_count, "Aligning sequences"))
 		return false;
 
-	OMP_PARALLEL_REDUCTION(g_checksum, +)
+	OMP_PARALLEL(reduction(+ : g_checksum))
 	matrix_buffers_init(sequences_length_max());
 	indices_buffers_init(sequences_length_max());
 	s64 checksum = 0;
@@ -58,7 +58,7 @@ bool align(void)
 	g_checksum += checksum;
 	indices_buffers_free();
 	matrix_buffers_free();
-	OMP_PARALLEL_REDUCTION_END()
+	OMP_PARALLEL_END()
 
 	bench_align_end();
 	progress_end();

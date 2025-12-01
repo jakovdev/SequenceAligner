@@ -1,6 +1,7 @@
 #include "bio/sequence/filtering.h"
 
 #include <stdatomic.h>
+#include <string.h>
 
 #include "util/args.h"
 #include "bio/types.h"
@@ -56,30 +57,23 @@ static double similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
 bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 		      bool *keep_flags, u32 *filtered_count)
 {
-	if (!sequences || !keep_flags || !filtered_count) {
+	if (!sequences || !keep_flags || !filtered_count ||
+	    sequence_count <= SEQUENCE_COUNT_MIN) {
 		perr("Invalid parameters to filter sequences");
 		return false;
 	}
 
-	if ((sequence_count <= SEQUENCE_COUNT_MIN) || (filter <= 0.0) ||
-	    (filter > 1.0)) {
-		perr("Invalid sequence count or filter threshold");
-		return false;
-	}
-
-	const u64 num_threads = (u64)arg_thread_num();
 	const u64 progress_total = sequence_count - 1;
 	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
 	*filtered_count = 0;
 	u32 filtered_total = 0;
-	const u64 update_limit = progress_total / (num_threads * 100);
-	for (u32 i = 0; i < sequence_count; i++)
-		keep_flags[i] = true;
+	const u64 update_limit = progress_total / ((u64)arg_thread_num() * 100);
+	memset(keep_flags, 1, sizeof(*keep_flags) * sequence_count);
 
 	if (!progress_start(&g_progress, progress_total, "Filtering sequences"))
 		return false;
 
-	OMP_PARALLEL_REDUCTION(filtered_total, +)
+	OMP_PARALLEL(reduction(+ : filtered_total))
 	u64 progress = 0;
 	u32 filtered = 0;
 
@@ -112,7 +106,7 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 		atomic_add_relaxed(&g_progress, progress);
 
 	filtered_total += filtered;
-	OMP_PARALLEL_REDUCTION_END()
+	OMP_PARALLEL_END()
 
 	bench_filter_end();
 	progress_end();

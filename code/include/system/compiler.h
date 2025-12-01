@@ -32,10 +32,10 @@
 #define strcasecmp _stricmp
 #endif
 
-#define OMP_PARALLEL_REDUCTION(var, op)          \
-	PRAGMA(omp parallel reduction(op : var)) \
+#define OMP_PARALLEL(...)                \
+	PRAGMA(omp parallel __VA_ARGS__) \
 	{
-#define OMP_PARALLEL_REDUCTION_END() }
+#define OMP_PARALLEL_END() }
 
 #ifdef _MSC_VER
 #define OMP_START_DYNAMIC(var) u32 var = (u32)var##var
