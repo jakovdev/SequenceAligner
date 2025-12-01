@@ -48,12 +48,12 @@
  * pwarn("Warning text");
  **│ ! Warning text                                                               │
  *
- * perror_context("FILES");
- * perror("File not found");
+ * perr_context("FILES");
+ * perr("File not found");
  **│ ✗ FILES | File not found                                                     │
  *
- * perror_context(NULL);
- * perror("File not found");
+ * perr_context(NULL);
+ * perr("File not found");
  **│ ✗ File not found                                                             │
  *
  **For getting user input
@@ -174,10 +174,10 @@ bool print_yn(const char *P_RESTRICT prompt);
 #define pverbm(...) pverbosem(__VA_ARGS__)
 #define pverbl(...) pverbosel(__VA_ARGS__)
 
-void perror_context(const char *prefix);
-#define perror(...) print(P_ERROR __VA_ARGS__)
-#define perrorm(...) print(P_ERROR P_MIDDLE __VA_ARGS__)
-#define perrorl(...) print(P_ERROR P_LAST __VA_ARGS__)
+void perr_context(const char *prefix);
+#define perr(...) print(P_ERROR __VA_ARGS__)
+#define perrm(...) print(P_ERROR P_MIDDLE __VA_ARGS__)
+#define perrl(...) print(P_ERROR P_LAST __VA_ARGS__)
 
 #define pchoice(choices, n, ...) input(P_INPUT_C(choices, n) __VA_ARGS__)
 #define pchoice_s(choices, ...) input(P_INPUT_CS(choices) __VA_ARGS__)

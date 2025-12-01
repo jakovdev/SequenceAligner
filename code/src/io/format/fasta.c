@@ -41,7 +41,7 @@ static inline char *fasta_skip_line(char *cursor, char *file_end)
 bool fasta_validate(char *restrict file_start, char *restrict file_end)
 {
 	if (!file_start || !file_end || file_start >= file_end) {
-		perror("Invalid file bounds for validation");
+		perr("Invalid file bounds for validation");
 		return false;
 	}
 
@@ -58,15 +58,14 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 		char ch = *cursor;
 
 		if (ch == '\0') {
-			perror("Null character found on line " Pu64,
-			       line_number);
+			perr("Null character found on line " Pu64, line_number);
 			return false;
 		}
 
 		if (ch == '>') {
 			if (in_sequence && !found_sequence_data) {
-				perror("Empty sequence found on line " Pu64,
-				       line_number);
+				perr("Empty sequence found on line " Pu64,
+				     line_number);
 				return false;
 			}
 
@@ -82,8 +81,8 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 				}
 
 				if (!skip) {
-					perror("Empty header found on line " Pu64,
-					       line_number);
+					perr("Empty header found on line " Pu64,
+					     line_number);
 					return false;
 				}
 			}
@@ -105,19 +104,19 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 				cursor++;
 			}
 		} else {
-			perror("Data found before first header on line " Pu64,
-			       line_number);
+			perr("Data found before first header on line " Pu64,
+			     line_number);
 			return false;
 		}
 	}
 
 	if (sequence_count == 0) {
-		perror("No sequences found in input file");
+		perr("No sequences found in input file");
 		return false;
 	}
 
 	if (in_sequence && !found_sequence_data) {
-		perror("Last sequence header has no sequence data");
+		perr("Last sequence header has no sequence data");
 		return false;
 	}
 
@@ -196,7 +195,7 @@ u64 fasta_entry_extract(char *restrict *restrict p_cursor,
 			char *restrict file_end, char *restrict output)
 {
 	if (!p_cursor || !output) {
-		perror("Invalid parameters for fasta extraction");
+		perr("Invalid parameters for fasta extraction");
 		return 0;
 	}
 

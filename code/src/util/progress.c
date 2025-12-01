@@ -40,7 +40,7 @@ bool progress_start(_Atomic(u64) *progress, u64 total, const char *message)
 
 	atomic_store(&p_running, false);
 p_thread_error:
-	perror("Failed to create progress monitor thread");
+	perr("Failed to create progress monitor thread");
 	return false;
 }
 

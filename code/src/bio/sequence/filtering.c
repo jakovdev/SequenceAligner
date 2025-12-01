@@ -57,13 +57,13 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 		      bool *keep_flags, u32 *filtered_count)
 {
 	if (!sequences || !keep_flags || !filtered_count) {
-		perror("Invalid parameters to filter sequences");
+		perr("Invalid parameters to filter sequences");
 		return false;
 	}
 
 	if ((sequence_count <= SEQUENCE_COUNT_MIN) || (filter <= 0.0) ||
 	    (filter > 1.0)) {
-		perror("Invalid sequence count or filter threshold");
+		perr("Invalid sequence count or filter threshold");
 		return false;
 	}
 

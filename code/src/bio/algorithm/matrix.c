@@ -16,8 +16,8 @@ void matrix_buffers_init(u32 lenmax)
 {
 	g_matrix = alloc_huge_page(3 * MATRIX_SIZE(lenmax) * sizeof(*g_matrix));
 	if (UNLIKELY(!g_matrix)) {
-		perror_context("SEQALIGN - MATRIX");
-		perror("Failed to allocate memory for alignment matrix");
+		perr_context("SEQALIGN - MATRIX");
+		perr("Failed to allocate memory for alignment matrix");
 		exit(EXIT_FAILURE);
 	}
 

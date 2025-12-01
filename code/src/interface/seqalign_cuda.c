@@ -11,17 +11,17 @@
 
 #include "host_interface.h"
 
-#define RETURN_CUDA_ERRORS(...)                                   \
-	do {                                                      \
-		perror(__VA_ARGS__);                              \
-		perrorm("Host error: %s", cuda_error_host());     \
-		perrorl("Device error: %s", cuda_error_device()); \
-		return false;                                     \
+#define RETURN_CUDA_ERRORS(...)                                 \
+	do {                                                    \
+		perr(__VA_ARGS__);                              \
+		perrm("Host error: %s", cuda_error_host());     \
+		perrl("Device error: %s", cuda_error_device()); \
+		return false;                                   \
 	} while (0)
 
 bool cuda_align(void)
 {
-	perror_context("CUDA");
+	perr_context("CUDA");
 
 	const char *device_name = cuda_device_name();
 	if (!device_name)

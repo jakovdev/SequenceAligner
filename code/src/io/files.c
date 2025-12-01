@@ -75,7 +75,7 @@ static bool file_format_csv_parse(struct FileText *file)
 	if (!file->text)
 		return false;
 
-	perror_context("CSV");
+	perr_context("CSV");
 
 	if (!csv_validate(file->data.start, file->data.end))
 		return false;
@@ -93,12 +93,12 @@ static bool file_format_csv_parse(struct FileText *file)
 	u64 total = csv_total_lines(file->data.start, file->data.end);
 
 	if (total >= SEQUENCE_COUNT_MAX) {
-		perror("Too many sequences in input file: " Pu64, total);
+		perr("Too many sequences in input file: " Pu64, total);
 		return false;
 	}
 
 	if (!total) {
-		perror("No sequences found in input file");
+		perr("No sequences found in input file");
 		return false;
 	}
 
@@ -112,7 +112,7 @@ static bool file_format_fasta_parse(struct FileText *file)
 	if (!file->text)
 		return false;
 
-	perror_context("FASTA");
+	perr_context("FASTA");
 
 	if (!fasta_validate(file->data.start, file->data.end))
 		return false;
@@ -121,12 +121,12 @@ static bool file_format_fasta_parse(struct FileText *file)
 	u64 total = fasta_total_entries(file->data.start, file->data.end);
 
 	if (total >= SEQUENCE_COUNT_MAX) {
-		perror("Too many sequences in input file: " Pu64, total);
+		perr("Too many sequences in input file: " Pu64, total);
 		return false;
 	}
 
 	if (!total) {
-		perror("No sequences found in input file");
+		perr("No sequences found in input file");
 		return false;
 	}
 
@@ -156,17 +156,17 @@ void file_text_close(struct FileText *file)
 
 bool file_text_open(struct FileText *restrict file, const char *restrict path)
 {
-	perror_context("FILE");
+	perr_context("FILE");
 
 	file_metadata_init(&file->meta);
 	file_format_data_reset(&file->data);
 	file->text = NULL;
 
 	const char *file_name = file_name_path(path);
-#define file_error_defer(message_lit)                   \
-	do {                                            \
-		perror(message_lit " '%s'", file_name); \
-		goto file_error;                        \
+#define file_error_defer(message_lit)                 \
+	do {                                          \
+		perr(message_lit " '%s'", file_name); \
+		goto file_error;                      \
 	} while (0)
 
 #ifdef _WIN32
@@ -175,7 +175,7 @@ bool file_text_open(struct FileText *restrict file, const char *restrict path)
 				       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
 	if (file->meta.hFile == INVALID_HANDLE_VALUE) {
-		perror("Could not open file '%s'", file_name);
+		perr("Could not open file '%s'", file_name);
 		return false;
 	}
 
@@ -229,7 +229,7 @@ bool file_text_open(struct FileText *restrict file, const char *restrict path)
 		return file_format_fasta_parse(file);
 	case FILE_FORMAT_UNKNOWN:
 	default:
-		perror("Failed to parse file format");
+		perr("Failed to parse file format");
 		break;
 	}
 
@@ -243,8 +243,8 @@ u32 file_sequence_total(struct FileText *file)
 	if (file)
 		return file->data.total;
 
-	perror_context("FILE");
-	perror("Invalid file for total sequence count");
+	perr_context("FILE");
+	perr("Invalid file for total sequence count");
 	exit(EXIT_FAILURE);
 }
 
@@ -265,8 +265,8 @@ u64 file_sequence_next_length(struct FileText *file)
 		}
 	}
 
-	perror_context("FILE");
-	perror("Invalid file for sequence column length");
+	perr_context("FILE");
+	perr("Invalid file for sequence column length");
 	exit(EXIT_FAILURE);
 }
 
@@ -284,8 +284,8 @@ bool file_sequence_next(struct FileText *file)
 		}
 	}
 
-	perror_context("FILE");
-	perror("Invalid file for next sequence line");
+	perr_context("FILE");
+	perr("Invalid file for next sequence line");
 	exit(EXIT_FAILURE);
 }
 
@@ -306,8 +306,8 @@ u64 file_extract_entry(struct FileText *restrict file, char *restrict out)
 		}
 	}
 
-	perror_context("FILE");
-	perror("Invalid file for sequence extraction");
+	perr_context("FILE");
+	perr("Invalid file for sequence extraction");
 	exit(EXIT_FAILURE);
 }
 
@@ -320,16 +320,16 @@ bool file_matrix_open(struct FileScoreMatrix *restrict file,
 	size_t bytes = triangle_elements * sizeof(*file->matrix);
 	file->meta.bytes = bytes;
 	const char *file_name = file_name_path(path);
-#define file_error_return(message_lit)                  \
-	do {                                            \
-		perror(message_lit " '%s'", file_name); \
-		file_matrix_close(file);                \
-		return false;                           \
+#define file_error_return(message_lit)                \
+	do {                                          \
+		perr(message_lit " '%s'", file_name); \
+		file_matrix_close(file);              \
+		return false;                         \
 	} while (0)
 
 	const double mmap_size = (double)bytes / (double)GiB;
 	pinfol("Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
-	perror_context("MATRIXFILE");
+	perr_context("MATRIXFILE");
 
 #ifdef _WIN32
 	file->meta.hFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0,

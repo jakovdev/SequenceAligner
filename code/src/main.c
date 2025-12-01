@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
 	time_init();
 
 	if (!args_parse(argc, argv) || !args_validate()) {
-		pinfo("Use -h, --help for usage information");
+		pinfo("Use %s -h, --help for usage information", argv[0]);
 		return 1;
 	}
 
@@ -28,11 +28,11 @@ int main(int argc, char *argv[])
 	if (!sequences_load_from_file())
 		return 1;
 
-	perror_context("HDF5");
+	perr_context("HDF5");
 	bench_io_start();
 	if (!h5_open(arg_output(), sequences_count())) {
 		bench_io_end();
-		perror("Failed to create file, will use no-write mode");
+		perr("Failed to create file, will use no-write mode");
 
 		if (!print_yN("Do you want to continue?")) {
 			pinfol("Exiting due to file creation failure");
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
 	if (!h5_sequences_store(sequences(), sequences_count())) {
 		bench_io_end();
-		perror("Failed to store sequences, will use no-write mode");
+		perr("Failed to store sequences, will use no-write mode");
 
 		if (!print_yN("Do you want to continue?")) {
 			pinfol("Exiting due to sequence store failure");
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 	      sequences_alignment_count());
 
 	if (!(arg_mode_cuda() ? cuda_align() : align())) {
-		perror("Failed to perform alignments");
+		perr("Failed to perform alignments");
 		h5_close(1);
 		return 1;
 	}

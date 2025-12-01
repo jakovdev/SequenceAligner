@@ -12,7 +12,7 @@
 #endif
 
 #ifndef args_perr
-#define args_perr(...) perror(__VA_ARGS__)
+#define args_perr(...) perr(__VA_ARGS__)
 #endif
 
 #ifndef args_pdev
@@ -20,7 +20,7 @@
 #endif
 
 #ifndef args_ierr
-#define args_ierr(arg) perror("Internal error for %s", arg_str(arg))
+#define args_ierr(arg) perr("Internal error for %s", arg_str(arg))
 #endif
 
 #ifndef args_abort

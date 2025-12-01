@@ -92,16 +92,16 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	pverb("Found " Pu64 " column(s) in input file", num_columns);
 
 	if (!num_columns) {
-		perror_context("CSV");
-		perror("Invalid header (do you have an empty first line or file?)");
+		perr_context("CSV");
+		perr("Invalid header (do you have an empty first line or file?)");
 		exit(EXIT_FAILURE);
 	}
 
 	headers = MALLOC(headers, num_columns);
 
 	if (!headers) {
-		perror_context("CSV");
-		perror("Memory allocation failed for column headers");
+		perr_context("CSV");
+		perr("Memory allocation failed for column headers");
 		exit(EXIT_FAILURE);
 	}
 
@@ -145,8 +145,8 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 		char **chs = MALLOC(chs, num_columns + 2);
 
 		if (!chs) {
-			perror_context("CSV");
-			perror("Memory allocation failed for choices array");
+			perr_context("CSV");
+			perr("Memory allocation failed for choices array");
 			if (headers) {
 				for (u64 i = 0; i < num_columns; i++) {
 					if (headers[i])
@@ -192,7 +192,7 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	if (*seq_col < num_columns && headers && headers[*seq_col]) {
 		const char *sequence_column = headers[*seq_col];
 		pverb("Using column #" Pu64 " ('%s')", *seq_col + 1,
-			 sequence_column);
+		      sequence_column);
 	}
 
 	if (headers) {
@@ -323,7 +323,7 @@ bool csv_validate(const char *restrict file_start,
 		  const char *restrict file_end)
 {
 	if (!file_start || !file_end || file_start >= file_end) {
-		perror("Invalid file bounds for validation");
+		perr("Invalid file bounds for validation");
 		return false;
 	}
 
@@ -368,8 +368,8 @@ bool csv_validate(const char *restrict file_start,
 					break;
 				}
 			} else if (ch == '\0') {
-				perror("Null character found on line " Pu64,
-				       line_number);
+				perr("Null character found on line " Pu64,
+				     line_number);
 				return false;
 			} else {
 				field_started = true;
@@ -386,7 +386,7 @@ bool csv_validate(const char *restrict file_start,
 
 		if (first_line) {
 			if (current_columns == 0) {
-				perror("Header line has zero columns");
+				perr("Header line has zero columns");
 				return false;
 			}
 
@@ -394,11 +394,10 @@ bool csv_validate(const char *restrict file_start,
 			first_line = false;
 		} else if (current_columns > 0) {
 			if (current_columns != expected_columns) {
-				perror("Expected " Pu64
-				       " column(s), found " Pu64
-				       " on line " Pu64,
-				       expected_columns, current_columns,
-				       line_number);
+				perr("Expected " Pu64 " column(s), found " Pu64
+				     " on line " Pu64,
+				     expected_columns, current_columns,
+				     line_number);
 				return false;
 			}
 		}

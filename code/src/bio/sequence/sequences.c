@@ -212,8 +212,8 @@ static bool seq_len_valid(u64 length)
 	else if (gap_pen > 100)
 		pwarn("Unusually high gap penalty (>100)");
 
-	perror("Sequence length " Pu64 " exceeds limits for gap penalty %d",
-	       length, gap_pen);
+	perr("Sequence length " Pu64 " exceeds limits for gap penalty %d",
+	     length, gap_pen);
 	return false;
 }
 
@@ -223,12 +223,12 @@ bool sequences_load_from_file(void)
 	if (!file_text_open(&input_file, arg_input()))
 		return false;
 
-	perror_context("SEQUENCES");
+	perr_context("SEQUENCES");
 
 	u32 total = file_sequence_total(&input_file);
 	sequence_t *seqs = MALLOC(seqs, total);
 	if (!seqs) {
-		perror("Failed to allocate memory for sequences");
+		perr("Failed to allocate memory for sequences");
 		file_text_close(&input_file);
 		return false;
 	}
@@ -271,8 +271,8 @@ bool sequences_load_from_file(void)
 				seq_n_skip++;
 				continue;
 			} else {
-				perror("Sequence #" Pu32 " is too long",
-				       seq_index + 1);
+				perr("Sequence #" Pu32 " is too long",
+				     seq_index + 1);
 				goto cleanup_seq_curr_seqs;
 			}
 		}
@@ -286,7 +286,7 @@ bool sequences_load_from_file(void)
 			seq_curr.letters = MALLOC(seq_curr.letters, count);
 
 			if (!seq_curr.letters) {
-				perror("Failed to allocate sequence");
+				perr("Failed to allocate sequence");
 				goto cleanup_seqs;
 			}
 		}
@@ -311,14 +311,14 @@ bool sequences_load_from_file(void)
 				seq_n_invalid++;
 				continue;
 			} else {
-				perror("Found invalid sequence");
+				perr("Found invalid sequence");
 				goto cleanup_seq_curr_seqs;
 			}
 		}
 
 		sequence_init(&seqs[seq_n_curr], &seq_curr);
 		if (!seqs[seq_n_curr].letters) {
-			perror("Failed to allocate sequence");
+			perr("Failed to allocate sequence");
 			goto cleanup_seq_curr_seqs;
 		}
 
@@ -337,7 +337,7 @@ bool sequences_load_from_file(void)
 
 	u32 seq_n = seq_n_curr;
 	if (seq_n < 2) {
-		perror("At least 2 sequences are required, found " Pu32, seq_n);
+		perr("At least 2 sequences are required, found " Pu32, seq_n);
 		goto cleanup_seqs;
 	}
 
@@ -354,10 +354,10 @@ bool sequences_load_from_file(void)
 		goto skip_filtering;
 
 	bench_filter_start();
-	perror_context("FILTERING");
+	perr_context("FILTERING");
 	bool *keep_flags = MALLOC(keep_flags, seq_n);
 	if (!keep_flags) {
-		perror("Failed to allocate memory for filtering flags");
+		perr("Failed to allocate memory for filtering flags");
 		goto cleanup_seqs;
 	}
 
@@ -389,7 +389,7 @@ bool sequences_load_from_file(void)
 	bench_filter_print(n_seqs_filtered);
 
 	if (seq_n < 2) {
-		perror("Filtering removed too many sequences");
+		perr("Filtering removed too many sequences");
 		goto cleanup_seqs;
 	}
 

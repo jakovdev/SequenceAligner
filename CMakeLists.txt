@@ -31,6 +31,8 @@ elseif(MSVC)
 	if(ARCH_LEVEL STREQUAL "native")
 		set(ARCH_LEVEL "AVX2")
 	endif()
+	string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+	string(REPLACE "-Xcompiler=\"-O2 -Ob2\"" "-Xcompiler=/Ob3" CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE}")
 elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
 	set(PLATFORM_TYPE "MSYS2")
 elseif(UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
@@ -137,9 +139,7 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 	$<$<COMPILE_LANGUAGE:C>:/wd6993> # analyzer ignores openmp
 	$<$<COMPILE_LANGUAGE:C>:/wd28301> # no annotations for first declaration (in Windows 10 SDK)
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ob3>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/GL>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/wd9025> # overriding /Ob2 with /Ob3
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/GA>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gy>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gw>
@@ -249,7 +249,6 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/RTC1>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/GL>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/Ox>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/Ob3>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=/O2>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=/Ob1>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Zi>

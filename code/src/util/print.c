@@ -59,6 +59,56 @@ static int terminal_environment(void)
 static void terminal_init(void)
 {
 #ifdef _WIN32
+	HWND consoleWnd = GetConsoleWindow();
+	DWORD consoleProcessId = 0;
+
+	if (consoleWnd) {
+		GetWindowThreadProcessId(consoleWnd, &consoleProcessId);
+
+		if (consoleProcessId == GetCurrentProcessId()) {
+			char path[MAX_PATH] = { 0 };
+			char dir[MAX_PATH] = { 0 };
+			char name[MAX_PATH] = { 0 };
+
+			if (GetModuleFileNameA(NULL, path, MAX_PATH)) {
+				char *slash = strrchr(path, '\\');
+				if (slash) {
+					size_t dirLen = (size_t)(slash - path);
+					memcpy(dir, path, dirLen);
+					dir[dirLen] = '\0';
+					strcpy(name, slash + 1);
+				} else {
+					strcpy(name, path);
+					dir[0] = '\0';
+				}
+
+				char cmd[2048];
+				if (dir[0]) {
+					snprintf(
+						cmd, sizeof(cmd),
+						"cmd.exe /k \"cd /d \"%s\" && \"%s\"\"",
+						dir, name);
+				} else {
+					snprintf(cmd, sizeof(cmd),
+						 "cmd.exe /k \"%s\"", name);
+				}
+
+				STARTUPINFOA si = { 0 };
+				PROCESS_INFORMATION pi = { 0 };
+				si.cb = sizeof(si);
+
+				if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
+						   CREATE_NEW_CONSOLE, NULL,
+						   dir[0] ? dir : NULL, &si,
+						   &pi)) {
+					CloseHandle(pi.hProcess);
+					CloseHandle(pi.hThread);
+					ExitProcess(0);
+				}
+			}
+		}
+	}
+
 	SetConsoleOutputCP(CP_UTF8);
 	SetConsoleCP(CP_UTF8);
 
@@ -239,7 +289,7 @@ static bool in_section;
 static bool content_printed;
 static bool is_init;
 
-void perror_context(const char *context)
+void perr_context(const char *context)
 {
 	if (!context) {
 		p.err_ctx[0] = '\0';
@@ -926,8 +976,8 @@ enum p_return pdev(const char *fmt, ...)
 	vsnprintf(buf, sizeof(buf), fmt, v_args);
 	va_end(v_args);
 
-	perror_context("_TO_DEV_");
-	return perror("%s", buf);
+	perr_context("_TO_DEV_");
+	return perr("%s", buf);
 #else
 	(void)fmt;
 	return PRINT_TO_DEV_NDEBUG__ERROR;
