@@ -715,7 +715,7 @@ cleanup:
 	return PRINT_SUCCESS;
 }
 
-enum p_return input(INPUT in, const char *P_RESTRICT fmt, ...)
+enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 {
 	if (!is_init)
 		print_init();
@@ -776,8 +776,8 @@ enum p_return input(INPUT in, const char *P_RESTRICT fmt, ...)
 	flockfile(out);
 
 	if (type == T_CHOICE) {
-		char **choices = in.choices.ccoll;
-		size_t c_count = in.choices.n;
+		char **choices = in.choices;
+		size_t c_count = size;
 
 		if (c_count < 2) {
 			funlockfile(out);
@@ -873,8 +873,8 @@ enum p_return input(INPUT in, const char *P_RESTRICT fmt, ...)
 			flockfile(out);
 		} while (1);
 	} else if (type == T_PROMPT) {
-		char *result = in.prompt.out;
-		const size_t rsz = in.prompt.size;
+		char *result = in.output;
+		const size_t rsz = size;
 		if (rsz < 2) {
 			funlockfile(out);
 			pdev("Input buffer size is too small");

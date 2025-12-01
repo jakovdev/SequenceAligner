@@ -106,19 +106,13 @@
 #include <stdbool.h>
 
 typedef const union {
-	const struct {
-		char **ccoll;
-		const size_t n;
-	} choices;
-#define INPUT_C(c, s) (INPUT){ .choices = { .ccoll = (c), .n = (s) } }, P_CHOICE
-#define INPUT_CS(choices) INPUT_C(choices, sizeof(choices))
-	const struct {
-		char *out;
-		const size_t size;
-	} prompt;
-#define INPUT_P(o, s) (INPUT){ .prompt = { .out = (o), .size = (s) } }, P_PROMPT
-#define INPUT_PS(out) INPUT_P(out, sizeof(out))
-} INPUT;
+	char **choices;
+#define P_INPUT_C(c, n) (P_INPUT){ .choices = c }, n, P_CHOICE
+#define P_INPUT_CS(choices) P_INPUT_C(choices, sizeof(choices))
+	char *output;
+#define P_INPUT_P(out, size) (P_INPUT){ .output = (out) }, size, P_PROMPT
+#define P_INPUT_PS(out) P_INPUT_P(out, sizeof(out))
+} P_INPUT;
 
 /* clang-format off */
 #define P_INFO    "\x01"
@@ -151,7 +145,7 @@ void print_streams(FILE *in, FILE *out, FILE *err);
 
 enum p_return print(const char *P_RESTRICT fmt, ...);
 enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...);
-enum p_return input(INPUT, const char *P_RESTRICT fmt, ...);
+enum p_return input(P_INPUT, size_t, const char *P_RESTRICT fmt, ...);
 
 /* "prompt [y/N]: " */
 bool print_yN(const char *P_RESTRICT prompt);
@@ -185,10 +179,10 @@ void perror_context(const char *prefix);
 #define perrorm(...) print(P_ERROR P_MIDDLE __VA_ARGS__)
 #define perrorl(...) print(P_ERROR P_LAST __VA_ARGS__)
 
-#define pchoice(choices, n, ...) input(INPUT_C(choices, n) __VA_ARGS__)
-#define pchoice_s(choices, ...) input(INPUT_CS(choices) __VA_ARGS__)
-#define pinput(out, size, ...) input(INPUT_P(out, size) __VA_ARGS__)
-#define pinput_s(out, ...) input(INPUT_PS(out) __VA_ARGS__)
+#define pchoice(choices, n, ...) input(P_INPUT_C(choices, n) __VA_ARGS__)
+#define pchoice_s(choices, ...) input(P_INPUT_CS(choices) __VA_ARGS__)
+#define pinput(out, size, ...) input(P_INPUT_P(out, size) __VA_ARGS__)
+#define pinput_s(out, ...) input(P_INPUT_PS(out) __VA_ARGS__)
 
 #define ppercent(pct, ...) progress_bar(pct, __VA_ARGS__)
 #define pproport(prp, ...) progress_bar((int)(100 * prp), __VA_ARGS__)
