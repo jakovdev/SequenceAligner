@@ -3,7 +3,6 @@
 #define BIO_ALGORITHM_LOCAL_AFFINE_H
 
 #include "bio/types.h"
-#include "system/types.h"
 
 void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2);
 

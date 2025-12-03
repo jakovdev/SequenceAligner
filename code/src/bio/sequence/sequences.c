@@ -6,7 +6,6 @@
 
 #include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
-#include "bio/types.h"
 #include "interface/seqalign_cuda.h"
 #include "io/files.h"
 #include "system/compiler.h"
@@ -245,7 +244,6 @@ bool sequences_load_from_file(void)
 
 	sequence_t seq_curr = { 0 };
 
-	ppercent(0, "Loading sequences");
 	bench_io_start();
 
 	for (u32 seq_index = 0; seq_index < total; seq_index++) {
@@ -327,12 +325,9 @@ bool sequences_load_from_file(void)
 			seq_len_max = (u32)seq_curr.length;
 
 		seq_n_curr++;
-		u32 seq_n_actual = seq_n_curr + seq_n_skip + seq_n_invalid;
-		pproport(seq_n_actual / total, "Loading sequences");
 	}
 
 	bench_io_end();
-	ppercent(100, "Loading sequences");
 	free(seq_curr.letters);
 
 	u32 seq_n = seq_n_curr;
@@ -386,7 +381,7 @@ bool sequences_load_from_file(void)
 	seq_n = write_index;
 	free(keep_flags);
 	bench_filter_end();
-	bench_filter_print(n_seqs_filtered);
+	bench_filter_print();
 
 	if (seq_n < 2) {
 		perr("Filtering removed too many sequences");
@@ -402,12 +397,8 @@ bool sequences_load_from_file(void)
 
 	pinfo("Loaded " Pu32 " sequences (filtered " Pu32 ")", seq_n,
 	      n_seqs_filtered);
-	goto already_printed;
 
 skip_filtering:
-	pinfo("Loaded " Pu32 " sequences", seq_n);
-
-already_printed:
 	pinfo("Average sequence length: %.2f",
 	      (double)seqs_len_sum / (double)seq_n);
 

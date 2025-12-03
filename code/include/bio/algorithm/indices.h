@@ -3,7 +3,6 @@
 #define BIO_ALGORITHM_INDICES_H
 
 #include "bio/types.h"
-#include "system/types.h"
 
 extern _Thread_local s32 *restrict g_seq1_i;
 

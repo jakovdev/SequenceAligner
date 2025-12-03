@@ -1,7 +1,6 @@
 #include "system/memory.h"
 
 #include <string.h>
-#include <stdlib.h>
 #include <stddef.h>
 
 #ifndef _WIN32
@@ -12,13 +11,13 @@
 #include "system/os.h"
 #endif
 
+#include "system/types.h"
+
 #if __STDC_VERSION__ >= 201112L || defined(_WIN32)
 #define ALIGNED_ALLOC_AVAILABLE
 #endif
 
 #define HUGE_PAGE ((size_t)2 * MiB)
-
-#include "system/types.h"
 
 void *alloc_huge_page(size_t size)
 {

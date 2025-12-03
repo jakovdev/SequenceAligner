@@ -8,7 +8,6 @@
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
 #include "system/compiler.h"
-#include "system/types.h"
 #include "system/os.h"
 #include "system/memory.h"
 #include "util/benchmark.h"
@@ -63,5 +62,6 @@ bool align(void)
 	bench_align_end();
 	progress_end();
 	h5_checksum_set(g_checksum * 2);
+	bench_align_print();
 	return true;
 }

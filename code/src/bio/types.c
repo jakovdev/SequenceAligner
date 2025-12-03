@@ -5,12 +5,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 
 #include "bio/algorithm/method/ga.h"
 #include "bio/algorithm/method/nw.h"
 #include "bio/algorithm/method/sw.h"
-#include "bio/score/matrices.h"
 #include "system/compiler.h"
 #include "util/args.h"
 #include "util/print.h"
@@ -70,6 +68,9 @@ static enum AlignmentMethod method_id = ALIGN_INVALID;
 static s32 gap_pen;
 static s32 gap_open;
 static s32 gap_ext;
+
+s32 SEQ_LUP[SCHAR_MAX + 1];
+s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 enum AlignmentMethod arg_align_method(void)
 {
@@ -217,22 +218,30 @@ static void print_config_seq_type(void)
 	pinfom("Sequence type: %s", SEQUENCE_TYPES[seq_type].name);
 }
 
-static void print_config_matrix(void)
+static void setup_matrix(void)
 {
+	memset(SEQ_LUP, -1, sizeof(SEQ_LUP));
 	const char *name = "Unknown";
+
+#define SEQ_TYPE_INIT(TYPE)                                               \
+	for (int i = 0; i < TYPE##_SIZE; i++)                             \
+		SEQ_LUP[(uchar)TYPE##_ALPHABET[i]] = i;                   \
+	memcpy(SUB_MAT, TYPE##_MATRIX[matrix_id].matrix, TYPE##_MATSIZE); \
+	name = TYPE##_MATRIX[matrix_id].name
+
 	switch (seq_type) {
 	case SEQ_TYPE_AMINO:
-		name = AMINO_MATRIX[matrix_id].name;
+		SEQ_TYPE_INIT(AMINO);
 		break;
 	case SEQ_TYPE_NUCLEO:
-		name = NUCLEO_MATRIX[matrix_id].name;
+		SEQ_TYPE_INIT(NUCLEO);
 		break;
 	case SEQ_TYPE_INVALID:
 	case SEQ_TYPE_COUNT:
 	default: /* NOTE: EXPANDABLE enum SequenceType */
 		UNREACHABLE();
 	}
-
+#undef SEQ_TYPE_INIT
 	pinfom("Matrix: %s", name);
 }
 
@@ -338,7 +347,7 @@ ARGUMENT(substitution_matrix) = {
 	.arg_req = ARG_REQUIRED,
 	.dest = &matrix_id,
 	.parse_callback = parse_matrix,
-	.action_callback = print_config_matrix,
+	.action_callback = setup_matrix,
 	.action_weight = 650,
 	.help_weight = 650,
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(sequence_type)),

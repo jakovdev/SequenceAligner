@@ -6,7 +6,6 @@
 #include <stddef.h>
 
 #include "bio/types.h"
-#include "system/types.h"
 
 bool h5_open(const char *file_path, u64 mat_dim);
 

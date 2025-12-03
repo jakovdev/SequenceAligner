@@ -1,6 +1,5 @@
 #include "bio/algorithm/indices.h"
 
-#include "bio/score/scoring.h"
 #include "system/compiler.h"
 #include "system/simd.h"
 #include "system/memory.h"

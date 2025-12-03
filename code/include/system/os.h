@@ -31,8 +31,6 @@ typedef HANDLE pthread_t;
 #define strcasestr(haystack, needle) StrStrIA(haystack, needle)
 #define usleep(microseconds) Sleep((microseconds) / 1000)
 
-void time_init(void);
-
 #else /* POSIX/Linux */
 
 #include <fcntl.h>
@@ -45,7 +43,6 @@ void time_init(void);
 typedef void *T_Func;
 #define T_Ret(x) return (x)
 #define aligned_free(ptr) free(ptr)
-#define time_init()
 #define max MAX
 #define min MIN
 

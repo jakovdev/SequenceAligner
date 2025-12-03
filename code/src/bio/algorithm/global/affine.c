@@ -2,7 +2,6 @@
 
 #include "bio/algorithm/indices.h"
 #include "bio/algorithm/matrix.h"
-#include "bio/score/scoring.h"
 #include "system/compiler.h"
 #include "system/os.h"
 #include "system/simd.h"

@@ -3,7 +3,6 @@
 #define BIO_SEQUENCE_FILTERING_H
 
 #include "bio/types.h"
-#include "system/types.h"
 
 bool arg_mode_filter(void);
 

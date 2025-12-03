@@ -4,8 +4,8 @@
 #include "util/print.h"
 
 #ifdef USE_CUDA
-#include "bio/score/scoring.h"
 #include "bio/sequence/sequences.h"
+#include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
 #include "util/benchmark.h"
 
@@ -62,6 +62,7 @@ bool cuda_align(void)
 	bench_align_end();
 	ppercent(100, "Aligning sequences");
 	h5_checksum_set(cuda_kernel_checksum() * 2);
+	bench_align_print();
 	return true;
 }
 

@@ -9,8 +9,9 @@
 #include "interface/seqalign_cuda.h"
 #include "system/os.h"
 #include "system/memory.h"
-#include "util/print.h"
 #include "util/args.h"
+#include "util/benchmark.h"
+#include "util/print.h"
 
 #ifdef USE_CUDA
 #include "host_interface.h"
@@ -47,10 +48,7 @@ bool h5_open(const char *file_path, u64 mat_dim)
 	g_hdf5.sequences_id = H5I_INVALID_HID;
 	g_hdf5.lengths_id = H5I_INVALID_HID;
 	g_hdf5.mode_write = arg_mode_write();
-	if (file_path)
-		g_hdf5.file_path = file_path;
-	else
-		g_hdf5.mode_write = false;
+	g_hdf5.file_path = file_path;
 	g_hdf5.matrix_dim = mat_dim;
 
 	if (!g_hdf5.mode_write) {
@@ -58,10 +56,19 @@ bool h5_open(const char *file_path, u64 mat_dim)
 		return true;
 	}
 
+	perr_context("HDF5");
+
 	if (g_hdf5.matrix_dim < SEQUENCE_COUNT_MIN) {
 		perr("Matrix size is too small");
 		return false;
 	}
+
+	if (!g_hdf5.file_path || !g_hdf5.file_path[0]) {
+		perr("No output file path specified");
+		return false;
+	}
+
+	bench_io_start();
 
 	const size_t bytes_needed =
 		sizeof(*g_hdf5.full_matrix) * mat_dim * mat_dim;
@@ -101,10 +108,10 @@ bool h5_open(const char *file_path, u64 mat_dim)
 		return false;
 
 	g_hdf5.is_init = true;
-	const char *type = g_hdf5.mode_mmap ? "Memory-mapped" : "HDF5";
-	pverbl("%s file has matrix size: " Pu64 " x " Pu64, type, mat_dim,
-	       mat_dim);
+	bench_io_end();
 
+	pverbl("%s file has matrix size: " Pu64 " x " Pu64,
+	       g_hdf5.mode_mmap ? "Memory-mapped" : "HDF5", mat_dim, mat_dim);
 	return true;
 }
 
@@ -112,15 +119,21 @@ bool h5_open(const char *file_path, u64 mat_dim)
 
 bool h5_sequences_store(sequence_t *sequences, u32 seq_count)
 {
-	if (!g_hdf5.mode_write || !g_hdf5.is_init)
+	if (!g_hdf5.is_init)
+		return false;
+
+	if (!g_hdf5.mode_write)
 		return true;
+
+	perr_context("HDF5");
 
 	if (g_hdf5.file_id < 0) {
 		perr("Cannot store sequences: HDF5 file not initialized");
 		return false;
 	}
 
-	pinfo("Storing " Pu32 " sequences in HDF5 file", seq_count);
+	pverb("Storing " Pu32 " sequences in HDF5 file", seq_count);
+	bench_io_start();
 
 	hid_t seq_group = H5Gcreate2(g_hdf5.file_id, "/sequences", H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
@@ -268,6 +281,7 @@ bool h5_sequences_store(sequence_t *sequences, u32 seq_count)
 
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
+	bench_io_end();
 	return true;
 }
 
@@ -305,6 +319,7 @@ void h5_close(int skip_flush)
 		return;
 
 	if (g_hdf5.mode_write) {
+		bench_io_start();
 		if (!skip_flush) {
 			psection("Finalizing Results");
 			pinfo("Matrix checksum: " Ps64, g_hdf5.checksum);
@@ -317,8 +332,12 @@ void h5_close(int skip_flush)
 		}
 
 		h5_file_close();
+		bench_io_end();
+	} else {
+		pinfo("Matrix checksum: " Ps64, g_hdf5.checksum);
 	}
 
+	bench_io_print();
 	g_hdf5.is_init = false;
 }
 

@@ -3,7 +3,6 @@
 #define BIO_SEQUENCE_SEQUENCES_H
 
 #include "bio/types.h"
-#include "system/types.h"
 
 bool sequences_load_from_file(void);
 

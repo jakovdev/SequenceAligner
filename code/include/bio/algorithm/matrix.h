@@ -3,7 +3,6 @@
 #define BIO_ALGORITHM_MATRIX_H
 
 #include "system/types.h"
-#include "system/memory.h"
 
 extern _Thread_local s32 *restrict g_matrix;
 extern _Thread_local s32 *restrict g_match;

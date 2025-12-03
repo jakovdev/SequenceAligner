@@ -64,11 +64,10 @@ void bench_align_print(void)
 		pinfo("Computation: %.3f sec", g_times.align);
 }
 
-void bench_filter_print(u64 filtered)
+void bench_filter_print(void)
 {
 	if (mode_benchmark)
-		pinfo("Filtered " Pu64 " sequences in %.3f seconds", filtered,
-		      g_times.filter);
+		pinfo("Filtering: %.3f sec", g_times.filter);
 }
 
 void bench_total_print(u64 alignments)

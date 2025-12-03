@@ -13,16 +13,20 @@
 #define mkdir(dir, mode) _mkdir(dir)
 
 static double g_freq_inv;
+static bool freq_queried;
 
-void time_init(void)
+static void time_init(void)
 {
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	g_freq_inv = 1.0 / (double)freq.QuadPart;
+	freq_queried = true;
 }
 
 double time_current(void)
 {
+	if (!freq_queried)
+		time_init();
 	LARGE_INTEGER count;
 	QueryPerformanceCounter(&count);
 	return (double)count.QuadPart * g_freq_inv;

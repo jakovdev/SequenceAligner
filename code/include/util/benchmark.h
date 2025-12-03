@@ -14,7 +14,7 @@ void bench_filter_end(void);
 
 void bench_io_print(void);
 void bench_align_print(void);
-void bench_filter_print(u64 filtered);
+void bench_filter_print(void);
 
 void bench_total_print(u64 alignments);
 
