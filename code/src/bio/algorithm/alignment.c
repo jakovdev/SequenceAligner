@@ -25,6 +25,7 @@ bool align(void)
 	s64 g_checksum = 0;
 
 	pinfo("Will perform " Pu64 " pairwise alignments", alignment_count);
+	perr_context("ALIGN");
 
 	bench_align_start();
 	if (!progress_start(&g_progress, alignment_count, "Aligning sequences"))

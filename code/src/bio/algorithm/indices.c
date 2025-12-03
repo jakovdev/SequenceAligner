@@ -12,7 +12,6 @@ void indices_buffers_init(u32 lenmax)
 {
 	g_seq1_i = alloc_huge_page(lenmax * sizeof(*g_seq1_i));
 	if (UNLIKELY(!g_seq1_i)) {
-		perr_context("SEQALIGN - INDICES");
 		perr("Failed to allocate memory for sequence indices");
 		exit(EXIT_FAILURE);
 	}

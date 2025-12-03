@@ -31,7 +31,6 @@ int main(int argc, char *argv[])
 
 	psection("Performing Alignments");
 	if (!(arg_mode_cuda() ? cuda_align() : align())) {
-		perr("Failed to perform alignments");
 		h5_close(1);
 		return 1;
 	}
