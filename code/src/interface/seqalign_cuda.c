@@ -4,6 +4,8 @@
 #include "util/print.h"
 
 #ifdef USE_CUDA
+#include <string.h>
+
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
@@ -23,11 +25,11 @@ bool cuda_align(void)
 {
 	perr_context("CUDA");
 
-	const char *device_name = cuda_device_name();
-	if (!device_name)
+	const char *name = cuda_device_name();
+	if (!name || !name[0] || strcmp(name, "Unknown") == 0)
 		RETURN_CUDA_ERRORS("Failed to query device name");
 
-	pinfo("Using CUDA device: %s", device_name);
+	pinfo("Using CUDA device: %s", name);
 
 	if (!cuda_upload_sequences(sequences(), sequences_count(),
 				   sequences_length_max(),
