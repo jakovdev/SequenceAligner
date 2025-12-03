@@ -41,7 +41,9 @@ static struct {
 static void h5_chunk_dimensions_calculate(void);
 static bool h5_file_setup(void);
 
-bool h5_open(const char *file_path, u64 mat_dim)
+#define H5_SEQUENCE_BATCH_SIZE (1 << 12)
+
+bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 {
 	g_hdf5.file_id = H5I_INVALID_HID;
 	g_hdf5.matrix_id = H5I_INVALID_HID;
@@ -49,7 +51,7 @@ bool h5_open(const char *file_path, u64 mat_dim)
 	g_hdf5.lengths_id = H5I_INVALID_HID;
 	g_hdf5.mode_write = arg_mode_write();
 	g_hdf5.file_path = file_path;
-	g_hdf5.matrix_dim = mat_dim;
+	g_hdf5.matrix_dim = seq_n;
 
 	if (!g_hdf5.mode_write) {
 		g_hdf5.is_init = true;
@@ -70,8 +72,8 @@ bool h5_open(const char *file_path, u64 mat_dim)
 
 	bench_io_start();
 
-	const size_t bytes_needed =
-		sizeof(*g_hdf5.full_matrix) * mat_dim * mat_dim;
+	const size_t bytes_needed = sizeof(*g_hdf5.full_matrix) *
+				    g_hdf5.matrix_dim * g_hdf5.matrix_dim;
 	const size_t safe_memory = available_memory() * 3 / 4;
 
 #ifdef USE_CUDA
@@ -100,40 +102,17 @@ bool h5_open(const char *file_path, u64 mat_dim)
 		g_hdf5.full_matrix_b = bytes;
 	}
 
+	pverb("HDF5 matrix size: " Pu64 " x " Pu64, g_hdf5.matrix_dim,
+	      g_hdf5.matrix_dim);
 	h5_chunk_dimensions_calculate();
-	pverb("HDF5 chunk size: " Pu64 " x " Pu64, g_hdf5.chunk_dims[0],
-	      g_hdf5.chunk_dims[1]);
+	pverbl("HDF5 chunk size: " Pu64 " x " Pu64, g_hdf5.chunk_dims[0],
+	       g_hdf5.chunk_dims[1]);
 
 	if (!h5_file_setup())
 		return false;
 
-	g_hdf5.is_init = true;
-	bench_io_end();
-
-	pverbl("%s file has matrix size: " Pu64 " x " Pu64,
-	       g_hdf5.mode_mmap ? "Memory-mapped" : "HDF5", mat_dim, mat_dim);
-	return true;
-}
-
-#define H5_SEQUENCE_BATCH_SIZE (1 << 12)
-
-bool h5_sequences_store(sequence_t *sequences, u32 seq_count)
-{
-	if (!g_hdf5.is_init)
-		return false;
-
-	if (!g_hdf5.mode_write)
-		return true;
-
-	perr_context("HDF5");
-
-	if (g_hdf5.file_id < 0) {
-		perr("Cannot store sequences: HDF5 file not initialized");
-		return false;
-	}
-
+	u32 seq_count = (u32)seq_n;
 	pverb("Storing " Pu32 " sequences in HDF5 file", seq_count);
-	bench_io_start();
 
 	hid_t seq_group = H5Gcreate2(g_hdf5.file_id, "/sequences", H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
@@ -282,6 +261,7 @@ bool h5_sequences_store(sequence_t *sequences, u32 seq_count)
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
 	bench_io_end();
+	g_hdf5.is_init = true;
 	return true;
 }
 

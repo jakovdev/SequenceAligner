@@ -45,6 +45,9 @@ bool cuda_align(void)
 	if (!cuda_upload_storage(h5_matrix_data(), h5_matrix_bytes()))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
+	const u64 alignments = sequences_alignment_count();
+	pinfo("Will perform " Pu64 " pairwise alignments", alignments);
+
 	ppercent(0, "Aligning sequences");
 	bench_align_start();
 	while (true) {
@@ -55,7 +58,6 @@ bool cuda_align(void)
 			RETURN_CUDA_ERRORS("Failed to get results");
 
 		ull progress = cuda_kernel_progress();
-		const u64 alignments = sequences_alignment_count();
 		pproport(progress / alignments, "Aligning sequences");
 		if (progress >= alignments)
 			break;

@@ -12,16 +12,19 @@
 #include "system/memory.h"
 #include "util/benchmark.h"
 #include "util/progress.h"
+#include "util/print.h"
 
 bool align(void)
 {
+	const align_func_t align_func = align_function(arg_align_method());
 	const u32 sequence_count = sequences_count();
 	const u64 alignment_count = sequences_alignment_count();
 	const u64 num_threads = (u64)arg_thread_num();
-	const align_func_t align_func = align_function(arg_align_method());
-	s64 g_checksum = 0;
-	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
 	const u64 update_limit = max(1, alignment_count / (num_threads * 100));
+	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
+	s64 g_checksum = 0;
+
+	pinfo("Will perform " Pu64 " pairwise alignments", alignment_count);
 
 	bench_align_start();
 	if (!progress_start(&g_progress, alignment_count, "Aligning sequences"))

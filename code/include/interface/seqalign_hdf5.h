@@ -7,9 +7,7 @@
 
 #include "bio/types.h"
 
-bool h5_open(const char *file_path, u64 mat_dim);
-
-bool h5_sequences_store(sequence_t *sequences, u32 seq_count);
+bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n);
 
 void h5_matrix_set(u32 row, u32 col, s32 value);
 
