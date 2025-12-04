@@ -334,7 +334,7 @@ bool file_matrix_open(struct FileScoreMatrix *restrict file,
 #ifdef _WIN32
 	file->meta.hFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0,
 				       NULL, CREATE_ALWAYS,
-				       FILE_ATTRIBUTE_NORMAL, NULL);
+				       FILE_FLAG_DELETE_ON_CLOSE, NULL);
 
 	if (file->meta.hFile == INVALID_HANDLE_VALUE)
 		file_error_return("Could not create memory-mapped file '%s'");
@@ -358,6 +358,9 @@ bool file_matrix_open(struct FileScoreMatrix *restrict file,
 	file->meta.fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (file->meta.fd == -1)
 		file_error_return("Could not create memory-mapped file '%s'");
+
+	if (unlink(path) == -1)
+		file_error_return("Could not unlink memory-mapped file '%s'");
 
 	if (ftruncate(file->meta.fd, (off_t)bytes) == -1)
 		file_error_return("Could not set size for file '%s'");

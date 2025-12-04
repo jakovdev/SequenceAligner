@@ -46,7 +46,7 @@ bool cuda_align(void)
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
 	const u64 alignments = sequences_alignment_count();
-	pinfo("Will perform " Pu64 " pairwise alignments", alignments);
+	pinfol("Will perform " Pu64 " pairwise alignments", alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();

@@ -22,23 +22,25 @@ static struct {
 	hid_t matrix_id;
 	hid_t sequences_id;
 	hid_t lengths_id;
-	const char *file_path;
 	s32 *matrix;
 	size_t matrix_b;
 	struct FileScoreMatrix mmap;
 	u64 mat_dim;
 	s64 checksum;
-	char mmap_name[MAX_PATH];
 	u8 compression;
 	bool mode_write;
 	bool mode_mmap;
 	bool is_init;
 } g_h5 = { 0 };
 
+static void h5_file_close(void);
 static u32 h5_chunk_dimensions_calculate(void);
-static bool h5_file_setup(void);
 
 #define H5_SEQUENCE_BATCH_SIZE (1 << 12)
+#define H5_MIN_CHUNK_SIZE (1 << 7)
+#define H5_MAX_CHUNK_SIZE (H5_MIN_CHUNK_SIZE << 7)
+#define ALIGN_POW2(value, pow2) \
+	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
 bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 {
@@ -47,7 +49,6 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 	g_h5.sequences_id = H5I_INVALID_HID;
 	g_h5.lengths_id = H5I_INVALID_HID;
 	g_h5.mode_write = arg_mode_write();
-	g_h5.file_path = file_path;
 	g_h5.mat_dim = seq_n;
 
 	if (!g_h5.mode_write) {
@@ -62,40 +63,86 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		return false;
 	}
 
-	if (!g_h5.file_path || !g_h5.file_path[0]) {
+	if (!file_path || !file_path[0]) {
 		perr("No output file path specified");
 		return false;
 	}
 
 	bench_io_start();
 
-	g_h5.matrix_b = sizeof(*g_h5.matrix) * g_h5.mat_dim * g_h5.mat_dim;
+	const size_t bytes = sizeof(*g_h5.matrix) * g_h5.mat_dim * g_h5.mat_dim;
 	const size_t safe = available_memory() * 3 / 4;
 
 #ifdef USE_CUDA
-	g_h5.mode_mmap = (arg_mode_cuda() && cuda_triangular(g_h5.matrix_b)) ||
-			 (g_h5.matrix_b > safe);
+	g_h5.mode_mmap = (arg_mode_cuda() && cuda_triangular(bytes)) ||
+			 (bytes > safe);
 #else
-	g_h5.mode_mmap = g_h5.matrix_b > safe;
+	g_h5.mode_mmap = bytes > safe;
 #endif
 
 	if (g_h5.mode_mmap) {
-		file_matrix_name(g_h5.mmap_name, MAX_PATH, g_h5.file_path);
+		char mmap_name[MAX_PATH];
+		file_matrix_name(mmap_name, sizeof(mmap_name), file_path);
 		pinfo("Matrix size exceeds memory limits");
-		if (!file_matrix_open(&g_h5.mmap, g_h5.mmap_name, g_h5.mat_dim))
+		if (!file_matrix_open(&g_h5.mmap, mmap_name, g_h5.mat_dim))
 			return false;
 	} else {
 		MALLOC_CL(g_h5.matrix, g_h5.mat_dim * g_h5.mat_dim);
 		if (!g_h5.matrix)
 			return false;
 
-		memset(g_h5.matrix, 0, g_h5.matrix_b);
+		memset(g_h5.matrix, 0, bytes);
+		g_h5.matrix_b = bytes;
 	}
 
 	pverb("HDF5 matrix size: " Pu64 " x " Pu64, g_h5.mat_dim, g_h5.mat_dim);
 
-	if (!h5_file_setup())
+	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
+	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
+
+	g_h5.file_id = H5Fcreate(file_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+	H5Pclose(fapl);
+
+	if (g_h5.file_id < 0) {
+		perr("Failed to create HDF5 file: %s", file_path);
+		h5_file_close();
 		return false;
+	}
+
+	hsize_t matrix_dims[2] = { g_h5.mat_dim, g_h5.mat_dim };
+	hid_t matrix_space = H5Screate_simple(2, matrix_dims, NULL);
+
+	if (matrix_space < 0) {
+		perr("Failed to create matrix dataspace");
+		h5_file_close();
+		return false;
+	}
+
+	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
+
+	if (g_h5.mat_dim > H5_MIN_CHUNK_SIZE) {
+		u32 chunk_dim = h5_chunk_dimensions_calculate();
+		hsize_t chunk_dims[2] = { chunk_dim, chunk_dim };
+		H5Pset_chunk(plist_id, 2, chunk_dims);
+		pverbl("HDF5 chunk size: " Pu64 " x " Pu64, chunk_dim,
+		       chunk_dim);
+
+		if (g_h5.compression > 0)
+			H5Pset_deflate(plist_id, g_h5.compression);
+	}
+
+	g_h5.matrix_id = H5Dcreate2(g_h5.file_id, "/similarity_matrix",
+				    H5T_STD_I32LE, matrix_space, H5P_DEFAULT,
+				    plist_id, H5P_DEFAULT);
+
+	H5Sclose(matrix_space);
+	H5Pclose(plist_id);
+
+	if (g_h5.matrix_id < 0) {
+		perr("Failed to create similarity matrix dataset");
+		h5_file_close();
+		return false;
+	}
 
 	u32 seq_count = (u32)seq_n;
 	pverb("Storing " Pu32 " sequences in HDF5 file", seq_count);
@@ -105,6 +152,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	if (seq_group < 0) {
 		perr("Failed to create sequences group");
+		h5_file_close();
 		return false;
 	}
 
@@ -115,6 +163,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	if (lengths_space < 0) {
 		perr("Failed to create sequence lengths dataspace");
+		h5_file_close();
 		return false;
 	}
 
@@ -126,14 +175,14 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	if (g_h5.lengths_id < 0) {
 		perr("Failed to create sequence lengths dataset");
+		h5_file_close();
 		return false;
 	}
 
 	u64 *MALLOC(lengths, seq_count);
 	if (!lengths) {
 		perr("Failed to allocate memory for sequence lengths");
-		H5Dclose(g_h5.lengths_id);
-		g_h5.lengths_id = H5I_INVALID_HID;
+		h5_file_close();
 		return false;
 	}
 
@@ -147,8 +196,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	if (status < 0) {
 		perr("Failed to write sequence lengths");
-		H5Dclose(g_h5.lengths_id);
-		g_h5.lengths_id = H5I_INVALID_HID;
+		h5_file_close();
 		return false;
 	}
 
@@ -159,8 +207,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 	if (seq_space < 0) {
 		perr("Failed to create sequences dataspace");
 		H5Tclose(string_type);
-		H5Dclose(g_h5.lengths_id);
-		g_h5.lengths_id = H5I_INVALID_HID;
+		h5_file_close();
 		return false;
 	}
 
@@ -172,8 +219,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		perr("Failed to create sequences dataset");
 		H5Sclose(seq_space);
 		H5Tclose(string_type);
-		H5Dclose(g_h5.lengths_id);
-		g_h5.lengths_id = H5I_INVALID_HID;
+		h5_file_close();
 		return false;
 	}
 
@@ -190,10 +236,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 			perr("Failed to allocate memory for sequence batch");
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
-			H5Dclose(g_h5.sequences_id);
-			g_h5.sequences_id = H5I_INVALID_HID;
-			H5Dclose(g_h5.lengths_id);
-			g_h5.lengths_id = H5I_INVALID_HID;
+			h5_file_close();
 			return false;
 		}
 
@@ -208,10 +251,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 			free(seq_data);
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
-			H5Dclose(g_h5.sequences_id);
-			g_h5.sequences_id = H5I_INVALID_HID;
-			H5Dclose(g_h5.lengths_id);
-			g_h5.lengths_id = H5I_INVALID_HID;
+			h5_file_close();
 			return false;
 		}
 
@@ -232,10 +272,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 			perr("Failed to write sequence batch");
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
-			H5Dclose(g_h5.sequences_id);
-			g_h5.sequences_id = H5I_INVALID_HID;
-			H5Dclose(g_h5.lengths_id);
-			g_h5.lengths_id = H5I_INVALID_HID;
+			h5_file_close();
 			return false;
 		}
 
@@ -275,32 +312,28 @@ s64 h5_checksum(void)
 }
 
 static void h5_store_checksum(void);
-static void h5_flush_memory_map(void);
-static void h5_flush_full_matrix(void);
-static void h5_file_close(void);
+static void h5_flush_mmap(void);
+static void h5_flush_matrix(void);
 
 void h5_close(int skip_flush)
 {
 	if (!g_h5.is_init)
 		return;
 
+	psection("Finalizing Results");
+	pinfo("Matrix checksum: " Ps64, g_h5.checksum);
+
 	if (g_h5.mode_write) {
 		bench_io_start();
 		if (!skip_flush) {
-			psection("Finalizing Results");
-			pinfo("Matrix checksum: " Ps64, g_h5.checksum);
-			pinfol("Writing results to %s",
-			       file_name_path(g_h5.file_path));
+			pinfol("Writing results to HDF5");
 			perr_context("HDF5");
 			h5_store_checksum();
-			g_h5.mode_mmap ? h5_flush_memory_map() :
-					 h5_flush_full_matrix();
+			g_h5.mode_mmap ? h5_flush_mmap() : h5_flush_matrix();
 		}
 
 		h5_file_close();
 		bench_io_end();
-	} else {
-		pinfo("Matrix checksum: " Ps64, g_h5.checksum);
 	}
 
 	bench_io_print();
@@ -311,26 +344,15 @@ void h5_close(int skip_flush)
 
 s32 *h5_matrix_data(void)
 {
-	if (!g_h5.mode_write)
-		return NULL;
-
 	return g_h5.mode_mmap ? g_h5.mmap.matrix : g_h5.matrix;
 }
 
 size_t h5_matrix_bytes(void)
 {
-	if (!g_h5.mode_write)
-		return 0;
-
 	return g_h5.mode_mmap ? g_h5.mmap.meta.bytes : g_h5.matrix_b;
 }
 
 #endif
-
-#define H5_MIN_CHUNK_SIZE (1 << 7)
-#define H5_MAX_CHUNK_SIZE (H5_MIN_CHUNK_SIZE << 7)
-#define ALIGN_POW2(value, pow2) \
-	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
 static u32 h5_chunk_dimensions_calculate(void)
 {
@@ -373,75 +395,18 @@ static u32 h5_chunk_dimensions_calculate(void)
 	return chunk_dim;
 }
 
-static bool h5_file_setup(void)
-{
-	if (!g_h5.mode_write)
-		return true;
-
-	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
-	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
-
-	g_h5.file_id =
-		H5Fcreate(g_h5.file_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
-	H5Pclose(fapl);
-
-	if (g_h5.file_id < 0) {
-		perr("Failed to create HDF5 file: %s", g_h5.file_path);
-		h5_file_close();
-		return false;
-	}
-
-	hsize_t matrix_dims[2] = { g_h5.mat_dim, g_h5.mat_dim };
-	hid_t matrix_space = H5Screate_simple(2, matrix_dims, NULL);
-
-	if (matrix_space < 0) {
-		perr("Failed to create matrix dataspace");
-		h5_file_close();
-		return false;
-	}
-
-	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-
-	if (g_h5.mat_dim > H5_MIN_CHUNK_SIZE) {
-		u32 chunk_dim = h5_chunk_dimensions_calculate();
-		hsize_t chunk_dims[2] = { chunk_dim, chunk_dim };
-		H5Pset_chunk(plist_id, 2, chunk_dims);
-		pverbl("HDF5 chunk size: " Pu64 " x " Pu64, chunk_dim,
-		       chunk_dim);
-
-		if (g_h5.compression > 0)
-			H5Pset_deflate(plist_id, g_h5.compression);
-	}
-
-	g_h5.matrix_id = H5Dcreate2(g_h5.file_id, "/similarity_matrix",
-				    H5T_STD_I32LE, matrix_space, H5P_DEFAULT,
-				    plist_id, H5P_DEFAULT);
-
-	H5Sclose(matrix_space);
-	H5Pclose(plist_id);
-
-	if (g_h5.matrix_id < 0) {
-		perr("Failed to create similarity matrix dataset");
-		h5_file_close();
-		return false;
-	}
-
-	return true;
-}
-
 static void h5_file_close(void)
 {
 	if (g_h5.mode_mmap) {
 		file_matrix_close(&g_h5.mmap);
-		remove(g_h5.mmap_name);
 	} else {
 		if (g_h5.matrix) {
 			free_aligned(g_h5.matrix);
 			g_h5.matrix = NULL;
 		}
-	}
 
-	g_h5.matrix_b = 0;
+		g_h5.matrix_b = 0;
+	}
 
 	if (g_h5.sequences_id > 0) {
 		H5Dclose(g_h5.sequences_id);
@@ -500,7 +465,7 @@ static void h5_store_checksum(void)
 	return;
 }
 
-static void h5_flush_full_matrix(void)
+static void h5_flush_matrix(void)
 {
 	herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, g_h5.matrix);
@@ -513,7 +478,7 @@ static void h5_flush_full_matrix(void)
 	return;
 }
 
-static void h5_flush_memory_map(void)
+static void h5_flush_mmap(void)
 {
 	size_t mat_dim = g_h5.mat_dim;
 	size_t available_mem = available_memory();
