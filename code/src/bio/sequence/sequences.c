@@ -46,7 +46,7 @@ static void seq_pool_free(void)
 	struct SeqMemBlock *curr = g_pool.head;
 	while (curr) {
 		struct SeqMemBlock *next = curr->next;
-		aligned_free(curr->block);
+		free_aligned(curr->block);
 		curr->block = NULL;
 		free(curr);
 		curr = next;
@@ -64,11 +64,11 @@ static void seq_pool_init(void)
 	if (g_pool.head)
 		return;
 
-	g_pool.head = MALLOC(g_pool.head, 1);
+	MALLOC(g_pool.head, 1);
 	if (!g_pool.head)
 		return;
 
-	g_pool.head->block = alloc_huge_page(SB_SIZE);
+	MALLOC_CL(g_pool.head->block, SB_SIZE);
 	if (!g_pool.head->block) {
 		free(g_pool.head);
 		g_pool.head = NULL;
@@ -100,11 +100,11 @@ static char *seq_pool_alloc(size_t size)
 		if (size > new_block_size)
 			new_block_size = size;
 
-		struct SeqMemBlock *new_block = MALLOC(new_block, 1);
+		struct SeqMemBlock *MALLOC(new_block, 1);
 		if (!new_block)
 			return NULL;
 
-		new_block->block = MALLOC(new_block->block, new_block_size);
+		MALLOC(new_block->block, new_block_size);
 		if (!new_block->block) {
 			free(new_block);
 			return NULL;
@@ -225,7 +225,7 @@ bool sequences_load_from_file(void)
 	perr_context("SEQUENCES");
 
 	u32 total = file_sequence_total(&input_file);
-	sequence_t *seqs = MALLOC(seqs, total);
+	sequence_t *MALLOC(seqs, total);
 	if (!seqs) {
 		perr("Failed to allocate memory for sequences");
 		file_text_close(&input_file);
@@ -281,7 +281,7 @@ bool sequences_load_from_file(void)
 			if (seq_curr.letters)
 				free(seq_curr.letters);
 
-			seq_curr.letters = MALLOC(seq_curr.letters, count);
+			MALLOC(seq_curr.letters, count);
 
 			if (!seq_curr.letters) {
 				perr("Failed to allocate sequence");
@@ -350,7 +350,7 @@ bool sequences_load_from_file(void)
 
 	bench_filter_start();
 	perr_context("FILTERING");
-	bool *keep_flags = MALLOC(keep_flags, seq_n);
+	bool *MALLOC(keep_flags, seq_n);
 	if (!keep_flags) {
 		perr("Failed to allocate memory for filtering flags");
 		goto cleanup_seqs;
@@ -390,9 +390,8 @@ bool sequences_load_from_file(void)
 
 	if (n_seqs_filtered > 0 && n_seqs_filtered >= total / 4) {
 		pverb("Reallocating sequences to save memory");
-		sequence_t *_sequences_new = REALLOC(seqs, seq_n);
-		if (_sequences_new)
-			seqs = _sequences_new;
+		REALLOC(seqs, seq_n);
+		else pverb("Failed to reallocate, continuing without");
 	}
 
 	pinfo("Loaded " Pu32 " sequences (filtered " Pu32 ")", seq_n,

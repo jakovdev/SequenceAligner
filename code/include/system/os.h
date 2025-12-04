@@ -26,7 +26,7 @@ typedef HANDLE pthread_t;
 #define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
 
 #define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
-#define aligned_free(ptr) _aligned_free(ptr)
+#define free_aligned(ptr) _aligned_free(ptr)
 
 #define strcasestr(haystack, needle) StrStrIA(haystack, needle)
 #define usleep(microseconds) Sleep((microseconds) / 1000)
@@ -42,7 +42,7 @@ typedef HANDLE pthread_t;
 
 typedef void *T_Func;
 #define T_Ret(x) return (x)
-#define aligned_free(ptr) free(ptr)
+#define free_aligned(ptr) free(ptr)
 #define max MAX
 #define min MIN
 

@@ -301,11 +301,9 @@ All implementations use dynamic programming with optimized matrix operations.
 <summary><strong>CPU Optimization Techniques</strong></summary>
 
 - SIMD vectorization using AVX/SSE instructions
-- Cache friendly memory access patterns
+- Cache friendly memory access patterns and data structures
 - Memory prefetching
-- Low overhead OpenMP multithreading 
-- Huge pages for large memory allocations
-- Efficient matrix allocation with stack fallback for small sequences
+- Low overhead OpenMP multithreading
 - Memory mapped input file reading and storage for large matrices
 - Sequence memory pools for fast sequence storage
 </details>

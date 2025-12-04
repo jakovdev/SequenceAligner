@@ -10,7 +10,7 @@ _Thread_local s32 *restrict g_seq1_i;
 
 void indices_buffers_init(u32 lenmax)
 {
-	g_seq1_i = alloc_huge_page(lenmax * sizeof(*g_seq1_i));
+	MALLOC_CL(g_seq1_i, lenmax);
 	if (UNLIKELY(!g_seq1_i)) {
 		perr("Failed to allocate memory for sequence indices");
 		exit(EXIT_FAILURE);
@@ -20,7 +20,7 @@ void indices_buffers_init(u32 lenmax)
 void indices_buffers_free(void)
 {
 	if (g_seq1_i)
-		aligned_free(g_seq1_i);
+		free_aligned(g_seq1_i);
 	g_seq1_i = NULL;
 }
 

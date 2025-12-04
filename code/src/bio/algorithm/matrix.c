@@ -14,7 +14,7 @@ _Thread_local s32 *restrict g_gap_y;
 
 void matrix_buffers_init(u32 lenmax)
 {
-	g_matrix = alloc_huge_page(3 * MATRIX_SIZE(lenmax) * sizeof(*g_matrix));
+	MALLOC_CL(g_matrix, 3 * MATRIX_SIZE(lenmax));
 	if (UNLIKELY(!g_matrix)) {
 		perr("Failed to allocate memory for alignment matrix");
 		exit(EXIT_FAILURE);
@@ -28,7 +28,7 @@ void matrix_buffers_init(u32 lenmax)
 void matrix_buffers_free(void)
 {
 	if (g_matrix)
-		aligned_free(g_matrix);
+		free_aligned(g_matrix);
 	g_matrix = NULL;
 	g_match = NULL;
 	g_gap_x = NULL;

@@ -8,9 +8,8 @@
 #define UNREACHABLE() __builtin_unreachable()
 #define ALIGN __attribute__((aligned(CACHE_LINE)))
 #define ALLOC __attribute__((malloc, alloc_size(1)))
-#define UNUSED __attribute__((unused))
-#define DESTRUCTOR __attribute__((destructor))
 #define PRAGMA(n) _Pragma(#n)
+#define TYPEOF(x) __typeof__(x)
 #if defined(__clang__)
 #define UNROLL(n) PRAGMA(unroll n)
 #define VECTORIZE PRAGMA(clang loop vectorize(assume_safety))
@@ -24,12 +23,15 @@
 #define UNREACHABLE() __assume(0)
 #define ALIGN __declspec(align(CACHE_LINE))
 #define ALLOC
-#define UNUSED
-#define DESTRUCTOR
 #define PRAGMA(n) __pragma(n)
 #define UNROLL(n)
 #define VECTORIZE PRAGMA(loop(ivdep))
 #define strcasecmp _stricmp
+#define TYPEOF(x) __typeof__(x)
+#endif
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L && !defined(TYPEOF)
+#define TYPEOF(x) typeof(x)
 #endif
 
 #define OMP_PARALLEL(...)                \

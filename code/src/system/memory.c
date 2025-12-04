@@ -1,49 +1,28 @@
 #include "system/memory.h"
 
-#include <string.h>
-#include <stddef.h>
-
-#ifndef _WIN32
-#include <stdio.h>
-#include <sys/sysinfo.h>
-#include <sys/mman.h>
-#else
+#ifdef _WIN32
 #include "system/os.h"
+#else
+#include <stdio.h>
+#include <string.h>
+#include <sys/sysinfo.h>
 #endif
 
 #include "system/types.h"
 
-#if __STDC_VERSION__ >= 201112L || defined(_WIN32)
-#define ALIGNED_ALLOC_AVAILABLE
-#endif
-
-#define HUGE_PAGE ((size_t)2 * MiB)
-
-void *alloc_huge_page(size_t size)
+void *alloc_aligned(size_t alignment, size_t bytes)
 {
+	if (alignment < sizeof(void *) || (alignment & (alignment - 1)) != 0)
+		return NULL;
+
 	void *ptr = NULL;
-#ifdef __linux__
-	if (size >= HUGE_PAGE) {
-		size_t aligned = (size + HUGE_PAGE - 1) & ~(HUGE_PAGE - 1);
-#ifdef ALIGNED_ALLOC_AVAILABLE
-		ptr = aligned_alloc(HUGE_PAGE, aligned);
-#else
-		if (posix_memalign(&ptr, HUGE_PAGE, aligned) != 0)
-			ptr = NULL;
-#endif
-		if (ptr) {
-			madvise(ptr, size, MADV_HUGEPAGE);
-			return ptr;
-		}
-	}
+#if __STDC_VERSION__ >= 201112L && !defined(__APPLE__)
+	if (bytes % alignment != 0)
+		bytes = (bytes + alignment - 1) & ~(alignment - 1);
 
-#endif
-
-	size_t aligned = (size + CACHE_LINE - 1) & ~(CACHE_LINE - 1);
-#ifdef ALIGNED_ALLOC_AVAILABLE
-	ptr = aligned_alloc(CACHE_LINE, aligned);
+	ptr = aligned_alloc(alignment, bytes);
 #else
-	if (posix_memalign(&ptr, CACHE_LINE, aligned) != 0)
+	if (posix_memalign(&ptr, alignment, bytes) != 0)
 		ptr = NULL;
 #endif
 

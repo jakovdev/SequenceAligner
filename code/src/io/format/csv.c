@@ -34,7 +34,7 @@ static inline char *csv_column_copy(const char *restrict file_start,
 {
 	ptrdiff_t delta = file_end - file_start;
 	size_t len = delta < 0 ? 0 : (size_t)delta;
-	char *name = MALLOC(name, len + 1);
+	char *MALLOC(name, len + 1);
 	if (name) {
 		memcpy(name, file_start, len);
 		name[len] = '\0';
@@ -97,7 +97,7 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 		exit(EXIT_FAILURE);
 	}
 
-	headers = MALLOC(headers, num_columns);
+	MALLOC(headers, num_columns);
 
 	if (!headers) {
 		perr_context("CSV");
@@ -142,7 +142,7 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	csv_column_sequence(headers, num_columns, seq_col);
 	if (*seq_col == SIZE_MAX) {
 		bench_io_end();
-		char **chs = MALLOC(chs, num_columns + 2);
+		char **MALLOC(chs, num_columns + 2);
 
 		if (!chs) {
 			perr_context("CSV");

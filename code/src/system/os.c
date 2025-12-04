@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <omp.h>
 
+#include "system/memory.h"
 #include "util/args.h"
 #include "util/print.h"
 
@@ -126,7 +127,7 @@ bool path_directories_create(const char *path)
 	if (dir_len == 0)
 		return true;
 
-	char *dirbuf = malloc(dir_len + 1);
+	char *MALLOC(dirbuf, dir_len + 1);
 	if (!dirbuf)
 		return false;
 
