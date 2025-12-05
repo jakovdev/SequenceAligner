@@ -288,16 +288,19 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 	return true;
 }
 
-void h5_matrix_set(u32 row, u32 col, s32 value)
+void h5_matrix_column_set(u32 col, const s32 *values)
 {
 	if (!g_h5.mode_write)
 		return;
 
 	if (g_h5.mode_mmap) {
-		g_h5.mmap.matrix[matrix_index(row, col)] = value;
+		memcpy(g_h5.mmap.matrix + ((u64)col * (col - 1)) / 2, values,
+		       col * sizeof(*g_h5.mmap.matrix));
 	} else {
-		g_h5.matrix[g_h5.mat_dim * row + col] = value;
-		g_h5.matrix[g_h5.mat_dim * col + row] = value;
+		for (u32 row = 0; row < col; row++) {
+			g_h5.matrix[g_h5.mat_dim * row + col] = values[row];
+			g_h5.matrix[g_h5.mat_dim * col + row] = values[row];
+		}
 	}
 }
 
@@ -457,12 +460,8 @@ static void h5_store_checksum(void)
 	H5Aclose(attr_id);
 	H5Sclose(attr_space);
 
-	if (status < 0) {
+	if (status < 0)
 		perr("Failed to write checksum attribute");
-		return;
-	}
-
-	return;
 }
 
 static void h5_flush_matrix(void)
@@ -470,26 +469,22 @@ static void h5_flush_matrix(void)
 	herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, g_h5.matrix);
 
-	if (status < 0) {
+	if (status < 0)
 		perr("Failed to write matrix data to HDF5");
-		return;
-	}
-
-	return;
 }
 
 static void h5_flush_mmap(void)
 {
-	size_t mat_dim = g_h5.mat_dim;
-	size_t available_mem = available_memory();
+	const size_t mat_dim = g_h5.mat_dim;
+	const size_t available_mem = available_memory();
 	if (!available_mem) {
 		perr("Failed to retrieve available memory");
 		return;
 	}
 
-	size_t row_bytes = mat_dim * sizeof(*g_h5.mmap.matrix);
-	u32 max_rows = (u32)(available_mem / (4 * row_bytes));
-	u32 chunk_rows = h5_chunk_dimensions_calculate();
+	const size_t row_bytes = mat_dim * sizeof(*g_h5.mmap.matrix);
+	const u32 max_rows = (u32)(available_mem / (4 * row_bytes));
+	const u32 chunk_rows = h5_chunk_dimensions_calculate();
 	u32 chunk_size = chunk_rows > 4 ? chunk_rows : 4;
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
@@ -582,7 +577,6 @@ static void h5_flush_mmap(void)
 	ppercent(100, "Converting to HDF5");
 	H5Sclose(file_space);
 	free(buffer);
-	return;
 }
 
 ARG_PARSE_L(compression, 10, u8, (u8), (val < 0 || val > 9),

@@ -21,34 +21,39 @@ bool align(void)
 	const u64 alignment_count = sequences_alignment_count();
 	const u64 num_threads = (u64)arg_thread_num();
 	const u64 update_limit = max(1, alignment_count / (num_threads * 100));
-	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
-	s64 g_checksum = 0;
 
 	pinfo("Will perform " Pu64 " pairwise alignments", alignment_count);
 	perr_context("ALIGN");
 
-	bench_align_start();
+	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
 	if (!progress_start(&g_progress, alignment_count, "Aligning sequences"))
 		return false;
 
+	bench_align_start();
+	s64 g_checksum = 0;
 	OMP_PARALLEL(reduction(+ : g_checksum))
 	matrix_buffers_init(sequences_length_max());
 	indices_buffers_init(sequences_length_max());
+	s32 *MALLOC_CL(column_buffer, sequence_count);
+	if (!column_buffer) {
+		perr("Failed to allocate column buffer");
+		exit(EXIT_FAILURE);
+	}
 	s64 checksum = 0;
 	u64 progress = 0;
 
-	OMP_FOR_DYNAMIC(i, 0, sequence_count) {
-		OMP_START_DYNAMIC(i);
-		sequence_ptr_t seq1 = sequence(i);
-		indices_precompute(seq1);
-		for (u32 j = i + 1; j < sequence_count; j++) {
-			sequence_ptr_t seq2 = sequence(j);
-			s32 score = align_func(seq1, seq2);
+	OMP_FOR_DYNAMIC(col, 1, sequence_count) {
+		OMP_START_DYNAMIC(col);
+		sequence_ptr_t seq = sequence(col);
+		indices_precompute(seq);
+		for (u32 row = 0; row < col; row++) {
+			const s32 score = align_func(seq, sequence(row));
+			column_buffer[row] = score;
 			checksum += score;
-			h5_matrix_set(i, j, score);
-			progress++;
 		}
 
+		h5_matrix_column_set(col, column_buffer);
+		progress += col;
 		if (progress >= update_limit) {
 			atomic_add_relaxed(&g_progress, progress);
 			progress = 0;
@@ -59,6 +64,7 @@ bool align(void)
 		atomic_add_relaxed(&g_progress, progress);
 
 	g_checksum += checksum;
+	free_aligned(column_buffer);
 	indices_buffers_free();
 	matrix_buffers_free();
 	OMP_PARALLEL_END()
