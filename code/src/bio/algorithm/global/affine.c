@@ -8,14 +8,14 @@
 
 void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	g_match[0] = 0;
-	g_gap_x[0] = g_gap_y[0] = SCORE_MIN;
-
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
 	const s64 cols = len1 + 1;
 	const s32 gap_open = arg_gap_open();
 	const s32 gap_ext = arg_gap_ext();
+
+	g_match[0] = 0;
+	g_gap_x[0] = g_gap_y[0] = SCORE_MIN;
 
 	UNROLL(8)
 	for (s32 j = 1; j <= len1; j++) {

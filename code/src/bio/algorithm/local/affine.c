@@ -76,6 +76,7 @@ s32 affine_local_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	const s64 cols = len1 + 1;
 	const s32 gap_open = arg_gap_open();
 	const s32 gap_ext = arg_gap_ext();
+
 	s32 score = 0;
 	for (s32 i = 1; i <= len2; ++i) {
 		const s64 row = cols * i;

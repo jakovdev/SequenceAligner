@@ -31,6 +31,7 @@ s32 linear_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	const s32 len2 = seq2->length;
 	const s64 cols = len1 + 1;
 	const s32 gap_pen = arg_gap_pen();
+
 	for (s32 i = 1; i <= len2; ++i) {
 		const s64 row = cols * i;
 		const s64 p_row = cols * (i - 1);
