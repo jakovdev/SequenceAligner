@@ -104,7 +104,7 @@ static char *seq_pool_alloc(size_t size)
 		if (!new_block)
 			return NULL;
 
-		MALLOC(new_block->block, new_block_size);
+		MALLOC_CL(new_block->block, new_block_size);
 		if (!new_block->block) {
 			free(new_block);
 			return NULL;
@@ -225,7 +225,7 @@ bool sequences_load_from_file(void)
 	perr_context("SEQUENCES");
 
 	s32 total = file_sequence_total(&input_file);
-	sequence_t *MALLOC(seqs, (size_t)total);
+	sequence_t *MALLOC_CL(seqs, (size_t)total);
 	if (!seqs) {
 		perr("Failed to allocate memory for sequences");
 		file_text_close(&input_file);
@@ -289,7 +289,6 @@ bool sequences_load_from_file(void)
 				free(seq_curr.letters);
 
 			MALLOC(seq_curr.letters, (size_t)(seq_len_safe + 1));
-
 			if (!seq_curr.letters) {
 				perr("Failed to allocate sequence");
 				goto cleanup_seqs;
@@ -362,7 +361,7 @@ bool sequences_load_from_file(void)
 
 	bench_filter_start();
 	perr_context("FILTERING");
-	bool *MALLOC(kept, (size_t)seq_n);
+	bool *MALLOC_CL(kept, (size_t)seq_n);
 	if (!kept) {
 		perr("Failed to allocate memory");
 		goto cleanup_seqs;

@@ -142,7 +142,6 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	if (*seq_col == SIZE_MAX) {
 		bench_io_end();
 		char **MALLOC(chs, num_columns + 2);
-
 		if (!chs) {
 			perr_context("CSV");
 			perr("Memory allocation failed for choices array");
