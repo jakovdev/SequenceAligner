@@ -7,7 +7,7 @@
 
 #include "system/types.h"
 
-bool progress_start(_Atomic(u64) *progress, u64 total, const char *message);
+bool progress_start(_Atomic(s64) *progress, s64 total, const char *message);
 
 void progress_end(void);
 

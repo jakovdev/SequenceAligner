@@ -8,9 +8,9 @@
 
 _Thread_local s32 *restrict g_seq1_i;
 
-void indices_buffers_init(u32 lenmax)
+void indices_buffers_init(s32 seq_len_max)
 {
-	MALLOC_CL(g_seq1_i, lenmax);
+	MALLOC_CL(g_seq1_i, (size_t)seq_len_max);
 	if (UNLIKELY(!g_seq1_i)) {
 		perr("Failed to allocate memory for sequence indices");
 		exit(EXIT_FAILURE);
@@ -27,13 +27,13 @@ void indices_buffers_free(void)
 void indices_precompute(sequence_ptr_t seq)
 {
 #if USE_SIMD == 1
-	const u64 vector_len = (seq->length / BYTES) * BYTES;
-	u64 i = 0;
+	const s32 vector_len = (seq->length / BYTES) * BYTES;
+	s32 i = 0;
 
 	for (; i < vector_len; i += BYTES) {
 		prefetch(seq->letters + i + BYTES * 2);
 		VECTORIZE
-		for (u64 j = 0; j < BYTES; j++)
+		for (s32 j = 0; j < BYTES; j++)
 			g_seq1_i[i + j] = SEQ_LUP[(uchar)seq->letters[i + j]];
 	}
 
@@ -42,7 +42,7 @@ void indices_precompute(sequence_ptr_t seq)
 #else
 	VECTORIZE
 	UNROLL(8)
-	for (u64 i = 0; i < seq->length; ++i)
+	for (s32 i = 0; i < seq->length; ++i)
 		g_seq1_i[i] = SEQ_LUP[(uchar)seq->letters[i]];
 #endif
 }

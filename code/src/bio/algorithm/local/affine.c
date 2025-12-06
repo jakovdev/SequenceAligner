@@ -8,22 +8,22 @@
 #if USE_SIMD == 1
 static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	const u64 len1 = seq1->length;
-	const u64 len2 = seq2->length;
-	const u64 cols = len1 + 1;
+	const s32 len1 = seq1->length;
+	const s32 len2 = seq2->length;
+	const s32 cols = len1 + 1;
 
 	veci_t zero_vec = setzero_si();
 	veci_t score_min = set1_epi32(SCORE_MIN);
 
 	VECTORIZE
-	for (u64 j = 0; j <= len1; j += NUM_ELEMS) {
-		u64 remaining = cols - j;
+	for (s32 j = 0; j <= len1; j += NUM_ELEMS) {
+		s32 remaining = cols - j;
 		if (remaining >= NUM_ELEMS) {
 			storeu((veci_t *)&g_match[j], zero_vec);
 			storeu((veci_t *)&g_gap_x[j], score_min);
 			storeu((veci_t *)&g_gap_y[j], score_min);
 		} else {
-			for (u64 k = 0; k < remaining; k++) {
+			for (s32 k = 0; k < remaining; k++) {
 				g_match[j + k] = 0;
 				g_gap_x[j + k] = g_gap_y[j + k] = SCORE_MIN;
 			}
@@ -31,8 +31,8 @@ static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	}
 
 	VECTORIZE
-	for (u64 i = 1; i <= len2; i++) {
-		u64 idx = i * cols;
+	for (s32 i = 1; i <= len2; i++) {
+		s64 idx = (s64)cols * i;
 		g_match[idx] = 0;
 		g_gap_x[idx] = SCORE_MIN;
 		g_gap_y[idx] = SCORE_MIN;
@@ -42,28 +42,28 @@ static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	const u64 len1 = seq1->length;
+	const s32 len1 = seq1->length;
 #if USE_SIMD == 1
 	if (len1 >= NUM_ELEMS) {
 		affine_local_init_simd(seq1, seq2);
 		return;
 	}
 #endif
-	const u64 len2 = seq2->length;
-	const u64 cols = len1 + 1;
+	const s32 len2 = seq2->length;
+	const s64 cols = len1 + 1;
 
 	g_match[0] = 0;
 	g_gap_x[0] = g_gap_y[0] = SCORE_MIN;
 
 	UNROLL(8)
-	for (u64 j = 1; j <= len1; j++) {
+	for (s32 j = 1; j <= len1; j++) {
 		g_match[j] = 0;
 		g_gap_x[j] = g_gap_y[j] = SCORE_MIN;
 	}
 
 	UNROLL(8)
-	for (u64 i = 1; i <= len2; i++) {
-		u64 idx = i * cols;
+	for (s32 i = 1; i <= len2; i++) {
+		s64 idx = cols * i;
 		g_match[idx] = 0;
 		g_gap_x[idx] = g_gap_y[idx] = SCORE_MIN;
 	}
@@ -71,22 +71,22 @@ void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 s32 affine_local_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	const u64 len1 = seq1->length;
-	const u64 len2 = seq2->length;
-	const u64 cols = len1 + 1;
+	const s32 len1 = seq1->length;
+	const s32 len2 = seq2->length;
+	const s64 cols = len1 + 1;
 	const s32 gap_open = arg_gap_open();
 	const s32 gap_ext = arg_gap_ext();
 	s32 score = 0;
-	for (u64 i = 1; i <= len2; ++i) {
-		const u64 row = i * cols;
-		const u64 p_row = (i - 1) * cols;
+	for (s32 i = 1; i <= len2; ++i) {
+		const s64 row = cols * i;
+		const s64 p_row = cols * (i - 1);
 		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
 		prefetch(&g_match[row + PREFETCH_DISTANCE]);
 		prefetch(&g_gap_x[row + PREFETCH_DISTANCE]);
 		prefetch(&g_gap_y[row + PREFETCH_DISTANCE]);
 
-		for (u64 j = 1; j <= len1; j++) {
+		for (s32 j = 1; j <= len1; j++) {
 			const s32 similarity = SUB_MAT[g_seq1_i[j - 1]][c2_idx];
 			const s32 d_score = g_match[p_row + j - 1] + similarity;
 

@@ -70,7 +70,7 @@ void bench_filter_print(void)
 		pinfo("Filtering: %.3f sec", g_times.filter);
 }
 
-void bench_total_print(u64 alignments)
+void bench_total_print(s64 alignments)
 {
 	if (mode_benchmark) {
 		double time_total = g_times.align + g_times.io + g_times.filter;

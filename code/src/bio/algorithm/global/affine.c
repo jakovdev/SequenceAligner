@@ -11,14 +11,14 @@ void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	g_match[0] = 0;
 	g_gap_x[0] = g_gap_y[0] = SCORE_MIN;
 
-	const u64 len1 = seq1->length;
-	const u64 len2 = seq2->length;
-	const u64 cols = len1 + 1;
+	const s32 len1 = seq1->length;
+	const s32 len2 = seq2->length;
+	const s64 cols = len1 + 1;
 	const s32 gap_open = arg_gap_open();
 	const s32 gap_ext = arg_gap_ext();
 
 	UNROLL(8)
-	for (u64 j = 1; j <= len1; j++) {
+	for (s32 j = 1; j <= len1; j++) {
 		g_gap_x[j] = max(g_match[j - 1] + gap_open,
 				 g_gap_x[j - 1] + gap_ext);
 		g_match[j] = g_gap_x[j];
@@ -26,8 +26,8 @@ void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	}
 
 	UNROLL(8)
-	for (u64 i = 1; i <= len2; i++) {
-		const u64 idx = i * cols;
+	for (s32 i = 1; i <= len2; i++) {
+		const s64 idx = cols * i;
 		g_gap_y[idx] = max(g_match[idx - cols] + gap_open,
 				   g_gap_y[idx - cols] + gap_ext);
 		g_match[idx] = g_gap_y[idx];
@@ -37,15 +37,15 @@ void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 s32 affine_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	const u64 len1 = seq1->length;
-	const u64 len2 = seq2->length;
-	const u64 cols = len1 + 1;
+	const s32 len1 = seq1->length;
+	const s32 len2 = seq2->length;
+	const s64 cols = len1 + 1;
 	const s32 gap_open = arg_gap_open();
 	const s32 gap_ext = arg_gap_ext();
 
-	for (u64 i = 1; i <= len2; ++i) {
-		const u64 row = i * cols;
-		const u64 p_row = (i - 1) * cols;
+	for (s32 i = 1; i <= len2; ++i) {
+		const s64 row = cols * i;
+		const s64 p_row = cols * (i - 1);
 		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
 		prefetch(&g_match[row + PREFETCH_DISTANCE]);
@@ -53,7 +53,7 @@ s32 affine_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		prefetch(&g_gap_y[row + PREFETCH_DISTANCE]);
 
 		VECTORIZE
-		for (u64 j = 1; j <= len1; j++) {
+		for (s32 j = 1; j <= len1; j++) {
 			const s32 similarity = SUB_MAT[g_seq1_i[j - 1]][c2_idx];
 			const s32 d_score = g_match[p_row + j - 1] + similarity;
 
@@ -82,5 +82,5 @@ s32 affine_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		}
 	}
 
-	return g_match[len2 * (len1 + 1) + len1];
+	return g_match[(s64)len2 * (len1 + 1) + len1];
 }

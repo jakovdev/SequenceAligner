@@ -28,17 +28,17 @@ struct FileFormatMetadata {
 	char *cursor;
 	union {
 		struct {
-			u64 sequence_column;
+			size_t sequence_column;
 			bool headerless;
 		} csv;
 
 		struct {
-			u64 temp1;
+			size_t temp1;
 			bool temp2;
 		} fasta;
 	} format;
 	enum FileFormat type;
-	u32 total;
+	s32 total;
 };
 
 struct FileText {
@@ -55,19 +55,19 @@ struct FileScoreMatrix {
 bool file_text_open(struct FileText *restrict file, const char *restrict path);
 void file_text_close(struct FileText *file);
 
-u32 file_sequence_total(struct FileText *file);
+s32 file_sequence_total(struct FileText *file);
 
-u64 file_sequence_next_length(struct FileText *file);
+size_t file_sequence_next_length(struct FileText *file);
 
 bool file_sequence_next(struct FileText *file);
 
-u64 file_extract_entry(struct FileText *restrict file, char *restrict out);
+size_t file_extract_entry(struct FileText *restrict file, char *restrict out);
 
 bool file_matrix_open(struct FileScoreMatrix *restrict file,
-		      const char *restrict path, u64 matrix_dim);
+		      const char *restrict path, size_t matrix_dim);
 void file_matrix_close(struct FileScoreMatrix *file);
 
-u64 matrix_index(u32 row, u32 col);
+s64 matrix_index(s32 row, s32 col);
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *path);
 

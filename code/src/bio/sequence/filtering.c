@@ -19,73 +19,71 @@ static double similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	if (UNLIKELY(!seq1->length || !seq2->length))
 		return 0.0;
 
-	u64 min_len = seq1->length < seq2->length ? seq1->length : seq2->length;
-	u64 matches = 0;
+	s32 min_len = seq1->length < seq2->length ? seq1->length : seq2->length;
+	s32 matches = 0;
 
 #if USE_SIMD == 1
-	u64 vec_limit = (min_len / BYTES) * BYTES;
+	s32 vec_limit = (min_len / BYTES) * BYTES;
 
-	for (u64 i = 0; i < vec_limit; i += BYTES * 2) {
+	for (s32 i = 0; i < vec_limit; i += BYTES * 2) {
 		prefetch(seq1->letters + i + BYTES);
 		prefetch(seq2->letters + i + BYTES);
 	}
 
-	for (u64 i = 0; i < vec_limit; i += BYTES) {
+	for (s32 i = 0; i < vec_limit; i += BYTES) {
 		veci_t v1 = loadu((const veci_t *)(seq1->letters + i));
 		veci_t v2 = loadu((const veci_t *)(seq2->letters + i));
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 		num_t mask = cmpeq_epi8(v1, v2);
-		matches += (u64)__builtin_popcountll(mask);
+		matches += __builtin_popcountll(mask);
 #else
 		num_t mask = movemask_epi8(cmpeq_epi8(v1, v2));
-		matches += (u64)__builtin_popcount(mask);
+		matches += __builtin_popcount(mask);
 #endif
 	}
 
-	for (u64 i = vec_limit; i < min_len; i++)
+	for (s32 i = vec_limit; i < min_len; i++)
 		matches += (seq1->letters[i] == seq2->letters[i]);
 #else
-	for (u64 i = 0; i < min_len; i++)
+	for (s32 i = 0; i < min_len; i++)
 		matches += (seq1->letters[i] == seq2->letters[i]);
 #endif
 
 	return (double)matches / (double)min_len;
 }
 
-bool filter_sequences(sequence_t *sequences, u32 sequence_count,
-		      bool *keep_flags, u32 *filtered_count)
+bool filter_seqs(sequence_t *seqs, s32 seq_n, bool *kept, s32 *seq_n_filter)
 {
-	if (!sequences || !keep_flags || !filtered_count ||
-	    sequence_count <= SEQUENCE_COUNT_MIN) {
+	if (!seqs || !kept || !seq_n_filter || seq_n <= SEQUENCE_COUNT_MIN) {
 		perr("Invalid parameters to filter sequences");
 		return false;
 	}
 
-	const u64 progress_total = sequence_count - 1;
-	_Alignas(CACHE_LINE) _Atomic(u64) g_progress = 0;
-	*filtered_count = 0;
-	u32 filtered_total = 0;
-	const u64 update_limit = progress_total / ((u64)arg_thread_num() * 100);
-	memset(keep_flags, 1, sizeof(*keep_flags) * sequence_count);
+	const s64 progress_total = seq_n - 1;
+	_Alignas(CACHE_LINE) _Atomic(s64) g_progress = 0;
+	*seq_n_filter = 0;
+	s32 filtered_total = 0;
+	const s64 update_limit = progress_total / ((s64)arg_thread_num() * 100);
+	memset(kept, 1, sizeof(*kept) * (size_t)seq_n);
 
 	if (!progress_start(&g_progress, progress_total, "Filtering sequences"))
 		return false;
 
 	OMP_PARALLEL(reduction(+ : filtered_total))
-	u64 progress = 0;
-	u32 filtered = 0;
+	s64 progress = 0;
+	s32 filtered = 0;
 
-	OMP_FOR_DYNAMIC(i, 1, sequence_count) {
-		OMP_START_DYNAMIC(i);
+#pragma omp for schedule(dynamic)
+	for (s32 i = 1; i < seq_n; i++) {
 		bool should_keep = true;
 
-		for (u32 j = 0; j < i; j++) {
-			if (!keep_flags[j])
+		for (s32 j = 0; j < i; j++) {
+			if (!kept[j])
 				continue;
 
-			double similarity = similarity_pairwise(&sequences[i],
-								&sequences[j]);
+			double similarity =
+				similarity_pairwise(&seqs[i], &seqs[j]);
 			if (similarity >= filter) {
 				should_keep = false;
 				filtered++;
@@ -93,7 +91,7 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 			}
 		}
 
-		keep_flags[i] = should_keep;
+		kept[i] = should_keep;
 
 		if (++progress >= update_limit) {
 			atomic_add_relaxed(&g_progress, progress);
@@ -110,7 +108,7 @@ bool filter_sequences(sequence_t *sequences, u32 sequence_count,
 	bench_filter_end();
 	progress_end();
 	bench_filter_start();
-	*filtered_count = filtered_total;
+	*seq_n_filter = filtered_total;
 	return true;
 }
 

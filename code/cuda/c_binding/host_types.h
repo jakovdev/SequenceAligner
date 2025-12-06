@@ -19,29 +19,25 @@
 #include <stdint.h>
 #endif
 
+/* scores, sequence lengths and counts */
+typedef int32_t s32;
+/* checksums, alignment sizes, counters, products */
+typedef int64_t s64;
+
+typedef unsigned char uchar;
 typedef unsigned int uint;
 typedef unsigned long long ull;
 typedef signed long long sll;
 
-/* sequence lengths and counts */
-typedef uint32_t u32;
-/* scores */
-typedef int32_t s32;
-/* alignment sizes, counters */
-typedef uint64_t u64;
-/* checksums */
-typedef int64_t s64;
-typedef unsigned char uchar;
-
 #ifndef BIO_TYPES_H
-#define SEQUENCE_LENGTH_MAX (INT32_MAX)
-#define SEQUENCE_COUNT_MAX (UINT32_MAX)
+#define SEQUENCE_LENGTH_MAX (INT32_MAX - 1)
+#define SEQUENCE_COUNT_MAX (INT32_MAX)
 #define SEQUENCE_COUNT_MIN (2)
 #define SCORE_MIN (INT32_MIN / 2)
 
 typedef struct {
 	char *letters;
-	u64 length;
+	s32 length;
 } sequence_t;
 #endif /* BIO_TYPES_H */
 

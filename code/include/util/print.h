@@ -185,7 +185,8 @@ void perr_context(const char *prefix);
 #define pinput_s(out, ...) input(P_INPUT_PS(out) __VA_ARGS__)
 
 #define ppercent(pct, ...) progress_bar(pct, __VA_ARGS__)
-#define pproport(prp, ...) progress_bar((int)(100 * prp), __VA_ARGS__)
+#define pproport(prp, ...) progress_bar((100 * prp), __VA_ARGS__)
+#define pproportc(prp, ...) progress_bar((int)(100 * prp), __VA_ARGS__)
 
 #define pheader(...) print(P_HEADER __VA_ARGS__)
 

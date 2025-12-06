@@ -6,7 +6,6 @@
 
 bool arg_mode_filter(void);
 
-bool filter_sequences(sequence_t *sequences, u32 sequence_count,
-		      bool *keep_flags, u32 *filtered_count);
+bool filter_seqs(sequence_t *seqs, s32 seq_n, bool *kept, s32 *seq_n_filter);
 
 #endif /* BIO_SEQUENCE_FILTERING_H */

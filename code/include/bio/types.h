@@ -46,8 +46,8 @@ enum GapPenaltyType {
 #include "bio/score/matrices.h"
 #include "system/types.h"
 
-#define SEQUENCE_LENGTH_MAX (INT32_MAX)
-#define SEQUENCE_COUNT_MAX (UINT32_MAX)
+#define SEQUENCE_LENGTH_MAX (INT32_MAX - 1)
+#define SEQUENCE_COUNT_MAX (INT32_MAX)
 #define SEQUENCE_COUNT_MIN (2)
 #define SCORE_MIN (INT32_MIN / 2)
 
@@ -56,7 +56,7 @@ extern s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 typedef struct {
 	char *letters;
-	u64 length;
+	s32 length;
 } sequence_t;
 
 /* Pointer to a specific sequence */

@@ -5,19 +5,17 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "system/types.h"
-
 char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
-		       bool *no_header, u64 *seq_col);
+		       bool *no_header, size_t *seq_col);
 
 bool csv_line_next(char *restrict *restrict p_cursor);
 
-u64 csv_total_lines(char *restrict file_cursor, char *restrict file_end);
+size_t csv_total_lines(char *restrict file_cursor, char *restrict file_end);
 
-u64 csv_line_column_extract(char *restrict *restrict p_cursor,
-			    char *restrict output, u64 target_column);
+size_t csv_line_column_extract(char *restrict *restrict p_cursor,
+			       char *restrict output, size_t target_column);
 
-u64 csv_line_column_length(char *cursor, u64 target_column);
+size_t csv_line_column_length(char *cursor, size_t target_column);
 
 bool csv_validate(const char *restrict file_start,
 		  const char *restrict file_end);

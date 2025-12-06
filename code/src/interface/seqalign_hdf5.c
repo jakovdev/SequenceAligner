@@ -25,7 +25,7 @@ static struct {
 	s32 *matrix;
 	size_t matrix_b;
 	struct FileScoreMatrix mmap;
-	u64 mat_dim;
+	s64 mat_dim;
 	s64 checksum;
 	u8 compression;
 	bool mode_write;
@@ -34,7 +34,7 @@ static struct {
 } g_h5 = { 0 };
 
 static void h5_file_close(void);
-static u32 h5_chunk_dimensions_calculate(void);
+static s32 h5_chunk_dimensions_calculate(void);
 
 #define H5_SEQUENCE_BATCH_SIZE (1 << 12)
 #define H5_MIN_CHUNK_SIZE (1 << 7)
@@ -42,7 +42,7 @@ static u32 h5_chunk_dimensions_calculate(void);
 #define ALIGN_POW2(value, pow2) \
 	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
-bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
+bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 {
 	g_h5.file_id = H5I_INVALID_HID;
 	g_h5.matrix_id = H5I_INVALID_HID;
@@ -70,7 +70,8 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	bench_io_start();
 
-	const size_t bytes = sizeof(*g_h5.matrix) * g_h5.mat_dim * g_h5.mat_dim;
+	const size_t bytes =
+		sizeof(*g_h5.matrix) * (size_t)(g_h5.mat_dim * g_h5.mat_dim);
 	const size_t safe = available_memory() * 3 / 4;
 
 #ifdef USE_CUDA
@@ -84,10 +85,11 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		char mmap_name[MAX_PATH];
 		file_matrix_name(mmap_name, sizeof(mmap_name), file_path);
 		pinfo("Matrix size exceeds memory limits");
-		if (!file_matrix_open(&g_h5.mmap, mmap_name, g_h5.mat_dim))
+		if (!file_matrix_open(&g_h5.mmap, mmap_name,
+				      (size_t)g_h5.mat_dim))
 			return false;
 	} else {
-		MALLOC_CL(g_h5.matrix, g_h5.mat_dim * g_h5.mat_dim);
+		MALLOC_CL(g_h5.matrix, (size_t)(g_h5.mat_dim * g_h5.mat_dim));
 		if (!g_h5.matrix)
 			return false;
 
@@ -95,7 +97,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		g_h5.matrix_b = bytes;
 	}
 
-	pverb("HDF5 matrix size: " Pu64 " x " Pu64, g_h5.mat_dim, g_h5.mat_dim);
+	pverb("HDF5 matrix size: " Ps64 " x " Ps64, g_h5.mat_dim, g_h5.mat_dim);
 
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
@@ -109,7 +111,8 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		return false;
 	}
 
-	hsize_t matrix_dims[2] = { g_h5.mat_dim, g_h5.mat_dim };
+	hsize_t matrix_dims[2] = { (hsize_t)g_h5.mat_dim,
+				   (hsize_t)g_h5.mat_dim };
 	hid_t matrix_space = H5Screate_simple(2, matrix_dims, NULL);
 
 	if (matrix_space < 0) {
@@ -121,10 +124,11 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
 	if (g_h5.mat_dim > H5_MIN_CHUNK_SIZE) {
-		u32 chunk_dim = h5_chunk_dimensions_calculate();
-		hsize_t chunk_dims[2] = { chunk_dim, chunk_dim };
+		s32 chunk_dim = h5_chunk_dimensions_calculate();
+		hsize_t chunk_dims[2] = { (hsize_t)chunk_dim,
+					  (hsize_t)chunk_dim };
 		H5Pset_chunk(plist_id, 2, chunk_dims);
-		pverbl("HDF5 chunk size: " Pu64 " x " Pu64, chunk_dim,
+		pverbl("HDF5 chunk size: " Ps32 " x " Ps32, chunk_dim,
 		       chunk_dim);
 
 		if (g_h5.compression > 0)
@@ -144,8 +148,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		return false;
 	}
 
-	u32 seq_count = (u32)seq_n;
-	pverb("Storing " Pu32 " sequences in HDF5 file", seq_count);
+	pverb("Storing " Ps32 " sequences in HDF5 file", seq_n);
 
 	hid_t seq_group = H5Gcreate2(g_h5.file_id, "/sequences", H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
@@ -158,7 +161,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	H5Gclose(seq_group);
 
-	hsize_t seq_dims[1] = { g_h5.mat_dim };
+	hsize_t seq_dims[1] = { (hsize_t)g_h5.mat_dim };
 	hid_t lengths_space = H5Screate_simple(1, seq_dims, NULL);
 
 	if (lengths_space < 0) {
@@ -168,7 +171,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 	}
 
 	g_h5.lengths_id = H5Dcreate2(g_h5.file_id, "/sequences/lengths",
-				     H5T_STD_U64LE, lengths_space, H5P_DEFAULT,
+				     H5T_STD_I32LE, lengths_space, H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
 
 	H5Sclose(lengths_space);
@@ -179,17 +182,17 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 		return false;
 	}
 
-	u64 *MALLOC(lengths, seq_count);
+	s32 *MALLOC(lengths, (size_t)seq_n);
 	if (!lengths) {
 		perr("Failed to allocate memory for sequence lengths");
 		h5_file_close();
 		return false;
 	}
 
-	for (u32 i = 0; i < seq_count; i++)
-		lengths[i] = sequences[i].length;
+	for (s32 i = 0; i < seq_n; i++)
+		lengths[i] = seqs[i].length;
 
-	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_ULONG, H5S_ALL,
+	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_INT, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, lengths);
 
 	free(lengths);
@@ -225,13 +228,13 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 
 	ppercent(0, "Storing sequences");
 
-	const u32 batch_size = H5_SEQUENCE_BATCH_SIZE;
-	for (u32 batch_start = 0; batch_start < seq_count;
+	const s32 batch_size = H5_SEQUENCE_BATCH_SIZE;
+	for (s32 batch_start = 0; batch_start < seq_n;
 	     batch_start += batch_size) {
-		u32 batch_end = min(batch_start + batch_size, seq_count);
-		u32 current_batch = batch_end - batch_start;
+		s32 batch_end = min(batch_start + batch_size, seq_n);
+		s32 current_batch = batch_end - batch_start;
 
-		char **MALLOC(seq_data, current_batch);
+		char **MALLOC(seq_data, (size_t)current_batch);
 		if (!seq_data) {
 			perr("Failed to allocate memory for sequence batch");
 			H5Sclose(seq_space);
@@ -240,10 +243,10 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 			return false;
 		}
 
-		for (u32 i = 0; i < current_batch; i++)
-			seq_data[i] = sequences[batch_start + i].letters;
+		for (s32 i = 0; i < current_batch; i++)
+			seq_data[i] = seqs[batch_start + i].letters;
 
-		hsize_t batch_dims[1] = { current_batch };
+		hsize_t batch_dims[1] = { (hsize_t)current_batch };
 		hid_t batch_mem_space = H5Screate_simple(1, batch_dims, NULL);
 
 		if (batch_mem_space < 0) {
@@ -255,8 +258,8 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 			return false;
 		}
 
-		hsize_t start[1] = { batch_start };
-		hsize_t count[1] = { current_batch };
+		hsize_t start[1] = { (hsize_t)batch_start };
+		hsize_t count[1] = { (hsize_t)current_batch };
 		status = H5Sselect_hyperslab(seq_space, H5S_SELECT_SET, start,
 					     NULL, count, NULL);
 
@@ -276,7 +279,7 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 			return false;
 		}
 
-		pproport(batch_end / seq_count, "Storing sequences");
+		pproport(batch_end / seq_n, "Storing sequences");
 	}
 
 	ppercent(100, "Storing sequences");
@@ -288,16 +291,16 @@ bool h5_open(const char *file_path, sequence_t *sequences, u64 seq_n)
 	return true;
 }
 
-void h5_matrix_column_set(u32 col, const s32 *values)
+void h5_matrix_column_set(s32 col, const s32 *values)
 {
 	if (!g_h5.mode_write)
 		return;
 
 	if (g_h5.mode_mmap) {
-		memcpy(g_h5.mmap.matrix + ((u64)col * (col - 1)) / 2, values,
-		       col * sizeof(*g_h5.mmap.matrix));
+		memcpy(g_h5.mmap.matrix + ((s64)col * (col - 1)) / 2, values,
+		       sizeof(*g_h5.mmap.matrix) * (size_t)col);
 	} else {
-		for (u32 row = 0; row < col; row++) {
+		for (s32 row = 0; row < col; row++) {
 			g_h5.matrix[g_h5.mat_dim * row + col] = values[row];
 			g_h5.matrix[g_h5.mat_dim * col + row] = values[row];
 		}
@@ -357,33 +360,33 @@ size_t h5_matrix_bytes(void)
 
 #endif
 
-static u32 h5_chunk_dimensions_calculate(void)
+static s32 h5_chunk_dimensions_calculate(void)
 {
-	u32 mat_dim = (u32)g_h5.mat_dim;
-	u32 chunk_dim;
+	const s32 mat_dim = (s32)g_h5.mat_dim;
+	s32 chunk_dim;
 
 	if (mat_dim <= H5_MIN_CHUNK_SIZE) {
 		chunk_dim = mat_dim;
 	} else if (mat_dim > H5_MAX_CHUNK_SIZE) {
-		u32 target_chunks = mat_dim > 1 << 15 ? 1 << 4 : 1 << 5;
+		s32 target_chunks = mat_dim > 1 << 15 ? 1 << 4 : 1 << 5;
 		chunk_dim = mat_dim / target_chunks;
 		chunk_dim = ALIGN_POW2(chunk_dim, H5_MIN_CHUNK_SIZE);
 		chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
 		chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
 	} else {
-		u32 chunk_candidates[] = {
+		s32 chunk_candidates[] = {
 			H5_MIN_CHUNK_SIZE,	H5_MIN_CHUNK_SIZE << 1,
 			H5_MIN_CHUNK_SIZE << 2, H5_MIN_CHUNK_SIZE << 3,
 			H5_MIN_CHUNK_SIZE << 4, H5_MIN_CHUNK_SIZE << 5,
 			H5_MIN_CHUNK_SIZE << 6, H5_MAX_CHUNK_SIZE
 		};
 
-		u32 num_candidates = ARRAY_SIZE(chunk_candidates);
+		s32 num_candidates = ARRAY_SIZE(chunk_candidates);
 
 		chunk_dim = H5_MIN_CHUNK_SIZE;
 
-		for (u32 i = 0; i < num_candidates; i++) {
-			u32 candidate = chunk_candidates[i];
+		for (s32 i = 0; i < num_candidates; i++) {
+			s32 candidate = chunk_candidates[i];
 			if (candidate > H5_MAX_CHUNK_SIZE ||
 			    candidate > mat_dim) {
 				break;
@@ -475,31 +478,31 @@ static void h5_flush_matrix(void)
 
 static void h5_flush_mmap(void)
 {
-	const size_t mat_dim = g_h5.mat_dim;
+	const s32 mat_dim = (s32)g_h5.mat_dim;
 	const size_t available_mem = available_memory();
 	if (!available_mem) {
 		perr("Failed to retrieve available memory");
 		return;
 	}
 
-	const size_t row_bytes = mat_dim * sizeof(*g_h5.mmap.matrix);
-	const u32 max_rows = (u32)(available_mem / (4 * row_bytes));
-	const u32 chunk_rows = h5_chunk_dimensions_calculate();
-	u32 chunk_size = chunk_rows > 4 ? chunk_rows : 4;
+	const size_t row_bytes = sizeof(*g_h5.mmap.matrix) * (size_t)mat_dim;
+	const s32 max_rows = (s32)(available_mem / (4 * row_bytes));
+	const s32 chunk_rows = h5_chunk_dimensions_calculate();
+	s32 chunk_size = chunk_rows > 4 ? chunk_rows : 4;
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
-	const size_t buffer_mib = (chunk_size * row_bytes) / MiB;
-	pverb("Using " Pu32 " rows per chunk (%zu MiB buffer)", chunk_size,
+	const size_t buffer_mib = (row_bytes * (size_t)chunk_size) / MiB;
+	pverb("Using " Ps32 " rows per chunk (%zu MiB buffer)", chunk_size,
 	      buffer_mib);
 
-	s32 *buffer = calloc(chunk_size, row_bytes);
+	s32 *buffer = calloc((size_t)chunk_size, row_bytes);
 	if (!buffer) {
 		pwarn("Failed to allocate buffer of %zu bytes",
-		      row_bytes * chunk_size);
+		      row_bytes * (size_t)chunk_size);
 
 		chunk_size = 1;
-		buffer = calloc(chunk_size, row_bytes);
+		buffer = calloc((size_t)chunk_size, row_bytes);
 		if (!buffer) {
 			perr("Cannot allocate even minimal buffer, aborting");
 			return;
@@ -518,21 +521,22 @@ static void h5_flush_mmap(void)
 	pinfo("Converting memory-mapped matrix to HDF5 format");
 	ppercent(0, "Converting to HDF5");
 
-	for (u32 begin = 0; begin < mat_dim; begin += chunk_size) {
-		u32 end = min(begin + chunk_size, (u32)mat_dim);
+	for (s32 begin = 0; begin < mat_dim; begin += chunk_size) {
+		s32 end = min(begin + chunk_size, mat_dim);
 
-		for (u32 i = begin; i < end; i++) {
-			u64 row = mat_dim * (i - begin);
+		for (s32 i = begin; i < end; i++) {
+			s64 row = (s64)mat_dim * (i - begin);
 
-			for (u32 j = i + 1; j < mat_dim; j++) {
+			for (s32 j = i + 1; j < mat_dim; j++) {
 				buffer[row + j] =
 					g_h5.mmap.matrix[matrix_index(i, j)];
 			}
 
-			for (u32 j = 0; j < i; j++) {
+			for (s32 j = 0; j < i; j++) {
 				if (j >= begin) {
 					buffer[row + j] =
-						buffer[mat_dim * (j - begin) +
+						buffer[(s64)mat_dim *
+							       (j - begin) +
 						       i];
 				} else {
 					buffer[row + j] =
@@ -542,13 +546,13 @@ static void h5_flush_mmap(void)
 			}
 		}
 
-		u32 rows = end - begin;
-		hsize_t start[2] = { begin, 0 };
-		hsize_t count[2] = { rows, mat_dim };
+		s32 rows = end - begin;
+		hsize_t start[2] = { (hsize_t)begin, 0 };
+		hsize_t count[2] = { (hsize_t)rows, (hsize_t)mat_dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL,
 				    count, NULL);
 
-		hsize_t mem_dims[2] = { rows, mat_dim };
+		hsize_t mem_dims[2] = { (hsize_t)rows, (hsize_t)mat_dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, NULL);
 
 		if (mem_space < 0) {

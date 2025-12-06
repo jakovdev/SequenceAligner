@@ -4,9 +4,9 @@
 #include "util/print.h"
 
 static _Atomic(bool) p_running;
-static _Atomic(u64) *p_progress;
+static _Atomic(s64) *p_progress;
 static const char *p_message;
-static u64 p_total;
+static s64 p_total;
 static pthread_t p_thread;
 
 static T_Func progress_monitor_worker(void *arg)
@@ -16,15 +16,15 @@ static T_Func progress_monitor_worker(void *arg)
 
 	while (atomic_load_relaxed(p_progress) < p_total) {
 		usleep(100000);
-		pproport(atomic_load_relaxed(p_progress) / p_total, "%s",
-			 p_message);
+		pproportc(atomic_load_relaxed(p_progress) / p_total, "%s",
+			  p_message);
 	}
 
 	ppercent(100, "%s", p_message);
 	T_Ret(NULL);
 }
 
-bool progress_start(_Atomic(u64) *progress, u64 total, const char *message)
+bool progress_start(_Atomic(s64) *progress, s64 total, const char *message)
 {
 	if (atomic_load(&p_running))
 		goto p_thread_error;

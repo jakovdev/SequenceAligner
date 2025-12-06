@@ -10,19 +10,19 @@ _Thread_local s32 *restrict g_match;
 _Thread_local s32 *restrict g_gap_x;
 _Thread_local s32 *restrict g_gap_y;
 
-#define MATRIX_SIZE(len) ((len + 1) * (len + 1))
+#define MATRIX_SIZE(len) ((size_t)(len + 1) * (size_t)(len + 1))
 
-void matrix_buffers_init(u32 lenmax)
+void matrix_buffers_init(s32 seq_len_max)
 {
-	MALLOC_CL(g_matrix, 3 * MATRIX_SIZE(lenmax));
+	MALLOC_CL(g_matrix, 3 * MATRIX_SIZE(seq_len_max));
 	if (UNLIKELY(!g_matrix)) {
 		perr("Failed to allocate memory for alignment matrix");
 		exit(EXIT_FAILURE);
 	}
 
 	g_match = g_matrix;
-	g_gap_x = g_matrix + MATRIX_SIZE(lenmax);
-	g_gap_y = g_matrix + 2 * MATRIX_SIZE(lenmax);
+	g_gap_x = g_matrix + MATRIX_SIZE(seq_len_max);
+	g_gap_y = g_matrix + 2 * MATRIX_SIZE(seq_len_max);
 }
 
 void matrix_buffers_free(void)

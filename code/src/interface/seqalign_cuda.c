@@ -31,9 +31,8 @@ bool cuda_align(void)
 
 	pinfo("Using CUDA device: %s", name);
 
-	if (!cuda_upload_sequences(sequences(), sequences_count(),
-				   sequences_length_max(),
-				   sequences_length_sum()))
+	if (!cuda_upload_seqs(sequences_seqs(), sequences_seq_n(),
+			      sequences_seq_len_max(), sequences_seq_len_sum()))
 		RETURN_CUDA_ERRORS("Failed uploading sequences");
 
 	if (!cuda_upload_scoring(SUB_MAT, SEQ_LUP))
@@ -45,8 +44,8 @@ bool cuda_align(void)
 	if (!cuda_upload_storage(h5_matrix_data(), h5_matrix_bytes()))
 		RETURN_CUDA_ERRORS("Failed uploading results storage");
 
-	const u64 alignments = sequences_alignment_count();
-	pinfol("Will perform " Pu64 " pairwise alignments", alignments);
+	const s64 alignments = sequences_alignments();
+	pinfol("Will perform " Ps64 " pairwise alignments", alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();
@@ -57,8 +56,8 @@ bool cuda_align(void)
 		if (!cuda_kernel_results())
 			RETURN_CUDA_ERRORS("Failed to get results");
 
-		ull progress = cuda_kernel_progress();
-		pproport(progress / alignments, "Aligning sequences");
+		sll progress = cuda_kernel_progress();
+		pproportc(progress / alignments, "Aligning sequences");
 		if (progress >= alignments)
 			break;
 	}

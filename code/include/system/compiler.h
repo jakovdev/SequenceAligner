@@ -39,17 +39,4 @@
 	{
 #define OMP_PARALLEL_END() }
 
-#ifdef _MSC_VER
-#define OMP_START_DYNAMIC(var) u32 var = (u32)var##var
-#define OMP_FOR_DYNAMIC(var, start, end)  \
-	s64 var##var;                     \
-	PRAGMA(omp for schedule(dynamic)) \
-	for (var##var = (start); var##var < (s64)(end); var##var++)
-#else
-#define OMP_START_DYNAMIC(var)
-#define OMP_FOR_DYNAMIC(var, start, end)  \
-	PRAGMA(omp for schedule(dynamic)) \
-	for (u32 var = (start); var < (end); var++)
-#endif
-
 #endif /* SYSTEM_COMPILER_H */

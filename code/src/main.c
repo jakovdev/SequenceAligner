@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	if (!sequences_load_from_file())
 		return 1;
 
-	if (!h5_open(arg_output(), sequences(), sequences_count())) {
+	if (!h5_open(arg_output(), sequences_seqs(), sequences_seq_n())) {
 		h5_close(1);
 		return 1;
 	}
@@ -36,6 +36,6 @@ int main(int argc, char *argv[])
 	}
 
 	h5_close(0);
-	bench_total_print(sequences_alignment_count());
+	bench_total_print(sequences_alignments());
 	return 0;
 }

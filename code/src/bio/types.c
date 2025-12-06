@@ -253,9 +253,9 @@ static void print_config_method(void)
 static void print_config_gaps(void)
 {
 	if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_LINEAR)
-		pinfom("Gap penalty: %d", gap_pen);
+		pinfom("Gap penalty: " Ps32, gap_pen);
 	else if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_AFFINE)
-		pinfom("Gap open: %d, extend: %d", gap_open, gap_ext);
+		pinfom("Gap open: " Ps32 ", extend: " Ps32, gap_open, gap_ext);
 }
 
 static char seq_type_help[512];

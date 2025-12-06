@@ -16,6 +16,6 @@ void bench_io_print(void);
 void bench_align_print(void);
 void bench_filter_print(void);
 
-void bench_total_print(u64 alignments);
+void bench_total_print(s64 alignments);
 
 #endif /* UTIL_BENCHMARK_H */

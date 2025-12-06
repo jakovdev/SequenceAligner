@@ -90,10 +90,10 @@ static bool file_format_csv_parse(struct FileText *file)
 	file->data.cursor = file->data.start;
 
 	pverb("Counting sequences in input file");
-	u64 total = csv_total_lines(file->data.start, file->data.end);
+	size_t total = csv_total_lines(file->data.start, file->data.end);
 
 	if (total >= SEQUENCE_COUNT_MAX) {
-		perr("Too many sequences in input file: " Pu64, total);
+		perr("Too many sequences in input file: %zu", total);
 		return false;
 	}
 
@@ -102,8 +102,8 @@ static bool file_format_csv_parse(struct FileText *file)
 		return false;
 	}
 
-	file->data.total = (u32)total;
-	pinfo("Found " Pu32 " sequences", file->data.total);
+	file->data.total = (s32)total;
+	pinfo("Found " Ps32 " sequences", file->data.total);
 	return true;
 }
 
@@ -118,10 +118,10 @@ static bool file_format_fasta_parse(struct FileText *file)
 		return false;
 
 	pverb("Counting sequences in input file");
-	u64 total = fasta_total_entries(file->data.start, file->data.end);
+	size_t total = fasta_total_entries(file->data.start, file->data.end);
 
 	if (total >= SEQUENCE_COUNT_MAX) {
-		perr("Too many sequences in input file: " Pu64, total);
+		perr("Too many sequences in input file: %zu", total);
 		return false;
 	}
 
@@ -130,8 +130,8 @@ static bool file_format_fasta_parse(struct FileText *file)
 		return false;
 	}
 
-	file->data.total = (u32)total;
-	pinfo("Found " Pu32 " sequences", file->data.total);
+	file->data.total = (s32)total;
+	pinfo("Found " Ps32 " sequences", file->data.total);
 	return true;
 }
 
@@ -238,7 +238,7 @@ file_error:
 	return false;
 }
 
-u32 file_sequence_total(struct FileText *file)
+s32 file_sequence_total(struct FileText *file)
 {
 	if (file)
 		return file->data.total;
@@ -248,7 +248,7 @@ u32 file_sequence_total(struct FileText *file)
 	exit(EXIT_FAILURE);
 }
 
-u64 file_sequence_next_length(struct FileText *file)
+size_t file_sequence_next_length(struct FileText *file)
 {
 	if (file) {
 		switch (file->data.type) {
@@ -289,7 +289,7 @@ bool file_sequence_next(struct FileText *file)
 	exit(EXIT_FAILURE);
 }
 
-u64 file_extract_entry(struct FileText *restrict file, char *restrict out)
+size_t file_extract_entry(struct FileText *restrict file, char *restrict out)
 {
 	if (file && out) {
 		switch (file->data.type) {
@@ -312,7 +312,7 @@ u64 file_extract_entry(struct FileText *restrict file, char *restrict out)
 }
 
 bool file_matrix_open(struct FileScoreMatrix *restrict file,
-		      const char *restrict path, u64 matrix_dim)
+		      const char *restrict path, size_t matrix_dim)
 {
 	file_metadata_init(&file->meta);
 
@@ -413,9 +413,9 @@ void file_matrix_close(struct FileScoreMatrix *file)
 	file->matrix = NULL;
 }
 
-u64 matrix_index(u32 row, u32 col)
+s64 matrix_index(s32 row, s32 col)
 {
-	return ((u64)col * (col - 1)) / 2 + row;
+	return ((s64)col * (col - 1)) / 2 + row;
 }
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *output_path)

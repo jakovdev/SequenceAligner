@@ -9,14 +9,14 @@
 struct Constants {
 	Constants() = default;
 	char *letters{ nullptr };
-	u32 *lengths{ nullptr };
-	u64 *offsets{ nullptr };
-	u64 *indices{ nullptr };
-	ull *progress{ nullptr };
+	s32 *lengths{ nullptr };
+	s64 *offsets{ nullptr };
+	s64 *indices{ nullptr };
+	sll *progress{ nullptr };
 	sll *checksum{ nullptr };
 	s32 sub_mat[SUB_MATSIZE]{ 0 };
 	s32 seq_lup[SEQ_LUPSIZ]{ 0 };
-	u32 seqs_n{ 0 };
+	s32 seqs_n{ 0 };
 	s32 gap_pen{ 0 };
 	s32 gap_open{ 0 };
 	s32 gap_ext{ 0 };
@@ -70,11 +70,11 @@ struct States {
 struct Host {
 	const char *err{ "No errors from Host" };
 	s32 *scores{ nullptr };
-	u64 batch{ 0 };
-	u64 batch_last{ 0 };
-	u64 batch_done{ 0 };
-	u64 alignments{ 0 };
-	ull progress{ 0 };
+	s64 batch{ 0 };
+	s64 batch_last{ 0 };
+	s64 batch_done{ 0 };
+	s64 alignments{ 0 };
+	sll progress{ 0 };
 	bool subsequent{ false };
 };
 
@@ -89,8 +89,8 @@ class Cuda {
 
 	bool memoryCheck(size_t bytes) noexcept;
 
-	bool uploadSequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
-			     u64 seq_len_sum) noexcept;
+	bool uploadSeqs(const sequence_t *seqs, s32 seq_n, s32 seq_len_max,
+			s64 seq_len_sum) noexcept;
 	bool uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 			   const s32 seq_lup[SEQ_LUPSIZ]) noexcept;
 	bool uploadGaps(s32 linear, s32 start, s32 extend) noexcept;
@@ -98,7 +98,7 @@ class Cuda {
 
 	bool kernelLaunch(int kernel_id) noexcept;
 	bool kernelResults() noexcept;
-	ull kernelProgress() const noexcept;
+	sll kernelProgress() const noexcept;
 	sll kernelChecksum() noexcept;
 
 	const char *hostError() const noexcept;

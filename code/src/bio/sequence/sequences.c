@@ -31,12 +31,12 @@ static struct {
 } g_pool = { 0 };
 
 static sequence_t *g_seqs;
-static u64 g_align_n;
+static s64 g_alignments;
 #ifdef USE_CUDA
-static u64 g_seq_len_sum;
+static s64 g_seq_len_sum;
 #endif
-static u32 g_seq_len_max;
-static u32 g_seq_n;
+static s32 g_seq_len_max;
+static s32 g_seq_n;
 
 static void seq_pool_free(void)
 {
@@ -133,7 +133,7 @@ static void sequences_free(void)
 		free(g_seqs);
 		g_seqs = NULL;
 	}
-	g_align_n = 0;
+	g_alignments = 0;
 #ifdef USE_CUDA
 	g_seq_len_sum = 0;
 #endif
@@ -146,9 +146,9 @@ static void sequence_init(sequence_t *const restrict pooled,
 {
 	pooled->length = temp->length;
 
-	pooled->letters = seq_pool_alloc(temp->length + 1);
+	pooled->letters = seq_pool_alloc((size_t)temp->length + 1);
 	if (pooled->letters) {
-		memcpy(pooled->letters, temp->letters, temp->length);
+		memcpy(pooled->letters, temp->letters, (size_t)temp->length);
 		pooled->letters[temp->length] = '\0';
 	}
 }
@@ -176,7 +176,7 @@ static bool validate_sequence(sequence_ptr_t sequence)
 		UNREACHABLE();
 	}
 
-	for (u64 i = 0; i < sequence->length; i++) {
+	for (s32 i = 0; i < sequence->length; i++) {
 		char c = (char)toupper(sequence->letters[i]);
 		bool found = false;
 
@@ -196,13 +196,13 @@ static bool validate_sequence(sequence_ptr_t sequence)
 	return true;
 }
 
-static bool seq_len_valid(u64 length)
+static bool seq_len_valid(size_t length)
 {
 	const s32 gap_pen = -(arg_gap_pen());
 	if (!gap_pen)
 		return length <= SEQUENCE_LENGTH_MAX;
 
-	const u64 limit = SEQUENCE_LENGTH_MAX / (u64)gap_pen;
+	const size_t limit = SEQUENCE_LENGTH_MAX / (size_t)gap_pen;
 	if (length < limit)
 		return true;
 
@@ -211,8 +211,8 @@ static bool seq_len_valid(u64 length)
 	else if (gap_pen > 100)
 		pwarn("Unusually high gap penalty (>100)");
 
-	perr("Sequence length " Pu64 " exceeds limits for gap penalty %d",
-	     length, gap_pen);
+	perr("Sequence length %zu exceeds limits for gap penalty " Ps32, length,
+	     gap_pen);
 	return false;
 }
 
@@ -224,19 +224,19 @@ bool sequences_load_from_file(void)
 
 	perr_context("SEQUENCES");
 
-	u32 total = file_sequence_total(&input_file);
-	sequence_t *MALLOC(seqs, total);
+	s32 total = file_sequence_total(&input_file);
+	sequence_t *MALLOC(seqs, (size_t)total);
 	if (!seqs) {
 		perr("Failed to allocate memory for sequences");
 		file_text_close(&input_file);
 		return false;
 	}
 
-	u64 seqs_len_sum = 0;
-	u32 seq_len_max = 0;
-	u32 seq_n_curr = 0;
-	u32 seq_n_skip = 0;
-	u32 seq_n_invalid = 0;
+	s64 seqs_len_sum = 0;
+	s32 seq_len_max = 0;
+	s32 seq_n_curr = 0;
+	s32 seq_n_skip = 0;
+	s32 seq_n_invalid = 0;
 	bool skip_long = false;
 	bool ask_long = false;
 	bool skip_invalid = false;
@@ -246,42 +246,49 @@ bool sequences_load_from_file(void)
 
 	bench_io_start();
 
-	for (u32 seq_index = 0; seq_index < total; seq_index++) {
-		u64 seq_len_next = file_sequence_next_length(&input_file);
-
-		if (!seq_len_next) {
-			file_sequence_next(&input_file);
+	for (s32 seq_index = 0; seq_index < total; seq_index++) {
+		const size_t seq_len = file_sequence_next_length(&input_file);
+		if (!seq_len) {
+			pwarn("Unexpected empty sequence #" Ps32
+			      ", possible file corruption",
+			      seq_index + 1);
+			if (!file_sequence_next(&input_file)) {
+				perr("Unexpected end of file, possible file corruption");
+				goto cleanup_seq_curr_seqs;
+			}
 			continue;
 		}
 
-		if (!seq_len_valid(seq_len_next)) {
+		if (!seq_len_valid(seq_len)) {
 			if (!ask_long) {
 				bench_io_end();
-				pwarn("Overflow from large sequence length: " Pu64,
-				      seq_len_next);
+				pwarn("Overflow from large sequence length: %zu",
+				      seq_len);
 				skip_long = print_yN("Skip long sequences?");
 				ask_long = true;
 				bench_io_start();
 			}
 
 			if (skip_long) {
-				file_sequence_next(&input_file);
+				if (!file_sequence_next(&input_file)) {
+					perr("Unexpected end of file, possible file corruption");
+					goto cleanup_seq_curr_seqs;
+				}
 				seq_n_skip++;
 				continue;
 			} else {
-				perr("Sequence #" Pu32 " is too long",
+				perr("Sequence #" Ps32 " is too long",
 				     seq_index + 1);
 				goto cleanup_seq_curr_seqs;
 			}
 		}
 
-		if (seq_len_next > seq_curr.length || !seq_curr.letters) {
-			u64 count = seq_len_next + 1;
-
+		const s32 seq_len_safe = (s32)seq_len;
+		if (seq_len_safe > seq_curr.length || !seq_curr.letters) {
 			if (seq_curr.letters)
 				free(seq_curr.letters);
 
-			MALLOC(seq_curr.letters, count);
+			MALLOC(seq_curr.letters, (size_t)(seq_len_safe + 1));
 
 			if (!seq_curr.letters) {
 				perr("Failed to allocate sequence");
@@ -289,15 +296,20 @@ bool sequences_load_from_file(void)
 			}
 		}
 
-		seq_curr.length = seq_len_next;
-
-		file_extract_entry(&input_file, seq_curr.letters);
+		seq_curr.length = seq_len_safe;
+		size_t len = file_extract_entry(&input_file, seq_curr.letters);
+		if (!len || len != (size_t)seq_curr.length) {
+			perr("Failed to extract sequence #" Ps32
+			     ", expected length " Ps32 ", got %zu",
+			     seq_index + 1, seq_curr.length, len);
+			goto cleanup_seq_curr_seqs;
+		}
 
 		if (!validate_sequence(&seq_curr)) {
 			if (!ask_invalid) {
 				bench_io_end();
 				pwarn("Found invalid sequence");
-				pwarnl("Sequence #" Pu32 " is invalid",
+				pwarnl("Sequence #" Ps32 " is invalid",
 				       seq_index + 1);
 				skip_invalid =
 					print_yN("Skip invalid sequences?");
@@ -322,7 +334,7 @@ bool sequences_load_from_file(void)
 
 		seqs_len_sum += seq_curr.length;
 		if (seq_curr.length > seq_len_max)
-			seq_len_max = (u32)seq_curr.length;
+			seq_len_max = seq_curr.length;
 
 		seq_n_curr++;
 	}
@@ -330,42 +342,42 @@ bool sequences_load_from_file(void)
 	bench_io_end();
 	free(seq_curr.letters);
 
-	u32 seq_n = seq_n_curr;
+	s32 seq_n = seq_n_curr;
 	if (seq_n < 2) {
-		perr("At least 2 sequences are required, found " Pu32, seq_n);
+		perr("At least 2 sequences are required, found " Ps32, seq_n);
 		goto cleanup_seqs;
 	}
 
 	if (seq_n_skip > 0)
-		pinfo("Skipped " Pu32 " sequences that were too long",
+		pinfo("Skipped " Ps32 " sequences that were too long",
 		      seq_n_skip);
 
 	if (seq_n_invalid > 0)
-		pinfo("Skipped " Pu32 " sequences with invalid letters",
+		pinfo("Skipped " Ps32 " sequences with invalid letters",
 		      seq_n_invalid);
 
-	u32 n_seqs_filtered = 0;
+	s32 seq_n_filter = 0;
 	if (!arg_mode_filter())
 		goto skip_filtering;
 
 	bench_filter_start();
 	perr_context("FILTERING");
-	bool *MALLOC(keep_flags, seq_n);
-	if (!keep_flags) {
-		perr("Failed to allocate memory for filtering flags");
+	bool *MALLOC(kept, (size_t)seq_n);
+	if (!kept) {
+		perr("Failed to allocate memory");
 		goto cleanup_seqs;
 	}
 
-	if (!filter_sequences(seqs, seq_n, keep_flags, &n_seqs_filtered)) {
-		free(keep_flags);
+	if (!filter_seqs(seqs, seq_n, kept, &seq_n_filter)) {
+		free(kept);
 		goto cleanup_seqs;
 	}
 
-	u32 write_index = 0;
+	s32 write_index = 0;
 	seqs_len_sum = 0;
 
-	for (u32 read_index = 0; read_index < seq_n; read_index++) {
-		if (!keep_flags[read_index])
+	for (s32 read_index = 0; read_index < seq_n; read_index++) {
+		if (!kept[read_index])
 			continue;
 
 		if (write_index != read_index)
@@ -373,13 +385,13 @@ bool sequences_load_from_file(void)
 
 		seqs_len_sum += seqs[write_index].length;
 		if (seqs[write_index].length > seq_len_max)
-			seq_len_max = (u32)seqs[write_index].length;
+			seq_len_max = seqs[write_index].length;
 
 		write_index++;
 	}
 
 	seq_n = write_index;
-	free(keep_flags);
+	free(kept);
 	bench_filter_end();
 	bench_filter_print();
 
@@ -388,14 +400,14 @@ bool sequences_load_from_file(void)
 		goto cleanup_seqs;
 	}
 
-	if (n_seqs_filtered > 0 && n_seqs_filtered >= total / 4) {
+	if (seq_n_filter > 0 && seq_n_filter >= total / 4) {
 		pverb("Reallocating sequences to save memory");
-		REALLOC(seqs, seq_n);
+		REALLOC(seqs, (size_t)seq_n);
 		else pverb("Failed to reallocate, continuing without");
 	}
 
-	pinfo("Loaded " Pu32 " sequences (filtered " Pu32 ")", seq_n,
-	      n_seqs_filtered);
+	pinfo("Loaded " Ps32 " sequences (filtered " Ps32 ")", seq_n,
+	      seq_n_filter);
 
 skip_filtering:
 	pinfo("Average sequence length: %.2f",
@@ -403,7 +415,7 @@ skip_filtering:
 
 	g_seqs = seqs;
 	g_seq_n = seq_n;
-	g_align_n = ((u64)seq_n * (seq_n - 1)) / 2;
+	g_alignments = ((s64)seq_n * (seq_n - 1)) / 2;
 #ifdef USE_CUDA
 	g_seq_len_sum = seqs_len_sum;
 #endif
@@ -422,34 +434,34 @@ cleanup_seqs:
 	return false;
 }
 
-sequence_t *sequence(u32 index)
+sequence_t *sequence(s32 index)
 {
 	return &g_seqs[index];
 }
 
-sequence_t *sequences(void)
+sequence_t *sequences_seqs(void)
 {
 	return g_seqs;
 }
 
-u32 sequences_count(void)
+s32 sequences_seq_n(void)
 {
 	return g_seq_n;
 }
 
-u64 sequences_alignment_count(void)
+s64 sequences_alignments(void)
 {
-	return g_align_n;
+	return g_alignments;
 }
 
-u32 sequences_length_max(void)
+s32 sequences_seq_len_max(void)
 {
 	return g_seq_len_max;
 }
 
 #ifdef USE_CUDA
 
-u64 sequences_length_sum(void)
+s64 sequences_seq_len_sum(void)
 {
 	return g_seq_len_sum;
 }

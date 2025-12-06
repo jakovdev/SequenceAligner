@@ -78,10 +78,11 @@ template <typename T> bool vecalloc(std::vector<T> &v, const size_t n) noexcept
 	return !v.empty();
 }
 
-bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
-			   u64 seq_len_sum) noexcept
+bool Cuda::uploadSeqs(const sequence_t *seqs, s32 seq_n, s32 seq_len_max,
+			   s64 seq_len_sum) noexcept
 {
-	if (!s.init || !seqs || seq_len_sum < 2 || seq_n < SEQUENCE_COUNT_MIN) {
+	if (!s.init || !seqs || seq_len_sum < 2 || seq_n < SEQUENCE_COUNT_MIN ||
+	    seq_len_max < 1) {
 		hostError("Invalid parameters for sequence upload");
 		return false;
 	}
@@ -91,9 +92,9 @@ bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
 		return false;
 	}
 
-	std::vector<u64> indices_f;
-	std::vector<u64> offsets_f;
-	std::vector<u32> lengths_f;
+	std::vector<s64> indices_f;
+	std::vector<s64> offsets_f;
+	std::vector<s32> lengths_f;
 	std::vector<char> letters_f;
 
 	if (!vecalloc(indices_f, seq_n) || !vecalloc(offsets_f, seq_n) ||
@@ -107,10 +108,15 @@ bool Cuda::uploadSequences(const sequence_t *seqs, u32 seq_n, u32 seq_len_max,
 	auto lengths_p = lengths_f.data();
 	auto letters_p = letters_f.data();
 
-	for (u64 i = 0, offs = 0; i < seq_n; i++) {
-		indices_p[i] = (i * (i - 1)) / 2;
+	s64 offs = 0;
+	for (s32 i = 0; i < seq_n; i++) {
+		if (seqs[i].length <= 0) {
+			hostError("Invalid sequence length encountered");
+			return false;
+		}
+		indices_p[i] = (static_cast<s64>(i) * (i - 1)) / 2;
 		offsets_p[i] = offs;
-		lengths_p[i] = static_cast<u32>(seqs[i].length);
+		lengths_p[i] = seqs[i].length;
 		std::memcpy(letters_p + offs, seqs[i].letters, seqs[i].length);
 		offs += seqs[i].length;
 	}
@@ -170,8 +176,8 @@ bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 		return false;
 	}
 
-	h.alignments = static_cast<u64>(d.seqs_n) * (d.seqs_n - 1) / 2;
-	constexpr u64 batch_size = UINT64_C(64) << 20;
+	h.alignments = static_cast<s64>(d.seqs_n) * (d.seqs_n - 1) / 2;
+	constexpr s64 batch_size = INT64_C(64) << 20;
 
 	if (!memoryCheck(sizeof(*h.scores) * d.seqs_n * d.seqs_n)) {
 		if (!memoryCheck(sizeof(*h.scores) * h.alignments)) {
@@ -204,7 +210,7 @@ bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 		D_MALLOC(d.scores[1], h.batch);
 	} else {
 		h.batch = h.alignments;
-		D_MALLOC(d.scores[0], d.seqs_n * d.seqs_n);
+		D_MALLOC(d.scores[0], static_cast<size_t>(d.seqs_n) * d.seqs_n);
 	}
 
 	h.scores = scores;
