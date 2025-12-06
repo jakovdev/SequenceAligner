@@ -723,10 +723,9 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 
 	ouwcol(T_SECTION);
 	ouwbox(BOX_NORMAL, BOX_VERTICAL);
-	if (p_percent % 2)
-		ouwcol(COLOR_CYAN);
-	else
-		ouwcol(T_PROGRESS);
+	static bool repeat;
+	ouwcol((repeat || p_percent != 100) ? COLOR_CYAN : T_PROGRESS);
+	repeat = !repeat;
 
 	ouputc(' ');
 	ouwico(T_PROGRESS);
