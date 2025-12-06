@@ -967,23 +967,6 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 	return PRINT_SUCCESS;
 }
 
-enum p_return pdev(const char *fmt, ...)
-{
-#ifndef NDEBUG
-	va_list v_args;
-	va_start(v_args, fmt);
-	char buf[BUFSIZ];
-	vsnprintf(buf, sizeof(buf), fmt, v_args);
-	va_end(v_args);
-
-	perr_context("_TO_DEV_");
-	return perr("%s", buf);
-#else
-	(void)fmt;
-	return PRINT_TO_DEV_NDEBUG__ERROR;
-#endif
-}
-
 ARGUMENT(force) = {
 	.opt = 'F',
 	.lopt = "force-proceed",

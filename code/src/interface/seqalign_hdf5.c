@@ -86,6 +86,7 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 		bytes = sizeof(*g_h5.matrix) * mat_size;
 		g_h5.mode_mmap = bytes > safe;
 		g_h5.triangular = true;
+		pverb("Using triangular matrix storage");
 	}
 
 	if (g_h5.mode_mmap) {
@@ -392,14 +393,12 @@ static s32 h5_chunk_dimensions_calculate(void)
 		chunk_dim = H5_MIN_CHUNK_SIZE;
 
 		for (s32 i = 0; i < num_candidates; i++) {
-			s32 candidate = chunk_candidates[i];
-			if (candidate > H5_MAX_CHUNK_SIZE ||
-			    candidate > mat_dim) {
+			s32 chunk = chunk_candidates[i];
+			if (chunk > H5_MAX_CHUNK_SIZE || chunk > mat_dim)
 				break;
-			}
 
-			chunk_dim = candidate;
-			if (candidate * 8 >= mat_dim)
+			chunk_dim = chunk;
+			if (chunk * 8 >= mat_dim)
 				break;
 		}
 	}

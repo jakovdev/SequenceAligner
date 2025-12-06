@@ -67,9 +67,10 @@
  **│ • Do you want to continue? [y/N]: y                                          │
  **answer will be true (yes) or false (no)
  *
- * pdev("Error: %d", value);
- **│ ✗ _TO_DEV_ | Error: 42                                                       │
- **Only prints in debug builds (NDEBUG not defined) with error context _TO_DEV_
+ * perr_context("PARSER");
+ * pdev("Error %d", value);
+ **│ ✗ PARSER | _TO_DEV_: Error 42                                                │
+ **Is perr() only in Debug builds (NDEBUG not defined), adds "_TO_DEV_ :" to string
  *
  **Close section (automatic on new section/header or non-abort exit)
  * psection_end();
@@ -138,7 +139,6 @@ enum p_return {
 	PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
 	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
 	PRINT_INVALID_INPUT_TYPE__ERROR = -3,
-	PRINT_TO_DEV_NDEBUG__ERROR = -0xDEAD
 };
 
 void print_streams(FILE *in, FILE *out, FILE *err);
@@ -193,8 +193,11 @@ void perr_context(const char *prefix);
 #define psection(...) print(P_SECTION __VA_ARGS__)
 #define psection_end() print(NULL)
 
-/* Doesn't print in RELEASE (NDEBUG defined), _TO_DEV_ error context */
-enum p_return pdev(const char *fmt, ...);
+#ifndef NDEBUG
+#define pdev(...) perr("_TO_DEV_: " __VA_ARGS__)
+#else
+#define pdev(...)
+#endif
 
 #undef P_RESTRICT
 #endif /* UTIL_PRINT_H */
