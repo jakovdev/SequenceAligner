@@ -30,6 +30,7 @@ static struct {
 	u8 compression;
 	bool mode_write;
 	bool mode_mmap;
+	bool triangular;
 	bool is_init;
 } g_h5 = { 0 };
 
@@ -70,29 +71,35 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 	bench_io_start();
 
-	const size_t bytes =
-		sizeof(*g_h5.matrix) * (size_t)(g_h5.mat_dim * g_h5.mat_dim);
-	const size_t safe = available_memory() * 3 / 4;
+	size_t mat_size = (size_t)(g_h5.mat_dim * g_h5.mat_dim);
+	size_t bytes = sizeof(*g_h5.matrix) * mat_size;
 
 #ifdef USE_CUDA
-	g_h5.mode_mmap = (arg_mode_cuda() && cuda_triangular(bytes)) ||
-			 (bytes > safe);
+	bool device_limited = arg_mode_cuda() && cuda_triangular(bytes);
 #else
-	g_h5.mode_mmap = bytes > safe;
+	bool device_limited = false;
 #endif
 
+	const size_t safe = available_memory() * 3 / 4;
+	if (device_limited || bytes > safe) {
+		mat_size = (size_t)(g_h5.mat_dim * (g_h5.mat_dim - 1) / 2);
+		bytes = sizeof(*g_h5.matrix) * mat_size;
+		g_h5.mode_mmap = bytes > safe;
+		g_h5.triangular = true;
+	}
+
 	if (g_h5.mode_mmap) {
-		char mmap_name[MAX_PATH];
-		file_matrix_name(mmap_name, sizeof(mmap_name), file_path);
+		char name[MAX_PATH];
+		file_matrix_name(name, sizeof(name), file_path);
 		pinfo("Matrix size exceeds memory limits");
-		if (!file_matrix_open(&g_h5.mmap, mmap_name,
-				      (size_t)g_h5.mat_dim))
+		if (!file_matrix_open(&g_h5.mmap, name, (size_t)g_h5.mat_dim))
 			return false;
+		g_h5.matrix = g_h5.mmap.matrix;
+		g_h5.matrix_b = g_h5.mmap.meta.bytes;
 	} else {
-		MALLOC_CL(g_h5.matrix, (size_t)(g_h5.mat_dim * g_h5.mat_dim));
+		MALLOC_CL(g_h5.matrix, mat_size);
 		if (!g_h5.matrix)
 			return false;
-
 		memset(g_h5.matrix, 0, bytes);
 		g_h5.matrix_b = bytes;
 	}
@@ -296,9 +303,9 @@ void h5_matrix_column_set(s32 col, const s32 *values)
 	if (!g_h5.mode_write)
 		return;
 
-	if (g_h5.mode_mmap) {
-		memcpy(g_h5.mmap.matrix + ((s64)col * (col - 1)) / 2, values,
-		       sizeof(*g_h5.mmap.matrix) * (size_t)col);
+	if (g_h5.triangular) {
+		memcpy(g_h5.matrix + ((s64)col * (col - 1)) / 2, values,
+		       sizeof(*g_h5.matrix) * (size_t)col);
 	} else {
 		for (s32 row = 0; row < col; row++) {
 			g_h5.matrix[g_h5.mat_dim * row + col] = values[row];
@@ -318,7 +325,6 @@ s64 h5_checksum(void)
 }
 
 static void h5_store_checksum(void);
-static void h5_flush_mmap(void);
 static void h5_flush_matrix(void);
 
 void h5_close(int skip_flush)
@@ -335,7 +341,7 @@ void h5_close(int skip_flush)
 			pinfol("Writing results to HDF5");
 			perr_context("HDF5");
 			h5_store_checksum();
-			g_h5.mode_mmap ? h5_flush_mmap() : h5_flush_matrix();
+			h5_flush_matrix();
 		}
 
 		h5_file_close();
@@ -350,12 +356,12 @@ void h5_close(int skip_flush)
 
 s32 *h5_matrix_data(void)
 {
-	return g_h5.mode_mmap ? g_h5.mmap.matrix : g_h5.matrix;
+	return g_h5.matrix;
 }
 
 size_t h5_matrix_bytes(void)
 {
-	return g_h5.mode_mmap ? g_h5.mmap.meta.bytes : g_h5.matrix_b;
+	return g_h5.matrix_b;
 }
 
 #endif
@@ -406,13 +412,11 @@ static void h5_file_close(void)
 	if (g_h5.mode_mmap) {
 		file_matrix_close(&g_h5.mmap);
 	} else {
-		if (g_h5.matrix) {
+		if (g_h5.matrix)
 			free_aligned(g_h5.matrix);
-			g_h5.matrix = NULL;
-		}
-
-		g_h5.matrix_b = 0;
 	}
+	g_h5.matrix = NULL;
+	g_h5.matrix_b = 0;
 
 	if (g_h5.sequences_id > 0) {
 		H5Dclose(g_h5.sequences_id);
@@ -469,15 +473,15 @@ static void h5_store_checksum(void)
 
 static void h5_flush_matrix(void)
 {
-	herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT, H5S_ALL,
-				 H5S_ALL, H5P_DEFAULT, g_h5.matrix);
+	if (!g_h5.triangular) {
+		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT,
+					 H5S_ALL, H5S_ALL, H5P_DEFAULT,
+					 g_h5.matrix);
+		if (status < 0)
+			perr("Failed to write matrix data to HDF5");
+		return;
+	}
 
-	if (status < 0)
-		perr("Failed to write matrix data to HDF5");
-}
-
-static void h5_flush_mmap(void)
-{
 	const s32 mat_dim = (s32)g_h5.mat_dim;
 	const size_t available_mem = available_memory();
 	if (!available_mem) {
@@ -485,7 +489,7 @@ static void h5_flush_mmap(void)
 		return;
 	}
 
-	const size_t row_bytes = sizeof(*g_h5.mmap.matrix) * (size_t)mat_dim;
+	const size_t row_bytes = sizeof(*g_h5.matrix) * (size_t)mat_dim;
 	const s32 max_rows = (s32)(available_mem / (4 * row_bytes));
 	const s32 chunk_rows = h5_chunk_dimensions_calculate();
 	s32 chunk_size = chunk_rows > 4 ? chunk_rows : 4;
@@ -518,7 +522,7 @@ static void h5_flush_mmap(void)
 		return;
 	}
 
-	pinfo("Converting memory-mapped matrix to HDF5 format");
+	pinfo("Converting triangular matrix to HDF5 format");
 	ppercent(0, "Converting to HDF5");
 
 	for (s32 begin = 0; begin < mat_dim; begin += chunk_size) {
@@ -529,7 +533,7 @@ static void h5_flush_mmap(void)
 
 			for (s32 j = i + 1; j < mat_dim; j++) {
 				buffer[row + j] =
-					g_h5.mmap.matrix[matrix_index(i, j)];
+					g_h5.matrix[matrix_index(i, j)];
 			}
 
 			for (s32 j = 0; j < i; j++) {
@@ -540,8 +544,7 @@ static void h5_flush_mmap(void)
 						       i];
 				} else {
 					buffer[row + j] =
-						g_h5.mmap.matrix[matrix_index(
-							j, i)];
+						g_h5.matrix[matrix_index(j, i)];
 				}
 			}
 		}
