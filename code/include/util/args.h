@@ -459,6 +459,10 @@ extern struct args_raw {
 
 #include <errno.h>
 
+#ifndef ARG_ERR
+#define ARG_ERR "Invalid value"
+#endif
+
 /**
   * @brief Generates a parser function.
   * 
@@ -475,21 +479,16 @@ extern struct args_raw {
   * @param cond Boolean expression using 'val'. If true, the value is invalid.
   * @param err Error message if conversion fails.
   */
-#define ARG_PARSER(name, strto, ARG_BASE, strto_t, dest_t, CAST, cond, err)  \
-	static struct arg_callback parse_##name(const char *str, void *dest) \
-	{                                                                    \
-		errno = 0;                                                   \
-		char *endptr = NULL;                                         \
-		strto_t val = strto(str, &endptr ARG_BASE);                  \
-		if (endptr == str || *endptr != '\0' || errno == ERANGE ||   \
-		    (cond)) {                                                \
-			if (!err)                                            \
-				return ARG_INVALID("Invalid value");         \
-			else                                                 \
-				return ARG_INVALID(err);                     \
-		}                                                            \
-		*(dest_t *)dest = CAST val;                                  \
-		return ARG_VALID();                                          \
+#define ARG_PARSER(name, strto, ARG_BASE, strto_t, dest_t, CAST, cond, err)    \
+	static struct arg_callback parse_##name(const char *str, void *dest)   \
+	{                                                                      \
+		errno = 0;                                                     \
+		char *end = NULL;                                              \
+		strto_t val = strto(str, &end ARG_BASE);                       \
+		if (end == str || *end != '\0' || errno == ERANGE || (cond))   \
+			return ARG_INVALID((err) && *(err) ? (err) : ARG_ERR); \
+		*(dest_t *)dest = CAST val;                                    \
+		return ARG_VALID();                                            \
 	}
 
 /** @brief Convenience macro for 'strtol'. */
