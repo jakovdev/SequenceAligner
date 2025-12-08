@@ -1,6 +1,6 @@
 <div align="center">
   <h1>Sequence Aligner</h1>
-  <p><em>High performance all-vs-all pairwise sequence alignment tool</em></p>
+  <p><em>all-vs-all pairwise sequence alignment command-line tool</em></p>
   
   [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   ![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20Windows-lightgrey)
@@ -9,7 +9,13 @@
 
 ## Overview
 
-SequenceAligner is a highly optimized tool for performing rapid all-vs-all (all-against-all) pairwise sequence alignments on protein or DNA sequences. It leverages low level CPU optimizations like SIMD instructions (AVX/SSE), memory mapping, efficient cache utilization and optionally GPU acceleration through CUDA to achieve better performance.
+SequenceAligner is a command-line tool for performing all-vs-all (all-against-all) pairwise sequence alignments on protein or DNA sequences. It leverages low level CPU optimizations like SIMD instructions (AVX/SSE), memory mapping, efficient cache utilization and optionally GPU acceleration through CUDA.
+
+> [!NOTE]
+> This software is optimized for datasets with many short sequences in an all-vs-all alignment context. For single pairwise alignments or very long sequences, other tools like [Parasail](https://github.com/jeffdaily/parasail) may be more suitable.
+
+> [!WARNING]
+> This software is under active development. Although validated against libraries like Parasail, some edge cases may remain undocumented or untested. Use with caution. For questions or issues, contact me at [jakodrag345@gmail.com](mailto:jakodrag345@gmail.com)
 
 <details open>
 <summary><strong>Features</strong></summary>
@@ -260,18 +266,7 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 > For a large dataset like Drosophila, there was an issue during benchmark which lead to ~50% GPU utilization. After fixing it, the actual APS should be around 120-125M for NW, with times around 13-14 seconds.
 > The issue was related to the double buffer implementation which was erroneously blocking processing when copying results from the GPU, which halved the processing speed. This has been fixed in the latest code with asynchronous copying.
 > The table will be updated soon with new times soon(tm).
-
-### Performance Summary
-
-- **Sequence Length Impact**: Shorter sequences significantly improve throughput due to reduced computational complexity per alignment
-- **Algorithm Scaling**: Complex algorithms (Gotoh, Smith-Waterman) benefit more from both CPU threading and GPU acceleration
-- **CUDA Advantages**: GPU acceleration is most effective for affine gap penalty algorithms and datasets with moderate to long sequences in an all-vs-all context where "long" is 30+ average amino acids or nucleotides
-- **Optimal Performance**: Drosophila dataset achieves highest absolute throughput (~~80.82M~~ 124.9M alignments/sec) with CUDA Needleman-Wunsch due to optimal combination of short sequences and massive scale
-
-> [!NOTE]
-> - For very large datasets where the Similarity Matrix exceeds available RAM/VRAM, alignments are performed in batches and written to disk before HDF5 conversion
-> - CPU implementations remain valuable for systems without GPU acceleration or specific memory constraints
-> - For datasets with sequences longer that 1024 amino acids or nucleotides, try editing cuda_kernels.cu to increase the `MAX_CUDA_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
+> For datasets with sequences longer than 1024 amino acids or nucleotides, try editing [host_types.h](code/cuda/c_binding/host_types.h) to increase the `MAX_CUDA_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
 
 ## Implementation Details
 
@@ -304,8 +299,9 @@ All implementations use dynamic programming with optimized matrix operations.
 - Cache friendly memory access patterns and data structures
 - Memory prefetching
 - Low overhead OpenMP multithreading
-- Memory mapped input file reading and storage for large matrices
+- Memory mapped input file reading and similarity matrix storage for large matrices
 - Sequence memory pools for fast sequence storage
+- Triangular matrix computation to reduce redundant calculations
 </details>
 
 <details>
@@ -313,7 +309,7 @@ All implementations use dynamic programming with optimized matrix operations.
 
 - Device-specific tuning of thread and block dimensions
 - Efficient data transfer to and from GPU memory
-- Memory-mapped matrix storage for large datasets
+- Memory mapped similarity matrix storage for large datasets
 - Batched execution for datasets exceeding GPU memory
 - Triangular matrix computation to reduce redundant calculations
 </details>
@@ -325,7 +321,7 @@ All implementations use dynamic programming with optimized matrix operations.
 - **Sequences**:
   - For protein sequences: IUPAC amino acid single letter codes (ARNDCQEGHILKMFPSTWYVBZX*)
   - For nucleotide sequences: IUPAC nucleotide single letter codes (ATGCSWRYKMBVHDN*)
-  - At least 2 sequences
+  - At least 2 sequences, each with minimum length of 1 character
 - **CSV Specific Requirements**:
   - Must contain one column with biological sequence data (amino acids or nucleotides)
   - No specific header requirements - the program will scan and identify the sequence column
@@ -335,12 +331,13 @@ All implementations use dynamic programming with optimized matrix operations.
 - **File Type**: HDF5 (.h5) - a common scientific data format
 - **Content**:
   - Sequences used during alignment (original or filtered) and their lengths
-  - Contains a similarity matrix where each cell represents the alignment score between sequence pairs
-  - Also stores the original or filtered sequences and their lengths
+  - Similarity matrix where each cell represents the alignment score between sequence pairs
+  - Similarity matrix checksum for data integrity verification
 - **Size Considerations**:
   - The matrix grows with the square of the sequence count (1,000 sequences = 1 million cells = 4 MB)
     > Each score number (cell) is 4 bytes
   - For very large datasets, the program will automatically use disk-based storage when needed, so check if you have enough free disk storage if aligning a dataset with hundreds of thousands of sequences (100+ GB simlarity matrix!)
+  - Compression can be enabled with the `-z` option (0-9 levels) to reduce file size at the cost of processing time
 - **Viewing Results**:
   - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
   - Many programming languages have libraries to read HDF5 (Python: h5py, R: rhdf5)
