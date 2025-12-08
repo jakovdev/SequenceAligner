@@ -180,9 +180,9 @@ enum color {
 	COLOR_GREEN,
 	COLOR_YELLOW,
 	COLOR_BLUE,
-	COLOR_MAGENTA,
 	COLOR_CYAN,
 	COLOR_GRAY,
+	COLOR_BRIGHT_BLUE,
 	COLOR_BRIGHT_CYAN,
 	COLOR_TYPE_COUNT
 };
@@ -236,10 +236,10 @@ static struct {
         [T_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, true  },
         [T_ERROR]    = { COLOR_RED,         ICON_ERROR,   true  },
         [T_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    false },
-        [T_SECTION]  = { COLOR_BLUE,        ICON_NONE,    false },
+        [T_SECTION]  = { COLOR_CYAN,        ICON_NONE,    false },
         [T_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    true  },
         [T_PROMPT]   = { COLOR_BLUE,        ICON_INFO,    true  },
-        [T_PROGRESS] = { COLOR_BRIGHT_CYAN, ICON_ARROW,   false },
+        [T_PROGRESS] = { COLOR_BLUE,        ICON_ARROW,   false },
     },
 #define PCOL(t) p.map[(t)].color
 #define PCOLSIZ(t) (PCOL(t) <= COLOR_UNDER ? 4 : 5)
@@ -250,9 +250,9 @@ static struct {
         [COLOR_GREEN]       = "\x1b[32m",
         [COLOR_YELLOW]      = "\x1b[33m",
         [COLOR_BLUE]        = "\x1b[34m",
-        [COLOR_MAGENTA]     = "\x1b[35m",
         [COLOR_CYAN]        = "\x1b[36m",
         [COLOR_GRAY]        = "\x1b[90m",
+        [COLOR_BRIGHT_BLUE] = "\x1b[94m",
         [COLOR_BRIGHT_CYAN] = "\x1b[96m",
     },
 #define PICO(t) p.map[(t)].icon
@@ -401,6 +401,7 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 
 	enum p_location loc = LOC_FIRST;
 	enum p_type type = T_NONE;
+	bool simple = false;
 
 	if (!fmt) { /* Section end only */
 		type = T_SECTION;
@@ -450,7 +451,7 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 	}
 
 skip_fmt:
-	bool simple = nodetail || (quiet && p.map[type].required);
+	simple = nodetail || (quiet && p.map[type].required);
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
 	if (p_buflen > available) { /* Overflow, no box/icon/color then */
@@ -486,7 +487,7 @@ skip_fmt:
 			ouwbox(BOX_FANCY, BOX_HORIZONTAL);
 
 		ouwbox(BOX_FANCY, BOX_TOP_RIGHT);
-		ouwcol(COLOR_RESET);
+		ouwcol(T_NONE);
 		ouputc('\n');
 
 		const size_t l_pad = (p.width - 2 - p_buflen) / 2;
@@ -500,7 +501,7 @@ skip_fmt:
 		for (iwlrp = 0; iwlrp < r_pad; iwlrp++)
 			ouputc(' ');
 		ouwbox(BOX_FANCY, BOX_VERTICAL);
-		ouwcol(COLOR_RESET);
+		ouwcol(T_NONE);
 		ouputc('\n');
 
 		ouwcol(type);
@@ -509,7 +510,7 @@ skip_fmt:
 			ouwbox(BOX_FANCY, BOX_HORIZONTAL);
 
 		ouwbox(BOX_FANCY, BOX_BOTTOM_RIGHT);
-		ouwcol(COLOR_RESET);
+		ouwcol(T_NONE);
 		ouputc('\n');
 		in_section = false;
 	} else if (type == T_SECTION) {
@@ -523,7 +524,7 @@ skip_fmt:
 					ouwbox(BOX_NORMAL, BOX_HORIZONTAL);
 
 				ouwbox(BOX_NORMAL, BOX_BOTTOM_RIGHT);
-				ouwcol(COLOR_RESET);
+				ouwcol(T_NONE);
 			}
 
 			ouputc('\n');
@@ -559,7 +560,7 @@ skip_fmt:
 			ouputc(' ');
 			ouwrite(p.codes[COLOR_UNDER], PCOLSIZ(COLOR_UNDER));
 			ouwrite(p_buf, p_buflen);
-			ouwcol(COLOR_RESET);
+			ouwcol(T_NONE);
 			ouwcol(type);
 			ouputc(' ');
 		}
@@ -568,7 +569,7 @@ skip_fmt:
 			ouwbox(BOX_NORMAL, BOX_HORIZONTAL);
 
 		ouwbox(BOX_NORMAL, BOX_TOP_RIGHT);
-		ouwcol(COLOR_RESET);
+		ouwcol(T_NONE);
 		ouputc('\n');
 
 		in_section = true;
@@ -586,7 +587,7 @@ skip_fmt:
 		ouwcol(type);
 		ouputc(' ');
 
-		if (PICO(type) != ICON_NONE) {
+		if (PICO(type)) {
 			if (loc != LOC_FIRST)
 				ouwbox(BOX_NORMAL, loc);
 			else
@@ -601,7 +602,7 @@ skip_fmt:
 			ouputc(' ');
 		ouwcol(T_SECTION);
 		ouwbox(BOX_NORMAL, BOX_VERTICAL);
-		ouwcol(COLOR_RESET);
+		ouwcol(T_NONE);
 		ouputc('\n');
 		content_printed = true;
 	}
@@ -692,7 +693,10 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 	ouwcol(T_SECTION);
 	ouwbox(BOX_NORMAL, BOX_VERTICAL);
 	static bool repeat;
-	ouwcol((repeat || p_percent != 100) ? COLOR_CYAN : T_PROGRESS);
+	if (!repeat || p_percent == 100)
+		ouwcol(T_PROGRESS);
+	else
+		ouwrite(p.codes[COLOR_BRIGHT_BLUE], PCOLSIZ(COLOR_BRIGHT_BLUE));
 	repeat = !repeat;
 
 	ouputc(' ');
@@ -720,7 +724,7 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 
 	ouwcol(T_SECTION);
 	ouwbox(BOX_NORMAL, BOX_VERTICAL);
-	ouwcol(COLOR_RESET);
+	ouwcol(T_NONE);
 	if (p_percent == 100)
 		ouputc('\n');
 
@@ -826,7 +830,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 					(int)padding, "");
 				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_VERTICAL);
-				ouwcol(COLOR_RESET);
+				ouwcol(T_NONE);
 				ouputc('\n');
 			}
 		}
@@ -872,7 +876,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 					ouputc(' ');
 				ouwcol(T_SECTION);
 				ouwbox(BOX_NORMAL, BOX_VERTICAL);
-				ouwcol(COLOR_RESET);
+				ouwcol(T_NONE);
 			}
 
 			ouputc('\n');
@@ -923,7 +927,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 				ouputc(' ');
 			ouwcol(T_SECTION);
 			ouwbox(BOX_NORMAL, BOX_VERTICAL);
-			ouwcol(COLOR_RESET);
+			ouwcol(T_NONE);
 		}
 
 		ouputc('\n');
