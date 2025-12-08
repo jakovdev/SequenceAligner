@@ -153,6 +153,8 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 elseif(IS_GCC_LIKE)
 	target_compile_options(${target} PRIVATE
 	$<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL}>
+	$<$<COMPILE_LANGUAGE:C>:-fno-strict-overflow>
+	$<$<COMPILE_LANGUAGE:C>:-fwrapv> # ~1.4% better performance
 	$<$<COMPILE_LANGUAGE:C>:-pedantic-errors>
 	$<$<COMPILE_LANGUAGE:C>:-Wall>
 	$<$<COMPILE_LANGUAGE:C>:-Wcast-qual>
@@ -166,6 +168,7 @@ elseif(IS_GCC_LIKE)
 	$<$<COMPILE_LANGUAGE:C>:-Wmissing-declarations>
 	$<$<COMPILE_LANGUAGE:C>:-Wmissing-include-dirs>
 	$<$<COMPILE_LANGUAGE:C>:-Wshadow>
+	$<$<COMPILE_LANGUAGE:C>:-Wstrict-overflow=5>
 	$<$<COMPILE_LANGUAGE:C>:-Wstrict-prototypes>
 	$<$<COMPILE_LANGUAGE:C>:-Wswitch-default>
 	$<$<COMPILE_LANGUAGE:C>:-Wswitch-enum>
