@@ -7,6 +7,9 @@
 
 void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
+	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_matrix)
+		unreachable();
+
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
 	const s64 cols = len1 + 1;
@@ -27,6 +30,9 @@ void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 s32 linear_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
+	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_matrix || !g_seq1_i)
+		unreachable();
+
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
 	const s64 cols = len1 + 1;

@@ -95,7 +95,7 @@ __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b);
 #define prefetch_write(x) _mm_prefetch((const char *)(x), _MM_HINT_T1)
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #define __builtin_popcount(x) ((int)__popcnt(x))
 #define __builtin_popcountll(x) ((int)__popcnt64(x))

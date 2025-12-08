@@ -6,6 +6,6 @@
 
 bool arg_mode_filter(void);
 
-bool filter_seqs(sequence_t *seqs, s32 seq_n, bool *kept, s32 *seq_n_filter);
+bool filter_seqs(sequence_t *seqs, bool *kept, s32 seq_n, s32 *seq_n_filter);
 
 #endif /* BIO_SEQUENCE_FILTERING_H */

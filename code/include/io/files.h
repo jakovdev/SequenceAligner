@@ -64,7 +64,7 @@ bool file_sequence_next(struct FileText *file);
 size_t file_extract_entry(struct FileText *restrict file, char *restrict out);
 
 bool file_matrix_open(struct FileScoreMatrix *restrict file,
-		      const char *restrict path, size_t matrix_dim);
+		      const char *restrict path, size_t dim);
 void file_matrix_close(struct FileScoreMatrix *file);
 
 s64 matrix_index(s32 row, s32 col);

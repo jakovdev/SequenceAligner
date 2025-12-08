@@ -13,16 +13,20 @@
 #define CACHE_LINE ((size_t)64)
 
 #define sizeof_field(t, f) (sizeof(((t *)0)->f))
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define ALLOC_BYTES(ptr, n) (sizeof(*(ptr)) * (n))
+#define bytesof(ptr, nmemb) (sizeof(*(ptr)) * (nmemb))
 
-#define MALLOC(ptr, n) ptr = malloc(ALLOC_BYTES(ptr, n))
-#define MALLOC_CL(ptr, n) ptr = alloc_aligned(CACHE_LINE, ALLOC_BYTES(ptr, n))
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+#define MALLOC(ptr, bytes) ptr = malloc(bytes)
+#define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
+#define MALLOC_CL(ptr, bytes) ptr = alloc_aligned(CACHE_LINE, bytes)
+#define MALLOCA_CL(ptr, nmemb) MALLOC_CL(ptr, bytesof(ptr, nmemb))
 /* Can continue with else { ... } for failure case */
-#define REALLOC(ptr, n)                                          \
-	TYPEOF(ptr) _R##ptr = realloc(ptr, ALLOC_BYTES(ptr, n)); \
-	if (_R##ptr)                                             \
+#define REALLOC(ptr, bytes)                        \
+	typeof(ptr) _R##ptr = realloc(ptr, bytes); \
+	if likely (_R##ptr)                        \
 	ptr = _R##ptr
+#define REALLOCA(ptr, nmemb) REALLOC(ptr, bytesof(ptr, nmemb))
 
 /* Free with free_aligned() */
 ALLOC void *alloc_aligned(size_t alignment, size_t bytes);

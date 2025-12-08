@@ -40,14 +40,15 @@ bool progress_start(_Atomic(s64) *progress, s64 total, const char *message)
 
 	atomic_store(&p_running, false);
 p_thread_error:
-	perr("Failed to create progress monitor thread");
+	perr("Failed to create progress bar monitor thread");
 	return false;
 }
 
 void progress_end(void)
 {
 	if (!atomic_load(&p_running)) {
-		pwarn("No progress monitor is running");
+		pdev("Tried to end non-running progress monitor");
+		perr("Internal error during progress bar monitor thread cleanup");
 		return;
 	}
 

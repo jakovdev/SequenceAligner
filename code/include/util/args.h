@@ -533,7 +533,7 @@ void _args_register(struct argument *a);
 	};                   \
 	static f##_t_ f##_;  \
 	static void f(void)
-#elif defined(_MSC_VER)
+#elif defined(_MSC_VER) && !defined(__clang__)
 #pragma section(".CRT$XCU", read)
 #define _ARGS_CONSTRUCTOR2_(f, p)                                \
 	static void f(void);                                     \

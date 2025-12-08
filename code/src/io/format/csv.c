@@ -34,8 +34,8 @@ static char *csv_column_copy(const char *restrict file_start,
 {
 	ptrdiff_t delta = file_end - file_start;
 	size_t len = delta < 0 ? 0 : (size_t)delta;
-	char *MALLOC(name, len + 1);
-	if (name) {
+	char *MALLOCA(name, len + 1);
+	if likely (name) {
 		memcpy(name, file_start, len);
 		name[len] = '\0';
 	}
@@ -82,6 +82,13 @@ static void csv_column_sequence(char **headers, size_t num_cols,
 char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 		       bool *no_header, size_t *seq_col)
 {
+	if unlikely (!file_cursor || !file_end || file_cursor >= file_end ||
+		     !no_header || !seq_col) {
+		pdev("Invalid parameters for csv header parsing");
+		perr("Internal error during csv header processing, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
 	char *header_start = file_cursor;
 	*seq_col = SIZE_MAX;
 	*no_header = false;
@@ -90,17 +97,14 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 
 	num_columns = csv_column_count(header_start);
 	pverb("Found %zu column(s) in input file", num_columns);
-
 	if (!num_columns) {
-		perr_context("CSV");
-		perr("Invalid header (do you have an empty first line or file?)");
+		perr("Invalid csv header (do you have an empty first line or file?)");
 		exit(EXIT_FAILURE);
 	}
 
-	MALLOC(headers, num_columns);
-	if (!headers) {
-		perr_context("CSV");
-		perr("Memory allocation failed for column headers");
+	MALLOCA(headers, num_columns);
+	if unlikely (!headers) {
+		perr("Out of memory during csv header processing");
 		exit(EXIT_FAILURE);
 	}
 
@@ -127,9 +131,8 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 			} else if (*file_cursor == '\r') {
 				file_cursor++;
 				if (file_cursor < file_end &&
-				    *file_cursor == '\n') {
+				    *file_cursor == '\n')
 					file_cursor++;
-				}
 
 				break;
 			}
@@ -141,19 +144,14 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 	csv_column_sequence(headers, num_columns, seq_col);
 	if (*seq_col == SIZE_MAX) {
 		bench_io_end();
-		char **MALLOC(chs, num_columns + 2);
-		if (!chs) {
-			perr_context("CSV");
-			perr("Memory allocation failed for choices array");
-			if (headers) {
-				for (size_t i = 0; i < num_columns; i++) {
-					if (headers[i])
-						free(headers[i]);
-				}
-
-				free(headers);
+		char **MALLOCA(chs, num_columns + 2);
+		if unlikely (!chs) {
+			perr("Out of memory during csv header processing");
+			for (column = 0; column < num_columns; column++) {
+				if (headers[column])
+					free(headers[column]);
 			}
-
+			free(headers);
 			exit(EXIT_FAILURE);
 		}
 
@@ -188,27 +186,28 @@ char *csv_header_parse(char *restrict file_cursor, char *restrict file_end,
 		}
 	}
 
-	if (*seq_col < num_columns && headers && headers[*seq_col]) {
-		const char *sequence_column = headers[*seq_col];
+	if (*seq_col < num_columns && headers && headers[*seq_col])
 		pverb("Using column #%zu ('%s')", *seq_col + 1,
-		      sequence_column);
+		      headers[*seq_col]);
+
+	for (column = 0; column < num_columns; column++) {
+		if (headers[column])
+			free(headers[column]);
 	}
 
-	if (headers) {
-		for (column = 0; column < num_columns; column++) {
-			if (headers[column])
-				free(headers[column]);
-		}
-
-		free(headers);
-		headers = NULL;
-	}
-
+	free(headers);
+	headers = NULL;
 	return file_cursor;
 }
 
 bool csv_line_next(char *restrict *restrict p_cursor)
 {
+	if unlikely (!p_cursor || !*p_cursor) {
+		pdev("Invalid parameters for csv line iteration");
+		perr("Internal error during csv parsing, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
 	char *cursor = *p_cursor;
 
 	while (*cursor &&
@@ -232,6 +231,12 @@ bool csv_line_next(char *restrict *restrict p_cursor)
 
 size_t csv_total_lines(char *restrict file_cursor, char *restrict file_end)
 {
+	if unlikely (!file_cursor || !file_end || file_cursor >= file_end) {
+		pdev("Invalid file bounds for csv line counting");
+		perr("Internal error counting csv lines, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
 	size_t total_lines = 0;
 
 	while (file_cursor < file_end && *file_cursor) {
@@ -245,8 +250,9 @@ size_t csv_total_lines(char *restrict file_cursor, char *restrict file_end)
 size_t csv_line_column_extract(char *restrict *restrict p_cursor,
 			       char *restrict output, size_t target_column)
 {
-	if (!p_cursor || !output) {
-		perr("Invalid parameters for csv extraction");
+	if unlikely (!p_cursor || !output) {
+		pdev("Invalid parameters for csv column extraction");
+		perr("Internal error during csv extraction, possible file corruption");
 		exit(EXIT_FAILURE);
 	}
 
@@ -291,6 +297,12 @@ size_t csv_line_column_extract(char *restrict *restrict p_cursor,
 
 size_t csv_line_column_length(char *cursor, size_t target_column)
 {
+	if unlikely (!cursor) {
+		pdev("Invalid parameters for csv column length calculation");
+		perr("Internal error during csv length calculation, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
 	size_t column = 0;
 	size_t column_length = 0;
 
@@ -326,9 +338,10 @@ size_t csv_line_column_length(char *cursor, size_t target_column)
 bool csv_validate(const char *restrict file_start,
 		  const char *restrict file_end)
 {
-	if (!file_start || !file_end || file_start >= file_end) {
-		perr("Invalid file bounds for validation");
-		return false;
+	if unlikely (!file_start || !file_end || file_start >= file_end) {
+		pdev("Invalid file bounds for csv validation");
+		perr("Internal error validating csv, possible file corruption");
+		exit(EXIT_FAILURE);
 	}
 
 	const char *cursor = file_start;

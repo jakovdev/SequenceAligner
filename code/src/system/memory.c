@@ -12,7 +12,7 @@
 
 void *alloc_aligned(size_t alignment, size_t bytes)
 {
-	if (alignment < sizeof(void *) || (alignment & (alignment - 1)) != 0)
+	if unlikely (alignment < sizeof(void *) || alignment & (alignment - 1))
 		return NULL;
 
 	void *ptr = NULL;
@@ -22,17 +22,15 @@ void *alloc_aligned(size_t alignment, size_t bytes)
 
 	ptr = aligned_alloc(alignment, bytes);
 #else
-	if (posix_memalign(&ptr, alignment, bytes) != 0)
+	if unlikely (posix_memalign(&ptr, alignment, bytes) != 0)
 		ptr = NULL;
 #endif
-
 	return ptr;
 }
 
 size_t available_memory(void)
 {
 	size_t available_mem = 0;
-
 #ifdef _WIN32
 	MEMORYSTATUSEX status;
 	status.dwLength = sizeof(status);
@@ -40,7 +38,7 @@ size_t available_memory(void)
 	available_mem = status.ullAvailPhys;
 #else
 	FILE *fp = fopen("/proc/meminfo", "r");
-	if (!fp)
+	if unlikely (!fp)
 		goto file_error;
 
 	char line[256];
@@ -54,18 +52,13 @@ size_t available_memory(void)
 			}
 		}
 	}
-
 	fclose(fp);
-
 file_error:
 	if (!available_mem) {
 		struct sysinfo info;
-		if (sysinfo(&info) == 0) {
+		if (sysinfo(&info) == 0)
 			available_mem = info.freeram * info.mem_unit;
-		}
 	}
-
 #endif
-
 	return available_mem;
 }

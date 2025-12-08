@@ -129,13 +129,10 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 	$<$<COMPILE_LANGUAGE:C>:/WX>
 	$<$<COMPILE_LANGUAGE:C>:/Wall>
 	$<$<COMPILE_LANGUAGE:C>:/analyze>
-	$<$<COMPILE_LANGUAGE:C>:/wd4574> # #ifdef 0
-	$<$<COMPILE_LANGUAGE:C>:/wd4710> # inline expansion info
-	$<$<COMPILE_LANGUAGE:C>:/wd4711> # inline expansion info
+	$<$<COMPILE_LANGUAGE:C>:/wd4710> # not inlined info
+	$<$<COMPILE_LANGUAGE:C>:/wd4711> # automatic inline info
 	$<$<COMPILE_LANGUAGE:C>:/wd4820> # struct padding
 	$<$<COMPILE_LANGUAGE:C>:/wd5045> # spectre mitigation
-	$<$<COMPILE_LANGUAGE:C>:/wd5262> # implicit [[fallthrough]]
-	$<$<COMPILE_LANGUAGE:C>:/wd6255> # _alloca warning
 	$<$<COMPILE_LANGUAGE:C>:/wd6993> # analyzer ignores openmp
 	$<$<COMPILE_LANGUAGE:C>:/wd28301> # no annotations for first declaration (in Windows 10 SDK)
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox>
@@ -238,11 +235,11 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Wall>
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/analyze>
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4514> # unreferenced inline function
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4668> # #if undefined
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4710> # inline expansion info
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4711> # inline expansion info
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4668> # #if {undefined}
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4710> # not inlined info
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4711> # automatic inline info
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4820> # struct padding
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5039> # atexit exception
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5039> # potential throwing funcction in extern "C"
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5045> # spectre mitigation
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Od>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/MDd>

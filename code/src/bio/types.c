@@ -45,7 +45,7 @@ static struct {
 	/* NOTE: EXPANDABLE enum AlignmentMethod, enum GapPenaltyType */
 };
 
-align_func_t align_function(enum AlignmentMethod method)
+align_func_t align_method(enum AlignmentMethod method)
 {
 	switch (method) {
 	case ALIGN_GOTOH_AFFINE:
@@ -57,7 +57,9 @@ align_func_t align_function(enum AlignmentMethod method)
 	case ALIGN_INVALID:
 	case ALIGN_COUNT:
 	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
-		UNREACHABLE();
+		pdev("Invalid AlignmentMethod enum");
+		perr("Internal error retrieving alignment method");
+		exit(EXIT_FAILURE);
 	}
 }
 
@@ -145,7 +147,7 @@ static struct arg_callback parse_matrix(const char *str, void *dest)
 	case SEQ_TYPE_INVALID:
 	case SEQ_TYPE_COUNT:
 	default: /* NOTE: EXPANDABLE enum SequenceType */
-		UNREACHABLE();
+		unreachable();
 	}
 
 	if (id < 0)
@@ -239,7 +241,7 @@ static void setup_matrix(void)
 	case SEQ_TYPE_INVALID:
 	case SEQ_TYPE_COUNT:
 	default: /* NOTE: EXPANDABLE enum SequenceType */
-		UNREACHABLE();
+		unreachable();
 	}
 #undef SEQ_TYPE_INIT
 	pinfom("Matrix: %s", name);
@@ -256,6 +258,8 @@ static void print_config_gaps(void)
 		pinfom("Gap penalty: " Ps32, gap_pen);
 	else if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_AFFINE)
 		pinfom("Gap open: " Ps32 ", extend: " Ps32, gap_open, gap_ext);
+	else /* NOTE: EXPANDABLE enum GapPenaltyType */
+		unreachable();
 }
 
 static char seq_type_help[512];
@@ -269,7 +273,7 @@ static const char *gap_type_name(enum AlignmentMethod method)
 	case GAP_TYPE_AFFINE:
 		return "Affine";
 	default: /* NOTE: EXPANDABLE enum GapPenaltyType */
-		UNREACHABLE();
+		unreachable();
 	}
 }
 

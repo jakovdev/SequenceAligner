@@ -218,14 +218,12 @@ static struct {
 	FILE *out;
 	FILE *err;
 	size_t width;
-	size_t err_len;
 	const struct {
 		enum color color;
 		enum icon icon;
 		bool required;
 	} map[T_TYPES];
 	const char boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT][sizeof("╔")];
-	char err_ctx[TERMINAL_WIDTH];
 	const char progress_filled_char[sizeof("■")];
 	const char progress_empty_char[sizeof("·")];
 	const char ansi_escape_start[sizeof("\x1b")];
@@ -286,30 +284,6 @@ static bool nodetail;
 static bool in_section;
 static bool content_printed;
 static bool is_init;
-
-void perr_context(const char *context)
-{
-	if (!context) {
-		p.err_ctx[0] = '\0';
-		p.err_len = 0;
-		return;
-	}
-
-	int len = snprintf(p.err_ctx, sizeof(p.err_ctx), "%s | ", context);
-	if (len < 0) {
-		p.err_ctx[0] = '\0';
-		p.err_len = 0;
-		pdev("Failed to format error context");
-		return;
-	}
-
-	p.err_len = (size_t)len;
-	if (p.err_len >= sizeof(p.err_ctx)) {
-		p.err_len = sizeof(p.err_ctx) - 1;
-		p.err_ctx[sizeof(p.err_ctx) - 1] = '\0';
-		pdev("Truncating error context from overflow");
-	}
-}
 
 void print_streams(FILE *in, FILE *out, FILE *err)
 {
@@ -470,7 +444,7 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 		va_end(v_args);
 
 		if (p_bufsiz < 0) {
-			pdev("Failed to format string");
+			pdev("Failed to format print string");
 			return PRINT_INVALID_FORMAT_ARGS__ERROR;
 		}
 	}
@@ -480,7 +454,7 @@ skip_fmt:
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
 	if (p_buflen > available) { /* Overflow, no box/icon/color then */
-		pdev("Message too long, doing a simple print");
+		pdev("Print string too long, doing a simple print");
 		simple = true;
 	}
 
@@ -601,8 +575,6 @@ skip_fmt:
 		content_printed = false;
 	} else {
 		if (simple) {
-			if (type == T_ERROR && p.err_ctx[0])
-				ouwrite(p.err_ctx, p.err_len);
 			ouwrite(p_buf, p_buflen);
 			ouputc('\n');
 			content_printed = true;
@@ -623,12 +595,8 @@ skip_fmt:
 			ouputc(' ');
 		}
 
-		size_t padding = available - p_buflen;
-		if (type == T_ERROR && p.err_ctx[0]) {
-			ouwrite(p.err_ctx, p.err_len);
-			padding -= p.err_len;
-		}
 		ouwrite(p_buf, p_buflen);
+		size_t padding = available - p_buflen;
 		while (padding--)
 			ouputc(' ');
 		ouwcol(T_SECTION);
@@ -676,7 +644,7 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 		va_end(v_args);
 
 		if (p_bufsiz < 0) {
-			pdev("Failed to format string");
+			pdev("Failed to format progress bar string");
 			return PRINT_INVALID_FORMAT_ARGS__ERROR;
 		}
 	}
@@ -685,7 +653,7 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 	const size_t available = p.width - 3 - (!PICO(T_PROGRESS) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
 	if (p_buflen > available) {
-		pdev("Progress bar message too long, doing a simple print");
+		pdev("Progress bar string too long, doing a simple print");
 		simple = true;
 	}
 
@@ -809,7 +777,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 		va_end(v_args);
 
 		if (p_bufsiz < 0) {
-			pdev("Failed to format string");
+			pdev("Failed to format input string");
 			return PRINT_INVALID_FORMAT_ARGS__ERROR;
 		}
 	}
@@ -818,7 +786,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = (size_t)p_bufsiz;
 	if (p_buflen > available) {
-		pdev("Input prompt too long, doing a simple print");
+		pdev("Input string too long, doing a simple print");
 		simple = true;
 	}
 
@@ -926,7 +894,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 		const size_t rsz = size;
 		if (rsz < 2) {
 			funlockfile(out);
-			pdev("Input buffer size is too small");
+			pdev("Output buffer size is too small");
 			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}
 

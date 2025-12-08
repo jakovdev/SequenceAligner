@@ -79,11 +79,11 @@ template <typename T> bool vecalloc(std::vector<T> &v, const size_t n) noexcept
 }
 
 bool Cuda::uploadSeqs(const sequence_t *seqs, s32 seq_n, s32 seq_len_max,
-			   s64 seq_len_sum) noexcept
+		      s64 seq_len_sum) noexcept
 {
-	if (!s.init || !seqs || seq_len_sum < 2 || seq_n < SEQUENCE_COUNT_MIN ||
-	    seq_len_max < 1) {
-		hostError("Invalid parameters for sequence upload");
+	if (!s.init || !seqs || seq_len_sum < SEQ_LEN_SUM_MIN ||
+	    seq_n < SEQ_N_MIN || seq_len_max < SEQ_LEN_MIN) {
+		internalError("Invalid context or parameters for sequences");
 		return false;
 	}
 
@@ -97,9 +97,11 @@ bool Cuda::uploadSeqs(const sequence_t *seqs, s32 seq_n, s32 seq_len_max,
 	std::vector<s32> lengths_f;
 	std::vector<char> letters_f;
 
-	if (!vecalloc(indices_f, seq_n) || !vecalloc(offsets_f, seq_n) ||
-	    !vecalloc(lengths_f, seq_n) || !vecalloc(letters_f, seq_len_sum)) {
-		hostError("Memory allocation failed for sequence upload");
+	if (!vecalloc(indices_f, static_cast<size_t>(seq_n)) ||
+	    !vecalloc(offsets_f, static_cast<size_t>(seq_n)) ||
+	    !vecalloc(lengths_f, static_cast<size_t>(seq_n)) ||
+	    !vecalloc(letters_f, static_cast<size_t>(seq_len_sum))) {
+		hostError("Out of memory during sequence upload");
 		return false;
 	}
 
@@ -111,13 +113,14 @@ bool Cuda::uploadSeqs(const sequence_t *seqs, s32 seq_n, s32 seq_len_max,
 	s64 offs = 0;
 	for (s32 i = 0; i < seq_n; i++) {
 		if (seqs[i].length <= 0) {
-			hostError("Invalid sequence length encountered");
+			internalError("Invalid sequence length encountered");
 			return false;
 		}
 		indices_p[i] = (static_cast<s64>(i) * (i - 1)) / 2;
 		offsets_p[i] = offs;
 		lengths_p[i] = seqs[i].length;
-		std::memcpy(letters_p + offs, seqs[i].letters, seqs[i].length);
+		std::memcpy(letters_p + offs, seqs[i].letters,
+			    static_cast<size_t>(seqs[i].length));
 		offs += seqs[i].length;
 	}
 
@@ -142,8 +145,8 @@ bool Cuda::uploadSeqs(const sequence_t *seqs, s32 seq_n, s32 seq_len_max,
 bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 			 const s32 seq_lup[SEQ_LUPSIZ]) noexcept
 {
-	if (!s.init) {
-		hostError("CUDA not initialized");
+	if (!s.init || !sub_mat || !seq_lup) {
+		internalError("Invalid context or parameters for scoring");
 		return false;
 	}
 
@@ -156,8 +159,9 @@ bool Cuda::uploadScoring(const s32 sub_mat[SUB_MATDIM][SUB_MATDIM],
 
 bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend) noexcept
 {
-	if (!s.init) {
-		hostError("CUDA not initialized");
+	if (!s.init || (linear && (open || extend)) ||
+	    (!linear && (!open || !extend))) {
+		internalError("Invalid context or conflicting gaps");
 		return false;
 	}
 
@@ -172,7 +176,7 @@ bool Cuda::uploadGaps(s32 linear, s32 open, s32 extend) noexcept
 bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 {
 	if (!s.init || !s.seqs) {
-		hostError("Invalid context or sequences not uploaded");
+		internalError("Invalid context or sequences not uploaded");
 		return false;
 	}
 
@@ -192,7 +196,7 @@ bool Cuda::uploadStorage(s32 *scores, size_t scores_bytes) noexcept
 	const size_t expected_size = h.alignments * sizeof(*h.scores);
 
 	if (scores && scores_bytes < expected_size) {
-		hostError("Buffer size is too small for results");
+		internalError("Buffer size is too small for results");
 		return false;
 	}
 
@@ -267,7 +271,7 @@ bool Cuda::memoryCheck(size_t bytes) noexcept
 		return false;
 
 	if (free < bytes * 4 / 3) {
-		hostError("Not enough memory for results");
+		hostError("Not enough device memory");
 		return false;
 	}
 

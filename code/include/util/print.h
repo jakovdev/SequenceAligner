@@ -48,11 +48,6 @@
  * pwarn("Warning text");
  **│ ! Warning text                                                               │
  *
- * perr_context("FILES");
- * perr("File not found");
- **│ ✗ FILES | File not found                                                     │
- *
- * perr_context(NULL);
  * perr("File not found");
  **│ ✗ File not found                                                             │
  *
@@ -67,9 +62,8 @@
  **│ • Do you want to continue? [y/N]: y                                          │
  **answer will be true (yes) or false (no)
  *
- * perr_context("PARSER");
  * pdev("Error %d", value);
- **│ ✗ PARSER | _TO_DEV_: Error 42                                                │
+ **│ ✗ _TO_DEV_: Error 42                                                         │
  **Is perr() only in Debug builds (NDEBUG not defined), adds "_TO_DEV_ :" to string
  *
  **Close section (automatic on new section/header or non-abort exit)
@@ -85,21 +79,16 @@
  */
 
 #ifdef __cplusplus
-#if defined(__GNUC__) || defined(__clang__)
-#define P_RESTRICT __restrict__
-#elif defined(_MSC_VER)
+#if defined(_MSC_VER) && !defined(__clang__)
 #define P_RESTRICT __restrict
-#else
-#define P_RESTRICT
-#endif
-
-#else
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#else /* G++, Clang++ */
+#define P_RESTRICT __restrict__
+#endif /* MSVC C++ */
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #define P_RESTRICT restrict
 #else
 /* While restrict is optional, snprintf and vsnprintf are required */
-#error "Compiler does not support C99 or later. Please use a compatible compiler."
-#endif
+#error "Please compile with C99 or later standard"
 #endif
 
 #include <stddef.h>
@@ -174,7 +163,6 @@ bool print_yn(const char *P_RESTRICT prompt);
 #define pverbm(...) pverbosem(__VA_ARGS__)
 #define pverbl(...) pverbosel(__VA_ARGS__)
 
-void perr_context(const char *prefix);
 #define perr(...) print(P_ERROR __VA_ARGS__)
 #define perrm(...) print(P_ERROR P_MIDDLE __VA_ARGS__)
 #define perrl(...) print(P_ERROR P_LAST __VA_ARGS__)

@@ -2,6 +2,7 @@
 
 #include <stdlib.h>
 
+#include "system/compiler.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -42,9 +43,10 @@ static char *fasta_skip_line(char *cursor, char *file_end)
 
 bool fasta_validate(char *restrict file_start, char *restrict file_end)
 {
-	if (!file_start || !file_end || file_start >= file_end) {
-		perr("Invalid file bounds for validation");
-		return false;
+	if unlikely (!file_start || !file_end || file_start >= file_end) {
+		pdev("Invalid file bounds for fasta validation");
+		perr("Internal error validating fasta, possible file corruption");
+		exit(EXIT_FAILURE);
 	}
 
 	char *cursor = file_start;
@@ -112,7 +114,7 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 		}
 	}
 
-	if (seq_n == 0) {
+	if (!seq_n) {
 		perr("No sequences found in input file");
 		return false;
 	}
@@ -127,6 +129,12 @@ bool fasta_validate(char *restrict file_start, char *restrict file_end)
 
 size_t fasta_total_entries(char *restrict file_cursor, char *restrict file_end)
 {
+	if unlikely (!file_cursor || !file_end || file_cursor >= file_end) {
+		pdev("Invalid file bounds for fasta entry counting");
+		perr("Internal error counting fasta entries, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
 	size_t count = 0;
 	char *cursor = file_cursor;
 
@@ -149,6 +157,12 @@ size_t fasta_total_entries(char *restrict file_cursor, char *restrict file_end)
 
 bool fasta_entry_next(char *restrict *restrict p_cursor)
 {
+	if unlikely (!p_cursor || !*p_cursor) {
+		pdev("Invalid parameters for fasta entry iteration");
+		perr("Internal error during fasta parsing, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
 	char *cursor = *p_cursor;
 	while (*cursor) {
 		if (*cursor == '>') {
@@ -165,7 +179,13 @@ bool fasta_entry_next(char *restrict *restrict p_cursor)
 
 size_t fasta_entry_length(char *cursor, char *file_end)
 {
-	if (!cursor || !file_end || cursor >= file_end || *cursor != '>')
+	if unlikely (!cursor || !file_end || cursor >= file_end) {
+		pdev("Invalid file bounds for fasta entry length calculation");
+		perr("Internal error during fasta length calculation, possible file corruption");
+		exit(EXIT_FAILURE);
+	}
+
+	if (*cursor != '>')
 		return 0;
 
 	cursor = fasta_skip_line(cursor, file_end);
@@ -196,8 +216,9 @@ size_t fasta_entry_length(char *cursor, char *file_end)
 size_t fasta_entry_extract(char *restrict *restrict p_cursor,
 			   char *restrict file_end, char *restrict output)
 {
-	if (!p_cursor || !output) {
-		perr("Invalid parameters for fasta extraction");
+	if unlikely (!p_cursor || !output) {
+		pdev("Invalid parameters for fasta extraction");
+		perr("Internal error during fasta extraction, possible file corruption");
 		exit(EXIT_FAILURE);
 	}
 

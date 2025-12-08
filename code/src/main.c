@@ -24,10 +24,8 @@ int main(int argc, char *argv[])
 	if (!sequences_load_from_file())
 		return 1;
 
-	if (!h5_open(arg_output(), sequences_seqs(), sequences_seq_n())) {
-		h5_close(1);
+	if (!h5_open(arg_output(), sequences_seqs(), sequences_seq_n()))
 		return 1;
-	}
 
 	psection("Performing Alignments");
 	if (!(arg_mode_cuda() ? cuda_align() : align())) {

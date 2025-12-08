@@ -1,5 +1,6 @@
 #include "system/os.h"
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,6 +48,8 @@ double time_current(void)
 
 const char *file_name_path(const char *path)
 {
+	if unlikely (!path || !path[0])
+		return NULL;
 #ifdef _WIN32
 	const char *name = strrchr(path, '\\');
 #else
@@ -57,9 +60,8 @@ const char *file_name_path(const char *path)
 
 bool path_special_exists(const char *path)
 {
-	if (!path || path[0] == '\0')
+	if unlikely (!path || !path[0])
 		return false;
-
 #ifdef _WIN32
 	DWORD attr = GetFileAttributesA(path);
 	if (attr == INVALID_FILE_ATTRIBUTES)
@@ -79,9 +81,8 @@ bool path_special_exists(const char *path)
 
 bool path_file_exists(const char *path)
 {
-	if (!path || path[0] == '\0')
+	if unlikely (!path || !path[0])
 		return false;
-
 #ifdef _WIN32
 	DWORD attr = GetFileAttributesA(path);
 	if (attr == INVALID_FILE_ATTRIBUTES)
@@ -99,6 +100,9 @@ bool path_file_exists(const char *path)
 
 static const char *_find_last_sep(const char *path)
 {
+	if (!path || !path[0])
+		unreachable();
+
 	const char *last1 = strrchr(path, '/');
 #ifdef _WIN32
 	const char *last2 = strrchr(path, '\\');
@@ -116,8 +120,8 @@ static const char *_find_last_sep(const char *path)
 
 bool path_directories_create(const char *path)
 {
-	if (!path || path[0] == '\0')
-		return true;
+	if unlikely (!path || !path[0])
+		return false;
 
 	const char *last_sep = _find_last_sep(path);
 	if (!last_sep)
@@ -127,8 +131,8 @@ bool path_directories_create(const char *path)
 	if (dir_len == 0)
 		return true;
 
-	char *MALLOC(dirbuf, dir_len + 1);
-	if (!dirbuf)
+	char *MALLOCA(dirbuf, dir_len + 1);
+	if unlikely (!dirbuf)
 		return false;
 
 	memcpy(dirbuf, path, dir_len);
@@ -139,26 +143,23 @@ bool path_directories_create(const char *path)
 		p++;
 
 	for (; *p; ++p) {
-		if (*p == '/' || *p == '\\') {
-			char saved = *p;
-			*p = '\0';
+		if (*p != '/' && *p != '\\')
+			continue;
 
-			if (mkdir(dirbuf, 0755) != 0) {
-				if (errno != EEXIST) {
-					free(dirbuf);
-					return false;
-				}
-			}
+		char saved = *p;
+		*p = '\0';
 
-			*p = saved;
-		}
-	}
-
-	if (mkdir(dirbuf, 0755) != 0) {
-		if (errno != EEXIST) {
+		if (mkdir(dirbuf, 0755) != 0 && errno != EEXIST) {
 			free(dirbuf);
 			return false;
 		}
+
+		*p = saved;
+	}
+
+	if (mkdir(dirbuf, 0755) != 0 && errno != EEXIST) {
+		free(dirbuf);
+		return false;
 	}
 
 	free(dirbuf);

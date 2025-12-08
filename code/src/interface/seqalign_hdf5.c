@@ -50,29 +50,29 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 	g_h5.sequences_id = H5I_INVALID_HID;
 	g_h5.lengths_id = H5I_INVALID_HID;
 	g_h5.mode_write = arg_mode_write();
-	g_h5.dim = seq_n;
 
 	if (!g_h5.mode_write) {
 		g_h5.is_init = true;
 		return true;
 	}
 
-	perr_context("HDF5");
-
-	if (g_h5.dim < SEQUENCE_COUNT_MIN) {
-		perr("Matrix size is too small");
-		return false;
+	if unlikely (seq_n < SEQ_N_MIN) {
+		pdev("seq_n too small in h5_open()");
+		perr("Internal error initializing HDF5 storage");
+		exit(EXIT_FAILURE);
 	}
 
-	if (!file_path || !file_path[0]) {
-		perr("No output file path specified");
-		return false;
+	if unlikely (!file_path || !file_path[0]) {
+		pdev("NULL file_path in h5_open()");
+		perr("Internal error initializing HDF5 storage");
+		exit(EXIT_FAILURE);
 	}
 
+	g_h5.dim = seq_n;
+	const size_t dim_size = (size_t)g_h5.dim;
 	bench_io_start();
 
-	size_t mat_size = (size_t)(g_h5.dim * g_h5.dim);
-	size_t bytes = sizeof(*g_h5.matrix) * mat_size;
+	size_t bytes = bytesof(g_h5.matrix, dim_size * dim_size);
 
 #ifdef USE_CUDA
 	bool device_limited = arg_mode_cuda() && cuda_triangular(bytes);
@@ -82,8 +82,7 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 	const size_t safe = available_memory() * 3 / 4;
 	if (device_limited || bytes > safe) {
-		mat_size = (size_t)(g_h5.dim * (g_h5.dim - 1) / 2);
-		bytes = sizeof(*g_h5.matrix) * mat_size;
+		bytes = bytesof(g_h5.matrix, dim_size * (dim_size - 1) / 2);
 		g_h5.mode_mmap = bytes > safe;
 		g_h5.triangular = true;
 		pverb("Using triangular matrix storage");
@@ -93,43 +92,40 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 		char name[MAX_PATH];
 		file_matrix_name(name, sizeof(name), file_path);
 		pinfo("Matrix size exceeds memory limits");
-		if (!file_matrix_open(&g_h5.mmap, name, (size_t)g_h5.dim))
+		if (!file_matrix_open(&g_h5.mmap, name, dim_size))
 			return false;
 		g_h5.matrix = g_h5.mmap.matrix;
 		g_h5.matrix_b = g_h5.mmap.meta.bytes;
 	} else {
-		MALLOC_CL(g_h5.matrix, mat_size);
-		if (!g_h5.matrix)
+		MALLOC_CL(g_h5.matrix, bytes);
+		if unlikely (!g_h5.matrix) {
+			perr("Out of memory allocating similarity matrix");
 			return false;
+		}
 		memset(g_h5.matrix, 0, bytes);
 		g_h5.matrix_b = bytes;
 	}
-
 	pverb("HDF5 matrix size: " Ps64 " x " Ps64, g_h5.dim, g_h5.dim);
 
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
-
 	g_h5.file_id = H5Fcreate(file_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
 	H5Pclose(fapl);
-
-	if (g_h5.file_id < 0) {
+	if unlikely (g_h5.file_id < 0) {
 		perr("Failed to create HDF5 file: %s", file_path);
 		h5_file_close();
 		return false;
 	}
 
-	hsize_t matrix_dims[2] = { (hsize_t)g_h5.dim, (hsize_t)g_h5.dim };
+	hsize_t matrix_dims[2] = { dim_size, dim_size };
 	hid_t matrix_space = H5Screate_simple(2, matrix_dims, NULL);
-
-	if (matrix_space < 0) {
-		perr("Failed to create matrix dataspace");
+	if unlikely (matrix_space < 0) {
+		perr("Failed to create HDF5 dataspace for similarity matrix");
 		h5_file_close();
 		return false;
 	}
 
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-
 	if (g_h5.dim > H5_MIN_CHUNK_SIZE) {
 		s32 chunk_dim = h5_chunk_dimensions_calculate();
 		hsize_t chunk_dims[2] = { (hsize_t)chunk_dim,
@@ -141,16 +137,13 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 		if (g_h5.compression > 0)
 			H5Pset_deflate(plist_id, g_h5.compression);
 	}
-
 	g_h5.matrix_id = H5Dcreate2(g_h5.file_id, "/similarity_matrix",
 				    H5T_STD_I32LE, matrix_space, H5P_DEFAULT,
 				    plist_id, H5P_DEFAULT);
-
 	H5Sclose(matrix_space);
 	H5Pclose(plist_id);
-
-	if (g_h5.matrix_id < 0) {
-		perr("Failed to create similarity matrix dataset");
+	if unlikely (g_h5.matrix_id < 0) {
+		perr("Failed to create HDF5 dataset for similarity matrix");
 		h5_file_close();
 		return false;
 	}
@@ -159,20 +152,17 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 	hid_t seq_group = H5Gcreate2(g_h5.file_id, "/sequences", H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
-
-	if (seq_group < 0) {
-		perr("Failed to create sequences group");
+	if unlikely (seq_group < 0) {
+		perr("Failed to create HDF5 group for sequences");
 		h5_file_close();
 		return false;
 	}
-
 	H5Gclose(seq_group);
 
-	hsize_t seq_dims[1] = { (hsize_t)g_h5.dim };
+	hsize_t seq_dims[1] = { dim_size };
 	hid_t lengths_space = H5Screate_simple(1, seq_dims, NULL);
-
-	if (lengths_space < 0) {
-		perr("Failed to create sequence lengths dataspace");
+	if unlikely (lengths_space < 0) {
+		perr("Failed to create HDF5 dataspace for sequence lengths");
 		h5_file_close();
 		return false;
 	}
@@ -180,18 +170,16 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 	g_h5.lengths_id = H5Dcreate2(g_h5.file_id, "/sequences/lengths",
 				     H5T_STD_I32LE, lengths_space, H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
-
 	H5Sclose(lengths_space);
-
-	if (g_h5.lengths_id < 0) {
-		perr("Failed to create sequence lengths dataset");
+	if unlikely (g_h5.lengths_id < 0) {
+		perr("Failed to create HDF5 dataset for sequence lengths");
 		h5_file_close();
 		return false;
 	}
 
-	s32 *MALLOC(lengths, (size_t)seq_n);
-	if (!lengths) {
-		perr("Failed to allocate memory for sequence lengths");
+	s32 *MALLOCA(lengths, (size_t)seq_n);
+	if unlikely (!lengths) {
+		perr("Out of memory allocating sequence lengths for HDF5 storage");
 		h5_file_close();
 		return false;
 	}
@@ -201,21 +189,18 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_INT, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, lengths);
-
 	free(lengths);
-
-	if (status < 0) {
-		perr("Failed to write sequence lengths");
+	if unlikely (status < 0) {
+		perr("Failed to write sequence lengths to HDF5 dataset");
 		h5_file_close();
 		return false;
 	}
 
 	hid_t string_type = H5Tcopy(H5T_C_S1);
 	H5Tset_size(string_type, H5T_VARIABLE);
-
 	hid_t seq_space = H5Screate_simple(1, seq_dims, NULL);
-	if (seq_space < 0) {
-		perr("Failed to create sequences dataspace");
+	if unlikely (seq_space < 0) {
+		perr("Failed to create HDF5 dataspace for sequences");
 		H5Tclose(string_type);
 		h5_file_close();
 		return false;
@@ -224,9 +209,8 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 	g_h5.sequences_id = H5Dcreate2(g_h5.file_id, "/sequences/dataset",
 				       string_type, seq_space, H5P_DEFAULT,
 				       H5P_DEFAULT, H5P_DEFAULT);
-
-	if (g_h5.sequences_id < 0) {
-		perr("Failed to create sequences dataset");
+	if unlikely (g_h5.sequences_id < 0) {
+		perr("Failed to create HDF5 dataset for sequences");
 		H5Sclose(seq_space);
 		H5Tclose(string_type);
 		h5_file_close();
@@ -241,9 +225,9 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 		s32 batch_end = min(batch_start + batch_size, seq_n);
 		s32 current_batch = batch_end - batch_start;
 
-		char **MALLOC(seq_data, (size_t)current_batch);
-		if (!seq_data) {
-			perr("Failed to allocate memory for sequence batch");
+		char **MALLOCA(seq_data, (size_t)current_batch);
+		if unlikely (!seq_data) {
+			perr("Out of memory allocating HDF5 sequence batch data");
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
 			h5_file_close();
@@ -255,9 +239,8 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 		hsize_t batch_dims[1] = { (hsize_t)current_batch };
 		hid_t batch_mem_space = H5Screate_simple(1, batch_dims, NULL);
-
-		if (batch_mem_space < 0) {
-			perr("Failed to create memory dataspace for sequence batch");
+		if unlikely (batch_mem_space < 0) {
+			perr("Failed to create HDF5 dataspace for sequence batch data");
 			free(seq_data);
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
@@ -269,17 +252,14 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 		hsize_t count[1] = { (hsize_t)current_batch };
 		status = H5Sselect_hyperslab(seq_space, H5S_SELECT_SET, start,
 					     NULL, count, NULL);
-
-		if (status >= 0)
+		if likely (status >= 0)
 			status = H5Dwrite(g_h5.sequences_id, string_type,
 					  batch_mem_space, seq_space,
 					  H5P_DEFAULT, seq_data);
-
 		H5Sclose(batch_mem_space);
 		free(seq_data);
-
-		if (status < 0) {
-			perr("Failed to write sequence batch");
+		if unlikely (status < 0) {
+			perr("Failed to write sequence batch data to HDF5 dataset");
 			H5Sclose(seq_space);
 			H5Tclose(string_type);
 			h5_file_close();
@@ -300,12 +280,16 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 void h5_matrix_column_set(s32 col, const s32 *values)
 {
+	if (!g_h5.matrix || g_h5.dim <= SEQ_N_MIN || g_h5.dim > SEQ_N_MAX ||
+	    col < 0 || col >= g_h5.dim || !values)
+		unreachable();
+
 	if (!g_h5.mode_write)
 		return;
 
 	if (g_h5.triangular) {
 		memcpy(g_h5.matrix + ((s64)col * (col - 1)) / 2, values,
-		       sizeof(*g_h5.matrix) * (size_t)col);
+		       bytesof(g_h5.matrix, (size_t)col));
 	} else {
 		for (s32 row = 0; row < col; row++) {
 			g_h5.matrix[g_h5.dim * row + col] = values[row];
@@ -316,11 +300,23 @@ void h5_matrix_column_set(s32 col, const s32 *values)
 
 void h5_checksum_set(s64 checksum)
 {
+	if unlikely (!g_h5.is_init) {
+		pdev("HDF5 file not opened when setting checksum");
+		perr("Internal error setting HDF5 checksum");
+		exit(EXIT_FAILURE);
+	}
+
 	g_h5.checksum = checksum;
 }
 
 s64 h5_checksum(void)
 {
+	if unlikely (!g_h5.is_init) {
+		pdev("HDF5 file not opened when getting checksum");
+		perr("Internal error getting HDF5 checksum");
+		exit(EXIT_FAILURE);
+	}
+
 	return g_h5.checksum;
 }
 
@@ -329,17 +325,19 @@ static void h5_flush_matrix(void);
 
 void h5_close(int skip_flush)
 {
-	if (!g_h5.is_init)
-		return;
+	if unlikely (!g_h5.is_init) {
+		pdev("HDF5 file not opened or already closed");
+		perr("Internal error closing HDF5 file");
+		exit(EXIT_FAILURE);
+	}
 
 	psection("Finalizing Results");
 	pinfo("Matrix checksum: " Ps64, g_h5.checksum);
 
 	if (g_h5.mode_write) {
 		bench_io_start();
-		if (!skip_flush) {
+		if likely (!skip_flush) {
 			pinfol("Writing results to HDF5");
-			perr_context("HDF5");
 			h5_store_checksum();
 			h5_flush_matrix();
 		}
@@ -356,11 +354,23 @@ void h5_close(int skip_flush)
 
 s32 *h5_matrix_data(void)
 {
+	if unlikely (!g_h5.is_init) {
+		pdev("HDF5 file not opened when getting matrix data");
+		perr("Internal error getting HDF5 matrix data");
+		exit(EXIT_FAILURE);
+	}
+
 	return g_h5.matrix;
 }
 
 size_t h5_matrix_bytes(void)
 {
+	if unlikely (!g_h5.is_init) {
+		pdev("HDF5 file not opened when getting matrix size");
+		perr("Internal error getting HDF5 matrix size");
+		exit(EXIT_FAILURE);
+	}
+
 	return g_h5.matrix_b;
 }
 
@@ -439,23 +449,15 @@ static void h5_file_close(void)
 
 static void h5_store_checksum(void)
 {
-	if (!g_h5.mode_write || g_h5.matrix_id < 0 || g_h5.file_id < 0)
-		return;
-
-	htri_t attr_exists = H5Aexists(g_h5.matrix_id, "checksum");
-	if (attr_exists > 0)
-		H5Adelete(g_h5.matrix_id, "checksum");
-
 	hid_t attr_space = H5Screate(H5S_SCALAR);
-	if (attr_space < 0) {
-		perr("Failed to create dataspace for checksum attribute");
+	if unlikely (attr_space < 0) {
+		perr("Failed to create HDF5 dataspace for checksum attribute");
 		return;
 	}
 
 	hid_t attr_id = H5Acreate2(g_h5.matrix_id, "checksum", H5T_STD_I64LE,
 				   attr_space, H5P_DEFAULT, H5P_DEFAULT);
-
-	if (attr_id < 0) {
+	if unlikely (attr_id < 0) {
 		perr("Failed to create checksum attribute");
 		H5Sclose(attr_space);
 		return;
@@ -464,8 +466,7 @@ static void h5_store_checksum(void)
 	herr_t status = H5Awrite(attr_id, H5T_NATIVE_INT64, &g_h5.checksum);
 	H5Aclose(attr_id);
 	H5Sclose(attr_space);
-
-	if (status < 0)
+	if unlikely (status < 0)
 		perr("Failed to write checksum attribute");
 }
 
@@ -475,55 +476,56 @@ static void h5_flush_matrix(void)
 		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT,
 					 H5S_ALL, H5S_ALL, H5P_DEFAULT,
 					 g_h5.matrix);
-		if (status < 0)
-			perr("Failed to write matrix data to HDF5");
+		if unlikely (status < 0)
+			perr("Failed to write similarity matrix to HDF5");
 		return;
 	}
 
 	pinfo("Converting triangular matrix to HDF5 format");
 
 	hid_t file_space = H5Dget_space(g_h5.matrix_id);
-	if (file_space < 0) {
-		perr("Failed to get matrix dataspace");
+	if unlikely (file_space < 0) {
+		perr("Failed to get HDF5 dataspace for similarity matrix");
 		return;
 	}
 
 	const size_t available_mem = available_memory();
-	if (!available_mem) {
+	if unlikely (!available_mem) {
 		perr("Failed to retrieve available memory");
 		H5Sclose(file_space);
 		return;
 	}
 
-	const size_t row_bytes = sizeof(*g_h5.matrix) * (size_t)g_h5.dim;
+	const size_t dim = (size_t)g_h5.dim;
+	const size_t row_bytes = bytesof(g_h5.matrix, dim);
 	const s32 max_rows = (s32)(available_mem / (4 * row_bytes));
 	const s32 chunk_rows = h5_chunk_dimensions_calculate();
 	s32 chunk_size = chunk_rows > 4 ? chunk_rows : 4;
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
-	s32 *MALLOC_CL(buf, (size_t)chunk_size * (size_t)g_h5.dim);
-	if (!buf) {
-		pwarn("Failed to allocate memory, trying minimal buffer");
+	s32 *MALLOC_CL(buf, row_bytes * (size_t)chunk_size);
+	if unlikely (!buf) {
+		pwarn("Out of memory, trying minimal amount for conversion");
 		chunk_size = 1;
-		MALLOC_CL(buf, (size_t)chunk_size * (size_t)g_h5.dim);
-		if (!buf) {
-			perr("Cannot allocate memory, aborting conversion");
+		MALLOC_CL(buf, row_bytes * (size_t)chunk_size);
+		if unlikely (!buf) {
+			perr("Out of memory, aborting conversion");
 			H5Sclose(file_space);
 			return;
 		}
 	}
-	memset(buf, 0, (size_t)chunk_size * row_bytes);
+	memset(buf, 0, row_bytes * (size_t)chunk_size);
 
 	ppercent(0, "Converting to HDF5");
-	const s32 dim = (s32)g_h5.dim;
-	for (s32 off = 0; off < dim; off += chunk_size) {
-		s32 end = min(off + chunk_size, dim);
+	const s32 dim32 = (s32)g_h5.dim;
+	for (s32 off = 0; off < dim32; off += chunk_size) {
+		s32 end = min(off + chunk_size, dim32);
 
 		for (s32 i = off; i < end; i++) {
 			s64 row = g_h5.dim * (i - off);
 
-			for (s32 j = i + 1; j < dim; j++)
+			for (s32 j = i + 1; j < dim32; j++)
 				buf[row + j] = g_h5.matrix[matrix_index(i, j)];
 
 			for (s32 j = 0; j < i; j++) {
@@ -538,39 +540,36 @@ static void h5_flush_matrix(void)
 
 		s32 rows = end - off;
 		hsize_t start[2] = { (hsize_t)off, 0 };
-		hsize_t count[2] = { (hsize_t)rows, (hsize_t)dim };
+		hsize_t count[2] = { (hsize_t)rows, dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL,
 				    count, NULL);
 
-		hsize_t mem_dims[2] = { (hsize_t)rows, (hsize_t)dim };
+		hsize_t mem_dims[2] = { (hsize_t)rows, dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, NULL);
-
-		if (mem_space < 0) {
+		if unlikely (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
 			H5Sclose(file_space);
-			free(buf);
+			free_aligned(buf);
 			return;
 		}
 
 		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT,
 					 mem_space, file_space, H5P_DEFAULT,
 					 buf);
-
 		H5Sclose(mem_space);
-
-		if (status < 0) {
+		if unlikely (status < 0) {
 			perr("Failed to write chunk to HDF5");
 			H5Sclose(file_space);
-			free(buf);
+			free_aligned(buf);
 			return;
 		}
 
-		pproport(end / dim, "Converting to HDF5");
+		pproport(end / dim32, "Converting to HDF5");
 	}
 
 	ppercent(100, "Converting to HDF5");
 	H5Sclose(file_space);
-	free(buf);
+	free_aligned(buf);
 }
 
 ARG_PARSE_L(compression, 10, u8, (u8), (val < 0 || val > 9),

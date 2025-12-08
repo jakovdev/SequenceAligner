@@ -14,10 +14,10 @@
 
 static double filter;
 
-static double similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
+static double similarity(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
-	if (UNLIKELY(!seq1->length || !seq2->length))
-		return 0.0;
+	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2))
+		unreachable();
 
 	s32 min_len = seq1->length < seq2->length ? seq1->length : seq2->length;
 	s32 matches = 0;
@@ -53,57 +53,58 @@ static double similarity_pairwise(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	return (double)matches / (double)min_len;
 }
 
-bool filter_seqs(sequence_t *seqs, s32 seq_n, bool *kept, s32 *seq_n_filter)
+bool filter_seqs(sequence_t *seqs, bool *kept, s32 seq_n, s32 *seq_n_filter)
 {
-	if (!seqs || !kept || !seq_n_filter || seq_n <= SEQUENCE_COUNT_MIN) {
-		perr("Invalid parameters to filter sequences");
-		return false;
+	if (!seqs || !kept || !seq_n_filter || seq_n <= SEQ_N_MIN) {
+		pdev("Invalid parameters in filter_seqs()");
+		perr("Internal error during sequence filtering");
+		exit(EXIT_FAILURE);
 	}
 
-	const s64 progress_total = seq_n - 1;
-	_Alignas(CACHE_LINE) _Atomic(s64) g_progress = 0;
 	*seq_n_filter = 0;
-	s32 filtered_total = 0;
-	const s64 update_limit = progress_total / ((s64)arg_thread_num() * 100);
-	memset(kept, 1, sizeof(*kept) * (size_t)seq_n);
+	memset(kept, 1, bytesof(kept, (size_t)seq_n));
 
-	if (!progress_start(&g_progress, progress_total, "Filtering sequences"))
+	const s64 total = seq_n - 1;
+	const s64 update_limit = total / ((s64)arg_thread_num() * 100);
+	_Alignas(CACHE_LINE) _Atomic(s64) g_progress = 0;
+	if unlikely (!progress_start(&g_progress, total, "Filtering sequences"))
 		return false;
 
-	OMP_PARALLEL(reduction(+ : filtered_total))
-	s64 progress = 0;
-	s32 filtered = 0;
-
+	s32 filtered_total = 0;
+#pragma omp parallel reduction(+ : filtered_total)
+	{
+		s64 progress = 0;
+		s32 filtered = 0;
+		s32 i;
 #pragma omp for schedule(dynamic)
-	for (s32 i = 1; i < seq_n; i++) {
-		bool should_keep = true;
+		for (i = 1; i < seq_n; i++) {
+			bool should_keep = true;
 
-		for (s32 j = 0; j < i; j++) {
-			if (!kept[j])
-				continue;
+			for (s32 j = 0; j < i; j++) {
+				if (!kept[j])
+					continue;
 
-			double similarity =
-				similarity_pairwise(&seqs[i], &seqs[j]);
-			if (similarity >= filter) {
-				should_keep = false;
-				filtered++;
-				break;
+				double pid = similarity(&seqs[i], &seqs[j]);
+				if (pid >= filter) {
+					should_keep = false;
+					filtered++;
+					break;
+				}
+			}
+
+			kept[i] = should_keep;
+
+			if (++progress >= update_limit) {
+				atomic_add_relaxed(&g_progress, progress);
+				progress = 0;
 			}
 		}
 
-		kept[i] = should_keep;
-
-		if (++progress >= update_limit) {
+		if (progress > 0)
 			atomic_add_relaxed(&g_progress, progress);
-			progress = 0;
-		}
+
+		filtered_total += filtered;
 	}
-
-	if (progress > 0)
-		atomic_add_relaxed(&g_progress, progress);
-
-	filtered_total += filtered;
-	OMP_PARALLEL_END()
 
 	bench_filter_end();
 	progress_end();

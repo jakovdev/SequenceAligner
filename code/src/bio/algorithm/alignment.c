@@ -8,67 +8,67 @@
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
 #include "system/compiler.h"
-#include "system/os.h"
 #include "system/memory.h"
+#include "system/os.h"
 #include "util/benchmark.h"
 #include "util/progress.h"
 #include "util/print.h"
 
 bool align(void)
 {
-	const align_func_t align_func = align_function(arg_align_method());
-	const s64 alignments = sequences_alignments();
+	const align_func_t method = align_method(arg_align_method());
+	const s64 total = sequences_alignments();
 	const s64 num_threads = (s64)arg_thread_num();
-	const s64 update_limit = max(1, alignments / (num_threads * 100));
+	const s64 update_limit = max(1, total / (num_threads * 100));
 	const s32 seq_n = sequences_seq_n();
 	const s32 seq_len_max = sequences_seq_len_max();
 
-	pinfo("Will perform " Ps64 " pairwise alignments", alignments);
-	perr_context("ALIGN");
+	pinfo("Will perform " Ps64 " pairwise alignments", total);
 
 	_Alignas(CACHE_LINE) _Atomic(s64) g_progress = 0;
-	if (!progress_start(&g_progress, alignments, "Aligning sequences"))
+	if unlikely (!progress_start(&g_progress, total, "Aligning sequences"))
 		return false;
 
 	bench_align_start();
 	s64 g_checksum = 0;
-	OMP_PARALLEL(reduction(+ : g_checksum))
-	matrix_buffers_init(seq_len_max);
-	indices_buffers_init(seq_len_max);
-	s32 *MALLOC_CL(column_buffer, (size_t)seq_n);
-	if (!column_buffer) {
-		perr("Failed to allocate column buffer");
-		exit(EXIT_FAILURE);
-	}
-	s64 checksum = 0;
-	s64 progress = 0;
-
+#pragma omp parallel reduction(+ : g_checksum)
+	{
+		matrix_buffers_init(seq_len_max);
+		indices_buffers_init(seq_len_max);
+		s32 *MALLOCA_CL(column_buffer, (size_t)seq_n);
+		if unlikely (!column_buffer) {
+			perr("Out of memory allocating similarity matrix columns");
+			exit(EXIT_FAILURE);
+		}
+		s64 checksum = 0;
+		s64 progress = 0;
+		s32 col;
 #pragma omp for schedule(dynamic)
-	for (s32 col = 1; col < seq_n; col++) {
-		sequence_ptr_t seq = sequence(col);
-		indices_precompute(seq);
-		for (s32 row = 0; row < col; row++) {
-			const s32 score = align_func(seq, sequence(row));
-			column_buffer[row] = score;
-			checksum += score;
+		for (col = 1; col < seq_n; col++) {
+			sequence_ptr_t seq = sequence(col);
+			indices_precompute(seq);
+			for (s32 row = 0; row < col; row++) {
+				const s32 score = method(seq, sequence(row));
+				column_buffer[row] = score;
+				checksum += score;
+			}
+
+			h5_matrix_column_set(col, column_buffer);
+			progress += col;
+			if (progress >= update_limit) {
+				atomic_add_relaxed(&g_progress, progress);
+				progress = 0;
+			}
 		}
 
-		h5_matrix_column_set(col, column_buffer);
-		progress += col;
-		if (progress >= update_limit) {
+		if (progress > 0)
 			atomic_add_relaxed(&g_progress, progress);
-			progress = 0;
-		}
+
+		g_checksum += checksum;
+		free_aligned(column_buffer);
+		indices_buffers_free();
+		matrix_buffers_free();
 	}
-
-	if (progress > 0)
-		atomic_add_relaxed(&g_progress, progress);
-
-	g_checksum += checksum;
-	free_aligned(column_buffer);
-	indices_buffers_free();
-	matrix_buffers_free();
-	OMP_PARALLEL_END()
 
 	bench_align_end();
 	progress_end();

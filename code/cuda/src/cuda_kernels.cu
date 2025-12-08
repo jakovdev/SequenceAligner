@@ -226,7 +226,8 @@ __global__ void k_sw(s32 *R scores, s64 start, s64 batch)
 bool Cuda::kernelLaunch(int kernel_id) noexcept
 {
 	if (!s.ready() || kernel_id > 2 || kernel_id < 0) {
-		hostError("Invalid kernel ID or upload steps not completed");
+		internalError(
+			"Invalid kernel ID or upload steps not completed");
 		return false;
 	}
 
@@ -283,7 +284,7 @@ bool Cuda::kernelLaunch(int kernel_id) noexcept
 
 	switch (kernel_id) {
 	default:
-		hostError("Invalid kernel ID");
+		internalError("Invalid kernel ID");
 		return false;
 	case 0: /* Gotoh Affine */
 		k_ga<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
@@ -307,7 +308,7 @@ bool Cuda::kernelLaunch(int kernel_id) noexcept
 bool Cuda::kernelResults() noexcept
 {
 	if (!s.ready()) {
-		hostError("Invalid context or upload steps not completed");
+		internalError("Invalid context or upload steps not completed");
 		return false;
 	}
 
@@ -366,18 +367,22 @@ bool Cuda::kernelResults() noexcept
 	return true;
 }
 
-sll Cuda::kernelProgress() const noexcept
+sll Cuda::kernelProgress() noexcept
 {
-	if (!s.ready() || !d.progress)
+	if (!s.ready() || !d.progress) {
+		internalError("Invalid context or upload steps not completed");
 		return 0;
+	}
 
 	return h.progress;
 }
 
 sll Cuda::kernelChecksum() noexcept
 {
-	if (!s.ready() || !d.checksum)
+	if (!s.ready() || !d.checksum) {
+		internalError("Invalid context or upload steps not completed");
 		return 0;
+	}
 
 	cudaError_t err;
 	S_SYNC(d.s_comp);

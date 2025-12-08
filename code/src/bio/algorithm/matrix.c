@@ -14,9 +14,15 @@ _Thread_local s32 *restrict g_gap_y;
 
 void matrix_buffers_init(s32 seq_len_max)
 {
-	MALLOC_CL(g_matrix, 3 * MATRIX_SIZE(seq_len_max));
-	if (UNLIKELY(!g_matrix)) {
-		perr("Failed to allocate memory for alignment matrix");
+	if (seq_len_max < SEQ_LEN_MIN || seq_len_max > SEQ_LEN_MAX) {
+		pdev("Invalid seq_len_max in matrix_buffers_init()");
+		perr("Internal error during matrix allocation");
+		exit(EXIT_FAILURE);
+	}
+
+	MALLOCA_CL(g_matrix, 3 * MATRIX_SIZE(seq_len_max));
+	if unlikely (!g_matrix) {
+		perr("Out of memory allocating alignment matrices");
 		exit(EXIT_FAILURE);
 	}
 
@@ -27,8 +33,13 @@ void matrix_buffers_init(s32 seq_len_max)
 
 void matrix_buffers_free(void)
 {
-	if (g_matrix)
-		free_aligned(g_matrix);
+	if (!g_matrix) {
+		pdev("Call matrix_buffers_init() before matrix_buffers_free()");
+		perr("Internal error during alignment matrices deallocation");
+		exit(EXIT_FAILURE);
+	}
+
+	free_aligned(g_matrix);
 	g_matrix = NULL;
 	g_match = NULL;
 	g_gap_x = NULL;

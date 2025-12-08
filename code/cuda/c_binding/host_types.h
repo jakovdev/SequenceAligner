@@ -30,9 +30,11 @@ typedef unsigned long long ull;
 typedef signed long long sll;
 
 #ifndef BIO_TYPES_H
-#define SEQUENCE_LENGTH_MAX (INT32_MAX - 1)
-#define SEQUENCE_COUNT_MAX (INT32_MAX)
-#define SEQUENCE_COUNT_MIN (2)
+#define SEQ_LEN_MAX (INT32_MAX - 1)
+#define SEQ_LEN_MIN (1)
+#define SEQ_N_MAX (INT32_MAX)
+#define SEQ_N_MIN (2)
+#define SEQ_LEN_SUM_MIN (SEQ_N_MIN * SEQ_LEN_MIN)
 #define SCORE_MIN (INT32_MIN / 2)
 
 typedef struct {

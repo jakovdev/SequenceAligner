@@ -15,7 +15,7 @@ __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 
 #endif
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 
 int __builtin_ctz(unsigned int x)
 {

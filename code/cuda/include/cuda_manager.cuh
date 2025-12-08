@@ -98,7 +98,7 @@ class Cuda {
 
 	bool kernelLaunch(int kernel_id) noexcept;
 	bool kernelResults() noexcept;
-	sll kernelProgress() const noexcept;
+	sll kernelProgress() noexcept;
 	sll kernelChecksum() noexcept;
 
 	const char *hostError() const noexcept;
@@ -109,6 +109,11 @@ class Cuda {
 	Cuda() noexcept;
 
 	void hostError(const char *error) noexcept;
+#ifndef NDEBUG
+#define internalError(error) hostError(error)
+#else
+#define internalError(error) hostError("Internal error")
+#endif
 	void deviceError(cudaError_t error) noexcept;
 
 	bool memoryQuery(size_t *free, size_t *total) noexcept;
@@ -130,13 +135,13 @@ class Cuda {
 #define ASSERT_PTR_SIZES(a, b) \
 	static_assert(sizeof(*(a)) == sizeof(*(b)), "Pointer size mismatch")
 
-#define CUDA_ERROR(msg, retval)           \
-	do {                              \
-		if (err != cudaSuccess) { \
-			deviceError(err); \
-			hostError(msg);   \
-			return retval;    \
-		}                         \
+#define CUDA_ERROR(msg, retval)             \
+	do {                                \
+		if (err != cudaSuccess) {   \
+			deviceError(err);   \
+			internalError(msg); \
+			return retval;      \
+		}                           \
 	} while (0)
 
 #define CUDA(Func, MACRO, error_msg_lit)                                       \

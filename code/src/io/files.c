@@ -14,6 +14,8 @@
 
 static void file_metadata_init(struct FileMetadata *meta)
 {
+	if (!meta)
+		unreachable();
 #ifdef _WIN32
 	meta->hFile = INVALID_HANDLE_VALUE;
 	meta->hMapping = NULL;
@@ -25,6 +27,8 @@ static void file_metadata_init(struct FileMetadata *meta)
 
 static void file_metadata_close(struct FileMetadata *meta)
 {
+	if (!meta)
+		unreachable();
 #ifdef _WIN32
 	if (meta->hMapping) {
 		CloseHandle(meta->hMapping);
@@ -35,19 +39,20 @@ static void file_metadata_close(struct FileMetadata *meta)
 		CloseHandle(meta->hFile);
 		meta->hFile = INVALID_HANDLE_VALUE;
 	}
-
 #else
 	if (meta->fd != -1) {
 		close(meta->fd);
 		meta->fd = -1;
 	}
-
 #endif
 	meta->bytes = 0;
 }
 
 static enum FileFormat file_format_detect(const char *file_path)
 {
+	if (!file_path || !file_path[0])
+		unreachable();
+
 	const char *ext = strrchr(file_path, '.');
 	if (!ext)
 		return FILE_FORMAT_UNKNOWN;
@@ -67,15 +72,16 @@ static enum FileFormat file_format_detect(const char *file_path)
 
 static void file_format_data_reset(struct FileFormatMetadata *data)
 {
+	if (!data)
+		unreachable();
+
 	memset(data, 0, sizeof(*data));
 }
 
 static bool file_format_csv_parse(struct FileText *file)
 {
-	if (!file->text)
-		return false;
-
-	perr_context("CSV");
+	if (!file)
+		unreachable();
 
 	if (!csv_validate(file->data.start, file->data.end))
 		return false;
@@ -92,13 +98,13 @@ static bool file_format_csv_parse(struct FileText *file)
 	pverb("Counting sequences in input file");
 	size_t total = csv_total_lines(file->data.start, file->data.end);
 
-	if (total >= SEQUENCE_COUNT_MAX) {
+	if (total >= SEQ_N_MAX) {
 		perr("Too many sequences in input file: %zu", total);
 		return false;
 	}
 
-	if (!total) {
-		perr("No sequences found in input file");
+	if (total < SEQ_N_MIN) {
+		perr("Not enough sequences in input file: %zu", total);
 		return false;
 	}
 
@@ -109,10 +115,8 @@ static bool file_format_csv_parse(struct FileText *file)
 
 static bool file_format_fasta_parse(struct FileText *file)
 {
-	if (!file->text)
-		return false;
-
-	perr_context("FASTA");
+	if (!file)
+		unreachable();
 
 	if (!fasta_validate(file->data.start, file->data.end))
 		return false;
@@ -120,13 +124,13 @@ static bool file_format_fasta_parse(struct FileText *file)
 	pverb("Counting sequences in input file");
 	size_t total = fasta_total_entries(file->data.start, file->data.end);
 
-	if (total >= SEQUENCE_COUNT_MAX) {
+	if (total >= SEQ_N_MAX) {
 		perr("Too many sequences in input file: %zu", total);
 		return false;
 	}
 
-	if (!total) {
-		perr("No sequences found in input file");
+	if (total < SEQ_N_MIN) {
+		perr("Not enough sequences in input file: %zu", total);
 		return false;
 	}
 
@@ -137,18 +141,21 @@ static bool file_format_fasta_parse(struct FileText *file)
 
 void file_text_close(struct FileText *file)
 {
+	if unlikely (!file) {
+		pdev("NULL file in file_text_close()");
+		perr("Internal error while closing input file");
+		exit(EXIT_FAILURE);
+	}
 #ifdef _WIN32
 	if (file->text) {
 		UnmapViewOfFile(file->text);
 		file->text = NULL;
 	}
-
 #else
 	if (file->text) {
 		munmap(file->text, file->meta.bytes);
 		file->text = NULL;
 	}
-
 #endif
 	file_metadata_close(&file->meta);
 	file_format_data_reset(&file->data);
@@ -156,7 +163,11 @@ void file_text_close(struct FileText *file)
 
 bool file_text_open(struct FileText *restrict file, const char *restrict path)
 {
-	perr_context("FILE");
+	if unlikely (!file || !path || !path[0]) {
+		pdev("NULL parameters for file_text_open()");
+		perr("Internal error opening input file");
+		exit(EXIT_FAILURE);
+	}
 
 	file_metadata_init(&file->meta);
 	file_format_data_reset(&file->data);
@@ -174,10 +185,8 @@ bool file_text_open(struct FileText *restrict file, const char *restrict path)
 				       NULL, OPEN_EXISTING,
 				       FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 
-	if (file->meta.hFile == INVALID_HANDLE_VALUE) {
-		perr("Could not open file '%s'", file_name);
-		return false;
-	}
+	if (file->meta.hFile == INVALID_HANDLE_VALUE)
+		file_error_defer("Could not open");
 
 	file->meta.hMapping = CreateFileMapping(file->meta.hFile, NULL,
 						PAGE_READONLY, 0, 0, NULL);
@@ -186,35 +195,33 @@ bool file_text_open(struct FileText *restrict file, const char *restrict path)
 
 	file->text = MapViewOfFile(file->meta.hMapping, FILE_MAP_READ, 0, 0, 0);
 	if (!file->text)
-		file_error_defer("Could not map view of file '%s'");
+		file_error_defer("Could not memory map");
 
 	LARGE_INTEGER file_size;
 	if (!GetFileSizeEx(file->meta.hFile, &file_size))
-		file_error_defer("Could not get file size for '%s'");
+		file_error_defer("Could not get file size of");
 
 	file->meta.bytes = (size_t)file_size.QuadPart;
 #else
 	file->meta.fd = open(path, O_RDONLY);
 	if (file->meta.fd == -1)
-		file_error_defer("Could not open input file '%s'");
+		file_error_defer("Could not open");
 
 	struct stat sb;
 	if (fstat(file->meta.fd, &sb) == -1)
-		file_error_defer("Could not stat file '%s'");
+		file_error_defer("Could not read metadata of");
 
 	if (!S_ISREG(sb.st_mode) || sb.st_size < 0)
-		file_error_defer("Invalid file type or size for '%s'");
+		file_error_defer("Invalid file type or size of");
 
 	file->meta.bytes = (size_t)sb.st_size;
 	file->text = mmap(NULL, file->meta.bytes, PROT_READ, MAP_PRIVATE,
 			  file->meta.fd, 0);
 	if (file->text == MAP_FAILED)
-		file_error_defer("Could not memory map file '%s'");
+		file_error_defer("Could not memory map");
 
 	madvise(file->text, file->meta.bytes, MADV_SEQUENTIAL);
 #endif
-#undef file_error_defer
-
 	file->data.start = file->text;
 	file->data.end = file->text + file->meta.bytes;
 	file->data.cursor = file->data.start;
@@ -229,10 +236,10 @@ bool file_text_open(struct FileText *restrict file, const char *restrict path)
 		return file_format_fasta_parse(file);
 	case FILE_FORMAT_UNKNOWN:
 	default:
-		perr("Failed to parse file format");
-		break;
+		file_error_defer("Unsupported or unknown file format for");
 	}
 
+#undef file_error_defer
 file_error:
 	file_text_close(file);
 	return false;
@@ -240,12 +247,13 @@ file_error:
 
 s32 file_sequence_total(struct FileText *file)
 {
-	if (file)
-		return file->data.total;
+	if unlikely (!file) {
+		pdev("NULL file in file_sequence_total()");
+		perr("Internal error retrieving total sequences from file");
+		exit(EXIT_FAILURE);
+	}
 
-	perr_context("FILE");
-	perr("Invalid file for total sequence count");
-	exit(EXIT_FAILURE);
+	return file->data.total;
 }
 
 size_t file_sequence_next_length(struct FileText *file)
@@ -265,8 +273,8 @@ size_t file_sequence_next_length(struct FileText *file)
 		}
 	}
 
-	perr_context("FILE");
-	perr("Invalid file for sequence column length");
+	pdev("NULL file or unknown format in file_sequence_next_length()");
+	perr("Internal error retrieving sequence length from file");
 	exit(EXIT_FAILURE);
 }
 
@@ -284,8 +292,8 @@ bool file_sequence_next(struct FileText *file)
 		}
 	}
 
-	perr_context("FILE");
-	perr("Invalid file for next sequence line");
+	pdev("NULL file or unknown format in file_sequence_next()");
+	perr("Internal error during file parsing");
 	exit(EXIT_FAILURE);
 }
 
@@ -306,20 +314,26 @@ size_t file_extract_entry(struct FileText *restrict file, char *restrict out)
 		}
 	}
 
-	perr_context("FILE");
-	perr("Invalid file for sequence extraction");
+	pdev("NULL parameters or unknown format in file_extract_entry()");
+	perr("Internal error extracting sequence from file");
 	exit(EXIT_FAILURE);
 }
 
 bool file_matrix_open(struct FileScoreMatrix *restrict file,
-		      const char *restrict path, size_t matrix_dim)
+		      const char *restrict path, size_t dim)
 {
-	file_metadata_init(&file->meta);
+	if unlikely (!file || !path || dim < 2) {
+		pdev("Invalid parameters for file_matrix_open()");
+		perr("Internal error opening score matrix file");
+		exit(EXIT_FAILURE);
+	}
 
-	size_t triangle_elements = (matrix_dim * (matrix_dim - 1)) / 2;
-	size_t bytes = triangle_elements * sizeof(*file->matrix);
-	file->meta.bytes = bytes;
+	file_metadata_init(&file->meta);
+	size_t bytes = bytesof(file->matrix, dim * (dim - 1) / 2);
 	const char *file_name = file_name_path(path);
+	const double mmap_size = (double)bytes / (double)GiB;
+	pinfol("Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
+
 #define file_error_return(message_lit)                \
 	do {                                          \
 		perr(message_lit " '%s'", file_name); \
@@ -327,15 +341,10 @@ bool file_matrix_open(struct FileScoreMatrix *restrict file,
 		return false;                         \
 	} while (0)
 
-	const double mmap_size = (double)bytes / (double)GiB;
-	pinfol("Creating matrix file: %s (%.2f GiB)", file_name, mmap_size);
-	perr_context("MATRIXFILE");
-
 #ifdef _WIN32
 	file->meta.hFile = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, 0,
 				       NULL, CREATE_ALWAYS,
 				       FILE_FLAG_DELETE_ON_CLOSE, NULL);
-
 	if (file->meta.hFile == INVALID_HANDLE_VALUE)
 		file_error_return("Could not create memory-mapped file '%s'");
 
@@ -353,7 +362,6 @@ bool file_matrix_open(struct FileScoreMatrix *restrict file,
 				     0, 0, 0);
 	if (!file->matrix)
 		file_error_return("Could not map view of file '%s'");
-
 #else
 	file->meta.fd = open(path, O_RDWR | O_CREAT | O_TRUNC, 0644);
 	if (file->meta.fd == -1)
@@ -374,37 +382,20 @@ bool file_matrix_open(struct FileScoreMatrix *restrict file,
 	madvise(file->matrix, bytes, MADV_HUGEPAGE);
 	madvise(file->matrix, bytes, MADV_DONTFORK);
 	madvise(file->matrix, bytes, MADV_DONTDUMP);
-
 #endif
-
-	const size_t check_indices[5] = { 0, triangle_elements / 4,
-					  triangle_elements / 2,
-					  triangle_elements * 3 / 4,
-					  triangle_elements - 1 };
-
-	bool is_zeroed = true;
-	for (size_t i = 0; i < ARRAY_SIZE(check_indices); i++) {
-		if (file->matrix[check_indices[i]] != 0) {
-			is_zeroed = false;
-			break;
-		}
-	}
-
-	if (!is_zeroed)
-		memset(file->matrix, 0, bytes);
-
+	file->meta.bytes = bytes;
 	return true;
 }
 
 void file_matrix_close(struct FileScoreMatrix *file)
 {
-	if (!file)
-		return;
+	if unlikely (!file) {
+		pdev("NULL file in file_matrix_close()");
+		perr("Internal error closing score matrix file");
+		exit(EXIT_FAILURE);
+	}
 
 	file_metadata_close(&file->meta);
-	if (!file->matrix)
-		return;
-
 #ifdef _WIN32
 	UnmapViewOfFile(file->matrix);
 #else
@@ -420,9 +411,11 @@ s64 matrix_index(s32 row, s32 col)
 
 void file_matrix_name(char *buffer, size_t buffer_size, const char *output_path)
 {
-	if (!output_path || !output_path[0]) {
-		snprintf(buffer, buffer_size, "./seqalign_matrix.mmap");
-		return;
+	if unlikely (!buffer || !buffer_size || !output_path ||
+		     !output_path[0]) {
+		pdev("Invalid parameters for file_matrix_name()");
+		perr("Internal error generating matrix file name");
+		exit(EXIT_FAILURE);
 	}
 
 	char dir[MAX_PATH] = { 0 };

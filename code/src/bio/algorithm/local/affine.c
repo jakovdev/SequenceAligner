@@ -8,6 +8,10 @@
 #if USE_SIMD == 1
 static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
+	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
+	    !g_gap_y)
+		unreachable();
+
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
 	const s32 cols = len1 + 1;
@@ -42,6 +46,10 @@ static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
+	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
+	    !g_gap_y)
+		unreachable();
+
 	const s32 len1 = seq1->length;
 #if USE_SIMD == 1
 	if (len1 >= NUM_ELEMS) {
@@ -71,6 +79,10 @@ void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 s32 affine_local_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
+	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
+	    !g_gap_y || !g_seq1_i)
+		unreachable();
+
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
 	const s64 cols = len1 + 1;
