@@ -30,7 +30,6 @@
 #define PRAGMA(n) __pragma(n)
 #define UNROLL(n)
 #define VECTORIZE PRAGMA(loop(ivdep))
-#define strcasecmp _stricmp
 #else /* GCC, Clang */
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))

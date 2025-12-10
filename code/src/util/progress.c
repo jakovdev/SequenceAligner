@@ -1,6 +1,38 @@
 #include "util/progress.h"
 
-#include "system/os.h"
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+
+typedef HANDLE pthread_t;
+
+#define T_Func DWORD WINAPI
+#define T_Ret(x) return (DWORD)(size_t)(x)
+#define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
+#define usleep(microseconds) Sleep((microseconds) / 1000)
+
+static int pthread_create(pthread_t *restrict thread, void *restrict _,
+			  LPTHREAD_START_ROUTINE fn, void *restrict arg)
+{
+	(void)_;
+	*thread = CreateThread(NULL, 0, fn, arg, 0, NULL);
+	return *thread ? 0 : -1;
+}
+#else
+#include <pthread.h>
+#include <unistd.h>
+
+typedef void *T_Func;
+
+#define T_Ret(x) return (x)
+#endif
+
+#define atomic_load_relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
+#define atomic_add_relaxed(p, v) \
+	atomic_fetch_add_explicit((p), (v), memory_order_relaxed)
+
 #include "util/print.h"
 
 static _Atomic(bool) p_running;
@@ -9,7 +41,7 @@ static const char *p_message;
 static s64 p_total;
 static pthread_t p_thread;
 
-static T_Func progress_monitor_worker(void *arg)
+static T_Func p_monitor(void *arg)
 {
 	(void)arg;
 	ppercent(0, "%s", p_message);
@@ -34,8 +66,7 @@ bool progress_start(_Atomic(s64) *progress, s64 total, const char *message)
 	p_message = message;
 	p_total = total;
 
-	pthread_create(&p_thread, NULL, progress_monitor_worker, NULL);
-	if (p_thread)
+	if (pthread_create(&p_thread, NULL, p_monitor, NULL) == 0)
 		return true;
 
 	atomic_store(&p_running, false);

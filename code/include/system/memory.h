@@ -31,6 +31,13 @@
 /* Free with free_aligned() */
 ALLOC void *alloc_aligned(size_t alignment, size_t bytes);
 
+#ifdef _WIN32
+#include <malloc.h>
+#define free_aligned _aligned_free
+#else
+#define free_aligned free
+#endif
+
 size_t available_memory(void);
 
 #endif /* SYSTEM_MEMORY_H */

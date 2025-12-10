@@ -3,57 +3,35 @@
 #define SYSTEM_OS_H
 
 #ifdef _WIN32
-
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-
 #include <windows.h>
-#if __has_include(<Shlwapi.h>)
+#if defined(_MSC_VER) && !defined(__clang__)
+#define strcasecmp _stricmp
 #include <Shlwapi.h>
-#else /* MinGW */
+#elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__clang__)
 #include <shlwapi.h>
 #endif
-
-typedef HANDLE pthread_t;
-
-#define T_Func DWORD WINAPI
-#define T_Ret(x) return (DWORD)(size_t)(x)
-#define pthread_create(threads, _, function, arg)                             \
-	(void)(*threads = CreateThread(NULL, 0,                               \
-				       (LPTHREAD_START_ROUTINE)function, arg, \
-				       0, NULL))
-#define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
-
-#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
-#define free_aligned(ptr) _aligned_free(ptr)
-
-#define strcasestr(haystack, needle) StrStrIA(haystack, needle)
-#define usleep(microseconds) Sleep((microseconds) / 1000)
-
+#define strcasestr StrStrIA
 #else /* POSIX/Linux */
 
 #include <fcntl.h>
-#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
-typedef void *T_Func;
-#define T_Ret(x) return (x)
-#define free_aligned(ptr) free(ptr)
-#define max MAX
-#define min MIN
+#define max(a, b) MAX(a, b)
+#define min(a, b) MIN(a, b)
 
 #ifndef PATH_MAX
 #define PATH_MAX _POSIX_PATH_MAX
 #endif
-
 #define MAX_PATH PATH_MAX
 
 #endif
 
+#include <stdatomic.h>
 #include <stdbool.h>
 
 #define atomic_load_relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
