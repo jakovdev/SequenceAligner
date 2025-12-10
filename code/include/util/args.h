@@ -14,9 +14,13 @@
   * Words that start with a dot (".") refer to `struct argument` fields.
   * 
   * Basic usage:
+  * 
   * 1. Define arguments in source files using the `ARGUMENT(name)` macro.
+  * 
   * 2. Call `args_parse` in main().
+  * 
   * 3. Call `args_validate` to run validators after everything is parsed.
+  * 
   * 4. Call `args_actions` to run actions after everything is validated.
   */
 
@@ -99,11 +103,14 @@
   * @brief Parses command line arguments.
   * 
   * For every user specified argument:
-  * @code
-  * If argument with parameter is already set, error for repeated argument.
-  * Runs `.parse_callback` if it exists.
-  * Checks `relations` if `relation_phase` = `ARG_RELATION_PARSE`.
-  * Sets `.set` to true (even implicitly allocated ones). @endcode
+  * 
+  * - If argument with parameter is already set, error for repeated argument.
+  * 
+  * - Runs `.parse_callback` if it exists.
+  * 
+  * - Checks `relations` if `relation_phase` = `ARG_RELATION_PARSE`.
+  * 
+  * - Sets `.set` to true (even implicitly allocated ones).
   * 
   * @return false on any error, true if parsing succeeded.
   */
@@ -113,11 +120,14 @@ bool args_parse(int argc, char *argv[]);
   * @brief Must be called after `args_parse`.
   * 
   * For every `ARGUMENT`:
-  * @code
-  * Checks if required arguments are set if `.arg_req` = `ARG_REQUIRED`.
-  * If a conflict argument is set, the (required) argument must not be set.
-  * Checks `relations` if `relation_phase` != `ARG_RELATION_PARSE`.
-  * Runs `.validate_callback` if it exists using `.validate_phase`. @endcode
+  * 
+  * - Checks if required arguments are set if `.arg_req` = `ARG_REQUIRED`.
+  * 
+  * - If a conflict argument is set, the (required) argument must not be set.
+  * 
+  * - Checks `relations` if `relation_phase` != `ARG_RELATION_PARSE`.
+  * 
+  * - Runs `.validate_callback` if it exists using `.validate_phase`.
   * 
   * @return false on any error, true if all arguments are valid.
   */
@@ -127,8 +137,8 @@ bool args_validate(void);
   * @brief Must be called after `args_validate`. Optional if not using actions.
   * 
   * For every `ARGUMENT`:
-  * @code
-  * Runs `.action_callback` if it exists using `.action_phase`. @endcode
+  * 
+  * - Runs `.action_callback` if it exists using `.action_phase`.
   */
 void args_actions(void);
 
