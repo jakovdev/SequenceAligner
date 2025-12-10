@@ -75,7 +75,9 @@
  **┌──────────────────────────────────────────────────────────────────────────────┐
  *
  **Also available:
- * print_streams(stdin, stdout, stderr);
+ * print_stream_in(stdin);
+ * print_stream_out(stdout);
+ * print_stream_err(stderr);
  */
 
 #ifdef __cplusplus
@@ -130,7 +132,9 @@ enum p_return {
 	PRINT_INVALID_INPUT_TYPE__ERROR = -3,
 };
 
-void print_streams(FILE *in, FILE *out, FILE *err);
+void print_stream_in(FILE *in);
+void print_stream_out(FILE *out);
+void print_stream_err(FILE *err);
 
 enum p_return print(const char *P_RESTRICT fmt, ...);
 enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...);

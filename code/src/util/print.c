@@ -285,10 +285,18 @@ static bool in_section;
 static bool content_printed;
 static bool is_init;
 
-void print_streams(FILE *in, FILE *out, FILE *err)
+void print_stream_in(FILE *in)
 {
 	p.in = in;
+}
+
+void print_stream_out(FILE *out)
+{
 	p.out = out;
+}
+
+void print_stream_err(FILE *err)
+{
 	p.err = err;
 }
 
@@ -306,7 +314,9 @@ static void print_init(void)
 		nodetail = true;
 	}
 
-	print_streams(stdin, stdout, stderr);
+	print_stream_in(stdin);
+	print_stream_out(stdout);
+	print_stream_err(stderr);
 	atexit(print_section_end);
 	is_init = true;
 }
