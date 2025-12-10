@@ -6,7 +6,6 @@
 
 #include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
-#include "interface/seqalign_cuda.h"
 #include "io/files.h"
 #include "system/compiler.h"
 #include "system/memory.h"

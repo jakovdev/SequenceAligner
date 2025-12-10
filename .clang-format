@@ -54,7 +54,6 @@ DisableFormat: false
 ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: false
 ForEachMacros:
-  - 'OMP_FOR_DYNAMIC'
   - 'for_each_arg'
   - 'for_each_dep'
   - 'for_each_con'

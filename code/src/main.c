@@ -3,7 +3,6 @@
 #include "io/files.h"
 #include "interface/seqalign_cuda.h"
 #include "interface/seqalign_hdf5.h"
-#include "system/os.h"
 #include "util/args.h"
 #include "util/benchmark.h"
 #include "util/print.h"

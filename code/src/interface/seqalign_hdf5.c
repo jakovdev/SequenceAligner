@@ -1,6 +1,5 @@
 #include "interface/seqalign_hdf5.h"
 
-#include <errno.h>
 #include <hdf5.h>
 #include <string.h>
 
