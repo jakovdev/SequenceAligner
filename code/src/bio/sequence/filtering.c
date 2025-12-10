@@ -6,7 +6,6 @@
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "system/os.h"
-#include "system/simd.h"
 #include "util/args.h"
 #include "util/benchmark.h"
 #include "util/print.h"
@@ -22,33 +21,8 @@ static double similarity(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	s32 min_len = seq1->length < seq2->length ? seq1->length : seq2->length;
 	s32 matches = 0;
 
-#if USE_SIMD == 1
-	s32 vec_limit = (min_len / BYTES) * BYTES;
-
-	for (s32 i = 0; i < vec_limit; i += BYTES * 2) {
-		prefetch(seq1->letters + i + BYTES);
-		prefetch(seq2->letters + i + BYTES);
-	}
-
-	for (s32 i = 0; i < vec_limit; i += BYTES) {
-		veci_t v1 = loadu((const veci_t *)(seq1->letters + i));
-		veci_t v2 = loadu((const veci_t *)(seq2->letters + i));
-
-#if defined(__AVX512F__) && defined(__AVX512BW__)
-		num_t mask = cmpeq_epi8(v1, v2);
-		matches += __builtin_popcountll(mask);
-#else
-		num_t mask = movemask_epi8(cmpeq_epi8(v1, v2));
-		matches += __builtin_popcount(mask);
-#endif
-	}
-
-	for (s32 i = vec_limit; i < min_len; i++)
-		matches += (seq1->letters[i] == seq2->letters[i]);
-#else
 	for (s32 i = 0; i < min_len; i++)
 		matches += (seq1->letters[i] == seq2->letters[i]);
-#endif
 
 	return (double)matches / (double)min_len;
 }

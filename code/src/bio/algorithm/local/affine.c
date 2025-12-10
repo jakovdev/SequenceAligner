@@ -19,7 +19,6 @@ static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	veci_t zero_vec = setzero_si();
 	veci_t score_min = set1_epi32(SCORE_MIN);
 
-	VECTORIZE
 	for (s32 j = 0; j <= len1; j += NUM_ELEMS) {
 		s32 remaining = cols - j;
 		if (remaining >= NUM_ELEMS) {
@@ -34,7 +33,6 @@ static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		}
 	}
 
-	VECTORIZE
 	for (s32 i = 1; i <= len2; i++) {
 		s64 idx = (s64)cols * i;
 		g_match[idx] = 0;
@@ -63,13 +61,11 @@ void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	g_match[0] = 0;
 	g_gap_x[0] = g_gap_y[0] = SCORE_MIN;
 
-	UNROLL(8)
 	for (s32 j = 1; j <= len1; j++) {
 		g_match[j] = 0;
 		g_gap_x[j] = g_gap_y[j] = SCORE_MIN;
 	}
 
-	UNROLL(8)
 	for (s32 i = 1; i <= len2; i++) {
 		s64 idx = cols * i;
 		g_match[idx] = 0;
@@ -94,10 +90,6 @@ s32 affine_local_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		const s64 row = cols * i;
 		const s64 p_row = cols * (i - 1);
 		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
-
-		prefetch(&g_match[row + PREFETCH_DISTANCE]);
-		prefetch(&g_gap_x[row + PREFETCH_DISTANCE]);
-		prefetch(&g_gap_y[row + PREFETCH_DISTANCE]);
 
 		for (s32 j = 1; j <= len1; j++) {
 			const s32 similarity = SUB_MAT[g_seq1_i[j - 1]][c2_idx];

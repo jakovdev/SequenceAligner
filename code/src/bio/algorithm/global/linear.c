@@ -3,7 +3,6 @@
 #include "bio/algorithm/indices.h"
 #include "bio/algorithm/matrix.h"
 #include "system/compiler.h"
-#include "system/simd.h"
 
 void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
@@ -17,13 +16,9 @@ void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 
 	g_matrix[0] = 0;
 
-	VECTORIZE
-	UNROLL(8)
 	for (s32 j = 1; j <= len1; j++)
 		g_matrix[j] = j * gap_pen;
 
-	VECTORIZE
-	UNROLL(8)
 	for (s32 i = 1; i <= len2; i++)
 		g_matrix[cols * i] = i * gap_pen;
 }
@@ -43,9 +38,6 @@ s32 linear_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		const s64 p_row = cols * (i - 1);
 		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
-		prefetch(&g_matrix[row + PREFETCH_DISTANCE]);
-
-		UNROLL(4)
 		for (s32 j = 1; j <= len1; j++) {
 			const s32 match = g_matrix[p_row + j - 1] +
 					  SUB_MAT[g_seq1_i[j - 1]][c2_idx];

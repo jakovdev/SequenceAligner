@@ -4,7 +4,6 @@
 #include "bio/algorithm/matrix.h"
 #include "system/compiler.h"
 #include "system/os.h"
-#include "system/simd.h"
 
 void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
@@ -21,7 +20,6 @@ void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	g_match[0] = 0;
 	g_gap_x[0] = g_gap_y[0] = SCORE_MIN;
 
-	UNROLL(8)
 	for (s32 j = 1; j <= len1; j++) {
 		g_gap_x[j] = max(g_match[j - 1] + gap_open,
 				 g_gap_x[j - 1] + gap_ext);
@@ -29,7 +27,6 @@ void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		g_gap_y[j] = SCORE_MIN;
 	}
 
-	UNROLL(8)
 	for (s32 i = 1; i <= len2; i++) {
 		const s64 idx = cols * i;
 		g_gap_y[idx] = max(g_match[idx - cols] + gap_open,
@@ -56,11 +53,6 @@ s32 affine_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		const s64 p_row = cols * (i - 1);
 		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
 
-		prefetch(&g_match[row + PREFETCH_DISTANCE]);
-		prefetch(&g_gap_x[row + PREFETCH_DISTANCE]);
-		prefetch(&g_gap_y[row + PREFETCH_DISTANCE]);
-
-		VECTORIZE
 		for (s32 j = 1; j <= len1; j++) {
 			const s32 similarity = SUB_MAT[g_seq1_i[j - 1]][c2_idx];
 			const s32 d_score = g_match[p_row + j - 1] + similarity;
