@@ -281,7 +281,7 @@ void h5_matrix_column_set(s32 col, const s32 *values)
 {
 	if (!g_h5.matrix || g_h5.dim <= SEQ_N_MIN || g_h5.dim > SEQ_N_MAX ||
 	    col < 0 || col >= g_h5.dim || !values)
-		unreachable();
+		unreachable_release();
 
 	if (!g_h5.mode_write)
 		return;

@@ -1,88 +1,134 @@
 #include "util/progress.h"
 
-#ifdef _WIN32
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
-#include <windows.h>
+#include <stdalign.h>
+#include <stdatomic.h>
+#include <threads.h>
 
-typedef HANDLE pthread_t;
-
-#define T_Func DWORD WINAPI
-#define T_Ret(x) return (DWORD)(size_t)(x)
-#define pthread_join(thread_id, _) WaitForSingleObject(thread_id, INFINITE)
-#define usleep(microseconds) Sleep((microseconds) / 1000)
-
-static int pthread_create(pthread_t *restrict thread, void *restrict _,
-			  LPTHREAD_START_ROUTINE fn, void *restrict arg)
-{
-	(void)_;
-	*thread = CreateThread(NULL, 0, fn, arg, 0, NULL);
-	return *thread ? 0 : -1;
-}
-#else
-#include <pthread.h>
-#include <unistd.h>
-
-typedef void *T_Func;
-
-#define T_Ret(x) return (x)
-#endif
-
-#define atomic_load_relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
-#define atomic_add_relaxed(p, v) \
-	atomic_fetch_add_explicit((p), (v), memory_order_relaxed)
-
+#include "util/args.h"
 #include "util/print.h"
 
-static _Atomic(bool) p_running;
-static _Atomic(s64) *p_progress;
-static const char *p_message;
-static s64 p_total;
-static pthread_t p_thread;
+static thread_local size_t t_done;
 
-static T_Func p_monitor(void *arg)
+static alignas(64) atomic_size_t p_done;
+static thrd_t p_monitor_thrd;
+
+static size_t p_total;
+static size_t p_update_limit;
+static const char *p_message;
+
+static atomic_bool p_running;
+static bool p_disable;
+
+static mtx_t p_mutex;
+static cnd_t p_cond;
+
+static int p_monitor(void *arg)
 {
 	(void)arg;
 	ppercent(0, "%s", p_message);
 
-	while (atomic_load_relaxed(p_progress) < p_total) {
-		usleep(100000);
-		pproportc(atomic_load_relaxed(p_progress) / p_total, "%s",
-			  p_message);
+	struct timespec timeout;
+
+	size_t current = 0;
+	while (atomic_load_explicit(&p_running, memory_order_acquire)) {
+		current = atomic_load_explicit(&p_done, memory_order_relaxed);
+		pproportc(current / p_total, "%s", p_message);
+
+		if (timespec_get(&timeout, TIME_UTC) == 0) {
+			timeout.tv_sec = 0;
+			timeout.tv_nsec = 0;
+		}
+		timeout.tv_nsec += 250000000;
+		if (timeout.tv_nsec >= 1000000000) {
+			timeout.tv_sec++;
+			timeout.tv_nsec -= 1000000000;
+		}
+
+		mtx_lock(&p_mutex);
+		cnd_timedwait(&p_cond, &p_mutex, &timeout);
+		mtx_unlock(&p_mutex);
 	}
 
 	ppercent(100, "%s", p_message);
-	T_Ret(NULL);
+	return thrd_success;
 }
 
-bool progress_start(_Atomic(s64) *progress, s64 total, const char *message)
+bool progress_start(size_t total, int threads, const char *message)
 {
-	if (atomic_load(&p_running))
-		goto p_thread_error;
-
-	atomic_store(&p_running, true);
-	p_progress = progress;
-	p_message = message;
-	p_total = total;
-
-	if (pthread_create(&p_thread, NULL, p_monitor, NULL) == 0)
+	if (p_disable)
 		return true;
 
-	atomic_store(&p_running, false);
-p_thread_error:
+	if (atomic_load_explicit(&p_running, memory_order_relaxed))
+		goto p_monitor_running_error;
+
+	atomic_store_explicit(&p_running, true, memory_order_relaxed);
+	atomic_store_explicit(&p_done, 0, memory_order_relaxed);
+	p_message = message;
+	p_total = total;
+	if (!p_total)
+		p_total = 1;
+	p_update_limit = total / ((size_t)threads * 100);
+	if (!p_update_limit)
+		p_update_limit = 1;
+
+	if (mtx_init(&p_mutex, mtx_plain) != thrd_success)
+		goto p_monitor_mtx_error;
+	if (cnd_init(&p_cond) != thrd_success)
+		goto p_monitor_cnd_error;
+
+	if (thrd_create(&p_monitor_thrd, p_monitor, NULL) == thrd_success)
+		return true;
+
+	cnd_destroy(&p_cond);
+p_monitor_cnd_error:
+	mtx_destroy(&p_mutex);
+p_monitor_mtx_error:
+	atomic_store_explicit(&p_running, false, memory_order_relaxed);
+p_monitor_running_error:
 	perr("Failed to create progress bar monitor thread");
 	return false;
 }
 
+void progress_flush(void)
+{
+	if (p_disable || !t_done)
+		return;
+
+	atomic_fetch_add_explicit(&p_done, t_done, memory_order_relaxed);
+	t_done = 0;
+}
+
+void progress_add(size_t amount)
+{
+	if (p_disable || (t_done += amount) < p_update_limit)
+		return;
+
+	progress_flush();
+}
+
 void progress_end(void)
 {
-	if (!atomic_load(&p_running)) {
+	if (p_disable)
+		return;
+
+	if (!atomic_load_explicit(&p_running, memory_order_relaxed)) {
 		pdev("Tried to end non-running progress monitor");
 		perr("Internal error during progress bar monitor thread cleanup");
 		return;
 	}
 
-	pthread_join(p_thread, NULL);
-	atomic_store(&p_running, false);
+	progress_flush();
+	atomic_store_explicit(&p_done, p_total, memory_order_relaxed);
+	atomic_store_explicit(&p_running, false, memory_order_release);
+	cnd_signal(&p_cond);
+	thrd_join(p_monitor_thrd, NULL);
+	cnd_destroy(&p_cond);
+	mtx_destroy(&p_mutex);
 }
+
+ARGUMENT(no_progress) = {
+	.opt = 'P',
+	.lopt = "no-progress",
+	.help = "Disable progress bars",
+	.set = &p_disable,
+};

@@ -180,6 +180,7 @@ cd path\to\where\you\unzipped\release
 | `-B, --benchmark` | Enable timing of various steps |
 | `-W, --no-write` | Disable writing to output file |
 | `-C, --no-cuda` | Disable CUDA |
+| `-P, --no-progress` | Disable progress bars |
 | `-D, --no-detail` | Disable detailed printing |
 | `-q, --quiet` | Suppress all non-error printing |
 | `-v, --verbose` | Enable verbose printing |

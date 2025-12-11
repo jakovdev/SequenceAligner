@@ -29,7 +29,10 @@
 #define REALLOCA(ptr, nmemb) REALLOC(ptr, bytesof(ptr, nmemb))
 
 /* Free with free_aligned() */
-ALLOC void *alloc_aligned(size_t alignment, size_t bytes);
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((malloc, alloc_size(2)))
+#endif
+void *alloc_aligned(size_t alignment, size_t bytes);
 
 #ifdef _WIN32
 #include <malloc.h>

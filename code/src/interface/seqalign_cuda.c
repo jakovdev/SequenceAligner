@@ -46,7 +46,7 @@ bool cuda_align(void)
 		RETURN_CUDA_ERRORS("Failed uploading storage data to device");
 
 	const s64 alignments = sequences_alignments();
-	pinfol("Will perform " Ps64 " pairwise alignments", alignments);
+	pinfol("Performing " Ps64 " pairwise alignments", alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();

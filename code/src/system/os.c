@@ -167,7 +167,7 @@ bool path_directories_create(const char *path)
 
 static int thread_num;
 
-int arg_thread_num(void)
+int arg_threads(void)
 {
 	if (!thread_num)
 		thread_num = omp_get_max_threads();
@@ -193,7 +193,7 @@ static struct arg_callback parse_thread_num(const char *str, void *dest)
 
 static void print_threads(void)
 {
-	pinfol("CPU Threads: %d", arg_thread_num());
+	pinfol("CPU Threads: %d", arg_threads());
 }
 
 ARGUMENT(threads) = {

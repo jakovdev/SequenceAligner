@@ -8,7 +8,9 @@
 #endif
 #include <windows.h>
 #if defined(_MSC_VER) && !defined(__clang__)
+#ifndef strcasecmp
 #define strcasecmp _stricmp
+#endif
 #include <Shlwapi.h>
 #elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__clang__)
 #include <shlwapi.h>
@@ -31,14 +33,9 @@
 
 #endif
 
-#include <stdatomic.h>
 #include <stdbool.h>
 
-#define atomic_load_relaxed(p) atomic_load_explicit((p), memory_order_relaxed)
-#define atomic_add_relaxed(p, v) \
-	atomic_fetch_add_explicit((p), (v), memory_order_relaxed)
-
-int arg_thread_num(void);
+int arg_threads(void);
 
 double time_current(void);
 

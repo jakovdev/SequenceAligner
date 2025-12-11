@@ -4,7 +4,7 @@
 
 #include "bio/types.h"
 
-extern _Thread_local s32 *restrict g_seq1_i;
+extern thread_local s32 *restrict g_seq1_i;
 
 void indices_buffers_init(s32 seq_len_max);
 

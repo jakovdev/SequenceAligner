@@ -16,7 +16,7 @@ static double filter;
 static double similarity(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
 	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2))
-		unreachable();
+		unreachable_release();
 
 	s32 min_len = seq1->length < seq2->length ? seq1->length : seq2->length;
 	s32 matches = 0;
@@ -36,18 +36,15 @@ bool filter_seqs(sequence_t *seqs, bool *kept, s32 seq_n, s32 *seq_n_filter)
 	}
 
 	*seq_n_filter = 0;
-	memset(kept, 1, bytesof(kept, (size_t)seq_n));
+	size_t seq_n_s = (size_t)seq_n;
+	memset(kept, 1, bytesof(kept, seq_n_s));
 
-	const s64 total = seq_n - 1;
-	const s64 update_limit = total / ((s64)arg_thread_num() * 100);
-	_Alignas(CACHE_LINE) _Atomic(s64) g_progress = 0;
-	if unlikely (!progress_start(&g_progress, total, "Filtering sequences"))
+	if (!progress_start(seq_n_s - 1, arg_threads(), "Filtering sequences"))
 		return false;
 
 	s32 filtered_total = 0;
 #pragma omp parallel reduction(+ : filtered_total)
 	{
-		s64 progress = 0;
 		s32 filtered = 0;
 		s32 i;
 #pragma omp for schedule(dynamic)
@@ -67,16 +64,10 @@ bool filter_seqs(sequence_t *seqs, bool *kept, s32 seq_n, s32 *seq_n_filter)
 			}
 
 			kept[i] = should_keep;
-
-			if (++progress >= update_limit) {
-				atomic_add_relaxed(&g_progress, progress);
-				progress = 0;
-			}
+			progress_add(1);
 		}
 
-		if (progress > 0)
-			atomic_add_relaxed(&g_progress, progress);
-
+		progress_flush();
 		filtered_total += filtered;
 	}
 

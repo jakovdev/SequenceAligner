@@ -9,7 +9,7 @@ void affine_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
 	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
 	    !g_gap_y)
-		unreachable();
+		unreachable_release();
 
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
@@ -40,7 +40,7 @@ s32 affine_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 {
 	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
 	    !g_gap_y || !g_seq1_i)
-		unreachable();
+		unreachable_release();
 
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;

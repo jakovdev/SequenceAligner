@@ -2,8 +2,10 @@
 #ifndef SYSTEM_TYPES_H
 #define SYSTEM_TYPES_H
 
-#include <stdint.h>
 #include <inttypes.h>
+#include <stdalign.h>
+#include <stdint.h>
+#include <threads.h>
 
 /* scores, sequence lengths and counts */
 typedef int32_t s32;

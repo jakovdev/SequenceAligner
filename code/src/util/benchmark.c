@@ -77,17 +77,15 @@ void bench_total_print(s64 alignments)
 		psection("Performance Summary");
 		pinfo("Timing breakdown:");
 
-		double align_percent = (g_times.align / time_total) * 100;
 		pinfom("Compute: %.3f sec (%.1f%%)", g_times.align,
-		       align_percent);
+		       (g_times.align / time_total) * 100);
 
-		double io_percent = (g_times.io / time_total) * 100;
-		pinfom("I/O: %.3f sec (%.1f%%)", g_times.io, io_percent);
+		pinfom("I/O: %.3f sec (%.1f%%)", g_times.io,
+		       (g_times.io / time_total) * 100);
 
 		if (g_times.filter > 0) {
-			double f_percent = (g_times.filter / time_total) * 100;
 			pinfom("Filtering: %.3f sec (%.1f%%)", g_times.filter,
-			       f_percent);
+			       (g_times.filter / time_total) * 100);
 		}
 
 		pinfol("Total: %.3f sec", time_total);
@@ -95,14 +93,11 @@ void bench_total_print(s64 alignments)
 		double aps = (double)alignments / g_times.align;
 		pinfo("Alignments per second: %.2f", aps);
 
-		if ((arg_thread_num() > 1) && (!arg_mode_cuda())) {
-			double time_thread =
-				g_times.align / (double)arg_thread_num();
-			double time_thread_sec = aps / (double)arg_thread_num();
+		if ((arg_threads() > 1) && (!arg_mode_cuda())) {
 			pinfom("Average time per thread: %.3f sec",
-			       time_thread);
+			       g_times.align / (double)arg_threads());
 			pinfol("Alignments per second per thread: %.2f",
-			       time_thread_sec);
+			       aps / (double)arg_threads());
 		}
 	}
 }

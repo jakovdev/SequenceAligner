@@ -9,7 +9,6 @@
 #include "io/files.h"
 #include "system/compiler.h"
 #include "system/memory.h"
-#include "system/os.h"
 #include "util/benchmark.h"
 #include "util/print.h"
 
@@ -441,7 +440,7 @@ cleanup_seqs:
 sequence_t *sequence(s32 index)
 {
 	if (!g_seqs || index < 0 || index >= g_seq_n)
-		unreachable();
+		unreachable_release();
 
 	return &g_seqs[index];
 }

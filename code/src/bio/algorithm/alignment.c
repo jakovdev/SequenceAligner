@@ -17,16 +17,12 @@
 bool align(void)
 {
 	const align_func_t method = align_method(arg_align_method());
-	const s64 total = sequences_alignments();
-	const s64 num_threads = (s64)arg_thread_num();
-	const s64 update_limit = max(1, total / (num_threads * 100));
+	const size_t total = (size_t)sequences_alignments();
 	const s32 seq_n = sequences_seq_n();
 	const s32 seq_len_max = sequences_seq_len_max();
 
-	pinfo("Will perform " Ps64 " pairwise alignments", total);
-
-	_Alignas(CACHE_LINE) _Atomic(s64) g_progress = 0;
-	if unlikely (!progress_start(&g_progress, total, "Aligning sequences"))
+	pinfo("Performing %zu pairwise alignments", total);
+	if (!progress_start(total, arg_threads(), "Aligning sequences"))
 		return false;
 
 	bench_align_start();
@@ -41,7 +37,6 @@ bool align(void)
 			exit(EXIT_FAILURE);
 		}
 		s64 checksum = 0;
-		s64 progress = 0;
 		s32 col;
 #pragma omp for schedule(dynamic)
 		for (col = 1; col < seq_n; col++) {
@@ -54,16 +49,10 @@ bool align(void)
 			}
 
 			h5_matrix_column_set(col, column_buffer);
-			progress += col;
-			if (progress >= update_limit) {
-				atomic_add_relaxed(&g_progress, progress);
-				progress = 0;
-			}
+			progress_add((size_t)col);
 		}
 
-		if (progress > 0)
-			atomic_add_relaxed(&g_progress, progress);
-
+		progress_flush();
 		g_checksum += checksum;
 		free_aligned(column_buffer);
 		indices_buffers_free();
