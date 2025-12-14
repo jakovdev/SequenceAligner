@@ -162,8 +162,8 @@ cd path\to\where\you\unzipped\release
 **Required arguments:**
 | Argument | Description |
 |--------|-------------|
-| `-i, --input FILE` | Input file path (FASTA, CSV) |
-| `-o, --output FILE` | Output file path (HDF5) |
+| `-i, --input FILE` | Input file path: FASTA, DSV (CSV, TSV, etc.) format |
+| `-o, --output FILE` | Output file path: HDF5 format |
 | `-t, --type TYPE` | Sequence type: amino (protein), nucleo (DNA/RNA) |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see options) |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
@@ -318,15 +318,17 @@ All implementations use dynamic programming with optimized matrix operations.
 ## File Formats
 
 ### Input Format
-- **File Type**: FASTA or CSV format
+- **File Type**: FASTA or DSV (CSV, TSV, etc.) format
 - **Sequences**:
   - For protein sequences: IUPAC amino acid single letter codes (ARNDCQEGHILKMFPSTWYVBZX*)
   - For nucleotide sequences: IUPAC nucleotide single letter codes (ATGCSWRYKMBVHDN*)
   - At least 2 sequences, each with minimum length of 1 character
-- **CSV Specific Requirements**:
+- **DSV Specific Requirements**:
   - Must contain one column with biological sequence data (amino acids or nucleotides)
+  - Does NOT support quoted fields or escaped delimiters within fields
+  - Columns can be separated by commas, tabs, or other delimiters with auto-detection
   - No specific header requirements - the program will scan and identify the sequence column
-  - The program will prompt you to select the correct one if it can't find one automatically
+  - The program will prompt you to select the correct delimiter or header if it can't find one automatically
 
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format

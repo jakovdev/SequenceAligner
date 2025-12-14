@@ -6,7 +6,7 @@
 
 #include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
-#include "io/files.h"
+#include "io/input.h"
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "util/benchmark.h"
@@ -211,15 +211,15 @@ static bool seq_len_valid(size_t len)
 
 bool sequences_load_from_file(void)
 {
-	struct FileText input_file = { 0 };
-	if (!file_text_open(&input_file, arg_input()))
+	struct ifile ifile = { 0 };
+	if (!ifile_open(&ifile, arg_input()))
 		return false;
 
-	s32 total = file_sequence_total(&input_file);
+	s32 total = ifile_sequence_count(&ifile);
 	sequence_t *MALLOCA_CL(seqs, (size_t)total);
 	if unlikely (!seqs) {
 		perr("Out of memory allocating sequences");
-		file_text_close(&input_file);
+		ifile_close(&ifile);
 		return false;
 	}
 
@@ -238,14 +238,14 @@ bool sequences_load_from_file(void)
 	bench_io_start();
 
 	for (s32 seq_index = 0; seq_index < total; seq_index++) {
-		const size_t seq_len = file_sequence_next_length(&input_file);
+		const size_t seq_len = ifile_sequence_length(&ifile);
 		if unlikely (!seq_len) {
 			pwarn("Unexpected empty sequence #" Ps32
 			      ", possible file corruption",
 			      seq_index + 1);
 			if (!print_yN("Continue loading sequences?"))
 				goto cleanup_seq_curr_seqs;
-			if unlikely (!file_sequence_next(&input_file)) {
+			if unlikely (!ifile_sequence_next(&ifile)) {
 				perr("Unexpected end of file, possible file corruption");
 				goto cleanup_seq_curr_seqs;
 			}
@@ -263,7 +263,7 @@ bool sequences_load_from_file(void)
 			}
 
 			if (skip_long) {
-				if unlikely (!file_sequence_next(&input_file)) {
+				if unlikely (!ifile_sequence_next(&ifile)) {
 					perr("Unexpected end of file, possible file corruption");
 					goto cleanup_seq_curr_seqs;
 				}
@@ -289,7 +289,7 @@ bool sequences_load_from_file(void)
 		}
 
 		seq_curr.length = seq_len_safe;
-		size_t len = file_extract_entry(&input_file, seq_curr.letters);
+		size_t len = ifile_sequence_extract(&ifile, seq_curr.letters);
 		if unlikely (!len || len != (size_t)seq_curr.length) {
 			perr("Failed to extract sequence #" Ps32
 			     ", possible file corruption",
@@ -423,7 +423,7 @@ skip_filtering:
 	g_seq_len_sum = seq_len_sum;
 #endif
 	g_seq_len_max = seq_len_max;
-	file_text_close(&input_file);
+	ifile_close(&ifile);
 	atexit(sequences_free);
 	return true;
 
@@ -433,7 +433,7 @@ cleanup_seq_curr_seqs:
 
 cleanup_seqs:
 	free_aligned(seqs);
-	file_text_close(&input_file);
+	ifile_close(&ifile);
 	return false;
 }
 

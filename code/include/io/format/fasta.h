@@ -5,15 +5,18 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-bool fasta_entry_next(char *restrict *restrict p_cursor);
+struct ifile;
 
-size_t fasta_total_entries(char *restrict file_cursor, char *restrict file_end);
+bool fasta_detect(struct ifile *, const char *restrict extension);
 
-size_t fasta_entry_extract(char *restrict *restrict p_cursor,
-			   char *restrict file_end, char *restrict output);
+bool fasta_open(struct ifile *);
 
-size_t fasta_entry_length(char *cursor, char *file_end);
+size_t fasta_sequence_count(struct ifile *);
 
-bool fasta_validate(char *restrict file_start, char *restrict file_end);
+size_t fasta_sequence_length(struct ifile *);
+
+size_t fasta_sequence_extract(struct ifile *, char *restrict output);
+
+bool fasta_sequence_next(struct ifile *);
 
 #endif /* IO_FORMAT_FASTA_H */

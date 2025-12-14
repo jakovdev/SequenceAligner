@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "bio/types.h"
-#include "io/files.h"
+#include "io/mmap.h"
 #include "interface/seqalign_cuda.h"
 #include "system/os.h"
 #include "system/memory.h"
@@ -25,9 +25,10 @@ static struct {
 	size_t matrix_b;
 	s64 dim;
 	s64 checksum;
-	struct FileScoreMatrix mmap;
+	struct MMapMatrix mmap;
+	char path[MAX_PATH];
 	u8 compression;
-	bool mode_write;
+	bool disabled;
 	bool mode_mmap;
 	bool triangular;
 	bool is_init;
@@ -42,7 +43,7 @@ static s32 h5_chunk_dimensions_calculate(void);
 #define ALIGN_POW2(value, pow2) \
 	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
-bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
+bool h5_open(sequence_t *seqs, s32 seq_n)
 {
 	if (g_h5.is_init) {
 		pdev("Call h5_close() before calling h5_open() again");
@@ -54,9 +55,8 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 	g_h5.matrix_id = H5I_INVALID_HID;
 	g_h5.sequences_id = H5I_INVALID_HID;
 	g_h5.lengths_id = H5I_INVALID_HID;
-	g_h5.mode_write = arg_mode_write();
 
-	if (!g_h5.mode_write) {
+	if (g_h5.disabled) {
 		g_h5.is_init = true;
 		return true;
 	}
@@ -67,8 +67,8 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 		pabort();
 	}
 
-	if unlikely (!file_path || !file_path[0]) {
-		pdev("NULL file_path in h5_open()");
+	if unlikely (!seqs) {
+		pdev("NULL sequences in h5_open()");
 		perr("Internal error initializing HDF5 storage");
 		pabort();
 	}
@@ -95,12 +95,12 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 	if (g_h5.mode_mmap) {
 		char name[MAX_PATH];
-		file_matrix_name(name, sizeof(name), file_path);
+		mmap_matrix_name(name, sizeof(name), g_h5.path);
 		pinfo("Matrix size exceeds memory limits");
-		if (!file_matrix_open(&g_h5.mmap, name, dim_size))
+		if (!mmap_matrix_open(&g_h5.mmap, name, dim_size))
 			return false;
 		g_h5.matrix = g_h5.mmap.matrix;
-		g_h5.matrix_b = g_h5.mmap.meta.bytes;
+		g_h5.matrix_b = g_h5.mmap.bytes;
 	} else {
 		MALLOC_CL(g_h5.matrix, bytes);
 		if unlikely (!g_h5.matrix) {
@@ -114,10 +114,10 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
-	g_h5.file_id = H5Fcreate(file_path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
+	g_h5.file_id = H5Fcreate(g_h5.path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
 	H5Pclose(fapl);
 	if unlikely (g_h5.file_id < 0) {
-		perr("Failed to create HDF5 file: %s", file_path);
+		perr("Failed to create HDF5 file: %s", file_name(g_h5.path));
 		h5_file_close();
 		return false;
 	}
@@ -289,7 +289,7 @@ void h5_matrix_column_set(s32 col, const s32 *values)
 	    col < 0 || col >= g_h5.dim || !values)
 		unreachable_release();
 
-	if (!g_h5.mode_write)
+	if (g_h5.disabled)
 		return;
 
 	if (g_h5.triangular) {
@@ -341,7 +341,7 @@ void h5_close(int skip_flush)
 		pinfo("Matrix checksum: " Ps64, g_h5.checksum);
 	}
 
-	if (g_h5.mode_write) {
+	if (!g_h5.disabled) {
 		bench_io_start();
 		if likely (!skip_flush) {
 			pinfol("Writing results to HDF5");
@@ -426,7 +426,7 @@ static s32 h5_chunk_dimensions_calculate(void)
 static void h5_file_close(void)
 {
 	if (g_h5.mode_mmap) {
-		file_matrix_close(&g_h5.mmap);
+		mmap_matrix_close(&g_h5.mmap);
 	} else {
 		if (g_h5.matrix)
 			free_aligned(g_h5.matrix);
@@ -580,6 +580,64 @@ static void h5_flush_matrix(void)
 	free_aligned(buf);
 }
 
+ARGUMENT(disable_write) = {
+	.opt = 'W',
+	.lopt = "no-write",
+	.help = "Disable writing to output file",
+	.set = &g_h5.disabled,
+	.help_weight = 400,
+};
+
+static void print_output_path(void)
+{
+	if (g_h5.disabled)
+		pwarnm("Output: Ignored");
+	else
+		pinfom("Output: %s", file_name(g_h5.path));
+}
+
+static struct arg_callback validate_output_path(void)
+{
+	if (g_h5.disabled)
+		return ARG_VALID();
+
+	if (path_file_exists(g_h5.path)) {
+		pwarn("Output file already exists: %s", file_name(g_h5.path));
+		if (!print_yN("Do you want to DELETE it?"))
+			return ARG_INVALID(
+				"Output file exists and will not be overwritten");
+		if (remove(g_h5.path) != 0)
+			return ARG_INVALID(
+				"Failed to delete existing output file");
+		pinfo("Deleted existing output file");
+	}
+
+	if (!path_directories_create(g_h5.path))
+		return ARG_INVALID(
+			"Failed to create directories for output file");
+
+	return ARG_VALID();
+}
+
+ARGUMENT(output_path) = {
+	.opt = 'o',
+	.lopt = "output",
+	.help = "Output file path: HDF5 format",
+	.param = "FILE",
+	.param_req = ARG_PARAM_REQUIRED,
+	.arg_req = ARG_REQUIRED,
+	.dest = g_h5.path,
+	.parse_callback = parse_path,
+	.validate_callback = validate_output_path,
+	.validate_phase = ARG_CALLBACK_IF_SET,
+	.validate_weight = 900,
+	.action_callback = print_output_path,
+	.action_phase = ARG_CALLBACK_IF_SET,
+	.action_weight = 900,
+	.help_weight = 900,
+	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(disable_write)),
+};
+
 ARG_PARSE_L(compression, 10, u8, (u8), (val < 0 || val > 9),
 	    "Compression level must be between 0-9")
 
@@ -587,8 +645,6 @@ static void print_compression(void)
 {
 	pinfom("Compression: " Pu8, g_h5.compression);
 }
-
-ARG_EXTERN(output_path);
 
 ARGUMENT(compression) = {
 	.opt = 'z',

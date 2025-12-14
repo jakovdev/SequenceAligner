@@ -26,7 +26,7 @@ for %%a in (%ARCHS%) do (
         echo [ERROR] CMake configure failed for "!build_subdir!"
         exit /b 1
     )
-    cmake --build "!build_subdir!" --config Release -- -j %NUMBER_OF_PROCESSORS%
+    cmake --build "!build_subdir!" -- -j %NUMBER_OF_PROCESSORS%
     if errorlevel 1 (
         echo [ERROR] CMake build failed for "!build_subdir!"
         exit /b 1

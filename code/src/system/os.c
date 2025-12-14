@@ -45,7 +45,7 @@ double time_current(void)
 
 #endif
 
-const char *file_name_path(const char *path)
+const char *file_name(const char *path)
 {
 	if unlikely (!path || !*path)
 		return NULL;
@@ -163,6 +163,18 @@ bool path_directories_create(const char *path)
 
 	free(dirbuf);
 	return true;
+}
+
+struct arg_callback parse_path(const char *str, void *dest)
+{
+	if (strlen(str) >= MAX_PATH)
+		return ARG_INVALID("File path is too long");
+
+	if (path_special_exists(str))
+		return ARG_INVALID("Path is a directory or non-regular file");
+
+	snprintf(dest, MAX_PATH, "%s", str);
+	return ARG_VALID();
 }
 
 static int thread_num;

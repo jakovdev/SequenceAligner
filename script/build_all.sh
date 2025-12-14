@@ -33,7 +33,7 @@ for preset in "${PRESETS[@]}"; do
     mkdir -p "${build_subdir}"
 
     cmake -S . -B "${build_subdir}" -G Ninja -DARCH_LEVEL="${arch}" -DUSE_CUDA="${USE_CUDA}" -DCMAKE_BUILD_TYPE=Release
-    cmake --build "${build_subdir}" --config Release -- -j $(nproc)
+    cmake --build "${build_subdir}" -- -j $(nproc)
     (cd "${build_subdir}" && cpack)
 done
 

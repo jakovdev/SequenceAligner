@@ -7,7 +7,7 @@
 
 #include "bio/types.h"
 
-bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n);
+bool h5_open(sequence_t *seqs, s32 seq_n);
 
 void h5_matrix_column_set(s32 col, const s32 *values);
 

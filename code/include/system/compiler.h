@@ -43,6 +43,55 @@
 #include <shlwapi.h>
 #endif
 #define strcasestr StrStrIA
+#include <stdio.h>
+/* https://stackoverflow.com/a/47067149 */
+static inline long getdelim(char **buf, size_t *bufsiz, int delim, FILE *fp)
+{
+	if (!buf || !bufsiz || !fp)
+		return -1;
+
+	if (!*buf || !*bufsiz) {
+		*bufsiz = BUFSIZ;
+		if (!(*buf = malloc(*bufsiz)))
+			return -1;
+	}
+
+	char *ptr, *eptr;
+	for (ptr = *buf, eptr = *buf + *bufsiz;;) {
+		int c = fgetc(fp);
+		if (c == -1) {
+			if (feof(fp)) {
+				long diff = (long)(ptr - *buf);
+				if (diff) {
+					*ptr = '\0';
+					return diff;
+				}
+			}
+			return -1;
+		}
+		*ptr++ = (char)c;
+		if (c == delim) {
+			*ptr = '\0';
+			return (long)(ptr - *buf);
+		}
+		if (ptr + 2 >= eptr) {
+			char *nbuf;
+			size_t nbufsiz = *bufsiz * 2;
+			long d = (long)(ptr - *buf);
+			if (!(nbuf = realloc(*buf, nbufsiz)))
+				return -1;
+			*buf = nbuf;
+			*bufsiz = nbufsiz;
+			eptr = nbuf + nbufsiz;
+			ptr = nbuf + d;
+		}
+	}
+}
+
+static inline long getline(char **buf, size_t *bufsiz, FILE *fp)
+{
+	return getdelim(buf, bufsiz, '\n', fp);
+}
 #else /* GCC, Clang */
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))

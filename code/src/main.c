@@ -1,6 +1,5 @@
 #include "bio/algorithm/alignment.h"
 #include "bio/sequence/sequences.h"
-#include "io/files.h"
 #include "interface/seqalign_cuda.h"
 #include "interface/seqalign_hdf5.h"
 #include "util/args.h"
@@ -23,7 +22,7 @@ int main(int argc, char *argv[])
 	if (!sequences_load_from_file())
 		return 1;
 
-	if (!h5_open(arg_output(), sequences_seqs(), sequences_seq_n()))
+	if (!h5_open(sequences_seqs(), sequences_seq_n()))
 		return 1;
 
 	psection("Performing Alignments");
