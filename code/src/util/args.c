@@ -23,11 +23,7 @@
 #endif
 
 #ifndef args_abort
-#define args_abort()            \
-	do {                    \
-		psection_end(); \
-		abort();        \
-	} while (0)
+#define args_abort() pabort()
 #endif
 
 struct args_raw argr = { 0 };

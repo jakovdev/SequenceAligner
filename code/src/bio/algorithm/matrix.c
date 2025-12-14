@@ -16,7 +16,7 @@ void matrix_buffers_init(s32 seq_len_max)
 	if (seq_len_max < SEQ_LEN_MIN || seq_len_max > SEQ_LEN_MAX) {
 		pdev("Invalid seq_len_max in matrix_buffers_init()");
 		perr("Internal error during matrix allocation");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	MALLOCA_CL(g_matrix, 3 * MATRIX_SIZE(seq_len_max));
@@ -35,7 +35,7 @@ void matrix_buffers_free(void)
 	if (!g_matrix) {
 		pdev("Call matrix_buffers_init() before matrix_buffers_free()");
 		perr("Internal error during alignment matrices deallocation");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	free_aligned(g_matrix);

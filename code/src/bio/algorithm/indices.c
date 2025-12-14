@@ -11,7 +11,7 @@ void indices_buffers_init(s32 seq_len_max)
 	if (seq_len_max < SEQ_LEN_MIN || seq_len_max > SEQ_LEN_MAX) {
 		pdev("Invalid seq_len_max in indices_buffers_init()");
 		perr("Internal error during sequence indices allocation");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	MALLOCA_CL(g_seq1_i, (size_t)seq_len_max);
@@ -26,7 +26,7 @@ void indices_buffers_free(void)
 	if (!g_seq1_i) {
 		pdev("Call indices_buffers_init() before indices_buffers_free()");
 		perr("Internal error during sequence indices deallocation");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	free_aligned(g_seq1_i);

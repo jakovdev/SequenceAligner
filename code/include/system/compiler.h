@@ -31,12 +31,18 @@
 #define unreachable_release() unreachable()
 #endif /* NDEBUG */
 
+#ifdef _WIN32
 #if defined(_MSC_VER) && !defined(__clang__)
 #define likely(x) (x)
 #define unlikely(x) (x)
-#ifndef strcasecmp
 #define strcasecmp _stricmp
+#include <Shlwapi.h>
+#elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__clang__)
+#define likely(x) (__builtin_expect(!!(x), 1))
+#define unlikely(x) (__builtin_expect(!!(x), 0))
+#include <shlwapi.h>
 #endif
+#define strcasestr StrStrIA
 #else /* GCC, Clang */
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))

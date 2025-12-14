@@ -96,6 +96,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 typedef const union {
 	char **choices;
@@ -132,9 +133,9 @@ enum p_return {
 	PRINT_INVALID_INPUT_TYPE__ERROR = -3,
 };
 
-void print_stream_in(FILE *in);
-void print_stream_out(FILE *out);
-void print_stream_err(FILE *err);
+void print_stream_in(FILE *);
+void print_stream_out(FILE *);
+void print_stream_err(FILE *);
 
 enum p_return print(const char *P_RESTRICT fmt, ...);
 enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...);
@@ -184,6 +185,13 @@ bool print_yn(const char *P_RESTRICT prompt);
 
 #define psection(...) print(P_SECTION __VA_ARGS__)
 #define psection_end() print(NULL)
+
+/* abort() by itself doesn't automatically call psection_end() unlike exit() */
+#define pabort()                \
+	do {                    \
+		psection_end(); \
+		abort();        \
+	} while (0)
 
 #ifndef NDEBUG
 #define pdev(...) perr("_TO_DEV_: " __VA_ARGS__)

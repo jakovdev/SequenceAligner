@@ -528,7 +528,7 @@ extern struct args_raw {
 #define ARG_PARSE_D(name, dest_t, CAST, cond, err) \
 	ARG_PARSER(name, strtod, , double, dest_t, CAST, cond, err)
 
-void _args_register(struct argument *a);
+void _args_register(struct argument *);
 
 /* https://stackoverflow.com/questions/1113409/attribute-constructor-equivalent-in-vc */
 #ifdef __cplusplus

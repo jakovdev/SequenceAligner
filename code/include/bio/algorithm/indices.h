@@ -10,6 +10,6 @@ void indices_buffers_init(s32 seq_len_max);
 
 void indices_buffers_free(void);
 
-void indices_precompute(sequence_ptr_t seq);
+void indices_precompute(sequence_ptr_t);
 
 #endif /* BIO_ALGORITHM_INDICES_H */

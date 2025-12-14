@@ -58,7 +58,7 @@ align_func_t align_method(enum AlignmentMethod method)
 	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
 		pdev("Invalid AlignmentMethod enum");
 		perr("Internal error retrieving alignment method");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 }
 

@@ -32,7 +32,7 @@ bool filter_seqs(sequence_t *seqs, bool *kept, s32 seq_n, s32 *seq_n_filter)
 	if (!seqs || !kept || !seq_n_filter || seq_n <= SEQ_N_MIN) {
 		pdev("Invalid parameters in filter_seqs()");
 		perr("Internal error during sequence filtering");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	*seq_n_filter = 0;

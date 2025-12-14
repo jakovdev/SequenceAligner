@@ -25,7 +25,7 @@
 bool cuda_align(void)
 {
 	const char *name = cuda_device_name();
-	if (!name || !name[0] || strcmp(name, "Unknown Device") == 0)
+	if (!name || !*name || strcmp(name, "Unknown Device") == 0)
 		RETURN_CUDA_ERRORS("Failed to query device name");
 
 	pinfo("Using CUDA device: %s", name);

@@ -18,11 +18,9 @@ static size_t csv_column_count(const char *line)
 		return 0;
 
 	size_t count = 1;
-	while (*line) {
+	while (*line && *line != '\n' && *line != '\r') {
 		if (*line == ',')
 			count++;
-		else if (*line == '\n' || *line == '\r')
-			break;
 		line++;
 	}
 

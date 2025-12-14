@@ -47,7 +47,7 @@ double time_current(void)
 
 const char *file_name_path(const char *path)
 {
-	if unlikely (!path || !path[0])
+	if unlikely (!path || !*path)
 		return NULL;
 #ifdef _WIN32
 	const char *name = strrchr(path, '\\');
@@ -59,7 +59,7 @@ const char *file_name_path(const char *path)
 
 bool path_special_exists(const char *path)
 {
-	if unlikely (!path || !path[0])
+	if unlikely (!path || !*path)
 		return false;
 #ifdef _WIN32
 	DWORD attr = GetFileAttributesA(path);
@@ -80,7 +80,7 @@ bool path_special_exists(const char *path)
 
 bool path_file_exists(const char *path)
 {
-	if unlikely (!path || !path[0])
+	if unlikely (!path || !*path)
 		return false;
 #ifdef _WIN32
 	DWORD attr = GetFileAttributesA(path);
@@ -99,7 +99,7 @@ bool path_file_exists(const char *path)
 
 static const char *_find_last_sep(const char *path)
 {
-	if (!path || !path[0])
+	if (!path || !*path)
 		unreachable();
 
 	const char *last1 = strrchr(path, '/');
@@ -119,7 +119,7 @@ static const char *_find_last_sep(const char *path)
 
 bool path_directories_create(const char *path)
 {
-	if unlikely (!path || !path[0])
+	if unlikely (!path || !*path)
 		return false;
 
 	const char *last_sep = _find_last_sep(path);
@@ -138,7 +138,7 @@ bool path_directories_create(const char *path)
 	dirbuf[dir_len] = '\0';
 
 	char *p = dirbuf;
-	if (p[0] == '/' || p[0] == '\\')
+	if (*p == '/' || *p == '\\')
 		p++;
 
 	for (; *p; ++p) {

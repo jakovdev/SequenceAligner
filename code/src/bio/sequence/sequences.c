@@ -450,7 +450,7 @@ sequence_t *sequences_seqs(void)
 	if unlikely (!g_seqs) {
 		pdev("Sequences not loaded when accessing sequences");
 		perr("Internal error accessing sequences");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_seqs;
@@ -461,7 +461,7 @@ s32 sequences_seq_n(void)
 	if unlikely (!g_seqs) {
 		pdev("Sequences not loaded when accessing sequence count");
 		perr("Internal error accessing sequence count");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_seq_n;
@@ -472,7 +472,7 @@ s64 sequences_alignments(void)
 	if unlikely (!g_seqs) {
 		pdev("Sequences not loaded when accessing alignment count");
 		perr("Internal error accessing alignment count");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_alignments;
@@ -483,7 +483,7 @@ s32 sequences_seq_len_max(void)
 	if unlikely (!g_seqs) {
 		pdev("Sequences not loaded when accessing max sequence length");
 		perr("Internal error accessing max sequence length");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_seq_len_max;
@@ -496,7 +496,7 @@ s64 sequences_seq_len_sum(void)
 	if unlikely (!g_seqs) {
 		pdev("Sequences not loaded when accessing sequence length sum");
 		perr("Internal error accessing sequence length sum");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_seq_len_sum;

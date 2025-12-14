@@ -44,6 +44,12 @@ static s32 h5_chunk_dimensions_calculate(void);
 
 bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 {
+	if (g_h5.is_init) {
+		pdev("Call h5_close() before calling h5_open() again");
+		perr("Internal error initializing HDF5 storage");
+		pabort();
+	}
+
 	g_h5.file_id = H5I_INVALID_HID;
 	g_h5.matrix_id = H5I_INVALID_HID;
 	g_h5.sequences_id = H5I_INVALID_HID;
@@ -58,13 +64,13 @@ bool h5_open(const char *file_path, sequence_t *seqs, s32 seq_n)
 	if unlikely (seq_n < SEQ_N_MIN) {
 		pdev("seq_n too small in h5_open()");
 		perr("Internal error initializing HDF5 storage");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	if unlikely (!file_path || !file_path[0]) {
 		pdev("NULL file_path in h5_open()");
 		perr("Internal error initializing HDF5 storage");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	g_h5.dim = seq_n;
@@ -302,7 +308,7 @@ void h5_checksum_set(s64 checksum)
 	if unlikely (!g_h5.is_init) {
 		pdev("HDF5 file not opened when setting checksum");
 		perr("Internal error setting HDF5 checksum");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	g_h5.checksum = checksum;
@@ -313,7 +319,7 @@ s64 h5_checksum(void)
 	if unlikely (!g_h5.is_init) {
 		pdev("HDF5 file not opened when getting checksum");
 		perr("Internal error getting HDF5 checksum");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_h5.checksum;
@@ -327,11 +333,13 @@ void h5_close(int skip_flush)
 	if unlikely (!g_h5.is_init) {
 		pdev("HDF5 file not opened or already closed");
 		perr("Internal error closing HDF5 file");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
-	psection("Finalizing Results");
-	pinfo("Matrix checksum: " Ps64, g_h5.checksum);
+	if likely (!skip_flush) {
+		psection("Finalizing Results");
+		pinfo("Matrix checksum: " Ps64, g_h5.checksum);
+	}
 
 	if (g_h5.mode_write) {
 		bench_io_start();
@@ -345,7 +353,8 @@ void h5_close(int skip_flush)
 		bench_io_end();
 	}
 
-	bench_io_print();
+	if likely (!skip_flush)
+		bench_io_print();
 	g_h5.is_init = false;
 }
 
@@ -356,7 +365,7 @@ s32 *h5_matrix_data(void)
 	if unlikely (!g_h5.is_init) {
 		pdev("HDF5 file not opened when getting matrix data");
 		perr("Internal error getting HDF5 matrix data");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_h5.matrix;
@@ -367,7 +376,7 @@ size_t h5_matrix_bytes(void)
 	if unlikely (!g_h5.is_init) {
 		pdev("HDF5 file not opened when getting matrix size");
 		perr("Internal error getting HDF5 matrix size");
-		exit(EXIT_FAILURE);
+		pabort();
 	}
 
 	return g_h5.matrix_b;

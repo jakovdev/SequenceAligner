@@ -7,15 +7,6 @@
 #define WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
-#if defined(_MSC_VER) && !defined(__clang__)
-#ifndef strcasecmp
-#define strcasecmp _stricmp
-#endif
-#include <Shlwapi.h>
-#elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__clang__)
-#include <shlwapi.h>
-#endif
-#define strcasestr StrStrIA
 #else /* POSIX/Linux */
 
 #include <fcntl.h>

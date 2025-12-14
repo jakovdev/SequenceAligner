@@ -68,7 +68,7 @@ typedef const sequence_t *const restrict sequence_ptr_t;
 	 seq_ptr->length > SEQ_LEN_MAX)
 
 typedef s32 (*align_func_t)(sequence_ptr_t, sequence_ptr_t);
-align_func_t align_method(enum AlignmentMethod method);
+align_func_t align_method(enum AlignmentMethod);
 
 enum SequenceType arg_sequence_type(void);
 int arg_sub_matrix(void);
