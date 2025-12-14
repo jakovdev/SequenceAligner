@@ -5,7 +5,6 @@
 
 #include "bio/types.h"
 #include "io/mmap.h"
-#include "interface/seqalign_cuda.h"
 #include "system/os.h"
 #include "system/memory.h"
 #include "util/args.h"
@@ -285,12 +284,12 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 
 void h5_matrix_column_set(s32 col, const s32 *values)
 {
+	if (g_h5.disabled)
+		return;
+
 	if (!g_h5.matrix || g_h5.dim <= SEQ_N_MIN || g_h5.dim > SEQ_N_MAX ||
 	    col < 0 || col >= g_h5.dim || !values)
 		unreachable_release();
-
-	if (g_h5.disabled)
-		return;
 
 	if (g_h5.triangular) {
 		memcpy(g_h5.matrix + ((s64)col * (col - 1)) / 2, values,
