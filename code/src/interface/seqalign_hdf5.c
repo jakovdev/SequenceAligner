@@ -12,6 +12,7 @@
 #include "util/print.h"
 
 #ifdef USE_CUDA
+#include "interface/seqalign_cuda.h"
 #include "host_interface.h"
 #endif
 
