@@ -126,10 +126,11 @@ void ifile_close(struct ifile *ifile)
 		pabort();
 	}
 
-	if (ifile->stream) {
+	if (ifile->stream)
 		fclose(ifile->stream);
-		ifile->stream = NULL;
-	}
+
+	if (ifile->line)
+		free(ifile->line);
 
 	memset(ifile, 0, sizeof(*ifile));
 }
@@ -145,14 +146,16 @@ s32 ifile_sequence_count(struct ifile *ifile)
 	return ifile->total_sequences;
 }
 
-size_t ifile_sequence_length(struct ifile *ifile)
+void ifile_sequence_length(struct ifile *ifile, size_t *out_length)
 {
-	if (ifile) {
+	if (ifile && out_length) {
 		switch (ifile->format) {
 		case INPUT_FORMAT_FASTA:
-			return fasta_sequence_length(ifile);
+			fasta_sequence_length(ifile, out_length);
+			return;
 		case INPUT_FORMAT_DSV:
-			return dsv_sequence_length(ifile);
+			dsv_sequence_length(ifile, out_length);
+			return;
 		case INPUT_FORMAT_UNKNOWN:
 		default:
 			break;
@@ -164,14 +167,17 @@ size_t ifile_sequence_length(struct ifile *ifile)
 	pabort();
 }
 
-size_t ifile_sequence_extract(struct ifile *ifile, char *restrict output)
+void ifile_sequence_extract(struct ifile *ifile, char *restrict output,
+			    size_t expected_length)
 {
-	if (ifile) {
+	if (ifile && output && expected_length) {
 		switch (ifile->format) {
 		case INPUT_FORMAT_FASTA:
-			return fasta_sequence_extract(ifile, output);
+			fasta_sequence_extract(ifile, output, expected_length);
+			return;
 		case INPUT_FORMAT_DSV:
-			return dsv_sequence_extract(ifile, output);
+			dsv_sequence_extract(ifile, output, expected_length);
+			return;
 		case INPUT_FORMAT_UNKNOWN:
 		default:
 			break;

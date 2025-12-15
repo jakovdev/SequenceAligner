@@ -13,9 +13,10 @@ bool fasta_open(struct ifile *);
 
 size_t fasta_sequence_count(struct ifile *);
 
-size_t fasta_sequence_length(struct ifile *);
+void fasta_sequence_length(struct ifile *, size_t *out_length);
 
-size_t fasta_sequence_extract(struct ifile *, char *restrict output);
+void fasta_sequence_extract(struct ifile *, char *restrict output,
+			    size_t expected_length);
 
 bool fasta_sequence_next(struct ifile *);
 

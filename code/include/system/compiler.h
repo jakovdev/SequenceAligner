@@ -2,19 +2,6 @@
 #ifndef SYSTEM_COMPILER_H
 #define SYSTEM_COMPILER_H
 
-#ifndef __is_identifier
-#define __is_identifier(x) 1
-#endif
-
-#define __has_keyword(__x) !(__is_identifier(__x))
-
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
-#elif defined(_MSC_VER) && _MSC_VER < 1939 && !defined(__clang__)
-#error "Unsupported MSVC version, please use a newer one for typeof"
-#elif !__has_keyword(typeof)
-#define typeof(x) __typeof__(x)
-#endif /* C23 has typeof keyword */
-
 #include <stddef.h>
 #if !defined(unreachable)
 #if defined(_MSC_VER) && !defined(__clang__)

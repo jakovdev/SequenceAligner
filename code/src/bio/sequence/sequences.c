@@ -234,23 +234,18 @@ bool sequences_load_from_file(void)
 	bool ask_invalid = false;
 
 	sequence_t seq_curr = { 0 };
+	size_t seq_curr_letters_cap = SEQ_LEN_MIN;
+	MALLOCA(seq_curr.letters, seq_curr_letters_cap);
+	if unlikely (!seq_curr.letters) {
+		perr("Out of memory allocating temporary sequence letters");
+		goto cleanup_seqs;
+	}
 
 	bench_io_start();
 
-	for (s32 seq_index = 0; seq_index < total; seq_index++) {
-		const size_t seq_len = ifile_sequence_length(&ifile);
-		if unlikely (!seq_len) {
-			pwarn("Unexpected empty sequence #" Ps32
-			      ", possible file corruption",
-			      seq_index + 1);
-			if (!print_yN("Continue loading sequences?"))
-				goto cleanup_seq_curr_seqs;
-			if unlikely (!ifile_sequence_next(&ifile)) {
-				perr("Unexpected end of file, possible file corruption");
-				goto cleanup_seq_curr_seqs;
-			}
-			continue;
-		}
+	do {
+		size_t seq_len;
+		ifile_sequence_length(&ifile, &seq_len);
 
 		if (!seq_len_valid(seq_len)) {
 			if (!ask_long) {
@@ -263,46 +258,30 @@ bool sequences_load_from_file(void)
 			}
 
 			if (skip_long) {
-				if unlikely (!ifile_sequence_next(&ifile)) {
-					perr("Unexpected end of file, possible file corruption");
-					goto cleanup_seq_curr_seqs;
-				}
 				seq_n_skip++;
 				continue;
 			} else {
-				perr("Sequence #" Ps32 " is too long",
-				     seq_index + 1);
+				perr("Sequence is too long");
 				goto cleanup_seq_curr_seqs;
 			}
 		}
 
-		const s32 seq_len_safe = (s32)seq_len;
-		if (seq_len_safe > seq_curr.length || !seq_curr.letters) {
-			if (seq_curr.letters)
-				free(seq_curr.letters);
-
-			MALLOCA(seq_curr.letters, (size_t)(seq_len_safe + 1));
-			if unlikely (!seq_curr.letters) {
+		if (seq_len > seq_curr_letters_cap - 1) {
+			while (seq_len > seq_curr_letters_cap - 1)
+				seq_curr_letters_cap *= 2;
+			REALLOCA(seq_curr.letters, seq_curr_letters_cap) {
 				perr("Out of memory allocating sequence letters");
-				goto cleanup_seqs;
+				goto cleanup_seq_curr_seqs;
 			}
 		}
 
-		seq_curr.length = seq_len_safe;
-		size_t len = ifile_sequence_extract(&ifile, seq_curr.letters);
-		if unlikely (!len || len != (size_t)seq_curr.length) {
-			perr("Failed to extract sequence #" Ps32
-			     ", possible file corruption",
-			     seq_index + 1);
-			goto cleanup_seq_curr_seqs;
-		}
+		seq_curr.length = (s32)seq_len;
+		ifile_sequence_extract(&ifile, seq_curr.letters, seq_len);
 
 		if (!validate_sequence(&seq_curr)) {
 			if (!ask_invalid) {
 				bench_io_end();
 				pwarn("Found sequence with invalid letters");
-				pwarnl("Sequence #" Ps32 " is invalid",
-				       seq_index + 1);
 				skip_invalid =
 					print_yN("Skip invalid sequences?");
 				ask_invalid = true;
@@ -328,7 +307,7 @@ bool sequences_load_from_file(void)
 			seq_len_max = seq_curr.length;
 
 		seq_n_curr++;
-	}
+	} while (ifile_sequence_next(&ifile));
 
 	bench_io_end();
 	free(seq_curr.letters);
@@ -403,10 +382,10 @@ bool sequences_load_from_file(void)
 		goto cleanup_seqs;
 	}
 
-	if (seq_n_filter > 0 && seq_n_filter >= total / 4) {
+	if (seq_n_filter > 0) {
 		pverb("Reallocating sequences to save memory");
-		REALLOCA(seqs, (size_t)seq_n);
-		else pverb("Failed to reallocate, continuing without");
+		REALLOCA_CL(seqs, (size_t)seq_n, (size_t)(seq_n + seq_n_filter))
+			pverb("Failed to reallocate, continuing without");
 	}
 
 	pinfo("Loaded " Ps32 " sequences (filtered " Ps32 ")", seq_n,

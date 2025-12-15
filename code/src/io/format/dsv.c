@@ -12,38 +12,81 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 
-static const char COMMON_DELIMITERS[] = { ',', '\t', ';', '|', ':' };
+#define fline_next(fline, stream, line_len) \
+	((line_len = getline(&fline->line, &fline->line_cap, stream)) != -1)
+
+static bool empty(const char *line)
+{
+	return !*line || *line == '\n' || *line == '\r';
+}
+
+static long fpos_tell(FILE *stream)
+{
+	long pos = ftell(stream);
+	if (pos < 0) {
+		perr("Failed to read DSV file");
+		exit(EXIT_FAILURE);
+	}
+	return pos;
+}
+
+static void fpos_seek(FILE *stream, long pos)
+{
+	if (fseek(stream, pos, SEEK_SET) != 0) {
+		perr("Failed to parse DSV file");
+		exit(EXIT_FAILURE);
+	}
+}
+
+static bool extract_column_token(char *line, char delimiter, size_t target_col,
+				 char **out_token, size_t *out_len)
+{
+	char delim_str[3];
+	delim_str[0] = delimiter;
+	delim_str[1] = '\n';
+	delim_str[2] = '\0';
+
+	char *token = strtok(line, delim_str);
+	size_t current_col = 0;
+
+	while (token && current_col < target_col) {
+		current_col++;
+		token = strtok(NULL, delim_str);
+	}
+
+	if (token && current_col == target_col) {
+		size_t length = strlen(token);
+		if (length > 0 && token[length - 1] == '\r')
+			length--;
+		*out_token = token;
+		*out_len = length;
+		return true;
+	}
+
+	return false;
+}
 
 bool dsv_detect(struct ifile *ifile, const char *restrict extension)
 {
 	if (!ifile || !extension || !*extension)
 		return false;
 
-	if (strcasecmp(extension, "csv") == 0) {
-		ifile->format = INPUT_FORMAT_DSV;
-		ifile->ctx.dsv.delimiter = ',';
-		return true;
-	}
-	if (strcasecmp(extension, "tsv") == 0 ||
-	    strcasecmp(extension, "tab") == 0) {
-		ifile->format = INPUT_FORMAT_DSV;
-		ifile->ctx.dsv.delimiter = '\t';
-		return true;
-	} else if (strcasecmp(extension, "psv") == 0) {
-		ifile->format = INPUT_FORMAT_DSV;
-		ifile->ctx.dsv.delimiter = '|';
-		return true;
-	} else if (strcasecmp(extension, "ssv") == 0) {
-		ifile->format = INPUT_FORMAT_DSV;
-		ifile->ctx.dsv.delimiter = ';';
-		return true;
-	} else if (strcasecmp(extension, "dsv") == 0 ||
-		   strcasecmp(extension, "txt") == 0 ||
-		   strcasecmp(extension, "dat") == 0 ||
-		   strcasecmp(extension, "data") == 0 ||
-		   strcasecmp(extension, "values") == 0) {
-		ifile->format = INPUT_FORMAT_DSV;
-		return true;
+	struct {
+		const char *const ext;
+		char delim;
+	} const DSV_MAPPINGS[] = {
+		{ "csv", ',' },	    { "tsv", '\t' }, { "tab", '\t' },
+		{ "psv", '|' },	    { "ssv", ';' },  { "dsv", '\0' },
+		{ "txt", '\0' },    { "dat", '\0' }, { "data", '\0' },
+		{ "values", '\0' },
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(DSV_MAPPINGS); i++) {
+		if (strcasecmp(extension, DSV_MAPPINGS[i].ext) == 0) {
+			ifile->format = INPUT_FORMAT_DSV;
+			ifile->ctx.dsv.delimiter = DSV_MAPPINGS[i].delim;
+			return true;
+		}
 	}
 
 	return false;
@@ -51,11 +94,11 @@ bool dsv_detect(struct ifile *ifile, const char *restrict extension)
 
 static size_t dsv_count_columns(const char *line, char delimiter)
 {
-	if (!line || !*line || *line == '\n' || *line == '\r')
+	if (!line || empty(line))
 		return 0;
 
 	size_t count = 1;
-	while (*line && *line != '\n' && *line != '\r') {
+	while (!empty(line)) {
 		if (*line == delimiter)
 			count++;
 		line++;
@@ -73,26 +116,23 @@ static bool dsv_delimiter(struct ifile *ifile)
 	}
 
 	FILE *stream = ifile->stream;
-	char *line = NULL;
-	size_t line_cap = 0;
+
+	long pos = fpos_tell(stream);
 	long line_len;
 	char detected = '\0';
 	size_t best_score = 0;
 
-	long pos = ftell(stream);
-	if (pos < 0)
-		return false;
-
-	while ((line_len = getline(&line, &line_cap, stream)) != -1) {
-		if (line_len == 0 || *line == '\n' || *line == '\r')
+	while (fline_next(ifile, stream, line_len)) {
+		if (!line_len || empty(ifile->line))
 			continue;
 		break;
 	}
 
+	const char COMMON_DELIMITERS[] = { ',', '\t', ';', '|', ':' };
 	if (line_len != -1) {
 		for (size_t i = 0; i < ARRAY_SIZE(COMMON_DELIMITERS); i++) {
 			char delim = COMMON_DELIMITERS[i];
-			size_t count = dsv_count_columns(line, delim);
+			size_t count = dsv_count_columns(ifile->line, delim);
 
 			/* Heuristic: prefer delimiters that give 2-100 columns */
 			if (count >= 2 && count <= 100 && count > best_score) {
@@ -102,12 +142,7 @@ static bool dsv_delimiter(struct ifile *ifile)
 		}
 	}
 
-	free(line);
-
-	if (fseek(stream, pos, SEEK_SET) != 0) {
-		perr("Failed to parse DSV file");
-		exit(EXIT_FAILURE);
-	}
+	fpos_seek(stream, pos);
 
 	if (detected == '\0') {
 		bench_io_end();
@@ -176,59 +211,49 @@ static bool dsv_validate(struct ifile *ifile)
 	char delimiter = ifile->ctx.dsv.delimiter;
 
 	rewind(stream);
-	char *line = NULL;
-	size_t line_cap = 0;
-	long line_len;
 
+	long line_len;
 	size_t line_number = 0;
-	size_t expected_columns = 0;
+	size_t expected_cols = 0;
 	bool first_line = true;
 
-	while ((line_len = getline(&line, &line_cap, stream)) != -1) {
+	while (fline_next(ifile, stream, line_len)) {
 		line_number++;
 
-		if (line_len == 0 || *line == '\n' || *line == '\r')
+		if (!line_len || empty(ifile->line))
 			continue;
 
 		if (line_len > 1 &&
-		    memchr(line, '\0', (size_t)(line_len - 1))) {
+		    memchr(ifile->line, '\0', (size_t)(line_len - 1))) {
 			perr("DSV file corruption on line %zu", line_number);
-			free(line);
 			rewind(stream);
 			return false;
 		}
 
-		size_t current_columns = dsv_count_columns(line, delimiter);
+		size_t curr_cols = dsv_count_columns(ifile->line, delimiter);
 
 		if (first_line) {
-			if (current_columns == 0) {
+			if (curr_cols == 0) {
 				perr("DSV header is empty");
-				free(line);
 				rewind(stream);
 				return false;
 			}
-			expected_columns = current_columns;
+			expected_cols = curr_cols;
 			first_line = false;
-		} else if (current_columns > 0) {
-			if (current_columns != expected_columns) {
-				perr("Expected %zu column(s), found %zu on line %zu",
-				     expected_columns, current_columns,
-				     line_number);
-				free(line);
-				rewind(stream);
-				return false;
-			}
+		} else if (curr_cols > 0 && curr_cols != expected_cols) {
+			perr("Expected %zu column(s), found %zu on line %zu",
+			     expected_cols, curr_cols, line_number);
+			rewind(stream);
+			return false;
 		}
 	}
 
 	if (first_line) {
 		perr("DSV file is empty");
-		free(line);
 		rewind(stream);
 		return false;
 	}
 
-	free(line);
 	rewind(stream);
 	return true;
 }
@@ -242,39 +267,34 @@ bool dsv_open(struct ifile *ifile)
 	}
 
 	FILE *stream = ifile->stream;
+	char delimiter = ifile->ctx.dsv.delimiter;
+
 	rewind(stream);
 
-	if (!ifile->ctx.dsv.delimiter && !dsv_delimiter(ifile))
+	if (!delimiter && !dsv_delimiter(ifile))
 		return false;
 
 	if (!dsv_validate(ifile))
 		return false;
 
-	char *line = NULL;
-	size_t line_cap = 0;
 	long line_len;
 
-	line_len = getline(&line, &line_cap, stream);
-	if (line_len == -1) {
+	if (!fline_next(ifile, stream, line_len)) {
 		perr("Failed to read DSV header");
-		free(line);
 		return false;
 	}
 
-	char delimiter = ifile->ctx.dsv.delimiter;
-	size_t num_columns = dsv_count_columns(line, delimiter);
+	size_t num_columns = dsv_count_columns(ifile->line, delimiter);
 	pverb("Found %zu column(s) in DSV file", num_columns);
 
 	if (!num_columns) {
 		perr("Invalid DSV header");
-		free(line);
 		return false;
 	}
 
 	char **MALLOCA(headers, num_columns);
 	if unlikely (!headers) {
 		perr("Out of memory while reading DSV file");
-		free(line);
 		exit(EXIT_FAILURE);
 	}
 
@@ -282,7 +302,7 @@ bool dsv_open(struct ifile *ifile)
 		headers[i] = NULL;
 
 	char delim_str[2] = { delimiter, '\0' };
-	char *token = strtok(line, delim_str);
+	char *token = strtok(ifile->line, delim_str);
 	size_t column = 0;
 
 	while (token && column < num_columns) {
@@ -290,7 +310,7 @@ bool dsv_open(struct ifile *ifile)
 		while (token_len > 0 &&
 		       (token[token_len - 1] == '\n' ||
 			token[token_len - 1] == '\r' ||
-			isspace((unsigned char)token[token_len - 1]))) {
+			isspace((uchar)token[token_len - 1]))) {
 			token[token_len - 1] = '\0';
 			token_len--;
 		}
@@ -298,10 +318,11 @@ bool dsv_open(struct ifile *ifile)
 		MALLOCA(headers[column], token_len + 1);
 		if unlikely (!headers[column]) {
 			perr("Out of memory while reading DSV file");
-			for (size_t i = 0; i < column; i++)
-				free(headers[i]);
+			for (size_t i = 0; i < column; i++) {
+				if (headers[i])
+					free(headers[i]);
+			}
 			free(headers);
-			free(line);
 			exit(EXIT_FAILURE);
 		}
 		memcpy(headers[column], token, token_len + 1);
@@ -320,7 +341,6 @@ bool dsv_open(struct ifile *ifile)
 			for (column = 0; column < num_columns; column++)
 				free(headers[column]);
 			free(headers);
-			free(line);
 			exit(EXIT_FAILURE);
 		}
 
@@ -339,8 +359,8 @@ bool dsv_open(struct ifile *ifile)
 	}
 
 	bool no_header = false;
-
 	if (seq_col == num_columns) {
+		no_header = true;
 		if (num_columns >= 2) {
 			bench_io_end();
 			pinfol("Select the column that contains sequence data:");
@@ -350,7 +370,6 @@ bool dsv_open(struct ifile *ifile)
 				for (column = 0; column < num_columns; column++)
 					free(headers[column]);
 				free(headers);
-				free(line);
 				exit(EXIT_FAILURE);
 			}
 
@@ -360,12 +379,11 @@ bool dsv_open(struct ifile *ifile)
 			size_t cn = num_columns;
 			seq_col =
 				(size_t)pchoice(chs, cn, "Enter column number");
-			no_header = true;
+			free(chs);
 			bench_io_start();
 		} else {
 			pinfol("Only one column present; using it as the sequence column");
 			seq_col = 0;
-			no_header = true;
 		}
 	}
 
@@ -376,7 +394,6 @@ bool dsv_open(struct ifile *ifile)
 	for (column = 0; column < num_columns; column++)
 		free(headers[column]);
 	free(headers);
-	free(line);
 
 	ifile->ctx.dsv.sequence_column = seq_col;
 	ifile->ctx.dsv.num_columns = num_columns;
@@ -396,130 +413,97 @@ size_t dsv_sequence_count(struct ifile *ifile)
 	}
 
 	FILE *stream = ifile->stream;
-	long pos = ftell(stream);
-	if (pos < 0) {
-		perr("Failed to read DSV file");
-		exit(EXIT_FAILURE);
-	}
 
-	char *line = NULL;
-	size_t line_cap = 0;
+	long pos = fpos_tell(stream);
 	long line_len;
 	size_t count = 0;
 
-	while ((line_len = getline(&line, &line_cap, stream)) != -1) {
-		if (line_len > 0 && *line != '\n' && *line != '\r' &&
-		    *line != '\0')
+	while (fline_next(ifile, stream, line_len)) {
+		if (line_len && !empty(ifile->line))
 			count++;
 	}
 
-	free(line);
-
-	if (fseek(stream, pos, SEEK_SET) != 0) {
-		perr("Failed to parse DSV file");
-		exit(EXIT_FAILURE);
-	}
+	fpos_seek(stream, pos);
 
 	return count;
 }
 
-size_t dsv_sequence_length(struct ifile *ifile)
+void dsv_sequence_length(struct ifile *ifile, size_t *out_length)
 {
-	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_sequence_length()");
-		perr("Internal error getting sequence lengths in DSV file");
+	if unlikely (!ifile || !ifile->stream || !out_length) {
+		pdev("Invalid parameters in dsv_sequence_length()");
+		perr("Internal error getting sequence length in DSV file");
 		pabort();
 	}
 
 	FILE *stream = ifile->stream;
-	long pos = ftell(stream);
-	if (pos < 0) {
-		perr("Failed to read DSV file");
-		exit(EXIT_FAILURE);
-	}
-
-	char *line = NULL;
-	size_t line_cap = 0;
-	long line_len;
 	size_t column = ifile->ctx.dsv.sequence_column;
 	char delimiter = ifile->ctx.dsv.delimiter;
+
+	long pos = fpos_tell(stream);
+	long line_len;
 	size_t length = 0;
 
-	line_len = getline(&line, &line_cap, stream);
-	if (line_len != -1) {
-		char delim_str[3];
-		delim_str[0] = delimiter;
-		delim_str[1] = '\n';
-		delim_str[2] = '\0';
-
-		char *token = strtok(line, delim_str);
-		size_t current_col = 0;
-
-		while (token && current_col < column) {
-			current_col++;
-			token = strtok(NULL, delim_str);
-		}
-
-		if (token && current_col == column) {
-			length = strlen(token);
-			if (length > 0 && token[length - 1] == '\r')
-				length--;
-		}
-	}
-
-	free(line);
-
-	if (fseek(stream, pos, SEEK_SET) != 0) {
-		perr("Failed to parse DSV file");
+	if (!fline_next(ifile, stream, line_len)) {
+		perr("Possible DSV file corruption, unexpected end of file");
 		exit(EXIT_FAILURE);
 	}
 
-	return length;
+	char *token;
+	if (!extract_column_token(ifile->line, delimiter, column, &token,
+				  &length)) {
+		perr("Possible DSV file corruption, could not extract sequence column");
+		exit(EXIT_FAILURE);
+	}
+
+	fpos_seek(stream, pos);
+
+	if (!length) {
+		perr("Possible DSV file corruption, empty sequence found");
+		exit(EXIT_FAILURE);
+	}
+
+	*out_length = length;
 }
 
-size_t dsv_sequence_extract(struct ifile *ifile, char *restrict output)
+void dsv_sequence_extract(struct ifile *ifile, char *restrict output,
+			  size_t expected_length)
 {
 	if unlikely (!ifile || !ifile->stream || !output) {
 		pdev("Invalid parameters for dsv_sequence_extract()");
-		perr("Internal error getting sequences from DSV file");
+		perr("Internal error extracting sequence from DSV file");
 		pabort();
 	}
 
-	char *line = NULL;
-	size_t line_cap = 0;
+	FILE *stream = ifile->stream;
+	char delimiter = ifile->ctx.dsv.delimiter;
+	size_t column = ifile->ctx.dsv.sequence_column;
+
+	long pos = fpos_tell(stream);
 	long line_len;
 	*output = '\0';
-	size_t length = 0;
-	size_t column = ifile->ctx.dsv.sequence_column;
-	char delimiter = ifile->ctx.dsv.delimiter;
-	FILE *stream = ifile->stream;
 
-	line_len = getline(&line, &line_cap, stream);
-	if (line_len != -1) {
-		char delim_str[3];
-		delim_str[0] = delimiter;
-		delim_str[1] = '\n';
-		delim_str[2] = '\0';
-
-		char *token = strtok(line, delim_str);
-		size_t current_col = 0;
-
-		while (token && current_col < column) {
-			current_col++;
-			token = strtok(NULL, delim_str);
-		}
-
-		if (token && current_col == column) {
-			length = strlen(token);
-			if (length > 0 && token[length - 1] == '\r')
-				length--;
-			memcpy(output, token, length);
-			output[length] = '\0';
-		}
+	if (!fline_next(ifile, stream, line_len)) {
+		perr("Possible DSV file corruption, unexpected end of file");
+		exit(EXIT_FAILURE);
 	}
 
-	free(line);
-	return length;
+	char *token;
+	size_t length;
+	if (!extract_column_token(ifile->line, delimiter, column, &token,
+				  &length)) {
+		perr("Possible DSV file corruption, could not extract sequence column");
+		exit(EXIT_FAILURE);
+	}
+
+	if (length != expected_length) {
+		perr("Possible DSV file corruption, sequence length mismatch");
+		exit(EXIT_FAILURE);
+	}
+
+	memcpy(output, token, length);
+	output[length] = '\0';
+	fpos_seek(stream, pos);
 }
 
 bool dsv_sequence_next(struct ifile *ifile)
@@ -531,34 +515,32 @@ bool dsv_sequence_next(struct ifile *ifile)
 	}
 
 	FILE *stream = ifile->stream;
-	long pos = ftell(stream);
-	if (pos < 0)
-		return false;
-
-	char *line = NULL;
-	size_t line_cap = 0;
-	long line_len;
 	char delimiter = ifile->ctx.dsv.delimiter;
-	bool has_next = false;
+	size_t expected_columns = ifile->ctx.dsv.num_columns;
 
-	while ((line_len = getline(&line, &line_cap, stream)) != -1) {
-		if (line_len == 0 || *line == '\n' || *line == '\r' ||
-		    *line == '\0')
+	long line_len;
+
+	while (fline_next(ifile, stream, line_len)) {
+		if (!line_len || empty(ifile->line))
 			continue;
 
-		size_t cols = dsv_count_columns(line, delimiter);
-		if (cols == ifile->ctx.dsv.num_columns) {
-			has_next = true;
+		size_t cols = dsv_count_columns(ifile->line, delimiter);
+		if (cols == expected_columns)
 			break;
-		}
-	}
 
-	free(line);
-
-	if (fseek(stream, pos, SEEK_SET) != 0) {
-		perr("Failed to parse DSV file");
+		perr("Possible DSV file corruption, expected %zu column(s), found %zu",
+		     expected_columns, cols);
 		exit(EXIT_FAILURE);
 	}
 
+	long pos = fpos_tell(stream);
+	bool has_next = false;
+
+	if (fline_next(ifile, stream, line_len)) {
+		if (line_len && !empty(ifile->line))
+			has_next = true;
+	}
+
+	fpos_seek(stream, pos);
 	return has_next;
 }

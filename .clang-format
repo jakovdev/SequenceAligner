@@ -57,6 +57,11 @@ ForEachMacros:
   - 'for_each_arg'
   - 'for_each_dep'
   - 'for_each_con'
+  - 'for_each_nospace'
+  - 'REALLOC'
+  - 'REALLOCA'
+  - 'REALLOC_CL'
+  - 'REALLOCA_CL'
 IncludeBlocks: Preserve
 IncludeCategories:
   - Regex: '.*'

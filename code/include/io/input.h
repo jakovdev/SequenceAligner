@@ -28,6 +28,8 @@ struct ifile {
 	FILE *stream;
 	enum input_format format;
 	s32 total_sequences;
+	char *line;
+	size_t line_cap;
 	union {
 		struct dsv_context dsv;
 		struct fasta_context fasta;
@@ -40,9 +42,10 @@ void ifile_close(struct ifile *);
 
 s32 ifile_sequence_count(struct ifile *);
 
-size_t ifile_sequence_length(struct ifile *);
+void ifile_sequence_length(struct ifile *, size_t *out_length);
 
-size_t ifile_sequence_extract(struct ifile *, char *restrict output);
+void ifile_sequence_extract(struct ifile *, char *restrict output,
+			    size_t expected_length);
 
 bool ifile_sequence_next(struct ifile *);
 

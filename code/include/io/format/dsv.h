@@ -13,9 +13,10 @@ bool dsv_open(struct ifile *);
 
 size_t dsv_sequence_count(struct ifile *);
 
-size_t dsv_sequence_length(struct ifile *);
+void dsv_sequence_length(struct ifile *, size_t *out_length);
 
-size_t dsv_sequence_extract(struct ifile *, char *restrict output);
+void dsv_sequence_extract(struct ifile *, char *restrict output,
+			  size_t expected_length);
 
 bool dsv_sequence_next(struct ifile *);
 
