@@ -19,14 +19,14 @@ static bool header(const char *line)
 	return *line == '>';
 }
 
-#define for_each_nospace(line, line_len, i)                                  \
+#define for_each_nws(line, line_len, i)                                      \
 	for (long i = 0; i < line_len && line[i] != '\n' && line[i] != '\r'; \
 	     i++)                                                            \
 		if (!isspace((uchar)line[i]))
 
 static bool whitespace(const char *line, long line_len)
 {
-	for_each_nospace(line, line_len, i)
+	for_each_nws(line, line_len, i)
 		return false;
 	return true;
 }
@@ -208,7 +208,7 @@ void fasta_sequence_length(struct ifile *ifile, size_t *out_length)
 	}
 
 	while (fline_next(ifile, stream, line_len) && !header(ifile->line)) {
-		for_each_nospace(ifile->line, line_len, i)
+		for_each_nws(ifile->line, line_len, i)
 			length++;
 	}
 
@@ -246,7 +246,7 @@ void fasta_sequence_extract(struct ifile *ifile, char *restrict output,
 	size_t length = 0;
 
 	while (fline_next(ifile, stream, line_len) && !header(ifile->line)) {
-		for_each_nospace(ifile->line, line_len, i) {
+		for_each_nws(ifile->line, line_len, i) {
 			*write_pos++ = ifile->line[i];
 			length++;
 		}
