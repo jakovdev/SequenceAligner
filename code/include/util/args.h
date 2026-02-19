@@ -174,7 +174,7 @@ struct arg_callback {
 enum arg_parameter {
 	ARG_PARAM_NONE,
 	ARG_PARAM_REQUIRED,
-	ARG_PARAM_OPTIONAL,
+	ARG_PARAM_OPTIONAL, /* user string can be NULL */
 };
 
 /** @brief Values for `.arg_req`. */
@@ -210,6 +210,9 @@ struct args_internal {
 	size_t deps_n;
 	struct argument **cons;
 	size_t cons_n;
+	struct argument **subs;
+	const char **subs_strs;
+	size_t subs_n;
 	size_t help_len;
 	enum arg_relation_phase deps_phase;
 	enum arg_relation_phase cons_phase;
@@ -270,6 +273,48 @@ struct args_internal {
 	._.cons = (struct argument *[]){ __VA_ARGS__, NULL },      \
 	._.cons_n = sizeof((struct argument *[]){ __VA_ARGS__ }) / \
 		    sizeof(struct argument *)
+
+/**
+  * @brief Argument `relations`, a list of subsets.
+  * 
+  * If this argument is set, all subsets are also processed.
+  * 
+  * By default, the parent string gets passed to the subset parser.
+  * 
+  * Custom subset strings can be specified with `ARG_SUBSTRINGS`.
+  * 
+  * In simple terms, this allows you to trigger multiple arguments with one.
+  * 
+  * Must be called inside an `ARGUMENT` definition.
+  * 
+  * Example:
+  * @code
+  * 	ARGUMENT(foo) = { ... };
+  * 	ARGUMENT(bar) = { ... };
+  * 	ARGUMENT(baz) = {
+  * 		...
+  * 		ARG_SUBSETS(ARG(foo), ARG(bar)),
+  * 		ARG_SUBSTRINGS("42", ARG_SUBPASS),
+  * 		...
+  * 	}; @endcode
+  */
+#define ARG_SUBSETS(...)                                           \
+	._.subs = (struct argument *[]){ __VA_ARGS__, NULL },      \
+	._.subs_n = sizeof((struct argument *[]){ __VA_ARGS__ }) / \
+		    sizeof(struct argument *)
+
+/**
+  * @brief Default strings for index-aligned subsets
+  * 
+  * Use `ARG_SUBPASS` to pass the parent string to the subset parser.
+  * 
+  * Can be left out if not needed.
+  */
+#define ARG_SUBSTRINGS(...) \
+	._.subs_strs = ((const char *[]){ __VA_ARGS__, NULL })
+
+/** @brief Signal to pass the parent string */
+#define ARG_SUBPASS ((const char *)-1)
 
 /**
   * @brief Configuration structure for an argument.

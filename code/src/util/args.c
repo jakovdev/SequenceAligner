@@ -42,6 +42,9 @@ static struct argument *action;
 #define for_each_con(a, con)                                    \
 	for (size_t con##i = 0; con##i < a->_.cons_n; con##i++) \
 		for (struct argument *con = a->_.cons[con##i]; con; con = NULL)
+#define for_each_sub(a, sub)                                    \
+	for (size_t sub##i = 0; sub##i < a->_.subs_n; sub##i++) \
+		for (struct argument *sub = a->_.subs[sub##i]; sub; sub = NULL)
 
 static size_t args_num;
 static size_t longest;
@@ -145,7 +148,7 @@ void _args_register(struct argument *a)
 		if (a->validate_phase != ARG_CALLBACK_ALWAYS ||
 		    a->action_phase != ARG_CALLBACK_ALWAYS)
 			needs_set = true;
-		if (a->_.deps || a->_.cons)
+		if (a->_.deps || a->_.cons || a->_.subs)
 			needs_set = true;
 		if (needs_set)
 			arg_set_new(a);
@@ -259,6 +262,95 @@ arg_no_deps:
 	}
 
 arg_no_cons:
+	if (!a->_.subs) {
+		if (a->_.subs_n > 0) {
+			args_pdev("%s subs_n=%zu but subs=NULL", arg_str(a),
+				  a->_.subs_n);
+			args_pdev("Specify subsets using ARG_SUBSETS()");
+			args_ierr(a);
+			args_abort();
+		}
+
+		if (a->_.subs_strs) {
+			args_pdev("%s has subs_strs but no subsets",
+				  arg_str(a));
+			args_ierr(a);
+			args_abort();
+		}
+
+		goto arg_no_subs;
+	}
+
+	size_t nsubs = 0;
+	while (a->_.subs[nsubs])
+		nsubs++;
+
+	if (nsubs != a->_.subs_n) {
+		args_pdev("%s subs_n=%zu but actual is %zu", arg_str(a),
+			  a->_.subs_n, nsubs);
+		args_pdev("Specify subset args using ARG_SUBSETS()");
+		args_ierr(a);
+		args_abort();
+	}
+
+	if (a->_.subs_strs) {
+		size_t nsstrs = 0;
+		while (a->_.subs_strs[nsstrs])
+			nsstrs++;
+
+		if (nsstrs != a->_.subs_n) {
+			args_pdev("%s subs_n=%zu but subs_strs has %zu entries",
+				  arg_str(a), a->_.subs_n, nsstrs);
+			args_pdev("Both lists must be the same size");
+			args_ierr(a);
+			args_abort();
+		}
+	}
+
+	for_each_sub(a, sub) {
+		if (sub == a) {
+			args_pdev("%s subsets itself", arg_str(a));
+			args_ierr(a);
+			args_abort();
+		}
+
+		if (!sub->set)
+			arg_set_new(sub);
+
+		if (a->param_req != ARG_PARAM_REQUIRED &&
+		    sub->param_req == ARG_PARAM_REQUIRED &&
+		    (!a->_.subs_strs || a->_.subs_strs[subi] == ARG_SUBPASS)) {
+			args_pdev(
+				"%s requires param but superset %s might not and has no custom string",
+				arg_str(sub), arg_str(a));
+			args_ierr(a);
+			args_abort();
+		}
+
+		if (!a->set)
+			arg_set_new(a);
+
+		for_each_con(a, con) {
+			if (con == sub) {
+				args_pdev("%s both supersets and conflicts %s",
+					  arg_str(a), arg_str(sub));
+				args_ierr(a);
+				args_abort();
+			}
+		}
+
+		for_each_dep(sub, dep) {
+			if (dep == a) {
+				args_pdev(
+					"%s supersets %s but also depends on it",
+					arg_str(a), arg_str(sub));
+				args_ierr(a);
+				args_abort();
+			}
+		}
+	}
+
+arg_no_subs:
 	for_each_arg(c, args) {
 		if ((a->opt && c->opt && a->opt == c->opt) ||
 		    (a->lopt && c->lopt && strcmp(a->lopt, c->lopt) == 0)) {
@@ -347,6 +439,19 @@ static bool arg_process(struct argument *a, const char *str)
 
 	if (a->set)
 		*a->set = true;
+
+	for_each_sub(a, sub) {
+		if (*sub->set)
+			continue;
+
+		const char *sub_str = str;
+		if (a->_.subs_strs && a->_.subs_strs[subi] &&
+		    a->_.subs_strs[subi] != ARG_SUBPASS)
+			sub_str = a->_.subs_strs[subi];
+
+		if (!arg_process(sub, sub_str))
+			return false;
+	}
 
 	return true;
 }
