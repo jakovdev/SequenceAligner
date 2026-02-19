@@ -37,9 +37,9 @@ static struct {
 static void h5_file_close(void);
 static s32 h5_chunk_dimensions_calculate(void);
 
-#define H5_SEQUENCE_BATCH_SIZE (1 << 12)
-#define H5_MIN_CHUNK_SIZE (1 << 7)
-#define H5_MAX_CHUNK_SIZE (H5_MIN_CHUNK_SIZE << 7)
+#define H5_SEQUENCE_BATCH_SIZE (1 << 13)
+#define H5_MIN_CHUNK_SIZE (1 << 8)
+#define H5_MAX_CHUNK_SIZE (1 << 12)
 #define ALIGN_POW2(value, pow2) \
 	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
@@ -114,6 +114,7 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
+	H5Pset_alignment(fapl, 4096, 4096);
 	g_h5.file_id = H5Fcreate(g_h5.path, H5F_ACC_TRUNC, H5P_DEFAULT, fapl);
 	H5Pclose(fapl);
 	if unlikely (g_h5.file_id < 0) {
@@ -192,7 +193,7 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 	for (s32 i = 0; i < seq_n; i++)
 		lengths[i] = seqs[i].length;
 
-	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_INT, H5S_ALL,
+	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_INT32, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, lengths);
 	free(lengths);
 	if unlikely (status < 0) {
@@ -386,40 +387,22 @@ size_t h5_matrix_bytes(void)
 
 static s32 h5_chunk_dimensions_calculate(void)
 {
-	const s32 dim = (s32)g_h5.dim;
-	s32 chunk_dim;
+	s32 dim = (s32)g_h5.dim;
 
-	if (dim <= H5_MIN_CHUNK_SIZE) {
-		chunk_dim = dim;
-	} else if (dim > H5_MAX_CHUNK_SIZE) {
-		s32 target_chunks = dim > 1 << 15 ? 1 << 4 : 1 << 5;
-		chunk_dim = dim / target_chunks;
-		chunk_dim = ALIGN_POW2(chunk_dim, H5_MIN_CHUNK_SIZE);
-		chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
-		chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
-	} else {
-		s32 chunk_candidates[] = {
-			H5_MIN_CHUNK_SIZE,	H5_MIN_CHUNK_SIZE << 1,
-			H5_MIN_CHUNK_SIZE << 2, H5_MIN_CHUNK_SIZE << 3,
-			H5_MIN_CHUNK_SIZE << 4, H5_MIN_CHUNK_SIZE << 5,
-			H5_MIN_CHUNK_SIZE << 6, H5_MAX_CHUNK_SIZE
-		};
+	if (dim <= H5_MIN_CHUNK_SIZE)
+		return dim;
 
-		s32 num_candidates = ARRAY_SIZE(chunk_candidates);
+	s32 chunk_dim = 64;
+	size_t target_bytes = (4 * MiB) / (1 + (size_t)g_h5.compression / 3);
+	size_t square = (size_t)chunk_dim * (size_t)chunk_dim * sizeof(s32);
+	while (chunk_dim < dim && square < target_bytes)
+		chunk_dim *= 2;
+	if (chunk_dim > dim || square > target_bytes)
+		chunk_dim /= 2;
 
-		chunk_dim = H5_MIN_CHUNK_SIZE;
-
-		for (s32 i = 0; i < num_candidates; i++) {
-			s32 chunk = chunk_candidates[i];
-			if (chunk > H5_MAX_CHUNK_SIZE || chunk > dim)
-				break;
-
-			chunk_dim = chunk;
-			if (chunk * 8 >= dim)
-				break;
-		}
-	}
-
+	chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
+	chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
+	chunk_dim = min(chunk_dim, dim);
 	return chunk_dim;
 }
 
@@ -481,7 +464,7 @@ static void h5_store_checksum(void)
 static void h5_flush_matrix(void)
 {
 	if (!g_h5.triangular) {
-		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT,
+		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT32,
 					 H5S_ALL, H5S_ALL, H5P_DEFAULT,
 					 g_h5.matrix);
 		if unlikely (status < 0)
@@ -561,7 +544,7 @@ static void h5_flush_matrix(void)
 			return;
 		}
 
-		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT,
+		herr_t status = H5Dwrite(g_h5.matrix_id, H5T_NATIVE_INT32,
 					 mem_space, file_space, H5P_DEFAULT,
 					 buf);
 		H5Sclose(mem_space);
