@@ -1,9 +1,0 @@
-#!/bin/bash
-
-# Instructions:
-# chmod +x .remakerc OR chmod +x script/.remakerc
-# source .remakerc OR source script/.remakerc
-    
-alias remake='make clean && make'
-alias demake='unalias remake 2>/dev/null; unalias demake 2>/dev/null; echo "Aliases deactivated"'
-echo "Aliases created. Use 'remake' for 'make clean && make' and 'demake' to remove the aliases."
