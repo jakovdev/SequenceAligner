@@ -9,18 +9,13 @@
   * This header allows defining arguments in a distributed manner across the
   * codebase without a central list. Arguments are registered via constructors
   * that run before main(). Supported compilers include GCC, Clang, and MSVC.
-  * 
   * Words inside backticks ("`") refer to grepp-able symbols or macros.
   * Words that start with a dot (".") refer to `struct argument` fields.
   * 
   * Basic usage:
-  * 
   * 1. Define arguments in source files using the `ARGUMENT(name)` macro.
-  * 
   * 2. Call `args_parse` in main().
-  * 
   * 3. Call `args_validate` to run validators after everything is parsed.
-  * 
   * 4. Call `args_actions` to run actions after everything is validated.
   */
 
@@ -33,20 +28,20 @@
   * `struct argument` instance and registers it with the system.
   * 
   * Example:
-  * @code
-  * 	static bool verbose;
-  * 	ARGUMENT(verbose) = {
-  * 		.opt = 'v',
-  * 		.lopt = "verbose",
-  * 		.help = "Enable verbose output",
-  * 		.set = &verbose,
-  * 	}; @endcode
+  * @code{.c}
+  * static bool verbose;
+  * ARGUMENT(verbose) = {
+  * 	.opt = 'v',
+  * 	.lopt = "verbose",
+  * 	.help = "Enable verbose output",
+  * 	.set = &verbose,
+  * };
+  * @endcode
   * 
   * @param name Unique identifier for the argument.
   * 
   * 'name' gets prefixed so it does not clash with other symbols.
   * The prefixed symbol is global, so 'name' must be unique across the project.
-  * 
   * `ARG(name)` can be used to reference it.
   */
 #define ARGUMENT(name)                          \
@@ -63,14 +58,15 @@
   * Useful if you need to reference the argument before its definition.
   * 
   * Example:
-  * @code
-  * 	ARG_DECLARE(foo);
-  * 	ARGUMENT(bar) = {
-  * 		...
-  * 		ARG_DEPENDS(ARG(foo)),
-  * 		...
-  * 	};
-  * 	ARGUMENT(foo) = { ... }; @endcode
+  * @code{.c}
+  * ARG_DECLARE(foo);
+  * ARGUMENT(bar) = {
+  * 	...
+  * 	ARG_DEPENDS(ARG(foo)),
+  * 	...
+  * };
+  * ARGUMENT(foo) = { ... };
+  * @endcode
   */
 #define ARG_DECLARE(name) struct argument _arg_##name
 
@@ -82,17 +78,19 @@
   * Example:
   * 
   * foo.c
-  * @code
-  * 	ARGUMENT(foo) = { ... }; @endcode
+  * @code{.c}
+  * ARGUMENT(foo) = { ... };
+  * @endcode
   * 
   * bar.c
-  * @code
-  * 	ARG_EXTERN(foo);
-  * 	ARGUMENT(bar) = {
-  * 		...
-  * 		ARG_DEPENDS(ARG(foo)),
-  * 		...
-  * 	}; @endcode
+  * @code{.c}
+  * ARG_EXTERN(foo);
+  * ARGUMENT(bar) = {
+  * 	...
+  * 	ARG_DEPENDS(ARG(foo)),
+  * 	...
+  * };
+  * @endcode
   */
 #define ARG_EXTERN(name) extern struct argument _arg_##name
 
@@ -103,13 +101,9 @@
   * @brief Parses command line arguments.
   * 
   * For every user specified argument:
-  * 
   * - If argument with parameter is already set, error for repeated argument.
-  * 
   * - Runs `.parse_callback` if it exists.
-  * 
   * - Checks `relations` if `relation_phase` = `ARG_RELATION_PARSE`.
-  * 
   * - Sets `.set` to true (even implicitly allocated ones).
   * 
   * @return false on any error, true if parsing succeeded.
@@ -120,13 +114,9 @@ bool args_parse(int argc, char *argv[]);
   * @brief Must be called after `args_parse`.
   * 
   * For every `ARGUMENT`:
-  * 
   * - Checks if required arguments are set if `.arg_req` = `ARG_REQUIRED`.
-  * 
   * - If a conflict argument is set, the (required) argument must not be set.
-  * 
   * - Checks `relations` if `relation_phase` != `ARG_RELATION_PARSE`.
-  * 
   * - Runs `.validate_callback` if it exists using `.validate_phase`.
   * 
   * @return false on any error, true if all arguments are valid.
@@ -137,7 +127,6 @@ bool args_validate(void);
   * @brief Must be called after `args_validate`. Optional if not using actions.
   * 
   * For every `ARGUMENT`:
-  * 
   * - Runs `.action_callback` if it exists using `.action_phase`.
   */
 void args_actions(void);
@@ -148,10 +137,8 @@ void args_actions(void);
  * 
  * Exposed when `ARGS_NO_DEFAULT_HELP` is defined so you can call it from your
  * custom help argument.
- * 
  * If not defined, this function is static and called automatically by
  * the default ARGUMENT(help).
- * 
  * If defined, the ARGUMENT(help) will not be created automatically.
  */
 void args_print_help(void);
@@ -173,15 +160,15 @@ struct arg_callback {
 /** @brief Values for `.param_req`. Follows getopt conventions. */
 enum arg_parameter {
 	ARG_PARAM_NONE,
-	ARG_PARAM_REQUIRED,
-	ARG_PARAM_OPTIONAL, /* user string can be NULL */
+	ARG_PARAM_REQUIRED, /* In `.parse_callback` `str` will not be NULL */
+	ARG_PARAM_OPTIONAL, /* In `.parse_callback` `str` can be NULL */
 };
 
 /** @brief Values for `.arg_req`. */
 enum arg_requirement {
 	ARG_OPTIONAL,
 	ARG_REQUIRED,
-	ARG_HIDDEN, /* Like OPTIONAL but hidden from help. */
+	ARG_HIDDEN, /* Like `ARG_OPTIONAL` but hidden from help. */
 	ARG_SOMETIME, /* Use `.validate_callback` or `relations`. */
 };
 
@@ -228,18 +215,18 @@ struct args_internal {
   * @brief Argument `relations`, a list of dependencies.
   * 
   * When setting this argument, dependencies must already be set.
-  * 
   * Must be called inside an `ARGUMENT` definition.
   * 
   * Example:
-  * @code
-  * 	ARGUMENT(foo) = { ... };
-  * 	ARGUMENT(bar) = { ... };
-  * 	ARGUMENT(baz) = {
-  * 		...
-  * 		ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
-  * 		...
-  * 	}; @endcode
+  * @code{.c}
+  * ARGUMENT(foo) = { ... };
+  * ARGUMENT(bar) = { ... };
+  * ARGUMENT(baz) = {
+  * 	...
+  * 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
+  * 	...
+  * };
+  * @endcode
   * 
   * @param relation_phase When to check dependencies, see `arg_relation_phase`.
   */
@@ -253,18 +240,18 @@ struct args_internal {
   * @brief Argument `relations`, a list of conflicts.
   * 
   * If a conflict is set, this one must not be set, even if `ARG_REQUIRED`.
-  * 
   * Must be called inside an `ARGUMENT` definition.
   * 
   * Example:
-  * @code
-  * 	ARGUMENT(foo) = { ... };
-  * 	ARGUMENT(bar) = { ... };
-  * 	ARGUMENT(baz) = {
-  * 		...
-  * 		ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
-  * 		...
-  * 	}; @endcode
+  * @code{.c}
+  * ARGUMENT(foo) = { ... };
+  * ARGUMENT(bar) = { ... };
+  * ARGUMENT(baz) = {
+  * 	...
+  * 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
+  * 	...
+  * };
+  * @endcode
   * 
   * @param relation_phase When to check conflicts, see `arg_relation_phase`.
   */
@@ -278,25 +265,22 @@ struct args_internal {
   * @brief Argument `relations`, a list of subsets.
   * 
   * If this argument is set, all subsets are also processed.
-  * 
   * By default, the parent string gets passed to the subset parser.
-  * 
   * Custom subset strings can be specified with `ARG_SUBSTRINGS`.
-  * 
   * In simple terms, this allows you to trigger multiple arguments with one.
-  * 
   * Must be called inside an `ARGUMENT` definition.
   * 
   * Example:
-  * @code
-  * 	ARGUMENT(foo) = { ... };
-  * 	ARGUMENT(bar) = { ... };
-  * 	ARGUMENT(baz) = {
-  * 		...
-  * 		ARG_SUBSETS(ARG(foo), ARG(bar)),
-  * 		ARG_SUBSTRINGS("42", ARG_SUBPASS),
-  * 		...
-  * 	}; @endcode
+  * @code{.c}
+  * ARGUMENT(foo) = { ... };
+  * ARGUMENT(bar) = { ... };
+  * ARGUMENT(baz) = {
+  * 	...
+  * 	ARG_SUBSETS(ARG(foo), ARG(bar)),
+  * 	ARG_SUBSTRINGS("42", ARG_SUBPASS),
+  * 	...
+  * };
+  * @endcode
   */
 #define ARG_SUBSETS(...)                                           \
 	._.subs = (struct argument *[]){ __VA_ARGS__, NULL },      \
@@ -307,7 +291,6 @@ struct args_internal {
   * @brief Default strings for index-aligned subsets
   * 
   * Use `ARG_SUBPASS` to pass the parent string to the subset parser.
-  * 
   * Can be left out if not needed.
   */
 #define ARG_SUBSTRINGS(...) \
@@ -320,7 +303,6 @@ struct args_internal {
   * @brief Configuration structure for an argument.
   * 
   * Initialize this struct using the `ARGUMENT(name)` macro.
-  * 
   * Most fields are optional and should default to 0 or NULL using C's
   * partial struct initialization when not explicitly provided.
   */
@@ -329,10 +311,8 @@ struct argument {
 	  * @brief Indicates if the argument was provided by the user.
 	  * 
 	  * If NULL, it is implicitly allocated internally if needed.
-	  * 
 	  * Explicitly point this to something if you need it elsewhere.
 	  * Best used for "flag" arguments with no parameter.
-	  * 
 	  * You can use both `.set` and `.dest` for more complex scenarios,
 	  * though `relations` should cover most of them.
 	  */
@@ -345,47 +325,47 @@ struct argument {
 	  * @brief Function that is called during `args_parse`.
 	  * 
 	  * Use `ARG_PARSER` macros for convenience.
-	  * 
 	  * Doesn't need to be a "parsing" function, so `.dest` can be NULL.
-	  * 
 	  * Also useful for exiting arguments like '--help' or '--version'.
 	  * 
 	  * Example:
-	  * @code
-  * 	static double mydouble;
-  * 	// Creates parse_mydoubles() for .parse_callback
-  * 	ARG_PARSE_D(mydoubles, double, , val < 5.0, "Must be >= 5.0");
-  * 	ARGUMENT(myarg) = {
-  * 		...
-  * 		.dest = &mydouble,
-  * 		.parse_callback = parse_mydoubles,
-  * 		...
-  * 	}; @endcode
+	  * @code{.c}
+	  * static double mydouble;
+	  * // Creates parse_mydoubles() for .parse_callback
+	  * ARG_PARSE_D(mydoubles, double, , val < 5.0, "Must be >= 5.0");
+	  * ARGUMENT(myarg) = {
+	  * 	...
+	  * 	.dest = &mydouble,
+	  * 	.parse_callback = parse_mydoubles,
+	  * 	...
+	  * };
+	  * @endcode
 	  * 
 	  * You can also write custom parsers:
-	  * @code
-  * 	enum Color { COLOR_INVALID = -1, RED, GREEN, BLUE };
-  * 	static enum Color color = COLOR_INVALID;
-  * 	static struct arg_callback parse_color(const char *str, void *dest) {
-  * 		// Using 'color' directly is also possible in this example
-  * 		enum Color col = COLOR_INVALID;
-  * 		if (strcmp(str, "red") == 0)
-  * 			col = RED;
-  * 		else if (strcmp(str, "green") == 0)
-  * 			col = GREEN;
-  * 		else if (strcmp(str, "blue") == 0)
-  * 			col = BLUE;
-  * 		else
-  * 			return ARG_INVALID("Invalid color");
-  * 		*(enum Color *)dest = col; // dest points to color
-  * 		return ARG_VALID();
-  * 	}
-  * 	ARGUMENT(color) = {
-  * 		...
-  * 		.dest = &color,
-  * 		.parse_callback = parse_color,
-  * 		...
-  * 	}; @endcode
+	  * @code{.c}
+	  * enum Color { COLOR_INVALID = -1, RED, GREEN, BLUE };
+	  * static enum Color color = COLOR_INVALID;
+	  * static struct arg_callback parse_color(const char *str, void *dest) {
+	  * 	// Using 'color' directly is also possible in this example
+	  * 	enum Color col = COLOR_INVALID;
+	  * 	if (strcmp(str, "red") == 0)
+	  * 		col = RED;
+	  * 	else if (strcmp(str, "green") == 0)
+	  * 		col = GREEN;
+	  * 	else if (strcmp(str, "blue") == 0)
+	  * 		col = BLUE;
+	  * 	else
+	  * 		return ARG_INVALID("Invalid color");
+	  * 	*(enum Color *)dest = col; // dest points to color
+	  * 	return ARG_VALID();
+	  * }
+	  * ARGUMENT(color) = {
+	  * 	...
+	  * 	.dest = &color,
+	  * 	.parse_callback = parse_color,
+	  * 	...
+	  * };
+	  * @endcode
 	  * 
 	  * @param str The string value provided by the user.
 	  * @param dest Pointer to `.dest` which could be NULL, up to you.
@@ -396,24 +376,25 @@ struct argument {
 	/**
 	  * @brief Function that is called during the `.validate_phase`.
 	  * 
-	  * Use for complex checks.
+	  * Use for complex checks after everything is parsed.
 	  * 
 	  * Example:
-	  * @code
-  * 	enum Color { RED, GREEN, BLUE };
-  * 	static enum Color color; // preferably set with a custom parser
-  * 	static bool other_option; // could be anything, just an example
-  * 	static struct arg_callback validate_color(void) {
-  * 		if (color == RED && other_option)
-  * 			return ARG_INVALID("Red color cannot be used.");
-  * 		return ARG_VALID();
-  * 	}
-  * 	ARGUMENT(color) = {
-  * 		...
-  * 		.dest = &color,
-  * 		.validate_callback = validate_color,
-  * 		...
-  * 	}; @endcode
+	  * @code{.c}
+	  * enum Color { RED, GREEN, BLUE };
+	  * static enum Color color;  // preferably set with a custom parser
+	  * static bool other_option; // could be anything, just an example
+	  * static struct arg_callback validate_color(void) {
+	  * 	if (color == RED && other_option)
+	  * 		return ARG_INVALID("Red color cannot be used.");
+	  * 	return ARG_VALID();
+	  * }
+	  * ARGUMENT(color) = {
+	  * 	...
+	  * 	.dest = &color,
+	  * 	.validate_callback = validate_color,
+	  * 	...
+	  * };
+	  * @endcode
 	  * 
 	  * @return `ARG_INVALID(msg)` on error, `ARG_VALID()` on success.
 	  */
@@ -425,18 +406,19 @@ struct argument {
 	  * Use for side effects, like configuration printing.
 	  * 
 	  * Example:
-	  * @code
-  * 	static bool verbose;
-  * 	static void print_config(void) {
-  * 		printf("Verbose mode is on");
-  * 	}
-  * 	ARGUMENT(verbose) = {
-  * 		...
-  * 		.set = &verbose,
-  * 		.action_callback = print_config,
-  * 		.action_phase = ARG_CALLBACK_IF_SET,
-  * 		...
-  * 	}; @endcode
+	  * @code{.c}
+	  * static bool verbose;
+	  * static void print_config(void) {
+	  * 	printf("Verbose mode is on");
+	  * }
+	  * ARGUMENT(verbose) = {
+	  * 	...
+	  * 	.set = &verbose,
+	  * 	.action_callback = print_config,
+	  * 	.action_phase = ARG_CALLBACK_IF_SET,
+	  * 	...
+	  * };
+	  * @endcode
 	  */
 	void (*action_callback)(void);
 
@@ -457,9 +439,10 @@ struct argument {
 	  * 
 	  * Example: "First line.\nSecond line."
 	  * @code
-  * NOTE: Might be more obvious with a monospaced font.
-  * 	-o, --option N  First line.
-  * 	                Second line. @endcode
+	  * NOTE: Might be more obvious with a monospaced font.
+	  * -o, --option N  First line.
+	  *                 Second line.
+	  * @endcode
 	  */
 	const char *help;
 
@@ -467,9 +450,7 @@ struct argument {
 	  * @brief Parameter description when ARGUMENT(help) is specified.
 	  * 
 	  * Printed right after opt, lopt in help message.
-	  * 
 	  * Example: "N" for an argument that takes a number.
-	  * 
 	  * Required if `.param_req` != `ARG_PARAM_NONE`.
 	  */
 	const char *param;
@@ -522,7 +503,6 @@ extern struct args_raw {
   * @brief Generates a parser function.
   * 
   * See convenience macros for common functions like strtod or strtol below.
-  * 
   * See example usage in `.parse_callback` documentation.
   * 
   * @param name Name of the parser (generates 'parse_name').
@@ -572,7 +552,7 @@ extern struct args_raw {
 /** @brief Convenience macro for 'strtod'. */
 #define ARG_PARSE_D(name, dest_t, CAST, cond, err) \
 	ARG_PARSER(name, strtod, , double, dest_t, CAST, cond, err)
-
+/** @brief Internal function, use `ARGUMENT` macro instead. */
 void _args_register(struct argument *);
 
 /* https://stackoverflow.com/questions/1113409/attribute-constructor-equivalent-in-vc */

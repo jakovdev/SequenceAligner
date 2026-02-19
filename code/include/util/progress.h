@@ -6,63 +6,56 @@
   * @file progress.h
   * @brief Progress bar display for parallel workloads.
   * 
-  * Basic usage:
-  * 
   * Before the parallel region (main thread):
-  * 
   * 1. Call `progress_start`.
   * 
   * Inside the parallel region (all worker threads):
-  * 
   * 2. Call `progress_add` inside the outer-most loop.
-  * 
   * 3. Call `progress_flush` outside the outer-most loop.
   * 
   * After the parallel region (main thread):
-  * 
   * 4. Call `progress_end`.
   * 
   * Example #1:
-  * @code
-  * 	progress_start(total_items, "Processing items");
-  * 	#pragma omp parallel
-  * 	{
-  * 		#pragma omp for
-  * 		for (int i = 0; i < total_items; i++) {
-  * 			process_item(i);
-  * 			progress_add(1);
-  * 		}
-  * 		progress_flush();
+  * @code{.c}
+  * progress_start(total_items, "Processing items");
+  * #pragma omp parallel
+  * {
+  * 	#pragma omp for
+  * 	for (int i = 0; i < total_items; i++) {
+  * 		process_item(i);
+  * 		progress_add(1);
   * 	}
-  * 	progress_end(); @endcode
+  * 	progress_flush();
+  * }
+  * progress_end();
+  * @endcode
   * 
   * Example #2:
-  * @code
-  * 	progress_start(total_items, "Processing matrix");
-  * 	double time_begin = current_time();
-  * 	#pragma omp parallel
-  * 	{
-  * 		#pragma omp for
-  * 		for (int i = 0; i < rows; i++) {
-  * 			for (int j = 0; j < cols; j++) {
-  * 				process_matrix_cell(i, j);
-  * 			}
-  * 			// items_per_row depends on the inner loop
-  * 			const s64 items_per_row = cols;
-  * 			progress_add(items_per_row);
+  * @code{.c}
+  * progress_start(total_items, "Processing matrix");
+  * double time_begin = current_time();
+  * #pragma omp parallel
+  * {
+  * 	#pragma omp for
+  * 	for (int i = 0; i < rows; i++) {
+  * 		for (int j = 0; j < cols; j++) {
+  * 			process_matrix_cell(i, j);
   * 		}
-  * 		progress_flush();
+  * 		// items_per_row depends on the inner loop
+  * 		const s64 items_per_row = cols;
+  * 		progress_add(items_per_row);
   * 	}
-  * 	double time_end = current_time();
-  * 	progress_end();
-  * 	printf("Matrix processing time: %.2f", time_end - time_begin); @endcode
+  * 	progress_flush();
+  * }
+  * double time_end = current_time();
+  * progress_end();
+  * printf("Matrix processing time: %.2f", time_end - time_begin);
+  * @endcode
   * 
   * Limitations:
-  * 
   * - Only one progress monitor thread can be active at a time.
-  * 
   * - `progress_end` may cause slight delays from mutex contention.
-  * 
   * - Requires C11 (atomics) to build the source file.
   */
 
