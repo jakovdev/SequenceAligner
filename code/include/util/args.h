@@ -299,6 +299,17 @@ struct args_internal {
 /** @brief Signal to pass the parent string */
 #define ARG_SUBPASS ((const char *)-1)
 
+/** @brief Use in `help_order`, `validate_order`, or `action_order`. */
+#define ARG_ORDER_FIRST ((struct argument *)-1)
+
+/**
+  * @brief Use in `help_order`, `validate_order`, or `action_order`.
+  *
+  * If arg_name is later in the same file, `ARG_DECLARE` it before `ARGUMENT`.
+  * If arg_name is in another file, `ARG_EXTERN` it before `ARGUMENT`.
+  */
+#define ARG_ORDER_AFTER(arg_name) (ARG(arg_name))
+
 /**
   * @brief Configuration structure for an argument.
   * 
@@ -433,6 +444,31 @@ struct argument {
 	enum arg_callback_phase action_phase;
 
 	/**
+	  * @brief Ordering for validation.
+	  * 
+	  * Available: `ARG_ORDER_FIRST`, `ARG_ORDER_AFTER`.
+	  * NULL = last (default).
+	  */
+	struct argument *validate_order;
+
+	/**
+	  * @brief Ordering for action execution.
+	  * 
+	  * Available: `ARG_ORDER_FIRST`, `ARG_ORDER_AFTER`.
+	  * NULL = last (default).
+	  */
+	struct argument *action_order;
+
+	/**
+	  * @brief Ordering for help display.
+	  * 
+	  * Don't mix `ARG_REQUIRED` with others for expected behavior.
+	  * Available: `ARG_ORDER_FIRST`, `ARG_ORDER_AFTER`.
+	  * NULL = last (default).
+	  */
+	struct argument *help_order;
+
+	/**
 	  * @brief Help description when ARGUMENT(help) is specified.
 	  * 
 	  * Multiline strings are supported and will be indented automatically.
@@ -459,27 +495,6 @@ struct argument {
 	const char *lopt;
 	/** @brief Short option (e.g., 'o' for -o). */
 	char opt;
-
-	/**
-	  * @brief Sort weight for help display.
-	  * 
-	  * Higher weight = higher priority (printed first).
-	  */
-	unsigned int help_weight;
-
-	/**
-	  * @brief Sort weight for validation.
-	  * 
-	  * Higher weight = higher priority (validated first).
-	  */
-	unsigned int validate_weight;
-
-	/**
-	  * @brief Sort weight for action.
-	  * 
-	  * Higher weight = higher priority (executed first).
-	  */
-	unsigned int action_weight;
 
 	struct args_internal _; /* Internal use only. */
 };

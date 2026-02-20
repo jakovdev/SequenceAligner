@@ -94,6 +94,9 @@ static void print_filter(void)
 		pwarnm("Filter: Ignored");
 }
 
+ARG_EXTERN(gap_penalty);
+ARG_EXTERN(list_matrices);
+
 ARGUMENT(filter_threshold) = {
 	.opt = 'f',
 	.lopt = "filter",
@@ -104,6 +107,6 @@ ARGUMENT(filter_threshold) = {
 	.parse_callback = parse_filter,
 	.action_callback = print_filter,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_weight = 500,
-	.help_weight = 950,
+	.action_order = ARG_ORDER_AFTER(gap_penalty),
+	.help_order = ARG_ORDER_AFTER(list_matrices),
 };

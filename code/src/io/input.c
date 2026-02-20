@@ -239,9 +239,9 @@ ARGUMENT(input_path) = {
 	.parse_callback = parse_path,
 	.validate_callback = validate_input_path,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_weight = 1000,
+	.validate_order = ARG_ORDER_FIRST,
 	.action_callback = print_input_path,
 	.action_phase = ARG_CALLBACK_ALWAYS,
-	.action_weight = 1000,
-	.help_weight = 1000,
+	.action_order = ARG_ORDER_FIRST,
+	.help_order = ARG_ORDER_FIRST,
 };

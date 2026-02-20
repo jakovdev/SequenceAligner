@@ -563,12 +563,14 @@ static void h5_flush_matrix(void)
 	free_aligned(buf);
 }
 
+ARG_EXTERN(disable_cuda);
+
 ARGUMENT(disable_write) = {
 	.opt = 'W',
 	.lopt = "no-write",
 	.help = "Disable writing to output file",
 	.set = &g_h5.disabled,
-	.help_weight = 400,
+	.help_order = ARG_ORDER_AFTER(disable_cuda),
 };
 
 static void print_output_path(void)
@@ -602,6 +604,8 @@ static struct arg_callback validate_output_path(void)
 	return ARG_VALID();
 }
 
+ARG_EXTERN(input_path);
+
 ARGUMENT(output_path) = {
 	.opt = 'o',
 	.lopt = "output",
@@ -613,11 +617,11 @@ ARGUMENT(output_path) = {
 	.parse_callback = parse_path,
 	.validate_callback = validate_output_path,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_weight = 900,
+	.validate_order = ARG_ORDER_AFTER(input_path),
 	.action_callback = print_output_path,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_weight = 900,
-	.help_weight = 900,
+	.action_order = ARG_ORDER_AFTER(input_path),
+	.help_order = ARG_ORDER_AFTER(input_path),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(disable_write)),
 };
 
@@ -629,6 +633,8 @@ static void print_compression(void)
 	pinfom("Compression: " Pu8, g_h5.compression);
 }
 
+ARG_EXTERN(filter_threshold);
+
 ARGUMENT(compression) = {
 	.opt = 'z',
 	.lopt = "compression",
@@ -639,7 +645,7 @@ ARGUMENT(compression) = {
 	.parse_callback = parse_compression,
 	.action_callback = print_compression,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_weight = 450,
-	.help_weight = 500,
+	.action_order = ARG_ORDER_AFTER(filter_threshold),
+	.help_order = ARG_ORDER_AFTER(filter_threshold),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(output_path)),
 };

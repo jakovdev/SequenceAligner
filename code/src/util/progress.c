@@ -126,9 +126,12 @@ void progress_end(void)
 	mtx_destroy(&p_mutex);
 }
 
-ARGUMENT(no_progress) = {
+ARG_EXTERN(disable_write);
+
+ARGUMENT(disable_progress) = {
 	.opt = 'P',
 	.lopt = "no-progress",
 	.help = "Disable progress bars",
 	.set = &p_disable,
+	.help_order = ARG_ORDER_AFTER(disable_write),
 };

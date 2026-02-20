@@ -948,18 +948,22 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 	return PRINT_SUCCESS;
 }
 
+ARG_EXTERN(disable_progress);
+
+ARGUMENT(disable_detail) = {
+	.opt = 'D',
+	.lopt = "no-detail",
+	.help = "Disable detailed printing",
+	.set = &nodetail,
+	.help_order = ARG_ORDER_AFTER(disable_progress),
+};
+
 ARGUMENT(force) = {
 	.opt = 'F',
 	.lopt = "force-proceed",
 	.help = "Force proceed without user prompts (for CI)",
 	.set = &force,
-};
-
-ARGUMENT(verbose) = {
-	.opt = 'v',
-	.lopt = "verbose",
-	.help = "Enable verbose printing",
-	.set = &verbose,
+	.help_order = ARG_ORDER_AFTER(disable_detail),
 };
 
 ARGUMENT(quiet) = {
@@ -967,11 +971,13 @@ ARGUMENT(quiet) = {
 	.lopt = "quiet",
 	.help = "Suppress all non-error printing",
 	.set = &quiet,
+	.help_order = ARG_ORDER_AFTER(force),
 };
 
-ARGUMENT(disable_detail) = {
-	.opt = 'D',
-	.lopt = "no-detail",
-	.help = "Disable detailed printing",
-	.set = &nodetail,
+ARGUMENT(verbose) = {
+	.opt = 'v',
+	.lopt = "verbose",
+	.help = "Enable verbose printing",
+	.set = &verbose,
+	.help_order = ARG_ORDER_AFTER(quiet),
 };

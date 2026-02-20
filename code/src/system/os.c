@@ -208,6 +208,9 @@ static void print_threads(void)
 	pinfol("CPU Threads: %d", arg_threads());
 }
 
+ARG_EXTERN(disable_cuda);
+ARG_EXTERN(benchmark);
+
 ARGUMENT(threads) = {
 	.opt = 'T',
 	.lopt = "threads",
@@ -217,6 +220,6 @@ ARGUMENT(threads) = {
 	.dest = &thread_num,
 	.parse_callback = parse_thread_num,
 	.action_callback = print_threads,
-	.action_weight = 1,
-	.help_weight = 450,
+	.action_order = ARG_ORDER_AFTER(disable_cuda),
+	.help_order = ARG_ORDER_AFTER(benchmark),
 };

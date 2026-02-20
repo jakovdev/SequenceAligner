@@ -363,20 +363,10 @@ arg_no_subs:
 	a->_.next_args = args;
 	args = a;
 
-#define args_insert(list)                                               \
-	do {                                                            \
-		if (!list || a->list##_weight >= list->list##_weight) { \
-			a->_.next_##list = list;                        \
-			list = a;                                       \
-		} else {                                                \
-			struct argument *cur = list;                    \
-			while (cur->_.next_##list &&                    \
-			       cur->_.next_##list->list##_weight >      \
-				       a->list##_weight)                \
-				cur = cur->_.next_##list;               \
-			a->_.next_##list = cur->_.next_##list;          \
-			cur->_.next_##list = a;                         \
-		}                                                       \
+#define args_insert(list)                \
+	do {                             \
+		a->_.next_##list = list; \
+		list = a;                \
 	} while (0);
 
 	args_insert(help);
@@ -545,10 +535,122 @@ static bool arg_parse_opt(int *i)
 	return true;
 }
 
+#define args_vaorder(list)                                                    \
+	do {                                                                  \
+		for_each_arg(a, list) {                                       \
+			struct argument *order = a->list##_order;             \
+			if (order == NULL || order == (struct argument *)-1)  \
+				continue;                                     \
+                                                                              \
+			bool found = false;                                   \
+			for_each_arg(check, list) {                           \
+				if (check == order) {                         \
+					found = true;                         \
+					break;                                \
+				}                                             \
+			}                                                     \
+                                                                              \
+			if (!found) {                                         \
+				args_perr("%s has invalid argument in " #list \
+					  "_order",                           \
+					  arg_str(a));                        \
+				args_ierr(a);                                 \
+				args_abort();                                 \
+			}                                                     \
+		}                                                             \
+	} while (0)
+
+#define args_reorder(list)                                                             \
+	do {                                                                           \
+		struct argument *ordered = NULL;                                       \
+		struct argument *unordered = list;                                     \
+		list = NULL;                                                           \
+                                                                                       \
+		struct argument **pp = &unordered;                                     \
+		while (*pp) {                                                          \
+			struct argument *a = *pp;                                      \
+			if (a->list##_order == (struct argument *)-1) {                \
+				*pp = a->_.next_##list;                                \
+				a->_.next_##list = ordered;                            \
+				ordered = a;                                           \
+			} else {                                                       \
+				pp = &(*pp)->_.next_##list;                            \
+			}                                                              \
+		}                                                                      \
+                                                                                       \
+		bool changed = true;                                                   \
+		while (unordered && changed) {                                         \
+			changed = false;                                               \
+			pp = &unordered;                                               \
+			while (*pp) {                                                  \
+				struct argument *a = *pp;                              \
+				struct argument *ord = a->list##_order;                \
+				bool can_place = false;                                \
+				struct argument **insert_pos = NULL;                   \
+                                                                                       \
+				if (ord == NULL) {                                     \
+					can_place = true;                              \
+					if (!ordered) {                                \
+						insert_pos = &ordered;                 \
+					} else {                                       \
+						struct argument *cur =                 \
+							ordered;                       \
+						while (cur->_.next_##list)             \
+							cur = cur->_.next_##list;      \
+						insert_pos =                           \
+							&cur->_.next_##list;           \
+					}                                              \
+				} else {                                               \
+					struct argument **pord = &ordered;             \
+					while (*pord) {                                \
+						if (*pord == ord) {                    \
+							can_place = true;              \
+							insert_pos =                   \
+								&(*pord)->_            \
+									 .next_##list; \
+							break;                         \
+						}                                      \
+						pord = &(*pord)->_.next_##list;        \
+					}                                              \
+				}                                                      \
+                                                                                       \
+				if (can_place && insert_pos) {                         \
+					*pp = a->_.next_##list;                        \
+					a->_.next_##list = *insert_pos;                \
+					*insert_pos = a;                               \
+					changed = true;                                \
+				} else {                                               \
+					pp = &(*pp)->_.next_##list;                    \
+				}                                                      \
+			}                                                              \
+		}                                                                      \
+                                                                                       \
+		if (unordered) {                                                       \
+			if (!ordered) {                                                \
+				ordered = unordered;                                   \
+			} else {                                                       \
+				struct argument *cur = ordered;                        \
+				while (cur->_.next_##list)                             \
+					cur = cur->_.next_##list;                      \
+				cur->_.next_##list = unordered;                        \
+			}                                                              \
+		}                                                                      \
+                                                                                       \
+		list = ordered;                                                        \
+	} while (0)
+
 bool args_parse(int argc, char *argv[])
 {
 	argr.c = argc;
 	argr.v = argv;
+
+	args_vaorder(help);
+	args_vaorder(validate);
+	args_vaorder(action);
+
+	args_reorder(help);
+	args_reorder(validate);
+	args_reorder(action);
 
 	bool success = true;
 
@@ -808,6 +910,6 @@ ARGUMENT(help) = {
 	.lopt = "help",
 	.help = "Display this help message",
 	.parse_callback = print_help,
-	.help_weight = UINT_MAX,
+	.help_order = ARG_ORDER_FIRST,
 };
 #endif

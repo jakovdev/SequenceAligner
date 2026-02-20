@@ -83,6 +83,9 @@ static void print_no_cuda(void)
 	pinfom("CUDA: Enabled");
 }
 
+ARG_EXTERN(compression);
+ARG_EXTERN(threads);
+
 ARGUMENT(disable_cuda) = {
 	.opt = 'C',
 	.lopt = "no-cuda",
@@ -90,8 +93,8 @@ ARGUMENT(disable_cuda) = {
 	.set = &no_cuda,
 	.action_callback = print_no_cuda,
 	.action_phase = ARG_CALLBACK_IF_UNSET,
-	.action_weight = 400,
-	.help_weight = 350,
+	.action_order = ARG_ORDER_AFTER(compression),
+	.help_order = ARG_ORDER_AFTER(threads),
 };
 
 #undef RETURN_CUDA_ERRORS
@@ -113,14 +116,15 @@ static void print_cuda_ignored(void)
 	pwarnm("CUDA: Ignored");
 }
 
+ARG_EXTERN(compression);
+
 ARGUMENT(disable_cuda) = {
 	.opt = 'C',
 	.lopt = "no-cuda",
-	.help = "Disable CUDA (ignored, not compiled with CUDA)",
+	.arg_req = ARG_HIDDEN,
 	.action_callback = print_cuda_ignored,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_weight = 400,
-	.help_weight = 350,
+	.action_order = ARG_ORDER_AFTER(compression),
 };
 
 #endif /* USE_CUDA */

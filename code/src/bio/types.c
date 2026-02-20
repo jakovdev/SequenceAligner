@@ -327,6 +327,8 @@ static struct arg_callback list_matrices(const char *str, void *dest)
 	exit(EXIT_SUCCESS);
 }
 
+ARG_EXTERN(output_path);
+
 ARGUMENT(sequence_type) = {
 	.opt = 't',
 	.lopt = "type",
@@ -337,8 +339,8 @@ ARGUMENT(sequence_type) = {
 	.dest = &seq_type,
 	.parse_callback = parse_seq_type,
 	.action_callback = print_config_seq_type,
-	.action_weight = 700,
-	.help_weight = 700,
+	.action_order = ARG_ORDER_AFTER(output_path),
+	.help_order = ARG_ORDER_AFTER(output_path),
 };
 
 ARGUMENT(substitution_matrix) = {
@@ -351,8 +353,8 @@ ARGUMENT(substitution_matrix) = {
 	.dest = &matrix_id,
 	.parse_callback = parse_matrix,
 	.action_callback = setup_matrix,
-	.action_weight = 650,
-	.help_weight = 650,
+	.action_order = ARG_ORDER_AFTER(sequence_type),
+	.help_order = ARG_ORDER_AFTER(sequence_type),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(sequence_type)),
 };
 
@@ -366,8 +368,8 @@ ARGUMENT(alignment_method) = {
 	.dest = &method_id,
 	.parse_callback = parse_align_method,
 	.action_callback = print_config_method,
-	.action_weight = 600,
-	.help_weight = 600,
+	.action_order = ARG_ORDER_AFTER(substitution_matrix),
+	.help_order = ARG_ORDER_AFTER(substitution_matrix),
 };
 
 ARG_DECLARE(gap_open);
@@ -384,10 +386,10 @@ ARGUMENT(gap_penalty) = {
 	.parse_callback = parse_gap_value,
 	.validate_callback = validate_gap_pen,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_weight = 510,
+	.validate_order = ARG_ORDER_AFTER(gap_open),
 	.action_callback = print_config_gaps,
-	.action_weight = 510,
-	.help_weight = 590,
+	.action_order = ARG_ORDER_AFTER(alignment_method),
+	.help_order = ARG_ORDER_AFTER(alignment_method),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_open), ARG(gap_extend)),
 };
@@ -403,8 +405,8 @@ ARGUMENT(gap_open) = {
 	.parse_callback = parse_gap_value,
 	.validate_callback = validate_gap_affine,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_weight = 550,
-	.help_weight = 550,
+	.validate_order = ARG_ORDER_AFTER(alignment_method),
+	.help_order = ARG_ORDER_AFTER(gap_penalty),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
 };
@@ -418,15 +420,16 @@ ARGUMENT(gap_extend) = {
 	.arg_req = ARG_REQUIRED,
 	.dest = &gap_ext,
 	.parse_callback = parse_gap_value,
-	.help_weight = 510,
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
 };
+
+ARG_EXTERN(help);
 
 ARGUMENT(list_matrices) = {
 	.opt = 'l',
 	.lopt = "list-matrices",
 	.help = "List available substitution matrices",
 	.parse_callback = list_matrices,
-	.help_weight = 9999,
+	.help_order = ARG_ORDER_AFTER(help),
 };

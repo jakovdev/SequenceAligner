@@ -107,6 +107,8 @@ static void print_benchmark(void)
 	pinfo("Benchmarking mode: Enabled");
 }
 
+ARG_EXTERN(compression);
+
 ARGUMENT(benchmark) = {
 	.opt = 'B',
 	.lopt = "benchmark",
@@ -114,5 +116,5 @@ ARGUMENT(benchmark) = {
 	.set = &mode_benchmark,
 	.action_callback = print_benchmark,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.help_weight = 410,
+	.help_order = ARG_ORDER_AFTER(compression),
 };
