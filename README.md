@@ -164,8 +164,8 @@ cd path\to\where\you\unzipped\release
 |--------|-------------|
 | `-i, --input FILE` | Input file path: FASTA, DSV (CSV, TSV, etc.) format |
 | `-o, --output FILE` | Output file path: HDF5 format |
-| `-t, --type TYPE` | Sequence type: amino (protein), nucleo (DNA/RNA) |
-| `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see options) |
+| `-t, --type TYPE` | Sequence type: amino (Amino acids), nucleo (Nucleotides) |
+| `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see all available matrices) |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
 | `-p, --gap-penalty N` | Linear gap penalty |
 | `-s, --gap-open N` | Affine gap open penalty |
@@ -174,19 +174,19 @@ cd path\to\where\you\unzipped\release
 **Optional arguments:**
 | Argument | Description |
 |--------|-------------|
+| `-l, --list-matrices` | List available substitution matrices |
 | `-f, --filter FLOAT` | Filter sequences with similarity above threshold [0.0-1.0] |
-| `-z, --compression N` | HDF5 compression level (0-9) [default: 0 (no compression)] |
-| `-T, --threads N` | Number of threads (0 = auto) [default: auto] |
+| `-z, --compression N` | Compression level for HDF5 datasets [0-9] (default: 0, no compression) |
 | `-B, --benchmark` | Enable timing of various steps |
-| `-W, --no-write` | Disable writing to output file |
+| `-T, --threads N` | Number of threads (default: 0, auto) |
 | `-C, --no-cuda` | Disable CUDA |
+| `-W, --no-write` | Disable writing to output file |
 | `-P, --no-progress` | Disable progress bars |
 | `-D, --no-detail` | Disable detailed printing |
+| `-F, --force-proceed` | Force proceed without user prompts (for CI) |
 | `-q, --quiet` | Suppress all non-error printing |
 | `-v, --verbose` | Enable verbose printing |
-| `-F, --force-proceed` | Force proceed without user prompts (for CI) |
-| `-l, --list-matrices` | List all available substitution matrices |
-| `-h, --help` | Display help message |
+| `-h, --help` | Display this help message |
 
 </details>
 

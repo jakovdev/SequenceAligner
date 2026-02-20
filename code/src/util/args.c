@@ -884,6 +884,5 @@ ARGUMENT(help) = {
 	.lopt = "help",
 	.help = "Display this help message",
 	.parse_callback = print_help,
-	.help_order = ARG_ORDER_FIRST,
 };
 #endif

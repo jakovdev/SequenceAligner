@@ -424,12 +424,10 @@ ARGUMENT(gap_extend) = {
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
 };
 
-ARG_EXTERN(help);
-
 ARGUMENT(list_matrices) = {
 	.opt = 'l',
 	.lopt = "list-matrices",
 	.help = "List available substitution matrices",
 	.parse_callback = list_matrices,
-	.help_order = ARG_ORDER_AFTER(help),
+	.help_order = ARG_ORDER_FIRST,
 };
