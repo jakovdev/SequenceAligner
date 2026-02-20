@@ -471,11 +471,15 @@ if(WIN32)
 		if(NOT DEFINED ENV{MSYSTEM_PREFIX})
 			message(FATAL_ERROR "MSYSTEM_PREFIX not set. Cannot locate MSYS2 bin directory.")
 		endif()
-		set(MSYS2_DLLS
-		libhdf5-310.dll libcrypto-3-x64.dll libwinpthread-1.dll libcurl-4.dll libsz-2.dll zlib1.dll
+		file(GLOB HDF5_DLL "$ENV{MSYSTEM_PREFIX}/bin/libhdf5-[0-9]*.dll")
+		string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
+		set(MSYS2_DLLS ${HDF5_DLL}
+		libcrypto-3-x64.dll libwinpthread-1.dll libcurl-4.dll libsz-2.dll zlib1.dll libgomp-1.dll
 		libbrotlidec.dll libidn2-0.dll libnghttp2-14.dll libnghttp3-9.dll libpsl-5.dll libssh2-1.dll
 		libbrotlicommon.dll libzstd.dll libssl-3-x64.dll libintl-8.dll libiconv-2.dll libunistring-5.dll
-		libgomp-1.dll libgcc_s_seh-1.dll libngtcp2-16.dll libngtcp2_crypto_ossl-0.dll
+		libgcc_s_seh-1.dll libngtcp2-16.dll libngtcp2_crypto_ossl-0.dll libaws-c-io.dll libaws-c-s3.dll
+		libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll libaws-c-cal.dll libaws-c-sdkutils.dll
+		libaws-c-compression.dll libaws-checksums.dll
 		)
 		install_runtime_dlls("${MSYS2_DLLS}" "$ENV{MSYSTEM_PREFIX}")
 	elseif(PLATFORM_TYPE STREQUAL "CROSS")		
@@ -486,6 +490,10 @@ endif()
 
 if(USE_BIN)
 	set_target_properties(seqalign PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
+	file(GLOB BIN_FILES "${CMAKE_SOURCE_DIR}/bin/*")
+	if(BIN_FILES)
+		file(REMOVE ${BIN_FILES})
+	endif()
 	if(PLATFORM_TYPE STREQUAL "MSVC")
 		add_custom_command(TARGET seqalign POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_if_different
@@ -493,6 +501,38 @@ if(USE_BIN)
 		"${CMAKE_SOURCE_DIR}/bin/"
 		)
 		install_runtime_dlls("$<TARGET_FILE_DIR:seqalign>" "${CMAKE_SOURCE_DIR}/bin")
+	elseif(PLATFORM_TYPE STREQUAL "MSYS2")
+		foreach(dll ${MSYS2_DLLS})
+			if(EXISTS "$ENV{MSYSTEM_PREFIX}/bin/${dll}")
+				add_custom_command(TARGET seqalign POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"$ENV{MSYSTEM_PREFIX}/bin/${dll}"
+				"${CMAKE_SOURCE_DIR}/bin/"
+				)
+			elseif(EXISTS "$ENV{MSYSTEM_PREFIX}/lib/${dll}")
+				add_custom_command(TARGET seqalign POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"$ENV{MSYSTEM_PREFIX}/lib/${dll}"
+				"${CMAKE_SOURCE_DIR}/bin/"
+				)
+			endif()
+		endforeach()
+	elseif(PLATFORM_TYPE STREQUAL "CROSS")
+		foreach(dll ${CROSS_DLLS})
+			if(EXISTS "${MINGW_PREFIX}/bin/${dll}")
+				add_custom_command(TARGET seqalign POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${MINGW_PREFIX}/bin/${dll}"
+				"${CMAKE_SOURCE_DIR}/bin/"
+				)
+			elseif(EXISTS "${MINGW_PREFIX}/lib/${dll}")
+				add_custom_command(TARGET seqalign POST_BUILD
+				COMMAND ${CMAKE_COMMAND} -E copy_if_different
+				"${MINGW_PREFIX}/lib/${dll}"
+				"${CMAKE_SOURCE_DIR}/bin/"
+				)
+			endif()
+		endforeach()
 	endif()
 endif()
 
