@@ -1,5 +1,5 @@
 {
-    "dependencies": [
-        "hdf5"
-    ]
+  "dependencies": [
+    "hdf5"
+  ]
 }
