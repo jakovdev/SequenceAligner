@@ -55,9 +55,7 @@ ExperimentalAutoDetectBinPacking: false
 FixNamespaceComments: false
 ForEachMacros:
   - 'for_each_arg'
-  - 'for_each_dep'
-  - 'for_each_con'
-  - 'for_each_sub'
+  - 'for_each_rel'
   - 'for_each_nws'
   - 'REALLOC'
   - 'REALLOCA'

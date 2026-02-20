@@ -17,16 +17,11 @@ static struct argument *validate;
 static struct argument *action;
 
 #define for_each_arg(a, list) \
-	for (struct argument *a = list; a; a = a->_.next_##list)
-#define for_each_dep(a, dep)                                    \
-	for (size_t dep##i = 0; dep##i < a->_.deps_n; dep##i++) \
-		for (struct argument *dep = a->_.deps[dep##i]; dep; dep = NULL)
-#define for_each_con(a, con)                                    \
-	for (size_t con##i = 0; con##i < a->_.cons_n; con##i++) \
-		for (struct argument *con = a->_.cons[con##i]; con; con = NULL)
-#define for_each_sub(a, sub)                                    \
-	for (size_t sub##i = 0; sub##i < a->_.subs_n; sub##i++) \
-		for (struct argument *sub = a->_.subs[sub##i]; sub; sub = NULL)
+	for (struct argument *a = (list); a; a = (a)->_.next_##list)
+
+#define for_each_rel(a, rel, var)                                  \
+	for (size_t var##i = 0; var##i < (a)->_.rel##_n; var##i++) \
+		for (struct argument *var = (a)->_.rel[var##i]; var; var = NULL)
 
 static size_t args_num;
 static size_t longest;
@@ -167,7 +162,7 @@ void _args_register(struct argument *a)
 		pabort();
 	}
 
-	for_each_dep(a, dep) {
+	for_each_rel(a, deps, dep) {
 		if (!dep) {
 			pdev("%s NULL deps[%zu]", arg_str(a), depi);
 			pierr(a);
@@ -216,7 +211,7 @@ arg_no_deps:
 		pabort();
 	}
 
-	for_each_con(a, con) {
+	for_each_rel(a, cons, con) {
 		if (!con) {
 			pdev("%s NULL cons[%zu]", arg_str(a), coni);
 			pierr(a);
@@ -232,7 +227,7 @@ arg_no_deps:
 		if (!con->set)
 			arg_set_new(con);
 
-		for_each_dep(a, dep) {
+		for_each_rel(a, deps, dep) {
 			if (dep != con)
 				continue;
 
@@ -288,7 +283,7 @@ arg_no_cons:
 		}
 	}
 
-	for_each_sub(a, sub) {
+	for_each_rel(a, subs, sub) {
 		if (sub == a) {
 			pdev("%s subsets itself", arg_str(a));
 			pierr(a);
@@ -310,7 +305,7 @@ arg_no_cons:
 		if (!a->set)
 			arg_set_new(a);
 
-		for_each_con(a, con) {
+		for_each_rel(a, cons, con) {
 			if (con == sub) {
 				pdev("%s both supersets and conflicts %s",
 				     arg_str(a), arg_str(sub));
@@ -319,7 +314,7 @@ arg_no_cons:
 			}
 		}
 
-		for_each_dep(sub, dep) {
+		for_each_rel(sub, deps, dep) {
 			if (dep == a) {
 				pdev("%s supersets %s but also depends on it",
 				     arg_str(a), arg_str(sub));
@@ -387,7 +382,7 @@ static bool arg_process(struct argument *a, const char *str)
 	}
 
 	if (a->_.deps_phase == ARG_RELATION_PARSE) {
-		for_each_dep(a, dep) {
+		for_each_rel(a, deps, dep) {
 			if (!*dep->set) {
 				perr("%s requires %s to be set first",
 				     arg_str(a), arg_str(dep));
@@ -397,7 +392,7 @@ static bool arg_process(struct argument *a, const char *str)
 	}
 
 	if (a->_.cons_phase == ARG_RELATION_PARSE) {
-		for_each_con(a, con) {
+		for_each_rel(a, cons, con) {
 			if (*con->set) {
 				perr("%s conflicts with %s", arg_str(a),
 				     arg_str(con));
@@ -409,7 +404,7 @@ static bool arg_process(struct argument *a, const char *str)
 	if (a->set)
 		*a->set = true;
 
-	for_each_sub(a, sub) {
+	for_each_rel(a, subs, sub) {
 		if (*sub->set)
 			continue;
 
@@ -671,7 +666,7 @@ bool args_validate(void)
 
 		if (a->arg_req == ARG_REQUIRED && !*a->set) {
 			bool any_conflict_set = false;
-			for_each_con(a, con) {
+			for_each_rel(a, cons, con) {
 				if (*con->set) {
 					any_conflict_set = true;
 					break;
@@ -706,7 +701,7 @@ bool args_validate(void)
 		}
 
 		if (should_check_deps) {
-			for_each_dep(a, dep) {
+			for_each_rel(a, deps, dep) {
 				if (*dep->set)
 					continue;
 				perr("%s requires %s to be set", arg_str(a),
@@ -736,7 +731,7 @@ bool args_validate(void)
 		}
 
 		if (should_check_cons) {
-			for_each_con(a, con) {
+			for_each_rel(a, cons, con) {
 				if (!*con->set)
 					continue;
 				perr("%s conflicts with %s", arg_str(a),
