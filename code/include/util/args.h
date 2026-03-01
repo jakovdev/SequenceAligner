@@ -7,48 +7,103 @@
 #include <stddef.h>
 
 /**
-  * @file args.h
-  * @brief Decentralized and modular argument manager.
-  * 
-  * This header allows defining arguments in a distributed manner across the
-  * codebase without a central list. Arguments are registered via constructors
-  * that run before main(). Supported compilers include GCC, Clang, and MSVC.
-  * Words inside backticks ("`") refer to grepp-able symbols or macros.
-  * Words that start with a dot (".") refer to `struct argument` fields.
-  * 
-  * Basic usage:
-  * 1. Define arguments in source files using the `ARGUMENT(name)` macro.
-  * 2. #define ARGS_IMPLEMENTATION in main.c and include this header.
-  * 3. Call `args_parse`, `args_validate`, and optionally `args_actions`.
-  * 
-  * C's partial struct initialization means you only need to specify the fields
-  * you care about as defaults will handle the rest.
-  */
+ * @file args.h
+ * @author Jakov Dragičević <jakodrag345@gmail.com> (GitHub: jakovdev)
+ * @brief Header-only, decentralized CLI argument framework for C.
+ * @details
+ * This library lets each translation unit declare and register arguments near
+ * the code that owns them, instead of maintaining a single global argument
+ * table. Registration is constructor-driven and therefore complete before
+ * calling @ref args_parse.
+ *
+ * Correctness depends on constructor attribute support (GCC/Clang) or 
+ * .CRT$XCU sections (MSVC) executing registration hooks before @c main.
+ *
+ * @note Partial C++ support due to struct field declaration order.
+ * Most macros will break because they don't take this into account.
+ * You can manually initialize fields which should make it work like in C.
+ *
+ * @see @ref args_quick_start "Quick start"
+ */
 
-/*-------------------------*/
-/* CREATING A NEW ARGUMENT */
-/*-------------------------*/
+/**
+ * @mainpage Decentralized CLI Argument Framework
+ *
+ * @section args_intro Overview
+ * @ref args.h "args.h" provides a header-only argument manager intended for
+ * modular C codebases. Arguments are declared with @ref ARGUMENT in any source
+ * file, registered automatically, then processed in three explicit phases:
+ * parsing, validation, and actions.
+ *
+ * @section args_features Feature Highlights
+ * - Distributed argument declarations with constructor-based registration.
+ * - Automatic help generation.
+ * - Dependency/conflict/subset relationships between arguments.
+ * - Automatic validation of required arguments and relation rules.
+ * - Typed parsing helpers via @ref ARG_PARSER family.
+ * - Validation and general callbacks with flexible execution policies.
+ * - Deterministic cross-file ordering for help, validate, and action phases.
+ *
+ * @section args_quick_start Quick Start
+ * @code{.c}
+ * #define ARGS_IMPLEMENTATION
+ * #include "args.h"
+ *
+ * static bool verbose;
+ * ARGUMENT(verbose) = {
+ *     .opt = 'v',
+ *     .lopt = "verbose",
+ *     .help = "Enable verbose output",
+ *     .set = &verbose,
+ * };
+ *
+ * int main(int argc, char **argv) {
+ *     if (!args_parse(argc, argv) || !args_validate())
+ *         return 1;
+ *     args_actions(); // Optional
+ *     return 0;
+ * }
+ * @endcode
+ *
+ * @section args_navigation Docs Navigation
+ * - @ref args_core
+ * - @ref args_macros
+ * - @ref args_relations
+ * - @ref args_callbacks
+ * - @ref args_types
+ * - @ref args_parsers
+ * - @ref args_customizable
+ * - @ref args_internals
+ */
+
+/** @defgroup args_core Core API */
+/** @defgroup args_macros Definition Macros */
+/** @defgroup args_relations Relationships */
+/** @defgroup args_callbacks Callback Phases */
+/** @defgroup args_types Data Types */
+/** @defgroup args_parsers Parser Helpers */
+/** @defgroup args_customizable Customization Points */
+/** @defgroup args_internals Internals */
+
+/** @name Creating New Arguments */
+/** @{ */
 
 #ifndef __cplusplus
-/**
-  * @brief Creates and registers a new argument.
-  * 
-  * Use this macro in the global scope of a source file. It creates a
-  * `struct argument` instance and registers it.
-  * 
-  * Example:
-  * @code{.c}
-  * static bool verbose;
-  * ARGUMENT(verbose) = {
-  * 	.opt = 'v',
-  * 	.lopt = "verbose",
-  * 	.help = "Enable verbose output",
-  * 	.set = &verbose,
-  * };
-  * @endcode
-  * 
-  * @param name Unique identifier for the argument
-  */
+/** @ingroup args_macros
+ * @def ARGUMENT
+ * @brief Creates and registers a new argument object.
+ * @hideinitializer
+ * @details
+ * Use this macro at file scope. It declares @c struct argument
+ * @c _arg_<name>, wires constructor-based registration, then leaves a second
+ * declaration target for designated initialization.
+ *
+ * @param name Unique argument identifier used in generated symbol names.
+ * @pre The identifier is unique within the link unit.
+ * @post The argument is linked into internal processing lists before @c main.
+ * @see ARG_DECLARE
+ * @see ARG_EXTERN
+ */
 #define ARGUMENT(name)                          \
 	ARG_DECLARE(name);                      \
 	_ARGS_CONSTRUCTOR(_arg_register_##name) \
@@ -66,45 +121,67 @@
 	ARG_DECLARE(name)
 #endif
 
-/* ARGUMENT REQUIREMENT LEVELS / VISIBILITY */
+/** @} */
 
-/** @brief Values for `.arg_req`. */
+/** @name Requirement And Visibility */
+/** @{ */
+
+/** @ingroup args_types
+ * @enum arg_requirement
+ * @brief Requirement policy for @ref argument::arg_req.
+ */
 enum arg_requirement {
-	ARG_OPTIONAL, /* Default: user doesn't need to specify */
-	ARG_REQUIRED, /* User must specify */
-	ARG_HIDDEN, /* Optional but hidden from help */
-	ARG_SOMETIME, /* Custom, use `.validate_callback` or `relations` */
+	ARG_OPTIONAL, /**< User does not need to provide the argument. */
+	ARG_REQUIRED, /**< Argument must be present unless conflicted out. */
+	ARG_HIDDEN, /**< Optional and omitted from generated help output. */
+	ARG_SOMETIME, /**< Conditionally required, enforce via relations/callbacks. */
 };
 
-/*-----------------------*/
-/* NON-BOOLEAN ARGUMENTS */
-/*-----------------------*/
+/** @} */
 
-/** @brief Values for `.param_req`. Follows getopt conventions. */
+/** @name Parameter Modes */
+/** @{ */
+
+/** @ingroup args_types
+ * @enum arg_parameter
+ * @brief Parameter requirement for @ref argument::param_req.
+ * @remark Semantics intentionally match common @c getopt usage.
+ */
 enum arg_parameter {
-	ARG_PARAM_NONE,
-	ARG_PARAM_REQUIRED, /* In `.parse_callback` `str` will not be NULL */
-	ARG_PARAM_OPTIONAL, /* In `.parse_callback` `str` can be NULL */
+	ARG_PARAM_NONE, /**< Argument is a flag, does not take a parameter. */
+	ARG_PARAM_REQUIRED, /**< Callback receives non-NULL @p str. */
+	ARG_PARAM_OPTIONAL, /**< Callback may receive NULL @p str. */
 };
 
-/* Predefined parsers: ARG_PARSE_L, ARG_PARSE_LL, ARG_PARSE_UL, ARG_PARSE_ULL,
- * ARG_PARSE_F, ARG_PARSE_D. Create custom parsers with ARG_PARSER macro.
+/** @} */
+
+/** @addtogroup args_parsers
+ * @par Built-in parser wrappers
+ * @ref ARG_PARSE_L, @ref ARG_PARSE_LL, @ref ARG_PARSE_UL,
+ * @ref ARG_PARSE_ULL, @ref ARG_PARSE_F, and @ref ARG_PARSE_D are convenience
+ * wrappers around @ref ARG_PARSER.
  */
 
-/**
-  * @brief Generates a parser function.
-  * 
-  * Convenience macros `ARG_PARSE_*` wrap this for common types.
-  * 
-  * @param name Name of the parser (generates 'parse_name').
-  * @param strto String conversion function (strtol, strtod, etc.).
-  * @param ARG_BASE Base for conversion (e.g., `ARG_BASE(`10`)`) or empty.
-  * @param strto_t Return type of strto function.
-  * @param dest_t Destination variable type.
-  * @param CAST Cast if types differ, or empty.
-  * @param cond Boolean condition using 'val' for rejection.
-  * @param err Error message on failure.
-  */
+/** @ingroup args_parsers
+ * @def ARG_PARSER
+ * @brief Generates a typed parser callback with common conversion checks.
+ * @hideinitializer
+ * @details
+ * The generated function is named @c parse_<name> and matches @ref argument::parse_callback.
+ * It parses @p str, rejects malformed input, range errors, and custom condition failures,
+ * then writes to @p dest.
+ *
+ * @param name Suffix used for generated function name.
+ * @param strto Conversion routine, e.g. @c strtol or @c strtod.
+ * @param ARG_BASE Macro, leave out macro for no base, or e.g. ARG_BASE(10) to pass to strto.
+ * @param strto_t Return type of @p strto.
+ * @param dest_t Destination pointee type.
+ * @param CAST Optional cast expression when narrowing/widening.
+ * @param cond Rejection predicate evaluated against local variable @c val.
+ * @param err Error text, falls back to @ref ARG_ERR when empty.
+ * @retval ARG_VALID Input accepted and stored in @p dest.
+ * @retval ARG_INVALID Input rejected with diagnostic message.
+ */
 #define ARG_PARSER(name, strto, ARG_BASE, strto_t, dest_t, CAST, cond, err)    \
 	static struct arg_callback parse_##name(const char *str, void *dest)   \
 	{                                                                      \
@@ -117,282 +194,401 @@ enum arg_parameter {
 		return ARG_VALID();                                            \
 	}
 
-/** @brief For use in `ARG_PARSER` `ARG_BASE` parameter. */
+/** @ingroup args_parsers
+ * @def ARG_BASE
+ * @brief Helper for the @p ARG_BASE parameter in @ref ARG_PARSER.
+ * @hideinitializer
+ */
 #define ARG_BASE(N) , N
 
 #ifndef ARG_ERR
-/** @brief Default error message for parsers. `OVERRIDABLE` */
+/** @ingroup args_parsers
+ * @def ARG_ERR
+ * @brief Default parser error message if @p err is empty in @ref ARG_PARSER.
+ * @remark Overridable before including @ref args.h.
+ */
 #define ARG_ERR "Invalid value"
 #endif
 
-/** @brief Convenience macro for 'strtol'. Parameters match `ARG_PARSER`. */
+/** @ingroup args_parsers
+ * @def ARG_PARSE_L
+ * @brief Convenience wrapper of @ref ARG_PARSER using @c strtol.
+ * @hideinitializer
+ */
 #define ARG_PARSE_L(name, base, dest_t, CAST, cond, err) \
 	ARG_PARSER(name, strtol, ARG_BASE(base), long, dest_t, CAST, cond, err)
 
-/** @brief Convenience macro for 'strtoll'. Parameters match `ARG_PARSER`. */
+/** @ingroup args_parsers
+ * @def ARG_PARSE_LL
+ * @brief Convenience wrapper of @ref ARG_PARSER using @c strtoll.
+ * @hideinitializer
+ */
 #define ARG_PARSE_LL(name, base, dest_t, CAST, cond, err)                  \
 	ARG_PARSER(name, strtoll, ARG_BASE(base), long long, dest_t, CAST, \
 		   cond, err)
 
-/** @brief Convenience macro for 'strtoul'. Parameters match `ARG_PARSER`. */
+/** @ingroup args_parsers
+ * @def ARG_PARSE_UL
+ * @brief Convenience wrapper of @ref ARG_PARSER using @c strtoul.
+ * @hideinitializer
+ */
 #define ARG_PARSE_UL(name, base, dest_t, CAST, cond, err)                      \
 	ARG_PARSER(name, strtoul, ARG_BASE(base), unsigned long, dest_t, CAST, \
 		   cond, err)
 
-/** @brief Convenience macro for 'strtoull'. Parameters match `ARG_PARSER`. */
+/** @ingroup args_parsers
+ * @def ARG_PARSE_ULL
+ * @brief Convenience wrapper of @ref ARG_PARSER using @c strtoull.
+ * @hideinitializer
+ */
 #define ARG_PARSE_ULL(name, base, dest_t, CAST, cond, err)                     \
 	ARG_PARSER(name, strtoull, ARG_BASE(base), unsigned long long, dest_t, \
 		   CAST, cond, err)
 
-/** @brief Convenience macro for 'strtof'. Parameters match `ARG_PARSER`. */
+/** @ingroup args_parsers
+ * @def ARG_PARSE_F
+ * @brief Convenience wrapper of @ref ARG_PARSER using @c strtof.
+ * @hideinitializer
+ */
 #define ARG_PARSE_F(name, dest_t, CAST, cond, err) \
 	ARG_PARSER(name, strtof, , float, dest_t, CAST, cond, err)
 
-/** @brief Convenience macro for 'strtod'. Parameters match `ARG_PARSER`. */
+/** @ingroup args_parsers
+ * @def ARG_PARSE_D
+ * @brief Convenience wrapper of @ref ARG_PARSER using @c strtod.
+ * @hideinitializer
+ */
 #define ARG_PARSE_D(name, dest_t, CAST, cond, err) \
 	ARG_PARSER(name, strtod, , double, dest_t, CAST, cond, err)
 
-/* Custom parsers must return `ARG_INVALID(msg)` or `ARG_VALID()`, with
- * signature (const char *str, void *dest).
+/** @addtogroup args_parsers
+ * @par Custom parser contract
+ * Custom parser callbacks return @ref ARG_INVALID or @ref ARG_VALID and
+ * use signature @c (const char *str, void *dest).
  */
 
-/** @brief Return type for `.parse_callback` and `.validate_callback`. */
+/** @ingroup args_types
+ * @struct arg_callback
+ * @brief Result object returned by parser/validator callbacks.
+ * @invariant @ref arg_callback::error is @c NULL when the callback succeeds.
+ */
 struct arg_callback {
-	const char *error; /* NULL if valid. */
+	/** @var arg_callback::error
+	 * @brief Diagnostic user-facing message for failures, NULL on success.
+	 */
+	const char *error;
 };
 
-/** @brief Helper to return an invalid result with a message in a callback. */
+/** @ingroup args_callbacks
+ * @def ARG_INVALID
+ * @brief Creates a failing @ref arg_callback value.
+ */
 #define ARG_INVALID(msg) ((struct arg_callback){ .error = msg })
 
-/** @brief Helper to return a valid result in a callback. */
+/** @ingroup args_callbacks
+ * @def ARG_VALID
+ * @brief Creates a successful @ref arg_callback value.
+ */
 #define ARG_VALID() ((struct arg_callback){ .error = NULL })
 
-/** @brief Raw arguments (argc/argv) struct. Useful for e.g. binary path */
+/** @ingroup args_types
+ * @struct args_raw
+ * @brief Copy of the raw process argument vector.
+ * @details Exposed for use cases such as rendering usage with executable name.
+ */
 struct args_raw {
-	int c;
-	char **v;
+	int c; /**< Argument count. */
+	char **v; /**< Argument vector. */
 };
 
-/** @brief Define if you want argr (argc/argv) in your source file. */
 #ifdef ARGS_GLOBAL_ARGR
+/** @ingroup args_customizable
+ * @var argr
+ * @brief Global storage of raw @c argc/@c argv values.
+ * @note Available when @c ARGS_GLOBAL_ARGR is defined by the including file.
+ */
 extern struct args_raw argr;
 #endif
 
-/* CALLING PARSERS FOR ALL ARGUMENTS */
-
-/**
-  * @brief Parses command line arguments.
-  * 
-  * For every user specified argument:
-  * - If argument with parameter is already set, error for repeated argument.
-  * - Runs `.parse_callback` if it exists.
-  * - Checks `relations` if `relation_phase` = `ARG_RELATION_PARSE`.
-  * - Sets `.set` to true (even implicitly allocated ones).
-  * 
-  * @return false on error, true on success.
-  */
+/** @ingroup args_core
+ * @brief Parses command line arguments and runs parse-phase relations.
+ * @details
+ * For each user-provided option, the parser resolves the matching @ref argument
+ * and calls @ref argument::parse_callback when available.
+ * Parse-time dependency/conflict relations are enforced immediately.
+ * Duplicate-argument detection applies only when @ref argument::set is non-NULL,
+ * though keep in mind it is implicitly allocated for most features.
+ *
+ * @par Execution order
+ * For each user-provided argument:
+ * -# If argument takes a parameter and is already set, error for repeated argument
+ * -# Run @ref argument::parse_callback if it exists
+ * -# Check dependency/conflict relations if @ref arg_relation_phase is @ref ARG_RELATION_PARSE
+ * -# Set @ref argument::set to true (implicit allocation if needed)
+ *
+ * @pre Every argument was declared via @ref ARGUMENT and linked in.
+ * @post All successfully processed arguments with non-NULL @ref argument::set
+ * have @c *set == true.
+ * @retval true Parse succeeded for all encountered options.
+ * @retval false At least one user-facing parse error occurred.
+ * @see args_validate
+ */
 bool args_parse(int argc, char *argv[]);
 
-/*----------------------*/
-/* CALLBACKS AND PHASES */
-/*----------------------*/
+/** @name Callback Phases */
+/** @{ */
 
-/* Execution flows through parse, validate, and action stages.
- * Each stage has phases, callbacks and ordering.
- * Internal logic (how you defined an argument) is checked within them.
- * External logic related to your project should be handled in your callbacks.
+/** @addtogroup args_callbacks
+ * @par Lifecycle
+ * Execution proceeds through parse, validate, and action stages. Internal
+ * schema checks happen inside library logic. Project-specific checks belong in
+ * your callbacks.
  */
 
-/** @brief Values for `.validate_phase` and `.action_phase`. */
+/** @ingroup args_callbacks
+ * @enum arg_callback_phase
+ * @brief Execution policy for @ref argument::validate_phase and @ref argument::action_phase.
+ */
 enum arg_callback_phase {
-	ARG_CALLBACK_ALWAYS, /* Always run (skips if callback is NULL) */
-	ARG_CALLBACK_IF_SET, /* Only if argument was provided by user */
-	ARG_CALLBACK_IF_UNSET, /* Only if argument was not provided by user */
+	ARG_CALLBACK_ALWAYS, /**< Run regardless of user input state. */
+	ARG_CALLBACK_IF_SET, /**< Run only when the argument was provided. */
+	ARG_CALLBACK_IF_UNSET, /**< Run only when the argument was not provided. */
 };
 
-/**
-  * @brief Must be called after `args_parse`.
-  * 
-  * For every `ARGUMENT`:
-  * - Checks if required arguments are set if `.arg_req` = `ARG_REQUIRED`.
-  * - If a conflict argument is set, the (required) argument must not be set.
-  * - Checks `relations` if `relation_phase` != `ARG_RELATION_PARSE`.
-  * - Runs `.validate_callback` if it exists using `.validate_phase`.
-  * 
-  * @return false on error, true on success.
-  */
+/** @} */
+
+/** @ingroup args_core
+ * @brief Validates argument schema rules and user-provided combinations.
+ * @details
+ * This stage enforces required-argument rules, non-parse relation phases, and
+ * executes @ref argument::validate_callback according to @ref argument::validate_phase.
+ *
+ * @par Validation checks
+ * For each registered argument:
+ * -# If @ref ARG_REQUIRED, check it was provided (unless conflicted out)
+ * -# Check dependency/conflict relations if @ref arg_relation_phase is not @ref ARG_RELATION_PARSE
+ * -# Run @ref argument::validate_callback if it exists using @ref argument::validate_phase
+ *
+ * @pre @ref args_parse was called.
+ * @post All validation callbacks due in this pass have executed.
+ * @retval true All checks passed.
+ * @retval false One or more constraints failed.
+ */
 bool args_validate(void);
 
-/**
-  * @brief Must be called after `args_validate`. Optional if not using actions.
-  * 
-  * For every `ARGUMENT`:
-  * - Runs `.action_callback` if it exists using `.action_phase`.
-  */
+/** @ingroup args_core
+ * @brief Executes action callbacks for arguments matching action phase rules.
+ * @pre @ref args_validate returned @c true.
+ * @post All eligible @ref argument::action_callback functions have run.
+ */
 void args_actions(void);
 
-/*------------------------*/
-/* ARGUMENT RELATIONSHIPS */
-/*------------------------*/
+/** @addtogroup args_relations
+ * @brief Dependencies, conflicts, and subset propagation.
+ * @{ */
 
-/* Relations: dependencies (require other args), conflicts (exclude others),
- * and subsets (superset args trigger multiple subset args from one).
- * Use `ARG(name)` to reference arguments in relations.
+/**
+ * @details
+ * Relations model command schemas declaratively:
+ * - dependency: argument requires others
+ * - conflict: argument excludes others
+ * - subset: setting an argument that lists subset arguments triggers them
  */
 
-/** @brief Address of an argument for `ARG_DEPENDS` and `ARG_CONFLICTS`. */
+/** @ingroup args_relations
+ * @def ARG
+ * @brief Returns the address of argument object @p name.
+ * @hideinitializer
+ */
 #define ARG(name) &_arg_##name
 
-/**
-  * @brief Forward declares an argument for same-file forward references.
-  * 
-  * Example:
-  * @code{.c}
-  * ARG_DECLARE(foo); // Can now be referenced after this point.
-  * ARGUMENT(bar) = {
-  * 	...
-  * 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo)),
-  * 	...
-  * };
-  * ARGUMENT(foo) = { ... };
-  * @endcode
-  */
+/** @ingroup args_macros
+ * @def ARG_DECLARE
+ * @brief Forward declares an argument for same-file forward references.
+ * @hideinitializer
+ * @details
+ * Example:
+ * @code{.c}
+ * ARG_DECLARE(foo);
+ * ARGUMENT(bar) = {
+ *     ...
+ *     ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo)),
+ *     ...
+ * };
+ * ARGUMENT(foo) = { ... };
+ * @endcode
+ */
 #define ARG_DECLARE(name) struct argument _arg_##name
 
-/**
-  * @brief Externally declares an argument from another file.
-  * 
-  * Example:
-  * 
-  * foo.c
-  * @code{.c}
-  * ARGUMENT(foo) = { ... };
-  * @endcode
-  * 
-  * bar.c
-  * @code{.c}
-  * ARG_EXTERN(foo); // Can now be referenced after this point.
-  * ARGUMENT(bar) = {
-  * 	...
-  * 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo)),
-  * 	...
-  * };
-  * @endcode
-  */
+/** @ingroup args_macros
+ * @def ARG_EXTERN
+ * @brief Extern declaration for an argument defined in another file.
+ * @hideinitializer
+ * @details
+ * Example:
+ *
+ * foo.c
+ * @code{.c}
+ * ARGUMENT(foo) = { ... };
+ * @endcode
+ *
+ * bar.c
+ * @code{.c}
+ * ARG_EXTERN(foo);
+ * ARGUMENT(bar) = {
+ *     ...
+ *     ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo)),
+ *     ...
+ * };
+ * @endcode
+ */
 #define ARG_EXTERN(name) extern struct argument _arg_##name
 
-/**
-  * @brief Specify argument dependencies, a `relation`.
-  * 
-  * When setting this argument, all dependencies must already be set.
-  * Use inside an `ARGUMENT` definition.
-  * 
-  * Example:
-  * @code{.c}
-  * ARGUMENT(foo) = { ... };
-  * ARGUMENT(bar) = { ... };
-  * ARGUMENT(baz) = {
-  * 	...
-  * 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
-  * 	...
-  * };
-  * @endcode
-  * 
-  * @param relation_phase When to check dependencies, see `arg_relation_phase`.
-  */
+/** @ingroup args_relations
+ * @def ARG_DEPENDS
+ * @brief Declares dependency relations for an argument.
+ * @hideinitializer
+ * @details
+ * When setting this argument, all dependencies must already be set.
+ * Use inside an @ref ARGUMENT definition.
+ *
+ * Example:
+ * @code{.c}
+ * ARGUMENT(foo) = { ... };
+ * ARGUMENT(bar) = { ... };
+ * ARGUMENT(baz) = {
+ *     ...
+ *     ARG_DEPENDS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
+ *     ...
+ * };
+ * @endcode
+ *
+ * @param relation_phase When to check dependencies, see @ref arg_relation_phase.
+ */
 #define ARG_DEPENDS(relation_phase, ...)                           \
 	._.deps_phase = relation_phase,                            \
 	._.deps = (struct argument *[]){ __VA_ARGS__, NULL },      \
 	._.deps_n = sizeof((struct argument *[]){ __VA_ARGS__ }) / \
 		    sizeof(struct argument *)
 
-/**
-  * @brief Specify argument conflicts, a `relation`.
-  * 
-  * If a conflict argument is set, this one must not be set, overriding
-  * ARG_REQUIRED. Use inside an `ARGUMENT` definition.
-  * 
-  * Example:
-  * @code{.c}
-  * ARGUMENT(foo) = { ... };
-  * ARGUMENT(bar) = { ... };
-  * ARGUMENT(baz) = {
-  * 	...
-  * 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
-  * 	...
-  * };
-  * @endcode
-  * 
-  * @param relation_phase When to check conflicts, see `arg_relation_phase`.
-  */
+/** @ingroup args_relations
+ * @def ARG_CONFLICTS
+ * @brief Declares conflict relations for an argument.
+ * @hideinitializer
+ * @details
+ * If a conflict argument is set, this one must not be set, overriding
+ * ARG_REQUIRED. Use inside an @ref ARGUMENT definition.
+ *
+ * Example:
+ * @code{.c}
+ * ARGUMENT(foo) = { ... };
+ * ARGUMENT(bar) = { ... };
+ * ARGUMENT(baz) = {
+ *     ...
+ *     ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(foo), ARG(bar)),
+ *     ...
+ * };
+ * @endcode
+ *
+ * @param relation_phase When to check conflicts, see @ref arg_relation_phase.
+ */
 #define ARG_CONFLICTS(relation_phase, ...)                         \
 	._.cons_phase = relation_phase,                            \
 	._.cons = (struct argument *[]){ __VA_ARGS__, NULL },      \
 	._.cons_n = sizeof((struct argument *[]){ __VA_ARGS__ }) / \
 		    sizeof(struct argument *)
 
-/**
-  * @brief Specify subset arguments, a `relation`.
-  * 
-  * When this argument is set, all subsets are also processed. Parent string
-  * is passed to subset parsers unless customized with `ARG_SUBSTRINGS`.
-  * Use inside an `ARGUMENT` definition.
-  * 
-  * Example:
-  * @code{.c}
-  * ARGUMENT(foo) = { ... };
-  * ARGUMENT(bar) = { ... };
-  * ARGUMENT(baz) = {
-  * 	...
-  * 	ARG_SUBSETS(ARG(foo), ARG(bar)),
-  * 	ARG_SUBSTRINGS("out.txt", ARG_SUBPASS),
-  * 	...
-  * };
-  * @endcode
-  */
+/** @ingroup args_relations
+ * @def ARG_SUBSETS
+ * @brief Declares subset arguments triggered by a parent argument.
+ * @hideinitializer
+ * @details
+ * When this argument is set, all subsets are also processed. Parent string
+ * is passed to subset parsers unless customized with @ref ARG_SUBSTRINGS.
+ * Use inside an @ref ARGUMENT definition.
+ *
+ * Example:
+ * @code{.c}
+ * ARGUMENT(foo) = { ... };
+ * ARGUMENT(bar) = { ... };
+ * ARGUMENT(baz) = {
+ *     ...
+ *     ARG_SUBSETS(ARG(foo), ARG(bar)),
+ *     ARG_SUBSTRINGS("out.txt", ARG_SUBPASS),
+ *     ...
+ * };
+ * @endcode
+ */
 #define ARG_SUBSETS(...)                                           \
 	._.subs = (struct argument *[]){ __VA_ARGS__, NULL },      \
 	._.subs_n = sizeof((struct argument *[]){ __VA_ARGS__ }) / \
 		    sizeof(struct argument *)
 
-/**
-  * @brief Custom strings for index-aligned subset arguments.
-  * 
-  * Use `ARG_SUBPASS` to pass parent string, omit entirely if not needed.
-  */
+/** @ingroup args_relations
+ * @def ARG_SUBSTRINGS
+ * @brief Supplies index-aligned custom strings for subset processing.
+ * @hideinitializer
+ * @details
+ * Use @ref ARG_SUBPASS to pass parent string, omit entirely if not needed.
+ */
 #define ARG_SUBSTRINGS(...) \
 	._.subs_strs = ((const char *[]){ __VA_ARGS__, NULL })
 
-/** @brief Signal to pass the parent string */
+/** @ingroup args_relations
+ * @def ARG_SUBPASS
+ * @brief Special marker meaning "forward parent string to subset parser".
+ * @hideinitializer
+ * @details
+ * Use in @ref ARG_SUBSTRINGS to indicate that the parent argument's string
+ * should be passed to the subset parser instead of a custom string.
+ */
 #define ARG_SUBPASS ((const char *)-1)
 
-/** @brief Values for `relation_phase` in `ARG_DEPENDS` and `ARG_CONFLICTS` */
+/** @ingroup args_relations
+ * @enum arg_relation_phase
+ * @brief Relation evaluation phase used by @ref ARG_DEPENDS and @ref ARG_CONFLICTS.
+ */
 enum arg_relation_phase {
-	ARG_RELATION_PARSE, /* Skips `relations` if NULL */
-	ARG_RELATION_VALIDATE_ALWAYS,
-	ARG_RELATION_VALIDATE_SET,
-	ARG_RELATION_VALIDATE_UNSET,
+	ARG_RELATION_PARSE, /**< Parse-time checks, effectively no-op when unset. */
+	ARG_RELATION_VALIDATE_ALWAYS, /**< Validate-time checks regardless of argument state. */
+	ARG_RELATION_VALIDATE_SET, /**< Validate-time checks only when the argument is set. */
+	ARG_RELATION_VALIDATE_UNSET, /**< Validate-time checks only when the argument is not set. */
 };
 
-/*---------------------------------------------------*/
-/* DETERMINISTIC AND CUSTOM ARGUMENT EXECUTION ORDER */
-/*---------------------------------------------------*/
+/** @} */
 
-/* Arguments in the same file process in declaration order. Use *`_order`
- * fields to control execution order across files.
+/** @addtogroup args_macros
+ * @name Cross-File Execution Ordering
+ * @brief Deterministic ordering controls for help/validate/action lists.
+ * @{ */
+
+/** @ingroup args_macros
+ * @def ARG_ORDER_FIRST
+ * @brief Place argument first in the selected ordered list.
+ * @hideinitializer
+ * @details
+ * Value for @ref argument::validate_order, @ref argument::action_order, or @ref argument::help_order.
  */
-
-/** @brief Use in `validate_order`, `action_order`, or `help_order`. */
 #define ARG_ORDER_FIRST ((struct argument *)-1)
 
-/**
-  * @brief Use in `validate_order`, `action_order`, or `help_order`.
-  *
-  * Use `ARG_DECLARE` or `ARG_EXTERN` to forward-declare the referenced arg.
-  */
+/** @ingroup args_macros
+ * @def ARG_ORDER_AFTER
+ * @brief Place argument immediately after another argument.
+ * @hideinitializer
+ * @details
+ * Value for @ref argument::validate_order, @ref argument::action_order, or @ref argument::help_order.
+ * Use @ref ARG_DECLARE or @ref ARG_EXTERN to forward-declare the referenced arg.
+ */
 #define ARG_ORDER_AFTER(arg_name) (ARG(arg_name))
 
-/* Internal state, do not modify directly. Skip to below. */
+/** @} */
+
+/** @name Internals */
+/** @{ */
+/** @ingroup args_internals
+ * @struct args_internal
+ * @brief Internal runtime/link-list and relation metadata.
+ */
 struct args_internal {
 	struct argument *next_args;
 	struct argument *next_help;
@@ -410,196 +606,248 @@ struct args_internal {
 	enum arg_relation_phase cons_phase;
 	bool valid;
 };
+/** @} */
 
-/**
-  * @brief Configuration structure for an argument.
-  * 
-  * Initialize this struct using the `ARGUMENT(name)` macro.
-  * Most fields are optional and should default to 0 or NULL using C's
-  * partial struct initialization when not explicitly provided.
-  */
+/** @ingroup args_core
+ * @ingroup args_types
+ * @struct argument
+ * @brief Declarative schema object for one CLI argument.
+ * @details
+ * Initialize this type through @ref ARGUMENT.
+ * C designated initializers let you specify only the fields you need.
+ * @invariant At least one of @ref argument::opt or @ref argument::lopt is set.
+ */
 struct argument {
-	/**
-	  * @brief Indicates if the argument was provided by the user.
-	  * 
-	  * If NULL, allocated implicitly if needed. Explicitly set it to track
-	  * the argument's presence elsewhere in your code.
-	  */
+	/** @name Storage */
+	/** @{ */
+	/** @var argument::set
+	 * @brief Tracks whether the user supplied this argument.
+	 * @details
+	 * If NULL, it is allocated implicitly when needed by schema features.
+	 */
 	bool *set;
 
-	/** @brief Destination variable for `.parse_callback`. Can be NULL */
+	/** @var argument::dest
+	 * @brief Destination pointer passed as @p dest to parser callbacks.
+	 */
 	void *dest;
+	/** @} */
 
-	/**
-	  * @brief Function that is called during `args_parse`.
-	  * 
-	  * Use `ARG_PARSER` macros for convenience.
-	  * Doesn't need to be a "parsing" function, so `.dest` can be NULL.
-	  * Also useful for exiting arguments like '--help' or '--version'.
-	  * 
-	  * Example:
-	  * @code{.c}
-	  * static double mydouble;
-	  * // Creates parse_mydoubles() for .parse_callback
-	  * ARG_PARSE_D(mydoubles, double, , val < 5.0, "Must be >= 5.0");
-	  * ARGUMENT(myarg) = {
-	  * 	...
-	  * 	.dest = &mydouble,
-	  * 	.parse_callback = parse_mydoubles,
-	  * 	...
-	  * };
-	  * @endcode
-	  * 
-	  * You can also write custom parsers:
-	  * @code{.c}
-	  * enum Color { COLOR_INVALID = -1, RED, GREEN, BLUE };
-	  * static enum Color color = COLOR_INVALID;
-	  * static struct arg_callback parse_color(const char *str, void *dest) {
-	  * 	// Using 'color' directly is also possible in this example
-	  * 	enum Color col = COLOR_INVALID;
-	  * 	if (strcmp(str, "red") == 0)
-	  * 		col = RED;
-	  * 	else if (strcmp(str, "green") == 0)
-	  * 		col = GREEN;
-	  * 	else if (strcmp(str, "blue") == 0)
-	  * 		col = BLUE;
-	  * 	else
-	  * 		return ARG_INVALID("Invalid color");
-	  * 	*(enum Color *)dest = col; // dest points to color
-	  * 	return ARG_VALID();
-	  * }
-	  * ARGUMENT(color) = {
-	  * 	...
-	  * 	.dest = &color,
-	  * 	.parse_callback = parse_color,
-	  * 	...
-	  * };
-	  * @endcode
-	  * 
-	  * @param str The string value provided by the user.
-	  * @param dest Pointer to `.dest` which could be NULL, up to you.
-	  * @return `ARG_INVALID(msg)` on error, `ARG_VALID()` on success.
-	  */
+	/** @name Callbacks */
+	/** @{ */
+
+	/** @var argument::parse_callback
+	 * @brief Function invoked during @ref args_parse.
+	 * @details
+	 * Use @ref ARG_PARSER helpers for numeric parsing, or provide custom logic.
+	 * Callbacks aren't limited to parsing e.g. --help exiting immediately.
+	 * @note @ref argument::dest can be NULL
+	 *
+	 * Example:
+	 * @code{.c}
+	 * static double mydouble;
+	 * ARG_PARSE_D(mydoubles, double, , val < 5.0, "Must be >= 5.0");
+	 * ARGUMENT(myarg) = {
+	 *     ...
+	 *     .dest = &mydouble,
+	 *     .parse_callback = parse_mydoubles,
+	 *     ...
+	 * };
+	 * @endcode
+	 *
+	 * You can also write custom parsers:
+	 * @code{.c}
+	 * enum Color { COLOR_INVALID = -1, RED, GREEN, BLUE };
+	 * static enum Color color = COLOR_INVALID;
+	 * static struct arg_callback parse_color(const char *str, void *dest) {
+	 *     // Using 'color' directly is also possible in this example
+	 *     enum Color col = COLOR_INVALID;
+	 *     if (strcmp(str, "red") == 0)
+	 *         col = RED;
+	 *     else if (strcmp(str, "green") == 0)
+	 *         col = GREEN;
+	 *     else if (strcmp(str, "blue") == 0)
+	 *         col = BLUE;
+	 *     else
+	 *         return ARG_INVALID("Invalid color");
+	 *     *(enum Color *)dest = col;
+	 *     return ARG_VALID();
+	 * }
+	 * ARGUMENT(color) = {
+	 *     ...
+	 *     .dest = &color,
+	 *     .parse_callback = parse_color,
+	 *     ...
+	 * };
+	 * @endcode
+	 *
+	 * @param str User-provided value string.
+	 * @param dest Alias of @ref argument::dest, potentially NULL.
+	 * @retval ARG_VALID Callback accepted input.
+	 * @retval ARG_INVALID Callback rejected input.
+	 */
 	struct arg_callback (*parse_callback)(const char *str, void *dest);
 
-	/**
-	  * @brief Function that is called during the `.validate_phase`.
-	  * 
-	  * Use for complex checks after everything is parsed.
-	  * 
-	  * Example:
-	  * @code{.c}
-	  * enum Color { RED, GREEN, BLUE };
-	  * static enum Color color;  // preferably set with a custom parser
-	  * static bool other_option; // could be anything, just an example
-	  * static struct arg_callback validate_color(void) {
-	  * 	if (color == RED && other_option)
-	  * 		return ARG_INVALID("Red color cannot be used.");
-	  * 	return ARG_VALID();
-	  * }
-	  * ARGUMENT(color) = {
-	  * 	...
-	  * 	.dest = &color,
-	  * 	.validate_callback = validate_color,
-	  * 	...
-	  * };
-	  * @endcode
-	  * 
-	  * @return `ARG_INVALID(msg)` on error, `ARG_VALID()` on success.
-	  */
+	/** @var argument::validate_callback
+	 * @brief Function invoked during @ref args_validate.
+	 * @details
+	 * Use for cross-field or project-specific constraints after parse.
+	 *
+	 * Example:
+	 * @code{.c}
+	 * enum Color { RED, GREEN, BLUE };
+	 * static enum Color color;
+	 * static bool other_option;
+	 * static struct arg_callback validate_color(void) {
+	 *     if (color == RED && other_option)
+	 *         return ARG_INVALID("Red color cannot be used.");
+	 *     return ARG_VALID();
+	 * }
+	 * ARGUMENT(color) = {
+	 *     ...
+	 *     .dest = &color,
+	 *     .validate_callback = validate_color,
+	 *     ...
+	 * };
+	 * @endcode
+	 *
+	 * @retval ARG_VALID Validation succeeded.
+	 * @retval ARG_INVALID Validation failed.
+	 */
 	struct arg_callback (*validate_callback)(void);
 
-	/**
-	  * @brief Function that is called during the `.action_phase`.
-	  * 
-	  * Use for side effects, like configuration printing.
-	  * 
-	  * Example:
-	  * @code{.c}
-	  * static bool verbose;
-	  * static void print_config(void) {
-	  * 	printf("Verbose mode is on");
-	  * }
-	  * ARGUMENT(verbose) = {
-	  * 	...
-	  * 	.set = &verbose,
-	  * 	.action_callback = print_config,
-	  * 	.action_phase = ARG_CALLBACK_IF_SET,
-	  * 	...
-	  * };
-	  * @endcode
-	  */
+	/** @var argument::action_callback
+	 * @brief Function invoked during @ref args_actions.
+	 * @note Intended for side effects such as applying runtime configuration.
+	 *
+	 * Example:
+	 * @code{.c}
+	 * static bool verbose;
+	 * static void print_config(void) {
+	 *     printf("Verbose mode is on");
+	 * }
+	 * ARGUMENT(verbose) = {
+	 *     ...
+	 *     .set = &verbose,
+	 *     .action_callback = print_config,
+	 *     .action_phase = ARG_CALLBACK_IF_SET,
+	 *     ...
+	 * };
+	 * @endcode
+	 */
 	void (*action_callback)(void);
+	/** @} */
 
-	/** @brief Is the argument required? */
+	/** @name Schema */
+	/** @{ */
+
+	/** @var argument::arg_req
+	 * @brief Specifies whether this argument is required, optional, or hidden.
+	 * @see arg_requirement
+	 */
 	enum arg_requirement arg_req;
-	/** @brief Does it take a parameter? */
+
+	/** @var argument::param_req
+	 * @brief Specifies whether this argument takes a parameter and if it's required.
+	 * @see arg_parameter
+	 */
 	enum arg_parameter param_req;
 
-	/** @brief When to run `.validate_callback`. */
+	/** @var argument::validate_phase
+	 * @brief Controls when @ref argument::validate_callback runs.
+	 * @see arg_callback_phase
+	 */
 	enum arg_callback_phase validate_phase;
-	/** @brief When to run `.action_callback`. */
-	enum arg_callback_phase action_phase;
 
-	/**
-	  * @brief Ordering for validation.
-	  * 
-	  * Use `ARG_ORDER_FIRST` or `ARG_ORDER_AFTER(arg_name)`, NULL = last.
-	  */
+	/** @var argument::action_phase
+	 * @brief Controls when @ref argument::action_callback runs.
+	 * @see arg_callback_phase
+	 */
+	enum arg_callback_phase action_phase;
+	/** @} */
+
+	/** @name Ordering */
+	/** @{ */
+
+	/** @var argument::validate_order
+	 * @brief Ordering for validation.
+	 *
+	 * Use @ref ARG_ORDER_FIRST or @ref ARG_ORDER_AFTER, NULL means append at the end.
+	 */
 	struct argument *validate_order;
 
-	/**
-	  * @brief Ordering for action execution.
-	  * 
-	  * Use `ARG_ORDER_FIRST` or `ARG_ORDER_AFTER(arg_name)`, NULL = last.
-	  */
+	/** @var argument::action_order
+	 * @brief Ordering for action execution.
+	 *
+	 * Use @ref ARG_ORDER_FIRST or @ref ARG_ORDER_AFTER, NULL means append at the end.
+	 */
 	struct argument *action_order;
 
-	/**
-	  * @brief Ordering for help display.
-	  * 
-	  * Use `ARG_ORDER_FIRST` or `ARG_ORDER_AFTER(arg_name)`, NULL = last.
-	  */
+	/** @var argument::help_order
+	 * @brief Ordering for help display.
+	 *
+	 * Use @ref ARG_ORDER_FIRST or @ref ARG_ORDER_AFTER, NULL means append at the end.
+	 */
 	struct argument *help_order;
+	/** @} */
 
-	/**
-	  * @brief Help description for this argument.
-	  * 
-	  * Multiline strings supported (e.g., "Line 1.\nLine 2.").
-	  * See: `ARGS_STR_PREPAD`, `ARGS_PARAM_OFFSET`, `ARGS_HELP_OFFSET`.
-	  */
+	/** @name Help Presentation */
+	/** @{ */
+
+	/** @var argument::help
+	 * @brief Help description for this argument.
+	 *
+	 * Multiline strings are supported (e.g. @c "Line1\nLine2").
+	 * @see ARGS_STR_PREPAD
+	 * @see ARGS_PARAM_OFFSET
+	 * @see ARGS_HELP_OFFSET
+	 */
 	const char *help;
 
-	/**
-	  * @brief Parameter name for help display (e.g., "N" for a number).
-	  * 
-	  * Required if `.param_req` != `ARG_PARAM_NONE`.
-	  */
+	/** @var argument::param
+	 * @brief Parameter name for help display (e.g., "N" for a number).
+	 *
+	 * @invariant Required when @ref argument::param_req is not @ref ARG_PARAM_NONE.
+	 */
 	const char *param;
 
-	/** @brief Long option (e.g., "output" for --output). */
+	/** @var argument::lopt
+	 * @brief Long option name (e.g. @c "output" -> @c --output).
+	 */
 	const char *lopt;
-	/** @brief Short option (e.g., 'o' for -o). */
-	char opt;
 
-	struct args_internal _; /* Internal use only. */
+	/** @var argument::opt
+	 * @brief Short option character (e.g. @c 'o' -> @c -o).
+	 */
+	char opt;
+	/** @} */
+
+	/** @name Internals */
+	/** @{ */
+	/** @var argument::_
+	 * @brief Internal runtime metadata populated by registration.
+	 */
+	struct args_internal _;
+	/** @} */
 };
 
-#ifdef ARGS_NO_DEFAULT_HELP /* `OVERRIDABLE` */
-/**
- * @brief Prints the help message.
- * 
- * Only exposed when `ARGS_NO_DEFAULT_HELP` is defined, allowing custom
- * help argument implementation.
- * Otherwise, called automatically by default help argument.
+#ifdef ARGS_NO_DEFAULT_HELP
+/** @ingroup args_customizable
+ * @brief Prints generated CLI help output.
+ * @note Exposed only when @c ARGS_NO_DEFAULT_HELP is defined, enabling custom help
+ * argument declarations by the including project.
  */
 void args_print_help(void);
 #endif
 
-/** @brief Internal function, use `ARGUMENT` macro instead. */
+/** @name Internals */
+/** @{ */
+/** @ingroup args_internals
+ * @brief Internal registration entry point used by @ref ARGUMENT.
+ * @warning Prefer @ref ARGUMENT for all public usage.
+ */
 void _args_register(struct argument *);
 
-/* https://stackoverflow.com/questions/1113409/attribute-constructor-equivalent-in-vc */
 #ifdef __cplusplus
 #define _ARGS_CONSTRUCTOR(f) \
 	static void f(void); \
@@ -623,60 +871,93 @@ void _args_register(struct argument *);
 #define _ARGS_CONSTRUCTOR(f) _ARGS_CONSTRUCTOR2_(f, "_")
 #endif
 #else /* GCC, Clang */
+/** @ingroup args_internals
+ * @def _ARGS_CONSTRUCTOR
+ * @brief Constructor abstraction for GCC/Clang/MSVC registration hooks.
+ * @hideinitializer
+ * @see https://stackoverflow.com/questions/1113409/attribute-constructor-equivalent-in-vc
+ */
 #define _ARGS_CONSTRUCTOR(f)                              \
 	static void f(void) __attribute__((constructor)); \
 	static void f(void)
 #endif
+/** @} */
 
 #ifdef ARGS_IMPLEMENTATION
 
 #ifndef args_pe
-/** @brief Error print. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Error print.
+ * @remark Overridable before including @ref args.h.
+ */
 #define args_pe(...) fprintf(stderr, __VA_ARGS__)
 #endif
 
 #ifndef args_pd
-/** @brief Developer-only debug print. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Developer-only debug print.
+ * @remark Overridable before including @ref args.h.
+ */
 #define args_pd(...) fprintf(stderr, __VA_ARGS__)
 #endif
 
 #ifndef args_pi
-/** @brief Internal error print, user facing dev print. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Internal error print, user-facing dev print.
+ * @remark Overridable before including @ref args.h.
+ */
 #define args_pi(arg) args_pe("Internal error for %s", arg_str(arg))
 #endif
 
 #ifndef args_abort
-/** @brief Abort function. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Abort function.
+ * @remark Overridable before including @ref args.h.
+ */
 #define args_abort() abort()
 #endif
 
 #ifndef ARGS_STR_PREPAD
-/** @brief Pre-padding for help text. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Pre-padding for help text.
+ * @remark Overridable before including @ref args.h.
+ */
 #define ARGS_STR_PREPAD (2)
 #elif ARGS_STR_PREPAD < 0
 #error ARGS_STR_PREPAD cannot be negative
 #endif
 
 #ifndef ARGS_PARAM_OFFSET
-/** @brief Offset between argument and parameter in help text. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Offset between argument and parameter in help text.
+ * @remark Overridable before including @ref args.h.
+ */
 #define ARGS_PARAM_OFFSET (1)
 #elif ARGS_PARAM_OFFSET < 1
 #error ARGS_PARAM_OFFSET must be at least 1 for proper formatting
 #endif
 
 #ifndef ARGS_HELP_OFFSET
-/** @brief Offset from longest argument for help text. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Offset from longest argument for help text.
+ * @remark Overridable before including @ref args.h.
+ */
 #define ARGS_HELP_OFFSET (4)
 #elif ARGS_HELP_OFFSET < 1
 #error ARGS_HELP_OFFSET must be at least 1 for proper formatting
 #endif
 
 #ifndef ARGS_IMPLICIT_SETS
-/** @brief Maximum implicit allocations of .set booleans. `OVERRIDABLE`. */
+/** @ingroup args_customizable
+ * @brief Maximum implicit allocations of @ref argument::set booleans.
+ * @remark Overridable before including @ref args.h.
+ */
 #define ARGS_IMPLICIT_SETS (64)
 #elif ARGS_IMPLICIT_SETS < 1
 #error ARGS_IMPLICIT_SETS must be at least 1 for defined behavior
 #endif
+
+/** @cond ARGS_INTERNALS */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -1577,6 +1858,8 @@ ARGUMENT(help) = {
 
 #undef for_each_arg
 #undef for_each_rel
+
+/** @endcond */
 
 #else
 
