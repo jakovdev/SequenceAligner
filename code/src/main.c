@@ -2,9 +2,14 @@
 #include "bio/sequence/sequences.h"
 #include "interface/seqalign_cuda.h"
 #include "interface/seqalign_hdf5.h"
-#include "util/args.h"
 #include "util/benchmark.h"
 #include "util/print.h"
+
+#define ARGS_IMPLEMENTATION
+#define args_pe perr
+#define args_pd pdev
+#define args_pabort() pabort()
+#include "util/args.h"
 
 int main(int argc, char *argv[])
 {
