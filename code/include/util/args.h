@@ -29,6 +29,7 @@
 /* CREATING A NEW ARGUMENT */
 /*-------------------------*/
 
+#ifndef __cplusplus
 /**
   * @brief Creates and registers a new argument.
   * 
@@ -55,6 +56,15 @@
 		_args_register(ARG(name));      \
 	}                                       \
 	ARG_DECLARE(name)
+#else
+#define ARGUMENT(name)                          \
+	ARG_EXTERN(name);                       \
+	_ARGS_CONSTRUCTOR(_arg_register_##name) \
+	{                                       \
+		_args_register(ARG(name));      \
+	}                                       \
+	ARG_DECLARE(name)
+#endif
 
 /* ARGUMENT REQUIREMENT LEVELS / VISIBILITY */
 
@@ -802,6 +812,10 @@ void _args_register(struct argument *a)
 			arg_set_new(a);
 	}
 
+	size_t ndeps = 0;
+	size_t ncons = 0;
+	size_t nsubs = 0;
+
 	if (!a->_.deps) {
 		if (a->_.deps_n > 0) {
 			args_pd("%s has deps_n=%zu but deps=NULL", arg_str(a),
@@ -821,7 +835,6 @@ void _args_register(struct argument *a)
 		goto arg_no_deps;
 	}
 
-	size_t ndeps = 0;
 	while (a->_.deps[ndeps])
 		ndeps++;
 
@@ -870,7 +883,6 @@ arg_no_deps:
 		goto arg_no_cons;
 	}
 
-	size_t ncons = 0;
 	while (a->_.cons[ncons])
 		ncons++;
 
@@ -928,7 +940,6 @@ arg_no_cons:
 		goto arg_no_subs;
 	}
 
-	size_t nsubs = 0;
 	while (a->_.subs[nsubs])
 		nsubs++;
 
@@ -1557,10 +1568,10 @@ static struct arg_callback print_help(const char *str, void *dest)
 }
 
 ARGUMENT(help) = {
-	.opt = 'h',
-	.lopt = "help",
-	.help = "Display this help message",
 	.parse_callback = print_help,
+	.help = "Display this help message",
+	.lopt = "help",
+	.opt = 'h',
 };
 #endif
 
