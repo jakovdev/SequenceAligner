@@ -184,8 +184,8 @@ cd path\to\where\you\unzipped\release
 | `-P, --no-progress` | Disable progress bars |
 | `-D, --no-detail` | Disable detailed printing |
 | `-F, --force-proceed` | Force proceed without user prompts (for CI) |
-| `-q, --quiet` | Suppress all non-error printing |
-| `-v, --verbose` | Enable verbose printing |
+| `-Q, --quiet` | Suppress all non-error printing |
+| `-V, --verbose` | Enable verbose printing |
 | `-h, --help` | Display this help message |
 
 </details>

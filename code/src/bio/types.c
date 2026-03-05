@@ -339,8 +339,8 @@ ARGUMENT(sequence_type) = {
 	.dest = &seq_type,
 	.parse_callback = parse_seq_type,
 	.action_callback = print_config_seq_type,
-	.action_order = ARG_ORDER_AFTER(output_path),
-	.help_order = ARG_ORDER_AFTER(output_path),
+	.action_order = ARG_ORDER_AFTER(ARG(output_path)),
+	.help_order = ARG_ORDER_AFTER(ARG(output_path)),
 };
 
 ARGUMENT(substitution_matrix) = {
@@ -353,8 +353,8 @@ ARGUMENT(substitution_matrix) = {
 	.dest = &matrix_id,
 	.parse_callback = parse_matrix,
 	.action_callback = setup_matrix,
-	.action_order = ARG_ORDER_AFTER(sequence_type),
-	.help_order = ARG_ORDER_AFTER(sequence_type),
+	.action_order = ARG_ORDER_AFTER(ARG(sequence_type)),
+	.help_order = ARG_ORDER_AFTER(ARG(sequence_type)),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(sequence_type)),
 };
 
@@ -368,8 +368,8 @@ ARGUMENT(alignment_method) = {
 	.dest = &method_id,
 	.parse_callback = parse_align_method,
 	.action_callback = print_config_method,
-	.action_order = ARG_ORDER_AFTER(substitution_matrix),
-	.help_order = ARG_ORDER_AFTER(substitution_matrix),
+	.action_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
+	.help_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
 };
 
 ARG_DECLARE(gap_open);
@@ -386,10 +386,10 @@ ARGUMENT(gap_penalty) = {
 	.parse_callback = parse_gap_value,
 	.validate_callback = validate_gap_pen,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_order = ARG_ORDER_AFTER(gap_open),
+	.validate_order = ARG_ORDER_AFTER(ARG(gap_open)),
 	.action_callback = print_config_gaps,
-	.action_order = ARG_ORDER_AFTER(alignment_method),
-	.help_order = ARG_ORDER_AFTER(alignment_method),
+	.action_order = ARG_ORDER_AFTER(ARG(alignment_method)),
+	.help_order = ARG_ORDER_AFTER(ARG(alignment_method)),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_open), ARG(gap_extend)),
 };
@@ -405,8 +405,8 @@ ARGUMENT(gap_open) = {
 	.parse_callback = parse_gap_value,
 	.validate_callback = validate_gap_affine,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_order = ARG_ORDER_AFTER(alignment_method),
-	.help_order = ARG_ORDER_AFTER(gap_penalty),
+	.validate_order = ARG_ORDER_AFTER(ARG(alignment_method)),
+	.help_order = ARG_ORDER_AFTER(ARG(gap_penalty)),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
 };

@@ -570,7 +570,7 @@ ARGUMENT(disable_write) = {
 	.lopt = "no-write",
 	.help = "Disable writing to output file",
 	.set = &g_h5.disabled,
-	.help_order = ARG_ORDER_AFTER(disable_cuda),
+	.help_order = ARG_ORDER_AFTER(ARG(disable_cuda)),
 };
 
 static void print_output_path(void)
@@ -617,11 +617,11 @@ ARGUMENT(output_path) = {
 	.parse_callback = parse_path,
 	.validate_callback = validate_output_path,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_order = ARG_ORDER_AFTER(input_path),
+	.validate_order = ARG_ORDER_AFTER(ARG(input_path)),
 	.action_callback = print_output_path,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_order = ARG_ORDER_AFTER(input_path),
-	.help_order = ARG_ORDER_AFTER(input_path),
+	.action_order = ARG_ORDER_AFTER(ARG(input_path)),
+	.help_order = ARG_ORDER_AFTER(ARG(input_path)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(disable_write)),
 };
 
@@ -645,7 +645,7 @@ ARGUMENT(compression) = {
 	.parse_callback = parse_compression,
 	.action_callback = print_compression,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_order = ARG_ORDER_AFTER(filter_threshold),
-	.help_order = ARG_ORDER_AFTER(filter_threshold),
+	.action_order = ARG_ORDER_AFTER(ARG(filter_threshold)),
+	.help_order = ARG_ORDER_AFTER(ARG(filter_threshold)),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(output_path)),
 };

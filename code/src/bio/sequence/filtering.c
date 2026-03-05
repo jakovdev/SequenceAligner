@@ -107,6 +107,6 @@ ARGUMENT(filter_threshold) = {
 	.parse_callback = parse_filter,
 	.action_callback = print_filter,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_order = ARG_ORDER_AFTER(gap_penalty),
-	.help_order = ARG_ORDER_AFTER(list_matrices),
+	.action_order = ARG_ORDER_AFTER(ARG(gap_penalty)),
+	.help_order = ARG_ORDER_AFTER(ARG(list_matrices)),
 };

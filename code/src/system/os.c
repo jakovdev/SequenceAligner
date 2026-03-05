@@ -220,6 +220,6 @@ ARGUMENT(threads) = {
 	.dest = &thread_num,
 	.parse_callback = parse_thread_num,
 	.action_callback = print_threads,
-	.action_order = ARG_ORDER_AFTER(disable_cuda),
-	.help_order = ARG_ORDER_AFTER(benchmark),
+	.action_order = ARG_ORDER_AFTER(ARG(disable_cuda)),
+	.help_order = ARG_ORDER_AFTER(ARG(benchmark)),
 };

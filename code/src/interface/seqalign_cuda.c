@@ -93,8 +93,8 @@ ARGUMENT(disable_cuda) = {
 	.set = &no_cuda,
 	.action_callback = print_no_cuda,
 	.action_phase = ARG_CALLBACK_IF_UNSET,
-	.action_order = ARG_ORDER_AFTER(compression),
-	.help_order = ARG_ORDER_AFTER(threads),
+	.action_order = ARG_ORDER_AFTER(ARG(compression)),
+	.help_order = ARG_ORDER_AFTER(ARG(threads)),
 };
 
 #undef RETURN_CUDA_ERRORS
@@ -124,7 +124,7 @@ ARGUMENT(disable_cuda) = {
 	.arg_req = ARG_HIDDEN,
 	.action_callback = print_cuda_ignored,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.action_order = ARG_ORDER_AFTER(compression),
+	.action_order = ARG_ORDER_AFTER(ARG(compression)),
 };
 
 #endif /* USE_CUDA */

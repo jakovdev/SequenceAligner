@@ -116,5 +116,5 @@ ARGUMENT(benchmark) = {
 	.set = &mode_benchmark,
 	.action_callback = print_benchmark,
 	.action_phase = ARG_CALLBACK_IF_SET,
-	.help_order = ARG_ORDER_AFTER(compression),
+	.help_order = ARG_ORDER_AFTER(ARG(compression)),
 };
