@@ -16,6 +16,9 @@ on:
   repository_dispatch:
     types: [run-daily-workflows]
 
+env:
+  CODEQL_EXTRACTOR_CPP_AUTOINSTALL_DEPENDENCIES: true
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
@@ -43,10 +46,10 @@ jobs:
         - language: actions
           build-mode: none
         - language: c-cpp
-          build-mode: manual
+          build-mode: autobuild
         - language: python
           build-mode: none
-        # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'swift'
+        # CodeQL supports the following values keywords for 'language': 'actions', 'c-cpp', 'csharp', 'go', 'java-kotlin', 'javascript-typescript', 'python', 'ruby', 'rust', 'swift'
         # Use `c-cpp` to analyze code written in C, C++ or both
         # Use 'java-kotlin' to analyze code written in Java, Kotlin or both
         # Use 'javascript-typescript' to analyze code written in JavaScript, TypeScript or both
@@ -77,20 +80,13 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
 
-    - name: Set up apt cache
-      if: matrix.build-mode == 'manual'
-      uses: awalsh128/cache-apt-pkgs-action@latest
-      with:
-        packages: cmake ninja-build build-essential libhdf5-dev
-        version: 1.0
-
     # If the analyze step fails for one of the languages you are analyzing with
     # "We were unable to automatically build your code", modify the matrix above
     # to set the build mode to "manual" for that language. Then modify this step
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Manual build for CodeQL (C/C++)
+    - name: Run manual build steps
       if: matrix.build-mode == 'manual'
       shell: bash
       run: |
