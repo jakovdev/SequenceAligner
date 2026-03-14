@@ -18,6 +18,8 @@ typedef uint8_t u8;
 #define Pu8 "%" PRIu8
 
 typedef unsigned char uchar;
+typedef unsigned int uint;
 typedef unsigned long long ull;
+typedef signed long long sll;
 
 #endif /* SYSTEM_TYPES_H */

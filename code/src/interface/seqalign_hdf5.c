@@ -4,17 +4,13 @@
 #include <string.h>
 
 #include "bio/types.h"
+#include "interface/seqalign_cuda.h"
 #include "io/mmap.h"
 #include "system/os.h"
 #include "system/memory.h"
 #include "util/args.h"
 #include "util/benchmark.h"
 #include "util/print.h"
-
-#ifdef USE_CUDA
-#include "interface/seqalign_cuda.h"
-#include "host_interface.h"
-#endif
 
 static struct {
 	hid_t file_id;
@@ -77,15 +73,9 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 	const size_t dim_size = (size_t)g_h5.dim;
 	bench_io_start();
 
-	size_t bytes = bytesof(g_h5.matrix, dim_size * dim_size);
-
-#ifdef USE_CUDA
-	bool device_limited = arg_mode_cuda() && cuda_triangular(bytes);
-#else
-	bool device_limited = false;
-#endif
-
 	const size_t safe = available_memory() * 3 / 4;
+	size_t bytes = bytesof(g_h5.matrix, dim_size * dim_size);
+	bool device_limited = arg_mode_cuda() && !cuda_memory(bytes);
 	if (device_limited || bytes > safe) {
 		bytes = bytesof(g_h5.matrix, dim_size * (dim_size - 1) / 2);
 		g_h5.mode_mmap = bytes > safe;

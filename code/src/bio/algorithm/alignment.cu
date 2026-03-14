@@ -1,6 +1,6 @@
-#include "cuda_manager.cuh"
+#include "bio/algorithm/alignment.cuh"
 
-#include <cstring>
+#define SCORE_MIN (INT32_MIN / 2)
 
 __constant__ Constants C;
 
@@ -29,7 +29,7 @@ __forceinline__ __device__ s32 d_find_j(const s64 alignment)
 	return low - 1;
 }
 
-__global__ void k_nw(s32 *R scores, s64 start, s64 batch)
+__global__ void k_nw(s32 *__restrict__ scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -77,7 +77,7 @@ __global__ void k_nw(s32 *R scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-__global__ void k_ga(s32 *R scores, s64 start, s64 batch)
+__global__ void k_ga(s32 *__restrict__ scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -150,7 +150,7 @@ __global__ void k_ga(s32 *R scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-__global__ void k_sw(s32 *R scores, s64 start, s64 batch)
+__global__ void k_sw(s32 *__restrict__ scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -223,171 +223,47 @@ __global__ void k_sw(s32 *R scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-bool Cuda::kernelLaunch(int kernel_id) noexcept
+static uint g_max;
+static uint b;
+static cudaStream_t s;
+
+extern "C" {
+cudaError_t copy_constants(const struct Constants *host)
 {
-	if (!s.ready() || kernel_id > 2 || kernel_id < 0) {
-		internalError(
-			"Invalid kernel ID or upload steps not completed");
-		return false;
-	}
-
-	cudaError_t err;
-
-	if (!h.subsequent) {
-		D_MALLOC(d.progress, 1);
-		D_MALLOC(d.checksum, 1);
-
-		D_MEMSET(d.progress, 0, 1);
-		D_MEMSET(d.checksum, 0, 1);
-
-		C_COPY(C, static_cast<Constants *>(&d));
-	}
-
-	s64 offset = h.batch_last;
-	s64 batch = h.batch;
-
-	if (offset >= h.alignments) {
-		if (h.subsequent) {
-			D_SYNC("Device synchronization failed on final check");
-			DH_COPY(&h.progress, d.progress, 1);
-			d.swap();
-		}
-
-		return true;
-	}
-
-	if (d.triangular) {
-		if (offset + batch > h.alignments)
-			batch = h.alignments - offset;
-
-		if (!batch) {
-			if (h.subsequent) {
-				D_SYNC("Device synchronization failed on final check");
-				DH_COPY(&h.progress, d.progress, 1);
-			}
-
-			return true;
-		}
-
-		if (h.subsequent) {
-			D_SYNC("Device synchronization failed");
-			DH_COPY(&h.progress, d.progress, 1);
-			d.swap();
-		}
-	}
-
-	const uint gdim = static_cast<uint>((batch + d.bdim - 1) / d.bdim);
-	if (!gdim || gdim > d.gdim_max) {
-		hostError("Grid size exceeds device limit");
-		return false;
-	}
-
-	switch (kernel_id) {
-	default:
-		internalError("Invalid kernel ID");
-		return false;
-	case 0: /* Gotoh Affine */
-		k_ga<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
-		break;
-	case 1: /* Needleman-Wunsch */
-		k_nw<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
-		break;
-	case 2: /* Smith-Waterman */
-		k_sw<<<gdim, d.bdim, 0, d.s_comp>>>(d.current(), offset, batch);
-		break;
-	}
-
-	err = cudaGetLastError();
-	CUDA_ERROR("Kernel launch failed", false);
-
-	h.batch_last += batch;
-
-	return true;
+	return cudaMemcpyToSymbol(C, host, sizeof(C));
 }
 
-bool Cuda::kernelResults() noexcept
+void cuda_config(uint grid_max, uint block_max, cudaStream_t stream)
 {
-	if (!s.ready()) {
-		internalError("Invalid context or upload steps not completed");
-		return false;
-	}
-
-	cudaError_t err;
-
-	if (!d.triangular) {
-		static bool matrix_copied = false;
-		if (matrix_copied)
-			return true;
-
-		S_SYNC(d.s_comp);
-		DH_COPY(&h.progress, d.progress, 1);
-		if (h.scores)
-			DH_COPY(h.scores, d.scores[0],
-				static_cast<size_t>(d.seqs_n) * d.seqs_n);
-		matrix_copied = true;
-		return true;
-	}
-
-	if (h.batch_done >= h.alignments) {
-		if (d.s_sync) {
-			S_SYNC(d.s_copy);
-			d.s_sync = false;
-		}
-
-		return true;
-	}
-
-	if (d.s_sync) {
-		S_QUERY(d.s_copy);
-		d.s_sync = false;
-	}
-
-	if (!h.subsequent && h.batch < h.alignments) {
-		h.subsequent = true;
-		return true;
-	}
-
-	s64 n_scores = std::min(h.batch, h.alignments - h.batch_done);
-	if (!n_scores)
-		return true;
-
-	if (h.subsequent) {
-		if (h.scores)
-			DH_ACOPY(h.scores + h.batch_done, d.next(), n_scores,
-				 d.s_copy);
-		d.s_sync = true;
-	} else {
-		S_SYNC(d.s_comp);
-		DH_COPY(&h.progress, d.progress, 1);
-		if (h.scores)
-			DH_COPY(h.scores + h.batch_done, d.current(), n_scores);
-	}
-
-	h.batch_done += n_scores;
-	return true;
+	g_max = grid_max;
+	b = block_max;
+	s = stream;
 }
 
-sll Cuda::kernelProgress() noexcept
+cudaError_t kernel_nw(s32 *__restrict__ scores, s64 start, s64 batch)
 {
-	if (!s.ready() || !d.progress) {
-		internalError("Invalid context or upload steps not completed");
-		return 0;
-	}
-
-	return h.progress;
+	const uint g = static_cast<uint>((batch + b - 1) / b);
+	if (!g || g > g_max)
+		return cudaErrorInvalidConfiguration;
+	k_nw<<<g, b, 0, s>>>(scores, start, batch);
+	return cudaGetLastError();
 }
 
-sll Cuda::kernelChecksum() noexcept
+cudaError_t kernel_ga(s32 *__restrict__ scores, s64 start, s64 batch)
 {
-	if (!s.ready() || !d.checksum) {
-		internalError("Invalid context or upload steps not completed");
-		return 0;
-	}
+	const uint g = static_cast<uint>((batch + b - 1) / b);
+	if (!g || g > g_max)
+		return cudaErrorInvalidConfiguration;
+	k_ga<<<g, b, 0, s>>>(scores, start, batch);
+	return cudaGetLastError();
+}
 
-	cudaError_t err;
-	S_SYNC(d.s_comp);
-
-	sll checksum = 0;
-	DH_COPY(&checksum, d.checksum, 1);
-	return checksum;
+cudaError_t kernel_sw(s32 *__restrict__ scores, s64 start, s64 batch)
+{
+	const uint g = static_cast<uint>((batch + b - 1) / b);
+	if (!g || g > g_max)
+		return cudaErrorInvalidConfiguration;
+	k_sw<<<g, b, 0, s>>>(scores, start, batch);
+	return cudaGetLastError();
+}
 }

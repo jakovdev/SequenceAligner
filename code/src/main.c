@@ -22,11 +22,17 @@ int main(int argc, char *argv[])
 	if (!sequences_load_from_file())
 		return 1;
 
-	if (!h5_open(sequences_seqs(), sequences_seq_n()))
+	if (arg_mode_cuda() && !cuda_device_init())
 		return 1;
+
+	if (!h5_open(sequences_seqs(), sequences_seq_n())) {
+		cuda_device_close();
+		return 1;
+	}
 
 	psection("Performing Alignments");
 	if (!(arg_mode_cuda() ? cuda_align() : align())) {
+		cuda_device_close();
 		h5_close(1);
 		return 1;
 	}

@@ -4,60 +4,363 @@
 #include "util/print.h"
 
 #ifdef USE_CUDA
+#include <cuda_runtime_api.h>
 #include <string.h>
 
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
 #include "system/compiler.h"
+#include "system/memory.h"
+#include "system/os.h"
 #include "util/benchmark.h"
 
-#include "host_interface.h"
+#include "bio/algorithm/alignment.cuh"
 
-#define RETURN_CUDA_ERRORS(...)                                 \
-	do {                                                    \
-		perr(__VA_ARGS__);                              \
-		perrm("Host error: %s", cuda_error_host());     \
-		perrl("Device error: %s", cuda_error_device()); \
-		return false;                                   \
+static bool init;
+
+#define CALLR(cuda_func)                                     \
+	do {                                                 \
+		err = cuda_func;                             \
+		if unlikely (err != cudaSuccess) {           \
+			perr("%s", cudaGetErrorString(err)); \
+			return false;                        \
+		}                                            \
 	} while (0)
+
+#define CALLJ(cuda_func, jmp_label)                          \
+	do {                                                 \
+		err = cuda_func;                             \
+		if unlikely (err != cudaSuccess) {           \
+			perr("%s", cudaGetErrorString(err)); \
+			goto jmp_label;                      \
+		}                                            \
+	} while (0)
+
+bool cuda_device_init(void)
+{
+	if (init) {
+		cuda_device_close();
+		pdev("CUDA Device already initialized");
+		perr("Internal error initializing CUDA Device");
+		pabort();
+	}
+
+	int device_count = 0;
+	cudaError_t err = { 0 };
+
+	CALLR(cudaGetDeviceCount(&device_count));
+	if (!device_count) {
+		perr("No CUDA devices available");
+		return false;
+	}
+
+	CALLR(cudaSetDevice(0));
+	init = true;
+	return true;
+}
+
+void cuda_device_close(void)
+{
+	if (init) {
+		cudaDeviceReset();
+		init = false;
+	}
+}
+
+bool cuda_memory(size_t bytes)
+{
+	if (!init) {
+		pdev("CUDA Device not initialized before checking memory");
+		perr("Internal error checking CUDA Device memory");
+		pabort();
+	}
+
+	size_t free = 0;
+	size_t total = 0;
+	cudaError_t err = { 0 };
+	CALLJ(cudaMemGetInfo(&free, &total), memory_error);
+	if (free < bytes * 4 / 3)
+		return false;
+
+	return true;
+memory_error:
+	cuda_device_close();
+	exit(EXIT_FAILURE);
+}
 
 bool cuda_align(void)
 {
-	const char *name = cuda_device_name();
-	if (!name || !*name || strcmp(name, "Unknown Device") == 0)
-		RETURN_CUDA_ERRORS("Failed to query device name");
+	if (!init) {
+		pdev("CUDA Device not initialized before alignment");
+		perr("Internal error performing CUDA alignment");
+		pabort();
+	}
 
-	pinfo("Using CUDA device: %s", name);
+	cudaError_t err = { 0 };
+	cudaStream_t compute = { 0 }, memory = { 0 };
+	CALLR(cudaStreamCreate(&compute));
+	CALLR(cudaStreamCreate(&memory));
 
-	if unlikely (!cuda_upload_seqs(sequences_seqs(), sequences_seq_n(),
-				       sequences_seq_len_max(),
-				       sequences_seq_len_sum()))
-		RETURN_CUDA_ERRORS("Failed uploading sequences to device");
+	{
+		struct cudaDeviceProp dev_prop = { 0 };
+		CALLR(cudaGetDeviceProperties(&dev_prop, 0));
+		pinfo("Using CUDA device: %s", dev_prop.name);
+		const uint grid_max = (uint)dev_prop.maxGridSize[0];
+		const uint block_max = (uint)dev_prop.maxThreadsPerBlock;
+		cuda_config(grid_max, block_max, compute);
+	}
 
-	if unlikely (!cuda_upload_scoring(SUB_MAT, SEQ_LUP))
-		RETURN_CUDA_ERRORS("Failed uploading scoring data to device");
+	struct Constants C = {
+		.seqs_n = sequences_seq_n(),
+		.gap_pen = arg_gap_pen(),
+		.gap_open = arg_gap_open(),
+		.gap_ext = arg_gap_ext(),
+	};
 
-	if unlikely (!cuda_upload_gaps(arg_gap_pen(), arg_gap_open(),
-				       arg_gap_ext()))
-		RETURN_CUDA_ERRORS("Failed uploading gaps to device");
+	memcpy(C.seq_lup, SEQ_LUP, sizeof(C.seq_lup));
+	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
+	size_t seqs_n = (size_t)C.seqs_n;
 
-	if unlikely (!cuda_upload_storage(h5_matrix_data(), h5_matrix_bytes()))
-		RETURN_CUDA_ERRORS("Failed uploading storage data to device");
+	{
+		const sequence_t *seqs = sequences_seqs();
+		size_t seq_len_sum = (size_t)sequences_seq_len_sum();
+		if (sequences_seq_len_max() > MAX_CUDA_SEQUENCE_LENGTH) {
+			perr("Sequence length exceeds CUDA Device limits");
+			return false;
+		}
+
+		s64 *MALLOCA(indices, seqs_n);
+		s64 *MALLOCA(offsets, seqs_n);
+		s32 *MALLOCA(lengths, seqs_n);
+		char *MALLOCA(letters, seq_len_sum);
+		if (!indices || !offsets || !lengths || !letters) {
+			perr("Out of memory during sequence upload");
+arrays_error:
+			free(indices);
+			free(offsets);
+			free(lengths);
+			free(letters);
+			return false;
+		}
+
+		for (s64 i = 0, offs = 0; i < C.seqs_n; i++) {
+			indices[i] = (i * (i - 1)) / 2;
+			offsets[i] = offs;
+			lengths[i] = seqs[i].length;
+			memcpy(letters + offs, seqs[i].letters,
+			       (size_t)seqs[i].length);
+			offs += seqs[i].length;
+		}
+
+		CALLJ(cudaMalloc((void **)&C.indices,
+				 sizeof(*C.indices) * seqs_n),
+		      arrays_error);
+		CALLJ(cudaMalloc((void **)&C.offsets,
+				 sizeof(*C.offsets) * seqs_n),
+		      arrays_error);
+		CALLJ(cudaMalloc((void **)&C.lengths,
+				 sizeof(*C.lengths) * seqs_n),
+		      arrays_error);
+		CALLJ(cudaMalloc((void **)&C.letters,
+				 sizeof(*C.letters) * seq_len_sum),
+		      arrays_error);
+		CALLJ(cudaMemcpy(C.indices, indices,
+				 sizeof(*C.indices) * seqs_n,
+				 cudaMemcpyHostToDevice),
+		      arrays_error);
+		CALLJ(cudaMemcpy(C.offsets, offsets,
+				 sizeof(*C.offsets) * seqs_n,
+				 cudaMemcpyHostToDevice),
+		      arrays_error);
+		CALLJ(cudaMemcpy(C.lengths, lengths,
+				 sizeof(*C.lengths) * seqs_n,
+				 cudaMemcpyHostToDevice),
+		      arrays_error);
+		CALLJ(cudaMemcpy(C.letters, letters,
+				 sizeof(*C.letters) * seq_len_sum,
+				 cudaMemcpyHostToDevice),
+		      arrays_error);
+
+		free(indices);
+		free(offsets);
+		free(lengths);
+		free(letters);
+	}
 
 	const s64 alignments = sequences_alignments();
+	const s64 batch_size = INT64_C(64) << 20;
+	s32 *matrix = h5_matrix_data();
+
+	if (!cuda_memory(sizeof(*matrix) * seqs_n * seqs_n)) {
+		if (!cuda_memory(sizeof(*matrix) * (size_t)alignments)) {
+			if (!cuda_memory(sizeof(*matrix) *
+					 (size_t)batch_size)) {
+				perr("Not enough CUDA Device memory for alignment");
+				return false;
+			}
+		}
+		C.triangular = true;
+	}
+
+	if (h5_matrix_bytes() == (sizeof(*matrix) * (size_t)alignments))
+		C.triangular = true;
+
+	s64 batch = 0, batch_last = 0, batch_done = 0;
+	s32 *scores[2] = { 0 };
+	s32 active = 0;
+	if (C.triangular) {
+		batch = min(batch_size, alignments);
+		CALLR(cudaMalloc((void **)&scores[0],
+				 sizeof(*scores[0]) * (size_t)batch));
+		CALLR(cudaMemset(scores[0], 0,
+				 sizeof(*scores[0]) * (size_t)batch));
+		CALLR(cudaMalloc((void **)&scores[1],
+				 sizeof(*scores[1]) * (size_t)batch));
+		CALLR(cudaMemset(scores[1], 0,
+				 sizeof(*scores[1]) * (size_t)batch));
+	} else {
+		batch = alignments;
+		CALLR(cudaMalloc((void **)&scores[0],
+				 sizeof(*scores[0]) * seqs_n * seqs_n));
+		CALLR(cudaMemset(scores[0], 0,
+				 sizeof(*scores[0]) * seqs_n * seqs_n));
+	}
+
+	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
+	CALLR(cudaMalloc((void **)&C.checksum, sizeof(*C.checksum)));
+	CALLR(cudaMemset(C.progress, 0, sizeof(*C.progress)));
+	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
+	CALLR(copy_constants(&C));
+
+	kernel_func_t kernel = NULL;
+	switch (arg_align_method()) {
+	case ALIGN_GOTOH_AFFINE:
+		kernel = kernel_ga;
+		break;
+	case ALIGN_NEEDLEMAN_WUNSCH:
+		kernel = kernel_nw;
+		break;
+	case ALIGN_SMITH_WATERMAN:
+		kernel = kernel_sw;
+		break;
+	case ALIGN_INVALID:
+	case ALIGN_COUNT:
+	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
+		cuda_device_close();
+		pdev("Invalid AlignmentMethod enum");
+		perr("Internal error retrieving CUDA kernel");
+		pabort();
+	}
+
+	bool subsequent = false, syncing = false, matrix_copied = false;
+	s64 progress = 0;
+
 	pinfol("Performing " Ps64 " pairwise alignments", alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();
 	while (true) {
-		if unlikely (!cuda_kernel_launch(arg_align_method()))
-			RETURN_CUDA_ERRORS("Failed to launch device alignment");
+		s64 offset = batch_last;
+		if (offset >= alignments) {
+			if (subsequent) {
+				CALLR(cudaDeviceSynchronize());
+				CALLR(cudaMemcpy(&progress, C.progress,
+						 sizeof(progress),
+						 cudaMemcpyDeviceToHost));
+				active = 1 - active;
+			}
+			goto cuda_results;
+		}
 
-		if unlikely (!cuda_kernel_results())
-			RETURN_CUDA_ERRORS("Failed to get results from device");
+		if (C.triangular) {
+			if (offset + batch > alignments)
+				batch = alignments - offset;
+			if (!batch) {
+				if (subsequent) {
+					CALLR(cudaDeviceSynchronize());
+					CALLR(cudaMemcpy(
+						&progress, C.progress,
+						sizeof(progress),
+						cudaMemcpyDeviceToHost));
+				}
+				goto cuda_results;
+			}
+			if (subsequent) {
+				CALLR(cudaDeviceSynchronize());
+				CALLR(cudaMemcpy(&progress, C.progress,
+						 sizeof(progress),
+						 cudaMemcpyDeviceToHost));
+				active = 1 - active;
+			}
+		}
 
-		sll progress = cuda_kernel_progress();
+		CALLR(kernel(scores[active], offset, batch));
+		batch_last += batch;
+cuda_results:
+
+		if (!C.triangular) {
+			if (matrix_copied)
+				goto cuda_progress;
+
+			CALLR(cudaStreamSynchronize(compute));
+			CALLR(cudaMemcpy(&progress, C.progress,
+					 sizeof(progress),
+					 cudaMemcpyDeviceToHost));
+
+			if (matrix)
+				CALLR(cudaMemcpy(matrix, scores[0],
+						 sizeof(*matrix) * seqs_n *
+							 seqs_n,
+						 cudaMemcpyDeviceToHost));
+
+			matrix_copied = true;
+			goto cuda_progress;
+		}
+
+		if (batch_done >= alignments) {
+			if (syncing) {
+				CALLR(cudaStreamSynchronize(memory));
+				syncing = false;
+			}
+			goto cuda_progress;
+		}
+
+		if (syncing) {
+			CALLR(cudaStreamQuery(memory);
+			      if (err == cudaErrorNotReady) goto cuda_progress);
+			syncing = false;
+		}
+
+		if (!subsequent && batch < alignments) {
+			subsequent = true;
+			goto cuda_progress;
+		}
+
+		size_t n_scores = (size_t)min(batch, alignments - batch_done);
+		if (!n_scores)
+			goto cuda_progress;
+
+		if (subsequent) {
+			if (matrix)
+				CALLR(cudaMemcpyAsync(
+					matrix + batch_done, scores[1 - active],
+					sizeof(*matrix) * n_scores,
+					cudaMemcpyDeviceToHost, memory));
+			syncing = true;
+		} else {
+			CALLR(cudaStreamSynchronize(compute));
+			CALLR(cudaMemcpy(&progress, C.progress,
+					 sizeof(progress),
+					 cudaMemcpyDeviceToHost));
+			if (matrix)
+				CALLR(cudaMemcpy(matrix + batch_done,
+						 scores[active],
+						 sizeof(*matrix) * n_scores,
+						 cudaMemcpyDeviceToHost));
+		}
+		batch_done += (s64)n_scores;
+cuda_progress:
 		pproportc(progress / alignments, "Aligning sequences");
 		if (progress >= alignments)
 			break;
@@ -65,7 +368,13 @@ bool cuda_align(void)
 
 	bench_align_end();
 	ppercent(100, "Aligning sequences");
-	h5_checksum_set(cuda_kernel_checksum() * 2);
+
+	sll checksum = 0;
+	CALLR(cudaMemcpy(&checksum, C.checksum, sizeof(checksum),
+			 cudaMemcpyDeviceToHost));
+	h5_checksum_set(checksum * 2);
+	cuda_device_close();
+
 	bench_align_print();
 	return true;
 }
@@ -101,12 +410,28 @@ ARGUMENT(disable_cuda) = {
 
 #else
 
-bool cuda_align(void)
+bool arg_mode_cuda(void)
 {
 	return false;
 }
 
-bool arg_mode_cuda(void)
+bool cuda_device_init(void)
+{
+	return false;
+}
+
+void cuda_device_close(void)
+{
+	return;
+}
+
+bool cuda_memory(size_t bytes)
+{
+	(void)bytes;
+	return false;
+}
+
+bool cuda_align(void)
 {
 	return false;
 }
