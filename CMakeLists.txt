@@ -4,10 +4,33 @@ set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 option(USE_CUDA "Enable CUDA support" OFF)
 option(USE_ASAN "Enable AddressSanitizer (ASAN) support (GCC|Clang only, no CUDA)" OFF)
 option(USE_BIN "Copy binaries to bin directory for easier execution during development" OFF)
+option(USE_MINGW "Enable Linux to Windows MinGW build" OFF)
 
-set(SEQALIGN_LANGUAGES "C")
+if(USE_MINGW)
+	if(NOT CMAKE_HOST_SYSTEM_NAME STREQUAL "Linux")
+		message(FATAL_ERROR "USE_MINGW=ON is only supported on Linux host")
+	endif()
+	if(DEFINED ENV{MSYSTEM})
+		message(FATAL_ERROR "USE_MINGW=ON should not be used from MSYS2, configure normally with native tools")
+	endif()
+	find_program(CMAKE_C_COMPILER x86_64-w64-mingw32-gcc REQUIRED)
+	find_program(PKG_CONFIG_EXECUTABLE x86_64-w64-mingw32-pkg-config REQUIRED)
+	execute_process(COMMAND "${PKG_CONFIG_EXECUTABLE}" --variable=prefix hdf5 OUTPUT_VARIABLE MINGW_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+	if(NOT MINGW_PREFIX)
+		message(FATAL_ERROR "Could not determine MinGW prefix via pkg-config")
+	endif()
+	set(MINGW_PREFIX "${MINGW_PREFIX}" CACHE PATH "MinGW prefix discovered via pkg-config")
+	set(CMAKE_SYSTEM_NAME Windows)
+	set(CMAKE_FIND_ROOT_PATH "${MINGW_PREFIX}")
+	set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+	set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+	set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+endif()
+
 if(USE_CUDA)
 	set(SEQALIGN_LANGUAGES "C;CUDA")
+else()
+	set(SEQALIGN_LANGUAGES "C")
 endif()
 
 project(
@@ -18,16 +41,15 @@ HOMEPAGE_URL "https://www.github.com/jakovdev/SequenceAligner"
 LANGUAGES ${SEQALIGN_LANGUAGES}
 )
 
-set(PROJECT_SPDX_LICENSE "AGPL-3.0-or-later")
-set(SequenceAligner_SPDX_LICENSE "AGPL-3.0-or-later")
+set(IS_MINGW FALSE)
+set(IS_MSVC FALSE)
+set(IS_MSYS2 FALSE)
+set(IS_GCC_NATIVE FALSE)
 
-if(IS_CROSS)
-	set(PLATFORM_TYPE "CROSS")
-	if(NOT MINGW_PREFIX)
-		message(FATAL_ERROR "Pass -DCMAKE_TOOLCHAIN_FILE=cmake/cross_toolchain.cmake to enable cross-compilation")
-	endif()
+if(USE_MINGW)
+	set(IS_MINGW TRUE)
 elseif(MSVC)
-	set(PLATFORM_TYPE "MSVC")
+	set(IS_MSVC TRUE)
 	if(MSVC_VERSION LESS 1939)
 		message(FATAL_ERROR "MSVC version 1939 or greater is required (Visual Studio 2022 17.9+). Current version: ${MSVC_VERSION}")
 	endif()
@@ -37,17 +59,16 @@ elseif(MSVC)
 	string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 	string(REPLACE "-Xcompiler=\"-O2 -Ob2\"" "-Xcompiler=/Ob3" CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE}")
 elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
-	set(PLATFORM_TYPE "MSYS2")
+	set(IS_MSYS2 TRUE)
 elseif(UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-	set(PLATFORM_TYPE "GCC")
+	set(IS_GCC_NATIVE TRUE)
 else()
 	message(WARNING "Unknown platform/compiler combination. Defaulting to GCC-like settings.")
-	set(PLATFORM_TYPE "GCC")
+	set(IS_GCC_NATIVE TRUE)
 endif()
 
-if(PLATFORM_TYPE STREQUAL "GCC"
-OR PLATFORM_TYPE STREQUAL "CROSS"
-OR PLATFORM_TYPE STREQUAL "MSYS2")
+set(IS_GCC_LIKE FALSE)
+if(IS_GCC_NATIVE OR IS_MINGW OR IS_MSYS2)
 	set(IS_GCC_LIKE TRUE)
 	include(CheckCCompilerFlag)
 	set(GCC_FLAGS_TO_CHECK
@@ -81,7 +102,7 @@ if(USE_ASAN AND USE_CUDA)
 	message(FATAL_ERROR "AddressSanitizer (ASAN) is not supported with CUDA")
 endif()
 
-if(USE_ASAN AND NOT PLATFORM_TYPE STREQUAL "GCC")
+if(USE_ASAN AND NOT IS_GCC_NATIVE)
 	message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
 endif()
 
@@ -94,7 +115,7 @@ if(USE_CUDA)
 	set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
-if(PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TYPE STREQUAL "MSYS2")
+if(IS_MINGW OR IS_MSYS2)
 	include(FetchContent)
 	cmake_policy(SET CMP0169 OLD) # Needed for automatic patching
 	FetchContent_Declare(
@@ -198,7 +219,7 @@ if(USE_CUDA)
 	file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/code/src/*.cu")
 endif()
 
-if(PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TYPE STREQUAL "MSYS2")
+if(IS_MINGW OR IS_MSYS2)
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(HDF5 REQUIRED hdf5)
 else()
@@ -221,7 +242,7 @@ endif()
 find_package(OpenMP REQUIRED COMPONENTS C)
 
 function(set_c_compiler_options target)
-if(PLATFORM_TYPE STREQUAL "MSVC")
+if(IS_MSVC)
 	target_compile_options(${target} PRIVATE
 	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL}>
 	$<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>
@@ -299,7 +320,7 @@ elseif(IS_GCC_LIKE)
 	if(NOT USE_ASAN)
 		target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>)
 	endif()
-	if(PLATFORM_TYPE STREQUAL "GCC" AND USE_ASAN)
+	if(IS_GCC_NATIVE AND USE_ASAN)
 		target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
 		target_link_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
 	endif()
@@ -331,7 +352,7 @@ $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
 $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-ggdb3>
 $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-extra-device-vectorization>
 )
-if(PLATFORM_TYPE STREQUAL "MSVC")
+if(IS_MSVC)
 	target_compile_options(${target} PRIVATE
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL}>
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>
@@ -361,7 +382,7 @@ if(PLATFORM_TYPE STREQUAL "MSVC")
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/DNDEBUG>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/jumptablerdata>
 	)
-elseif(PLATFORM_TYPE STREQUAL "GCC")
+elseif(IS_GCC_NATIVE)
 	target_compile_options(${target} PRIVATE
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL}>
 	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-pedantic>
@@ -424,7 +445,7 @@ endif()
 set_c_compiler_options(seqalign)
 set_cuda_compiler_options(seqalign)
 
-if(LEGACY_HDF5 OR PLATFORM_TYPE STREQUAL "CROSS" OR PLATFORM_TYPE STREQUAL "MSYS2")
+if(LEGACY_HDF5 OR IS_MINGW OR IS_MSYS2)
 	target_include_directories(seqalign PRIVATE ${HDF5_INCLUDE_DIRS})
 	target_link_libraries(seqalign PRIVATE ${HDF5_LIBRARIES})
 	target_link_directories(seqalign PRIVATE ${HDF5_LIBRARY_DIRS})
@@ -433,7 +454,7 @@ else()
 endif()
 
 if(WIN32)
-	if(PLATFORM_TYPE STREQUAL "MSVC")
+	if(IS_MSVC)
 		target_link_libraries(seqalign PRIVATE Shlwapi)
 	else()
 		target_link_libraries(seqalign PRIVATE shlwapi)
@@ -446,25 +467,48 @@ endif()
 
 target_link_libraries(seqalign PRIVATE OpenMP::OpenMP_C)
 
+function(resolve_runtime_dll_path out_path dll prefix)
+if(EXISTS "${prefix}/bin/${dll}")
+	set(${out_path} "${prefix}/bin/${dll}" PARENT_SCOPE)
+elseif(EXISTS "${prefix}/lib/${dll}")
+	set(${out_path} "${prefix}/lib/${dll}" PARENT_SCOPE)
+else()
+	message(WARNING "Could not find runtime DLL ${dll} in expected locations under prefix ${prefix}")
+	set(${out_path} "" PARENT_SCOPE)
+endif()
+endfunction()
+
 function(install_runtime_dlls dll_list prefix)
 foreach(dll ${dll_list})
-	if(EXISTS "${prefix}/bin/${dll}")
-		install(FILES "${prefix}/bin/${dll}" DESTINATION .)
-	elseif(EXISTS "${prefix}/lib/${dll}")
-		install(FILES "${prefix}/lib/${dll}" DESTINATION .)
+	resolve_runtime_dll_path(dll_path "${dll}" "${prefix}")
+	if(dll_path)
+		install(FILES "${dll_path}" DESTINATION .)
+	endif()
+endforeach()
+endfunction()
+
+function(copy_runtime_dlls_to_bin target dll_list prefix output_dir)
+foreach(dll ${dll_list})
+	resolve_runtime_dll_path(dll_path "${dll}" "${prefix}")
+	if(dll_path)
+		add_custom_command(TARGET ${target} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+		"${dll_path}"
+		"${output_dir}/"
+		)
 	endif()
 endforeach()
 endfunction()
 
 if(WIN32)
-	if(PLATFORM_TYPE STREQUAL "MSVC")
+	if(IS_MSVC)
 		install(TARGETS seqalign 
 		RUNTIME_DEPENDENCIES
 		PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "vcruntime.*\\.dll"
 		POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
 		RUNTIME DESTINATION .
 		)
-	elseif(PLATFORM_TYPE STREQUAL "MSYS2")
+	elseif(IS_MSYS2)
 		if(NOT DEFINED ENV{MSYSTEM_PREFIX})
 			message(FATAL_ERROR "MSYSTEM_PREFIX not set. Cannot locate MSYS2 bin directory.")
 		endif()
@@ -479,9 +523,9 @@ if(WIN32)
 		libaws-c-compression.dll libaws-checksums.dll
 		)
 		install_runtime_dlls("${MSYS2_DLLS}" "$ENV{MSYSTEM_PREFIX}")
-	elseif(PLATFORM_TYPE STREQUAL "CROSS")		
-		set(CROSS_DLLS libhdf5.dll libssp-0.dll libwinpthread-1.dll libsz.dll zlib1.dll libgomp-1.dll libgcc_s_seh-1.dll)
-		install_runtime_dlls("${CROSS_DLLS}" "${MINGW_PREFIX}")
+	elseif(IS_MINGW)		
+		set(MINGW_DLLS libhdf5.dll libssp-0.dll libwinpthread-1.dll libsz.dll zlib1.dll libgomp-1.dll libgcc_s_seh-1.dll)
+		install_runtime_dlls("${MINGW_DLLS}" "${MINGW_PREFIX}")
 	endif()
 endif()
 
@@ -491,50 +535,31 @@ if(USE_BIN)
 	if(BIN_FILES)
 		file(REMOVE ${BIN_FILES})
 	endif()
-	if(PLATFORM_TYPE STREQUAL "MSVC")
+	if(IS_MSVC)
 		add_custom_command(TARGET seqalign POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		$<TARGET_FILE:seqalign>
-		"${CMAKE_SOURCE_DIR}/bin/"
-		)
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:seqalign> "${CMAKE_SOURCE_DIR}/bin/")
 		install_runtime_dlls("$<TARGET_FILE_DIR:seqalign>" "${CMAKE_SOURCE_DIR}/bin")
-	elseif(PLATFORM_TYPE STREQUAL "MSYS2")
-		foreach(dll ${MSYS2_DLLS})
-			if(EXISTS "$ENV{MSYSTEM_PREFIX}/bin/${dll}")
-				add_custom_command(TARGET seqalign POST_BUILD
-				COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"$ENV{MSYSTEM_PREFIX}/bin/${dll}"
-				"${CMAKE_SOURCE_DIR}/bin/"
-				)
-			elseif(EXISTS "$ENV{MSYSTEM_PREFIX}/lib/${dll}")
-				add_custom_command(TARGET seqalign POST_BUILD
-				COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"$ENV{MSYSTEM_PREFIX}/lib/${dll}"
-				"${CMAKE_SOURCE_DIR}/bin/"
-				)
-			endif()
-		endforeach()
-	elseif(PLATFORM_TYPE STREQUAL "CROSS")
-		foreach(dll ${CROSS_DLLS})
-			if(EXISTS "${MINGW_PREFIX}/bin/${dll}")
-				add_custom_command(TARGET seqalign POST_BUILD
-				COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${MINGW_PREFIX}/bin/${dll}"
-				"${CMAKE_SOURCE_DIR}/bin/"
-				)
-			elseif(EXISTS "${MINGW_PREFIX}/lib/${dll}")
-				add_custom_command(TARGET seqalign POST_BUILD
-				COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				"${MINGW_PREFIX}/lib/${dll}"
-				"${CMAKE_SOURCE_DIR}/bin/"
-				)
-			endif()
-		endforeach()
+	elseif(IS_MSYS2)
+		copy_runtime_dlls_to_bin(seqalign "${MSYS2_DLLS}" "$ENV{MSYSTEM_PREFIX}" "${CMAKE_SOURCE_DIR}/bin")
+	elseif(IS_MINGW)
+		copy_runtime_dlls_to_bin(seqalign "${MINGW_DLLS}" "${MINGW_PREFIX}" "${CMAKE_SOURCE_DIR}/bin")
 	endif()
 endif()
 
 install(TARGETS seqalign RUNTIME DESTINATION .)
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" "${CMAKE_SOURCE_DIR}/README.md" DESTINATION .)
+
+if(CMAKE_EXPORT_COMPILE_COMMANDS)
+	set(COMPILE_COMMANDS_SOURCE "${CMAKE_BINARY_DIR}/compile_commands.json")
+	set(COMPILE_COMMANDS_ROOT "${CMAKE_SOURCE_DIR}/compile_commands.json")
+	if(EXISTS "${COMPILE_COMMANDS_ROOT}" OR IS_SYMLINK "${COMPILE_COMMANDS_ROOT}")
+		file(REMOVE "${COMPILE_COMMANDS_ROOT}")
+	endif()
+	file(CREATE_LINK "${COMPILE_COMMANDS_SOURCE}" "${COMPILE_COMMANDS_ROOT}" SYMBOLIC COPY_ON_ERROR RESULT COMPILE_COMMANDS_LINK_RESULT)
+	if(NOT COMPILE_COMMANDS_LINK_RESULT STREQUAL "0")
+		message(WARNING "Failed to link compile_commands.json to project root: ${COMPILE_COMMANDS_LINK_RESULT}")
+	endif()
+endif()
 
 set(CPACK_PACKAGE_NAME "SequenceAligner")
 set(CPACK_PACKAGE_VENDOR "jakovdev")
@@ -558,6 +583,3 @@ else()
 endif()
 
 include(CPack)
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-include(compile_commands)

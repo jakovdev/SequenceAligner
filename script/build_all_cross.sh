@@ -11,7 +11,7 @@ if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     if command -v x86_64-w64-mingw32-gcc &> /dev/null; then
         MINGW_AVAILABLE="yes"
         for a in "${BASE_ARCHS[@]}"; do
-            PRESETS+=("${a}-cross")
+            PRESETS+=("${a}-mingw")
         done
     else
         echo ""
@@ -40,10 +40,10 @@ fi
 
 for preset in "${PRESETS[@]}"; do
     echo ""
-    TOOLCHAIN_FLAG=""
-    if [[ "${preset}" == *"-cross" ]]; then
-        TOOLCHAIN_FLAG="--toolchain ${PWD}/cmake/cross_toolchain.cmake"
-        arch="${preset%-cross}"
+    MINGW_FLAG=""
+    if [[ "${preset}" == *"-mingw" ]]; then
+        MINGW_FLAG="-DUSE_MINGW=ON"
+        arch="${preset%-mingw}"
     else
         arch="${preset%-msys2}"
     fi
@@ -52,7 +52,7 @@ for preset in "${PRESETS[@]}"; do
     rm -rf "${build_subdir}"
     mkdir -p "${build_subdir}"
 
-    cmake -S . -B "${build_subdir}" -G Ninja -DARCH_LEVEL="${arch}" -DCMAKE_BUILD_TYPE=Release ${TOOLCHAIN_FLAG}
+    cmake -S . -B "${build_subdir}" -G Ninja -DARCH_LEVEL="${arch}" -DCMAKE_BUILD_TYPE=Release ${MINGW_FLAG}
     cmake --build "${build_subdir}" -- -j $(nproc)
     (cd "${build_subdir}" && cpack)
 done
