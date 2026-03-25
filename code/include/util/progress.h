@@ -115,32 +115,50 @@ extern bool progress_disable;
 #endif
 
 #endif /* PROGRESS_H */
-#if defined(PROGRESS_IMPLEMENTATION) && !defined(PROGRESS_IMPLEMENTED)
-#define PROGRESS_IMPLEMENTED
+#if defined(PROGRESS_IMPLEMENTATION) && !defined(_PROGRESS_IMPLEMENTED)
+#define _PROGRESS_IMPLEMENTED
 
 #include <stdalign.h>
 #include <stdatomic.h>
 #include <threads.h>
 
-#ifdef PROGRESS_CLIX_ARGS
-#include PROGRESS_CLIX_ARGS
-#endif
-
-#ifdef PROGRESS_CLIX_PRINT
-#include PROGRESS_CLIX_PRINT
-#define progress_dev(...) pdev(__VA_ARGS__)
-#define progress_err(...) perr(__VA_ARGS__)
-#else
+#ifndef PROGRESS_PRINT_H
+#define PROGRESS_PRINT_H 0
 #include <stdio.h>
+#else
+#ifndef PRINT_H
+#error "Include print.h before including progress.h"
+#endif /* PRINT_H */
+#undef PROGRESS_PRINT_H
+#define PROGRESS_PRINT_H 1
+#endif /* PROGRESS_PRINT_H */
+
+#ifndef progress_bar
+#if !PROGRESS_PRINT_H
 #define progress_bar(pct, ...)           \
 	do {                             \
 		printf("\r%3d%% ", pct); \
 		printf(__VA_ARGS__);     \
 		fflush(stdout);          \
 	} while (0)
-#define progress_dev(...) fprintf(stderr, __VA_ARGS__)
+#endif /* progress_bar is a function */
+#endif /* progress_bar */
+
+#ifndef progress_err
+#if PROGRESS_PRINT_H
+#define progress_err(...) perr(__VA_ARGS__)
+#else /* Default */
 #define progress_err(...) fprintf(stderr, __VA_ARGS__)
-#endif /* PROGRESS_CLIX_PRINT */
+#endif /* PROGRESS_PRINT_H */
+#endif /* progress_err */
+
+#ifndef progress_dev
+#if PROGRESS_PRINT_H
+#define progress_dev(...) pdev(__VA_ARGS__)
+#else /* Default */
+#define progress_dev(...) fprintf(stderr, __VA_ARGS__)
+#endif /* PROGRESS_PRINT_H */
+#endif /* progress_dev */
 
 static _Thread_local size_t t_done;
 
@@ -262,33 +280,11 @@ bool progress_end(void)
 	return true;
 }
 
-#ifdef PROGRESS_CLIX_ARGS
-#ifndef PROGRESS_CLIX_ARGS_P_HELP
-#define PROGRESS_CLIX_ARGS_P_HELP "Disable progress bars"
-#endif
-#ifndef PROGRESS_CLIX_ARGS_P_LOPT
-#define PROGRESS_CLIX_ARGS_P_LOPT "no-progress"
-#endif
-#ifndef PROGRESS_CLIX_ARGS_P_OPT
-#define PROGRESS_CLIX_ARGS_P_OPT 'P'
-#endif
-#ifndef PROGRESS_CLIX_ARGS_P_ORDER
-#define PROGRESS_CLIX_ARGS_P_ORDER NULL
-#endif
-ARGUMENT(disable_progress) = {
-	.set = &progress_disable,
-	.help = PROGRESS_CLIX_ARGS_P_HELP,
-	.lopt = PROGRESS_CLIX_ARGS_P_LOPT,
-	.opt = PROGRESS_CLIX_ARGS_P_OPT,
-	.help_order = PROGRESS_CLIX_ARGS_P_ORDER,
-};
-#endif
-
 #endif /* PROGRESS_IMPLEMENTATION */
 
 /*
 progress.h
-https://github.com/jakovdev/args.h/
+https://github.com/jakovdev/clix/
 Copyright (c) 2026 Jakov Dragičević
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

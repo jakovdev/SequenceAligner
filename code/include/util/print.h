@@ -228,8 +228,8 @@ extern bool print_nodetail;
 
 #undef P_RESTRICT
 #endif /* PRINT_H */
-#if defined(PRINT_IMPLEMENTATION) && !defined(PRINT_IMPLEMENTED)
-#define PRINT_IMPLEMENTED
+#if defined(PRINT_IMPLEMENTATION) && !defined(_PRINT_IMPLEMENTED)
+#define _PRINT_IMPLEMENTED
 
 #ifdef __cplusplus
 #if defined(_MSC_VER) && !defined(__clang__)
@@ -249,10 +249,6 @@ extern bool print_nodetail;
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifdef PRINT_CLIX_ARGS
-#include PRINT_CLIX_ARGS
-#endif /* PRINT_CLIX_ARGS */
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -1190,97 +1186,11 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 
 #undef P_RESTRICT
 
-#ifdef PRINT_CLIX_ARGS
-#ifdef PRINT_CLIX_ARGS_D_ENABLE
-#ifndef PRINT_CLIX_ARGS_D_HELP
-#define PRINT_CLIX_ARGS_D_HELP "Disable detailed printing"
-#endif /* PRINT_CLIX_ARGS_D_HELP */
-#ifndef PRINT_CLIX_ARGS_D_LOPT
-#define PRINT_CLIX_ARGS_D_LOPT "no-detail"
-#endif /* PRINT_CLIX_ARGS_D_LOPT */
-#ifndef PRINT_CLIX_ARGS_D_OPT
-#define PRINT_CLIX_ARGS_D_OPT 'D'
-#endif /* PRINT_CLIX_ARGS_D_OPT */
-#ifndef PRINT_CLIX_ARGS_D_ORDER
-#define PRINT_CLIX_ARGS_D_ORDER NULL
-#endif /* PRINT_CLIX_ARGS_D_ORDER */
-ARGUMENT(print_nodetail) = {
-	.set = &print_nodetail,
-	.help = PRINT_CLIX_ARGS_D_HELP,
-	.lopt = PRINT_CLIX_ARGS_D_LOPT,
-	.opt = PRINT_CLIX_ARGS_D_OPT,
-	.help_order = PRINT_CLIX_ARGS_D_ORDER,
-};
-#endif /* PRINT_CLIX_ARGS_D_ENABLE */
-#ifdef PRINT_CLIX_ARGS_F_ENABLE
-#ifndef PRINT_CLIX_ARGS_F_HELP
-#define PRINT_CLIX_ARGS_F_HELP "Force proceed without user prompts (for CI)"
-#endif /* PRINT_CLIX_ARGS_F_HELP */
-#ifndef PRINT_CLIX_ARGS_F_LOPT
-#define PRINT_CLIX_ARGS_F_LOPT "force-proceed"
-#endif /* PRINT_CLIX_ARGS_F_LOPT */
-#ifndef PRINT_CLIX_ARGS_F_OPT
-#define PRINT_CLIX_ARGS_F_OPT 'F'
-#endif /* PRINT_CLIX_ARGS_F_OPT */
-#ifndef PRINT_CLIX_ARGS_F_ORDER
-#define PRINT_CLIX_ARGS_F_ORDER NULL
-#endif /* PRINT_CLIX_ARGS_F_ORDER */
-ARGUMENT(print_force) = {
-	.set = &print_force,
-	.help = PRINT_CLIX_ARGS_F_HELP,
-	.lopt = PRINT_CLIX_ARGS_F_LOPT,
-	.opt = PRINT_CLIX_ARGS_F_OPT,
-	.help_order = PRINT_CLIX_ARGS_F_ORDER,
-};
-#endif /* PRINT_CLIX_ARGS_F_ENABLE */
-#ifdef PRINT_CLIX_ARGS_Q_ENABLE
-#ifndef PRINT_CLIX_ARGS_Q_HELP
-#define PRINT_CLIX_ARGS_Q_HELP "Suppress all non-error printing"
-#endif /* PRINT_CLIX_ARGS_Q_HELP */
-#ifndef PRINT_CLIX_ARGS_Q_LOPT
-#define PRINT_CLIX_ARGS_Q_LOPT "quiet"
-#endif /* PRINT_CLIX_ARGS_Q_LOPT */
-#ifndef PRINT_CLIX_ARGS_Q_OPT
-#define PRINT_CLIX_ARGS_Q_OPT 'Q'
-#endif /* PRINT_CLIX_ARGS_Q_OPT */
-#ifndef PRINT_CLIX_ARGS_Q_ORDER
-#define PRINT_CLIX_ARGS_Q_ORDER NULL
-#endif /* PRINT_CLIX_ARGS_Q_ORDER */
-ARGUMENT(print_quiet) = {
-	.set = &print_quiet,
-	.help = PRINT_CLIX_ARGS_Q_HELP,
-	.lopt = PRINT_CLIX_ARGS_Q_LOPT,
-	.opt = PRINT_CLIX_ARGS_Q_OPT,
-	.help_order = PRINT_CLIX_ARGS_Q_ORDER,
-};
-#endif /* PRINT_CLIX_ARGS_Q_ENABLE */
-#ifdef PRINT_CLIX_ARGS_V_ENABLE
-#ifndef PRINT_CLIX_ARGS_V_HELP
-#define PRINT_CLIX_ARGS_V_HELP "Enable verbose printing"
-#endif /* PRINT_CLIX_ARGS_V_HELP */
-#ifndef PRINT_CLIX_ARGS_V_LOPT
-#define PRINT_CLIX_ARGS_V_LOPT "verbose"
-#endif /* PRINT_CLIX_ARGS_V_LOPT */
-#ifndef PRINT_CLIX_ARGS_V_OPT
-#define PRINT_CLIX_ARGS_V_OPT 'V'
-#endif /* PRINT_CLIX_ARGS_V_OPT */
-#ifndef PRINT_CLIX_ARGS_V_ORDER
-#define PRINT_CLIX_ARGS_V_ORDER NULL
-#endif /* PRINT_CLIX_ARGS_V_ORDER */
-ARGUMENT(print_verbose) = {
-	.set = &print_verbose,
-	.help = PRINT_CLIX_ARGS_V_HELP,
-	.lopt = PRINT_CLIX_ARGS_V_LOPT,
-	.opt = PRINT_CLIX_ARGS_V_OPT,
-	.help_order = PRINT_CLIX_ARGS_V_ORDER,
-};
-#endif /* PRINT_CLIX_ARGS_V_ENABLE */
-#endif /* PRINT_CLIX_ARGS */
 #endif /* PRINT_IMPLEMENTATION */
 
 /*
 print.h
-https://github.com/jakovdev/args.h/
+https://github.com/jakovdev/clix/
 Copyright (c) 2026 Jakov Dragičević
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

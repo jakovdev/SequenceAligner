@@ -13,6 +13,7 @@
  * Correctness depends on constructor attribute support (GCC/Clang) or 
  * .CRT$XCU sections (MSVC) executing registration hooks before @c main.
  *
+ * @attention WIP, only supports options.
  * @note Partial C++ support due to struct field declaration order.
  * Most macros will break because they don't take this into account.
  * You can manually initialize fields which should make it work like in C.
@@ -345,19 +346,47 @@ struct args_raw {
 #ifdef ARGS_EXTERN_ARGR
 /** @ingroup args_customizable
  * @brief Global storage of raw @c argc/@c argv values.
- * @note Available when @c ARGS_EXTERN_ARGR is defined by the including file.
+ * @note Available when @c ARGS_EXTERN_ARGR is defined before including @ref args.h.
  */
 extern struct args_raw argr;
 #endif
 
-#ifdef ARGS_NO_DEFAULT_HELP
 /** @ingroup args_customizable
  * @brief Prints generated CLI help output.
- * @note Exposed only when @c ARGS_NO_DEFAULT_HELP is defined, enabling custom help
- * argument declarations by the including project.
+ * @details
+ * Create your own help parse callback and call this function from it so you
+ * can provide custom @p usage, @p hint, @p req, and @p opt strings.
+ *
+ * Example:
+ * @code{.c}
+ * #define ARGS_EXTERN_ARGR
+ * #include "args.h"
+ *
+ * static struct arg_callback parse_help(const char *str, void *dest)
+ * {
+ *     // help is a flag argument, safe to ignore both
+ *     (void)str;
+ *     (void)dest;
+ *     args_help_print("Usage: ",
+ *                     argr.v[0],
+ *                     " [OPTIONS]\n",
+ *                     "\nRequired options:\n",
+ *                     "\nOptional options:\n");
+ *     exit(EXIT_SUCCESS);
+ * }
+ *
+ * ARGUMENT(help) = {
+ *     .parse_callback = parse_help,
+ *     .help = "Display this help message",
+ *     .lopt = "help",
+ *     .opt = 'h',
+ * };
+ * @endcode
+ *
+ * Outputs: @c "{usage}{bin}{hint}{req}<required args>\n{opt}<optional args>\n"
  */
-void args_print_help(void);
-#endif
+void args_help_print(const char *usage, const char *bin, const char *hint,
+		     const char *req, const char *opt);
 
 /** @name Callback Stages */
 /** @{ */
@@ -957,8 +986,8 @@ void _args_register(struct argument *);
 /** @endcond */
 
 #endif /* ARGS_H */
-#if defined(ARGS_IMPLEMENTATION) && !defined(ARGS_IMPLEMENTED)
-#define ARGS_IMPLEMENTED
+#if defined(ARGS_IMPLEMENTATION) && !defined(_ARGS_IMPLEMENTED)
+#define _ARGS_IMPLEMENTED
 
 /** @addtogroup args_customizable
  * @brief Customization points for overriding default behaviors.
@@ -1000,65 +1029,91 @@ void _args_register(struct argument *);
 #error ARGS_HELP_OFFSET must be at least 1 for proper formatting
 #endif
 
+#ifndef ARGS_PRINT_H
+/** @ingroup args_customizable
+ * @brief Allow using print.h functions for args_pe, args_pd, args_pi and args_abort.
+ * @remark Define @ref ARGS_PRINT_H and include @ref print.h before including @ref args.h.
+ * @hideinitializer
+ */
+#define ARGS_PRINT_H 0
+#else
+#ifndef PRINT_H
+#error "Include print.h before including args.h"
+#endif /* PRINT_H */
+#undef ARGS_PRINT_H
+#define ARGS_PRINT_H 1
+#endif /* ARGS_PRINT_H */
+
+#ifndef args_po
+/* Disabled for now 
+#if ARGS_PRINT_H
+#define args_po print
+#else Default */
+/** @ingroup args_customizable
+ * @brief Normal print.
+ * @remark Overridable before including @ref args.h.
+ */
+#define args_po(...) printf(__VA_ARGS__)
+/* #endif ARGS_PRINT_H */
+#endif /* args_po */
+
 /** @} */
 /** @name Error Handling */
 /** @{ */
 
-#if defined(ARGS_CLIX_PRINT) && !defined(args_pe)
-#include ARGS_CLIX_PRINT
-#define args_pe perr
-#endif
 #ifndef args_pe
+#if ARGS_PRINT_H
+#define args_pe perr
+#else /* Default */
 /** @ingroup args_customizable
  * @brief Error print.
  * @remark Overridable before including @ref args.h.
  */
 #define args_pe(...) fprintf(stderr, __VA_ARGS__)
-#endif
+#endif /* ARGS_PRINT_H */
+#endif /* args_pe */
 
 #ifndef NDEBUG /* DEBUG */
-#if defined(ARGS_CLIX_PRINT) && !defined(args_pd)
-#include ARGS_CLIX_PRINT
-#define args_pd pdev
-#endif
 #ifndef args_pd
+#if ARGS_PRINT_H
+#define args_pd pdev
+#else /* Default */
 /** @ingroup args_customizable
  * @brief Developer-only debug print.
  * @note Only available when NDEBUG is not defined
  * @remark Overridable before including @ref args.h.
  */
 #define args_pd(...) fprintf(stderr, __VA_ARGS__)
-#endif
+#endif /* ARGS_PRINT_H */
+#endif /* args_pd */
 #else /* RELEASE */
-#ifdef args_pd
 #undef args_pd
-#endif
 #define args_pd(...)
 #endif /* NDEBUG */
 
-#if defined(ARGS_CLIX_PRINT) && !defined(args_pi)
-#include ARGS_CLIX_PRINT
-#define args_pi(arg) perr("Internal error for %s", arg_str(arg))
-#endif
 #ifndef args_pi
+#if ARGS_PRINT_H
+#define args_pi(arg) perr("Internal error for %s", arg_str(arg))
+#else /* Default */
 /** @ingroup args_customizable
  * @brief Internal error print, user-facing dev print.
  * @remark Overridable before including @ref args.h.
  */
 #define args_pi(arg) args_pe("Internal error for %s", arg_str(arg))
-#endif
+#endif /* ARGS_PRINT_H */
+#endif /* args_pi */
 
-#if defined(ARGS_CLIX_PRINT) && !defined(args_abort)
-#include ARGS_CLIX_PRINT
-#define args_abort pabort
-#endif
 #ifndef args_abort
+#if ARGS_PRINT_H
+#define args_abort pabort
+#else /* Default */
 /** @ingroup args_customizable
  * @brief Abort function.
  * @remark Overridable before including @ref args.h.
  */
 #define args_abort() abort()
-#endif
+#endif /* ARGS_PRINT_H */
+#endif /* args_abort */
 
 #ifndef ARGS_IMPLICIT_SETS
 /** @ingroup args_customizable
@@ -1162,26 +1217,26 @@ void _args_register(struct argument *a)
 	}
 
 	if (a->param_req != ARG_PARAM_NONE && !a->param) {
-		args_pd("%s requires parameter but .param=NULL", arg_str(a));
+		args_pd("%s requires parameter but has no .param", arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->param_req != ARG_PARAM_NONE && !a->parse_callback) {
-		args_pd("%s has .param but .parse_callback=NULL", arg_str(a));
+		args_pd("%s has .param but has no .parse_callback", arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->validate_phase != ARG_CALLBACK_ALWAYS && !a->validate_callback) {
-		args_pd("%s has .validate_phase but .validate_callback=NULL",
+		args_pd("%s has .validate_phase but has no .validate_callback",
 			arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->action_phase != ARG_CALLBACK_ALWAYS && !a->action_callback) {
-		args_pd("%s has .action_phase but .action_callback=NULL",
+		args_pd("%s has .action_phase but has no .action_callback",
 			arg_str(a));
 		args_pi(a);
 		args_abort();
@@ -1844,7 +1899,7 @@ bool args_validate(void)
 			should_validate = !*a->set;
 			break;
 		default:
-			args_pd("Unknown .validate enum in %s", arg_str(a));
+			args_pd("Unknown .validate_phase in %s", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1880,7 +1935,7 @@ void args_actions(void)
 			should_act = !*a->set;
 			break;
 		default:
-			args_pd("Unknown .action enum in %s", arg_str(a));
+			args_pd("Unknown .action_phase in %s", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1890,14 +1945,14 @@ void args_actions(void)
 	}
 }
 
-static void arg_print_help(const struct argument *a)
+static void arg_help_print(const struct argument *a)
 {
-	printf("%*s%s", ARGS_STR_PREPAD, "", arg_str(a));
+	args_po("%*s%s", ARGS_STR_PREPAD, "", arg_str(a));
 	if (a->param)
-		printf("%*s%s", ARGS_PARAM_OFFSET, "", a->param);
+		args_po("%*s%s", ARGS_PARAM_OFFSET, "", a->param);
 
 	if (!a->help) {
-		printf("\n");
+		args_po("\n");
 		return;
 	}
 
@@ -1911,10 +1966,10 @@ static void arg_print_help(const struct argument *a)
 		size_t line = nl ? (size_t)(nl - phelp) : strlen(phelp);
 
 		if (first) {
-			printf("%*s%.*s", (int)pad, "", (int)line, phelp);
+			args_po("%*s%.*s", (int)pad, "", (int)line, phelp);
 			first = false;
 		} else {
-			printf("\n%*s%.*s", (int)off, "", (int)line, phelp);
+			args_po("\n%*s%.*s", (int)off, "", (int)line, phelp);
 		}
 
 		if (!nl)
@@ -1922,56 +1977,36 @@ static void arg_print_help(const struct argument *a)
 		phelp = nl + 1;
 	}
 
-	printf("\n");
+	args_po("\n");
 }
 
-#ifdef ARGS_NO_DEFAULT_HELP
-void args_print_help(void)
-#else
-static void args_print_help(void)
-#endif
+void args_help_print(const char *usage, const char *bin, const char *hint,
+		     const char *req, const char *opt)
 {
-	printf("Usage: %s [ARGUMENTS]\n", argr.v[0]);
+	args_po("%s%s%s", usage, bin, hint);
 
 	bool first = true;
 	for_each_arg(a, help) {
 		if (a->arg_req == ARG_OPTIONAL || a->arg_req == ARG_HIDDEN)
 			continue;
 		if (first) {
-			printf("\nRequired arguments:\n");
+			args_po("%s", req);
 			first = false;
 		}
-		arg_print_help(a);
+		arg_help_print(a);
 	}
 
 	first = true;
 	for_each_arg(a, help) {
-		if (a->arg_req != ARG_OPTIONAL || a->arg_req == ARG_HIDDEN)
+		if (a->arg_req != ARG_OPTIONAL)
 			continue;
 		if (first) {
-			printf("\nOptional arguments:\n");
+			args_po("%s", opt);
 			first = false;
 		}
-		arg_print_help(a);
+		arg_help_print(a);
 	}
 }
-
-#ifndef ARGS_NO_DEFAULT_HELP
-static struct arg_callback print_help(const char *str, void *dest)
-{
-	(void)str;
-	(void)dest;
-	args_print_help();
-	exit(EXIT_SUCCESS);
-}
-
-ARGUMENT(help) = {
-	.parse_callback = print_help,
-	.help = "Display this help message",
-	.lopt = "help",
-	.opt = 'h',
-};
-#endif
 
 #undef for_each_arg
 #undef for_each_rel
@@ -1982,7 +2017,7 @@ ARGUMENT(help) = {
 
 /*
 args.h
-https://github.com/jakovdev/args.h/
+https://github.com/jakovdev/clix/
 Copyright (c) 2026 Jakov Dragičević
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

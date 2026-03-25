@@ -41,27 +41,3 @@ int main(int argc, char *argv[])
 	bench_total_print(sequences_alignments());
 	return 0;
 }
-
-#define PRINT_IMPLEMENTATION
-#define PRINT_CLIX_ARGS "util/args.h"
-ARG_EXTERN(disable_progress);
-#define PRINT_CLIX_ARGS_D_ENABLE
-#define PRINT_CLIX_ARGS_D_ORDER ARG_ORDER_AFTER(ARG(disable_progress))
-#define PRINT_CLIX_ARGS_F_ENABLE
-#define PRINT_CLIX_ARGS_F_ORDER ARG_ORDER_AFTER(ARG(print_nodetail))
-#define PRINT_CLIX_ARGS_Q_ENABLE
-#define PRINT_CLIX_ARGS_Q_ORDER ARG_ORDER_AFTER(ARG(print_force))
-#define PRINT_CLIX_ARGS_V_ENABLE
-#define PRINT_CLIX_ARGS_V_ORDER ARG_ORDER_AFTER(ARG(print_quiet))
-#include "util/print.h"
-
-#define PROGRESS_IMPLEMENTATION
-#define PROGRESS_CLIX_PRINT "util/print.h"
-#define PROGRESS_CLIX_ARGS "util/args.h"
-ARG_EXTERN(disable_write);
-#define PROGRESS_CLIX_ARGS_P_ORDER ARG_ORDER_AFTER(ARG(disable_write))
-#include "util/progress.h"
-
-#define ARGS_IMPLEMENTATION
-#define ARGS_CLIX_PRINT "util/print.h"
-#include "util/args.h"
