@@ -321,8 +321,8 @@ elseif(IS_GCC_LIKE)
 		target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>)
 	endif()
 	if(IS_GCC_NATIVE AND USE_ASAN)
-		target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
-		target_link_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address>)
+		target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>)
+		target_link_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>)
 	endif()
 	target_link_options(${target} PRIVATE
 	$<$<CONFIG:Release>:-Wl,-O3>
