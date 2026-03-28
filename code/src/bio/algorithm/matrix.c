@@ -4,10 +4,10 @@
 #include "system/memory.h"
 #include "util/print.h"
 
-thread_local s32 *restrict g_matrix;
-thread_local s32 *restrict g_match;
-thread_local s32 *restrict g_gap_x;
-thread_local s32 *restrict g_gap_y;
+thread_local s32 *g_restrict g_matrix;
+thread_local s32 *g_restrict g_match;
+thread_local s32 *g_restrict g_gap_x;
+thread_local s32 *g_restrict g_gap_y;
 
 #define MATRIX_SIZE(len) ((size_t)(len + 1) * (size_t)(len + 1))
 

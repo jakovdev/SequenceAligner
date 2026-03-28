@@ -22,11 +22,13 @@
 #if defined(_MSC_VER) && !defined(__clang__)
 #define likely(x) (x)
 #define unlikely(x) (x)
+#define g_restrict __restrict
 #define strcasecmp _stricmp
 #include <Shlwapi.h>
 #elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__clang__)
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))
+#define g_restrict __restrict__
 #include <shlwapi.h>
 #endif
 #define strcasestr StrStrIA
@@ -82,6 +84,7 @@ static inline long getline(char **buf, size_t *bufsiz, FILE *fp)
 #else /* GCC, Clang */
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))
+#define g_restrict __restrict__
 #endif /* MSVC */
 
 #endif /* SYSTEM_COMPILER_H */

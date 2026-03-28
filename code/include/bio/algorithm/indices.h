@@ -2,9 +2,10 @@
 #ifndef BIO_ALGORITHM_INDICES_H
 #define BIO_ALGORITHM_INDICES_H
 
+#include "system/compiler.h"
 #include "bio/types.h"
 
-extern thread_local s32 *restrict g_seq1_i;
+extern thread_local s32 *g_restrict g_seq1_i;
 
 void indices_buffers_init(s32 seq_len_max);
 

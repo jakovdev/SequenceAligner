@@ -4,7 +4,7 @@
 #include "system/memory.h"
 #include "util/print.h"
 
-thread_local s32 *restrict g_seq1_i;
+thread_local s32 *g_restrict g_seq1_i;
 
 void indices_buffers_init(s32 seq_len_max)
 {
