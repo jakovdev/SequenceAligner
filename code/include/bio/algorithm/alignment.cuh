@@ -36,7 +36,7 @@ struct Constants {
 	sll *checksum;
 	s32 seq_lup[SCHAR_MAX + 1];
 	s32 sub_mat[SUB_MATDIM * SUB_MATDIM];
-	s32 seqs_n;
+	s32 seq_n;
 	s32 gap_pen;
 	s32 gap_open;
 	s32 gap_ext;

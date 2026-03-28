@@ -16,7 +16,7 @@ __forceinline__ __device__ s32 d_sub_mat(const s32 c1, const s32 c2)
 
 __forceinline__ __device__ s32 d_find_j(const s64 alignment)
 {
-	s32 low = 1, high = C.seqs_n;
+	s32 low = 1, high = C.seq_n;
 
 	while (low < high) {
 		const s32 mid = low + (high - low) / 2;
@@ -67,8 +67,8 @@ __global__ void k_nw(s32 *__restrict__ scores, s64 start, s64 batch)
 
 	const s32 score = dp_prev[len2];
 	if (!C.triangular) {
-		scores[static_cast<s64>(C.seqs_n) * i + j] = score;
-		scores[static_cast<s64>(C.seqs_n) * j + i] = score;
+		scores[static_cast<s64>(C.seq_n) * i + j] = score;
+		scores[static_cast<s64>(C.seq_n) * j + i] = score;
 	} else {
 		scores[tid] = score;
 	}
@@ -140,8 +140,8 @@ __global__ void k_ga(s32 *__restrict__ scores, s64 start, s64 batch)
 
 	const s32 score = match[len2];
 	if (!C.triangular) {
-		scores[static_cast<s64>(C.seqs_n) * i + j] = score;
-		scores[static_cast<s64>(C.seqs_n) * j + i] = score;
+		scores[static_cast<s64>(C.seq_n) * i + j] = score;
+		scores[static_cast<s64>(C.seq_n) * j + i] = score;
 	} else {
 		scores[tid] = score;
 	}
@@ -213,8 +213,8 @@ __global__ void k_sw(s32 *__restrict__ scores, s64 start, s64 batch)
 
 	const s32 score = max_score;
 	if (!C.triangular) {
-		scores[static_cast<s64>(C.seqs_n) * i + j] = score;
-		scores[static_cast<s64>(C.seqs_n) * j + i] = score;
+		scores[static_cast<s64>(C.seq_n) * i + j] = score;
+		scores[static_cast<s64>(C.seq_n) * j + i] = score;
 	} else {
 		scores[tid] = score;
 	}

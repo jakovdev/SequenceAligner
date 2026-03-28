@@ -112,7 +112,7 @@ bool cuda_align(void)
 	}
 
 	struct Constants C = {
-		.seqs_n = sequences_seq_n(),
+		.seq_n = sequences_seq_n(),
 		.gap_pen = arg_gap_pen(),
 		.gap_open = arg_gap_open(),
 		.gap_ext = arg_gap_ext(),
@@ -120,7 +120,7 @@ bool cuda_align(void)
 
 	memcpy(C.seq_lup, SEQ_LUP, sizeof(C.seq_lup));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
-	size_t seqs_n = (size_t)C.seqs_n;
+	size_t seq_n = (size_t)C.seq_n;
 
 	{
 		const sequence_t *seqs = sequences_seqs();
@@ -130,9 +130,9 @@ bool cuda_align(void)
 			return false;
 		}
 
-		s64 *MALLOCA(indices, seqs_n);
-		s64 *MALLOCA(offsets, seqs_n);
-		s32 *MALLOCA(lengths, seqs_n);
+		s64 *MALLOCA(indices, seq_n);
+		s64 *MALLOCA(offsets, seq_n);
+		s32 *MALLOCA(lengths, seq_n);
 		char *MALLOCA(letters, seq_len_sum);
 		if (!indices || !offsets || !lengths || !letters) {
 			perr("Out of memory during sequence upload");
@@ -144,7 +144,7 @@ arrays_error:
 			return false;
 		}
 
-		for (s64 i = 0, offs = 0; i < C.seqs_n; i++) {
+		for (s64 i = 0, offs = 0; i < C.seq_n; i++) {
 			indices[i] = (i * (i - 1)) / 2;
 			offsets[i] = offs;
 			lengths[i] = seqs[i].length;
@@ -154,27 +154,24 @@ arrays_error:
 		}
 
 		CALLJ(cudaMalloc((void **)&C.indices,
-				 sizeof(*C.indices) * seqs_n),
+				 sizeof(*C.indices) * seq_n),
 		      arrays_error);
 		CALLJ(cudaMalloc((void **)&C.offsets,
-				 sizeof(*C.offsets) * seqs_n),
+				 sizeof(*C.offsets) * seq_n),
 		      arrays_error);
 		CALLJ(cudaMalloc((void **)&C.lengths,
-				 sizeof(*C.lengths) * seqs_n),
+				 sizeof(*C.lengths) * seq_n),
 		      arrays_error);
 		CALLJ(cudaMalloc((void **)&C.letters,
 				 sizeof(*C.letters) * seq_len_sum),
 		      arrays_error);
-		CALLJ(cudaMemcpy(C.indices, indices,
-				 sizeof(*C.indices) * seqs_n,
+		CALLJ(cudaMemcpy(C.indices, indices, sizeof(*C.indices) * seq_n,
 				 cudaMemcpyHostToDevice),
 		      arrays_error);
-		CALLJ(cudaMemcpy(C.offsets, offsets,
-				 sizeof(*C.offsets) * seqs_n,
+		CALLJ(cudaMemcpy(C.offsets, offsets, sizeof(*C.offsets) * seq_n,
 				 cudaMemcpyHostToDevice),
 		      arrays_error);
-		CALLJ(cudaMemcpy(C.lengths, lengths,
-				 sizeof(*C.lengths) * seqs_n,
+		CALLJ(cudaMemcpy(C.lengths, lengths, sizeof(*C.lengths) * seq_n,
 				 cudaMemcpyHostToDevice),
 		      arrays_error);
 		CALLJ(cudaMemcpy(C.letters, letters,
@@ -192,7 +189,7 @@ arrays_error:
 	const s64 batch_size = INT64_C(64) << 20;
 	s32 *matrix = h5_matrix_data();
 
-	if (!cuda_memory(sizeof(*matrix) * seqs_n * seqs_n)) {
+	if (!cuda_memory(sizeof(*matrix) * seq_n * seq_n)) {
 		if (!cuda_memory(sizeof(*matrix) * (size_t)alignments)) {
 			if (!cuda_memory(sizeof(*matrix) *
 					 (size_t)batch_size)) {
@@ -222,9 +219,9 @@ arrays_error:
 	} else {
 		batch = alignments;
 		CALLR(cudaMalloc((void **)&scores[0],
-				 sizeof(*scores[0]) * seqs_n * seqs_n));
+				 sizeof(*scores[0]) * seq_n * seq_n));
 		CALLR(cudaMemset(scores[0], 0,
-				 sizeof(*scores[0]) * seqs_n * seqs_n));
+				 sizeof(*scores[0]) * seq_n * seq_n));
 	}
 
 	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
@@ -310,8 +307,8 @@ cuda_results:
 
 			if (matrix)
 				CALLR(cudaMemcpy(matrix, scores[0],
-						 sizeof(*matrix) * seqs_n *
-							 seqs_n,
+						 sizeof(*matrix) * seq_n *
+							 seq_n,
 						 cudaMemcpyDeviceToHost));
 
 			matrix_copied = true;
