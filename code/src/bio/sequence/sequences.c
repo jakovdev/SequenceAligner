@@ -259,8 +259,9 @@ bool sequences_load_from_file(void)
 	if (!filter_seqs())
 		goto cleanup_globals;
 
+	s64 used = g_offsets[g_seq_n - 1] + g_lengths[g_seq_n - 1] + 1;
 	pinfo("Average sequence length: %.2f",
-	      (double)letters_used / (double)g_seq_n - 1.0);
+	      (double)used / (double)g_seq_n - 1.0);
 
 	ifile_close(&ifile);
 	return true;
