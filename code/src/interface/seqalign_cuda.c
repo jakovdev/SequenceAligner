@@ -36,7 +36,7 @@ static bool init;
 		}                                            \
 	} while (0)
 
-typedef cudaError_t (*kernel_func_t)(s32 *__restrict__, s64, s64);
+typedef cudaError_t (*kernel_func_t)(s32 *, s64, s64);
 static kernel_func_t kernel_function(void)
 {
 	switch (arg_align_method()) {

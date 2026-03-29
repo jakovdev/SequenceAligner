@@ -1,7 +1,5 @@
 #include "bio/algorithm/alignment.cuh"
 
-#define SCORE_MIN (INT32_MIN / 2)
-
 __constant__ Constants C;
 
 __forceinline__ __device__ s32 d_seq_lup(const s32 ij, const s32 pos)
@@ -11,7 +9,7 @@ __forceinline__ __device__ s32 d_seq_lup(const s32 ij, const s32 pos)
 
 __forceinline__ __device__ s32 d_sub_mat(const s32 c1, const s32 c2)
 {
-	return C.sub_mat[c1 * SUB_MATDIM + c2];
+	return C.sub_mat[c1 * SUBMAT_MAX + c2];
 }
 
 __forceinline__ __device__ s32 d_find_j(const s64 alignment)
@@ -29,7 +27,7 @@ __forceinline__ __device__ s32 d_find_j(const s64 alignment)
 	return low - 1;
 }
 
-__global__ void k_nw(s32 *__restrict__ scores, s64 start, s64 batch)
+__global__ void k_nw(s32 *scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -77,7 +75,7 @@ __global__ void k_nw(s32 *__restrict__ scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-__global__ void k_ga(s32 *__restrict__ scores, s64 start, s64 batch)
+__global__ void k_ga(s32 *scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -150,7 +148,7 @@ __global__ void k_ga(s32 *__restrict__ scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-__global__ void k_sw(s32 *__restrict__ scores, s64 start, s64 batch)
+__global__ void k_sw(s32 *scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -240,7 +238,7 @@ void cuda_config(uint grid_max, uint block_max, cudaStream_t stream)
 	s = stream;
 }
 
-cudaError_t kernel_nw(s32 *__restrict__ scores, s64 start, s64 batch)
+cudaError_t kernel_nw(s32 *scores, s64 start, s64 batch)
 {
 	const uint g = static_cast<uint>((batch + b - 1) / b);
 	if (!g || g > g_max)
@@ -249,7 +247,7 @@ cudaError_t kernel_nw(s32 *__restrict__ scores, s64 start, s64 batch)
 	return cudaGetLastError();
 }
 
-cudaError_t kernel_ga(s32 *__restrict__ scores, s64 start, s64 batch)
+cudaError_t kernel_ga(s32 *scores, s64 start, s64 batch)
 {
 	const uint g = static_cast<uint>((batch + b - 1) / b);
 	if (!g || g > g_max)
@@ -258,7 +256,7 @@ cudaError_t kernel_ga(s32 *__restrict__ scores, s64 start, s64 batch)
 	return cudaGetLastError();
 }
 
-cudaError_t kernel_sw(s32 *__restrict__ scores, s64 start, s64 batch)
+cudaError_t kernel_sw(s32 *scores, s64 start, s64 batch)
 {
 	const uint g = static_cast<uint>((batch + b - 1) / b);
 	if (!g || g > g_max)

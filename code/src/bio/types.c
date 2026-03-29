@@ -37,7 +37,7 @@ static struct {
 	/* NOTE: EXPANDABLE enum AlignmentMethod, enum GapPenaltyType */
 };
 
-s32 SEQ_LUP[SCHAR_MAX + 1];
+s32 SEQ_LUP[SEQ_LUP_SIZE];
 s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 s32 GAP_PEN;
 s32 GAP_OPEN;
