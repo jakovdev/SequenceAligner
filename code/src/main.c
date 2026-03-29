@@ -38,6 +38,6 @@ int main(int argc, char *argv[])
 	}
 
 	h5_close(0);
-	bench_total_print(g_alignments);
+	bench_total_print((double)g_alignments);
 	return 0;
 }

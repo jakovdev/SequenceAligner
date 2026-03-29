@@ -1,6 +1,5 @@
 #include "util/benchmark.h"
 
-#include "interface/seqalign_cuda.h"
 #include "system/os.h"
 #include "util/args.h"
 #include "util/print.h"
@@ -70,35 +69,23 @@ void bench_filter_print(void)
 		pinfo("Filtering: %.3f sec", g_times.filter);
 }
 
-void bench_total_print(s64 alignments)
+void bench_total_print(double alignments)
 {
 	if (mode_benchmark) {
 		double time_total = g_times.align + g_times.io + g_times.filter;
 		psection("Performance Summary");
 		pinfo("Timing breakdown:");
-
 		pinfom("Compute: %.3f sec (%.1f%%)", g_times.align,
 		       (g_times.align / time_total) * 100);
-
 		pinfom("I/O: %.3f sec (%.1f%%)", g_times.io,
 		       (g_times.io / time_total) * 100);
-
-		if (g_times.filter > 0) {
+		if (g_times.filter > 0.0)
 			pinfom("Filtering: %.3f sec (%.1f%%)", g_times.filter,
 			       (g_times.filter / time_total) * 100);
-		}
 
 		pinfol("Total: %.3f sec", time_total);
-
-		double aps = (double)alignments / g_times.align;
-		pinfo("Alignments per second: %.2f", aps);
-
-		if ((arg_threads() > 1) && (!arg_mode_cuda())) {
-			pinfom("Average time per thread: %.3f sec",
-			       g_times.align / (double)arg_threads());
-			pinfol("Alignments per second per thread: %.2f",
-			       aps / (double)arg_threads());
-		}
+		pinfo("Alignments per second: %.2f",
+		      alignments / g_times.align);
 	}
 }
 
