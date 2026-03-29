@@ -15,7 +15,7 @@ void indices_buffers_init(void)
 		pabort();
 	}
 
-	MALLOCA_AL(g_seq1_i, CACHE_LINE, (size_t)g_seq_len_max);
+	MALLOCA_AL(g_seq1_i, CACHE_LINE, g_seq_len_max);
 	if unlikely (!g_seq1_i) {
 		perr("Out of memory allocating sequence indices");
 		exit(EXIT_FAILURE);

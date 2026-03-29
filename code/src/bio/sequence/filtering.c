@@ -39,15 +39,14 @@ bool filter_seqs(void)
 	}
 
 	size_t seq_n = (size_t)g_seq_n;
-	bool *MALLOCA_AL(kept, CACHE_LINE, seq_n);
-	if unlikely (!kept) {
+	bool *lost = calloc(seq_n, sizeof(*lost));
+	if unlikely (!lost) {
 		perr("Out of memory allocating filtering array");
 		return false;
 	}
-	memset(kept, 1, bytesof(kept, seq_n));
 
 	if (!progress_start(seq_n - 1, arg_threads(), "Filtering sequences")) {
-		free_aligned(kept);
+		free(lost);
 		return false;
 	}
 
@@ -57,20 +56,18 @@ bool filter_seqs(void)
 		s32 i;
 #pragma omp for schedule(dynamic)
 		for (i = 1; i < g_seq_n; i++) {
-			bool should_keep = true;
 			sequence_ptr_t seq1 = &g_seqs[i];
 
 			for (s32 j = 0; j < i; j++) {
-				if (!kept[j])
+				if (lost[j])
 					continue;
 
 				if (similarity(seq1, &g_seqs[j]) >= filter) {
-					should_keep = false;
+					lost[i] = true;
 					break;
 				}
 			}
 
-			kept[i] = should_keep;
 			progress_add(1);
 		}
 
@@ -78,11 +75,12 @@ bool filter_seqs(void)
 	}
 	progress_end();
 
+	size_t sum = (size_t)(g_offsets[seq_n - 1] + g_lengths[seq_n - 1] + 1);
 	g_seq_len_max = 0;
 	s32 write_index = 0;
 	s64 used = 0;
 	for (s32 read_index = 0; read_index < g_seq_n; read_index++) {
-		if (!kept[read_index])
+		if (lost[read_index])
 			continue;
 
 		s32 len = g_lengths[read_index];
@@ -95,16 +93,15 @@ bool filter_seqs(void)
 		g_seqs[write_index].length = len;
 		g_seqs[write_index++].letters = new;
 		used += len + 1;
-		if (len > g_seq_len_max)
-			g_seq_len_max = len;
+		if ((size_t)len > g_seq_len_max)
+			g_seq_len_max = (size_t)len;
 	}
 	bench_filter_end();
 
-	free_aligned(kept);
+	free(lost);
 
 	g_seq_n = write_index;
 	g_alignments = ((s64)g_seq_n * (g_seq_n - 1)) / 2;
-	size_t sum = (size_t)(g_offsets[seq_n - 1] + g_lengths[seq_n - 1] + 1);
 
 	if (seq_n > (size_t)g_seq_n && (sum - (size_t)used) >= PAGE_SIZE) {
 		REALLOCA(g_lengths, (size_t)g_seq_n)

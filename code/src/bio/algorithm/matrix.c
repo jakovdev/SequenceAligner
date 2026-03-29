@@ -10,7 +10,7 @@ thread_local s32 *g_restrict g_match;
 thread_local s32 *g_restrict g_gap_x;
 thread_local s32 *g_restrict g_gap_y;
 
-#define MATRIX_SIZE(len) ((size_t)(len + 1) * (size_t)(len + 1))
+#define MATRIX_SIZE(len) ((len + 1) * (len + 1))
 
 void matrix_buffers_init(void)
 {
