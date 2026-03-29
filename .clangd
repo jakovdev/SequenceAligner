@@ -1,4 +1,0 @@
-CompileFlags:
-  Remove: [-fanalyzer, -G, -X*, --gen*, -extra*, -forward*]
-Documentation:
-  CommentFormat: Doxygen
