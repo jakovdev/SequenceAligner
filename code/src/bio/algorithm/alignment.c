@@ -1,7 +1,5 @@
 #include "bio/algorithm/alignment.h"
 
-#include <stdatomic.h>
-
 #include "bio/algorithm/matrix.h"
 #include "bio/algorithm/indices.h"
 #include "bio/algorithm/method/ga.h"
