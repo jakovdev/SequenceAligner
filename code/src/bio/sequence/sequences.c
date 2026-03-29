@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
 #include "io/input.h"
 #include "system/compiler.h"
@@ -42,39 +41,10 @@ static void sequences_free(void)
 
 static bool validate_sequence(char *restrict letters, s32 length)
 {
-	static bool valid[UCHAR_MAX + 1];
-	static enum SequenceType cached_type = SEQ_TYPE_INVALID;
-
-	enum SequenceType type = arg_sequence_type();
-	const char *valid_alphabet = NULL;
-	int alphabet_size = 0;
-
-	switch (type) {
-	case SEQ_TYPE_AMINO:
-		valid_alphabet = AMINO_ALPHABET;
-		alphabet_size = AMINO_SIZE;
-		break;
-	case SEQ_TYPE_NUCLEO:
-		valid_alphabet = NUCLEO_ALPHABET;
-		alphabet_size = NUCLEO_SIZE;
-		break;
-	case SEQ_TYPE_INVALID:
-	case SEQ_TYPE_COUNT:
-	default: /* NOTE: EXPANDABLE enum SequenceType */
-		unreachable();
-	}
-
-	if (cached_type != type) {
-		memset(valid, 0, sizeof(valid));
-		for (int i = 0; i < alphabet_size; i++)
-			valid[(uchar)valid_alphabet[i]] = true;
-		cached_type = type;
-	}
-
 	for (s32 i = 0; i < length; i++) {
 		char c = (char)toupper((uchar)letters[i]);
 
-		if (!valid[(uchar)c])
+		if (SEQ_LUP[(uchar)c] < 0)
 			return false;
 
 		letters[i] = c;
@@ -85,7 +55,7 @@ static bool validate_sequence(char *restrict letters, s32 length)
 
 static bool validate_length(size_t len)
 {
-	const s32 gap_pen = -(arg_gap_pen());
+	const s32 gap_pen = -(GAP_PEN);
 	if (!gap_pen)
 		return len <= SEQ_LEN_MAX;
 

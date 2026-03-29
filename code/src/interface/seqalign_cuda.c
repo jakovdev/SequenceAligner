@@ -36,6 +36,25 @@ static bool init;
 		}                                            \
 	} while (0)
 
+typedef cudaError_t (*kernel_func_t)(s32 *__restrict__, s64, s64);
+static kernel_func_t kernel_function(void)
+{
+	switch (arg_align_method()) {
+	case ALIGN_GOTOH_AFFINE:
+		return kernel_ga;
+	case ALIGN_NEEDLEMAN_WUNSCH:
+		return kernel_nw;
+	case ALIGN_SMITH_WATERMAN:
+		return kernel_sw;
+	case ALIGN_INVALID:
+	case ALIGN_COUNT:
+	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
+		pdev("Invalid AlignmentMethod enum");
+		perr("Internal error retrieving CUDA kernel");
+		pabort();
+	}
+}
+
 bool cuda_device_init(void)
 {
 	if (init) {
@@ -117,9 +136,9 @@ bool cuda_align(void)
 
 	struct Constants C = {
 		.seq_n = g_seq_n,
-		.gap_pen = arg_gap_pen(),
-		.gap_open = arg_gap_open(),
-		.gap_ext = arg_gap_ext(),
+		.gap_pen = GAP_PEN,
+		.gap_open = GAP_OPEN,
+		.gap_ext = GAP_EXT,
 	};
 
 	memcpy(C.seq_lup, SEQ_LUP, sizeof(C.seq_lup));
@@ -184,26 +203,7 @@ bool cuda_align(void)
 	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
 	CALLR(copy_constants(&C));
 
-	kernel_func_t kernel = NULL;
-	switch (arg_align_method()) {
-	case ALIGN_GOTOH_AFFINE:
-		kernel = kernel_ga;
-		break;
-	case ALIGN_NEEDLEMAN_WUNSCH:
-		kernel = kernel_nw;
-		break;
-	case ALIGN_SMITH_WATERMAN:
-		kernel = kernel_sw;
-		break;
-	case ALIGN_INVALID:
-	case ALIGN_COUNT:
-	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
-		cuda_device_close();
-		pdev("Invalid AlignmentMethod enum");
-		perr("Internal error retrieving CUDA kernel");
-		pabort();
-	}
-
+	kernel_func_t kernel = kernel_function();
 	bool subsequent = false, syncing = false, matrix_copied = false;
 	s64 progress = 0;
 

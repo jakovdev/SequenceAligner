@@ -163,7 +163,6 @@ cd path\to\where\you\unzipped\release
 |--------|-------------|
 | `-i, --input FILE` | Input file path: FASTA, DSV (CSV, TSV, etc.) format |
 | `-o, --output FILE` | Output file path: HDF5 format |
-| `-t, --type TYPE` | Sequence type: amino (Amino acids), nucleo (Nucleotides) |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see all available matrices) |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
 | `-p, --gap-penalty N` | Linear gap penalty |
@@ -199,16 +198,16 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 
 ```bash
 # Run with all required parameters
-./seqalign -i datasets/avppred.csv -t amino -m blosum50 -a nw -p 4 -o results/avppred.h5
+./seqalign -i datasets/avppred.csv -m blosum50 -a nw -p 4 -o results/avppred.h5
 
 # Using Smith-Waterman algorithm with 8 threads and CUDA disabled
-./seqalign -i datasets/avppred.csv -t amino -m blosum62 -a sw -s 10 -e 1 -o results/avppred.h5 -T 8 -C
+./seqalign -i datasets/avppred.csv -m blosum62 -a sw -s 10 -e 1 -o results/avppred.h5 -T 8 -C
 
 # Gotoh algorithm with affine gaps
-./seqalign -i datasets/avppred.csv -t amino -m pam250 -a ga -s 12 -e 2 -o results/avppred.h5
+./seqalign -i datasets/avppred.csv -m pam250 -a ga -s 12 -e 2 -o results/avppred.h5
 
 # Enable benchmarking mode with verbose output and without creating the HDF5 result
-./seqalign -i datasets/avppred.csv -t amino -m blosum62 -a nw -p 4 -B -v
+./seqalign -i datasets/avppred.csv -m blosum62 -a nw -p 4 -B -v
 
 # List all available substitution matrices
 ./seqalign --list-matrices

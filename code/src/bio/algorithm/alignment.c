@@ -4,6 +4,9 @@
 
 #include "bio/algorithm/matrix.h"
 #include "bio/algorithm/indices.h"
+#include "bio/algorithm/method/ga.h"
+#include "bio/algorithm/method/nw.h"
+#include "bio/algorithm/method/sw.h"
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
@@ -14,9 +17,28 @@
 #include "util/progress.h"
 #include "util/print.h"
 
+typedef s32 (*align_func_t)(sequence_ptr_t, sequence_ptr_t);
+static align_func_t align_method(void)
+{
+	switch (arg_align_method()) {
+	case ALIGN_GOTOH_AFFINE:
+		return align_ga;
+	case ALIGN_NEEDLEMAN_WUNSCH:
+		return align_nw;
+	case ALIGN_SMITH_WATERMAN:
+		return align_sw;
+	case ALIGN_INVALID:
+	case ALIGN_COUNT:
+	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
+		pdev("Invalid AlignmentMethod enum");
+		perr("Internal error retrieving alignment method");
+		pabort();
+	}
+}
+
 bool align(void)
 {
-	const align_func_t method = align_method(arg_align_method());
+	const align_func_t method = align_method();
 	const size_t total = (size_t)g_alignments;
 	pinfo("Performing %zu pairwise alignments", total);
 	if (!progress_start(total, arg_threads(), "Aligning sequences"))
