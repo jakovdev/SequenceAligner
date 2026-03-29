@@ -1,5 +1,7 @@
 #include "bio/algorithm/alignment.cuh"
 
+#ifdef USE_CUDA
+
 __constant__ Constants C;
 
 __forceinline__ __device__ s32 d_seq_lup(const s32 ij, const s32 pos)
@@ -265,3 +267,5 @@ cudaError_t kernel_sw(s32 *scores, s64 start, s64 batch)
 	return cudaGetLastError();
 }
 }
+
+#endif /* USE_CUDA */
