@@ -12,9 +12,6 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 
-#ifdef USE_CUDA
-s64 *g_restrict g_indices;
-#endif
 s32 *g_restrict g_lengths;
 s64 *g_restrict g_offsets;
 char *g_restrict g_letters;
@@ -33,10 +30,6 @@ static void sequences_free(void)
 	free(g_offsets);
 	free_aligned(g_letters);
 	free_aligned(g_seqs);
-#ifdef USE_CUDA
-	free(g_indices);
-	g_indices = NULL;
-#endif
 	g_seqs = NULL;
 	g_letters = NULL;
 	g_offsets = NULL;
@@ -265,16 +258,6 @@ bool sequences_load_from_file(void)
 
 	if (!filter_seqs())
 		goto cleanup_globals;
-
-#ifdef USE_CUDA
-	MALLOCA(g_indices, (size_t)g_seq_n);
-	if unlikely (!g_indices) {
-		perr("Out of memory allocating sequence indices");
-		goto cleanup_globals;
-	}
-	for (s64 i = 0; i < g_seq_n; i++)
-		g_indices[i] = (i * (i - 1)) / 2;
-#endif
 
 	pinfo("Average sequence length: %.2f",
 	      (double)letters_used / (double)g_seq_n - 1.0);

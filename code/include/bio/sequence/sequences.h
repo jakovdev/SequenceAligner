@@ -5,9 +5,6 @@
 #include "bio/types.h"
 #include "system/compiler.h"
 
-#ifdef USE_CUDA
-extern s64 *g_restrict g_indices;
-#endif
 extern s32 *g_restrict g_lengths;
 extern s64 *g_restrict g_offsets;
 extern char *g_restrict g_letters;

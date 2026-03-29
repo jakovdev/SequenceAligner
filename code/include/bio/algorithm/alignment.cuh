@@ -31,7 +31,6 @@ struct Constants {
 	char *letters;
 	s32 *lengths;
 	s64 *offsets;
-	s64 *indices;
 	sll *progress;
 	sll *checksum;
 	s32 seq_lup[SCHAR_MAX + 1];

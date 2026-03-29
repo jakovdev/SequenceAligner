@@ -128,13 +128,10 @@ bool cuda_align(void)
 	size_t seq_n = (size_t)g_seq_n;
 	size_t sum = (size_t)(g_offsets[seq_n - 1] + g_lengths[seq_n - 1] + 1);
 
-	CALLR(cudaMalloc((void **)&C.indices, sizeof(*C.indices) * seq_n));
 	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*C.offsets) * seq_n));
 	CALLR(cudaMalloc((void **)&C.lengths, sizeof(*C.lengths) * seq_n));
 	CALLR(cudaMalloc((void **)&C.letters, sizeof(*C.letters) * sum));
 
-	CALLR(cudaMemcpy(C.indices, g_indices, sizeof(*C.indices) * seq_n,
-			 cudaMemcpyHostToDevice));
 	CALLR(cudaMemcpy(C.offsets, g_offsets, sizeof(*C.offsets) * seq_n,
 			 cudaMemcpyHostToDevice));
 	CALLR(cudaMemcpy(C.lengths, g_lengths, sizeof(*C.lengths) * seq_n,

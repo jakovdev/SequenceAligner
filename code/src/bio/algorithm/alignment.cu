@@ -20,7 +20,7 @@ __forceinline__ __device__ s32 d_find_j(const s64 alignment)
 
 	while (low < high) {
 		const s32 mid = low + (high - low) / 2;
-		if (C.indices[mid] <= alignment)
+		if (((s64)mid * (mid - 1)) / 2 <= alignment)
 			low = mid + 1;
 		else
 			high = mid;
@@ -37,7 +37,7 @@ __global__ void k_nw(s32 *__restrict__ scores, s64 start, s64 batch)
 
 	const s64 alignment = start + tid;
 	const s32 j = d_find_j(alignment);
-	const s32 i = static_cast<s32>(alignment - C.indices[j]);
+	const s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
 
 	const s32 len1 = C.lengths[i];
 	const s32 len2 = C.lengths[j];
@@ -85,7 +85,7 @@ __global__ void k_ga(s32 *__restrict__ scores, s64 start, s64 batch)
 
 	const s64 alignment = start + tid;
 	const s32 j = d_find_j(alignment);
-	const s32 i = static_cast<s32>(alignment - C.indices[j]);
+	const s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
 
 	const s32 len1 = C.lengths[i];
 	const s32 len2 = C.lengths[j];
@@ -158,7 +158,7 @@ __global__ void k_sw(s32 *__restrict__ scores, s64 start, s64 batch)
 
 	const s64 alignment = start + tid;
 	const s32 j = d_find_j(alignment);
-	const s32 i = static_cast<s32>(alignment - C.indices[j]);
+	const s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
 
 	const s32 len1 = C.lengths[i];
 	const s32 len2 = C.lengths[j];
