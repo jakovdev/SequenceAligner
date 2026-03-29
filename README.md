@@ -329,7 +329,7 @@ All implementations use dynamic programming with optimized matrix operations.
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format
 - **Content**:
-  - Sequences used during alignment (original or filtered) and their lengths
+  - Sequences used during alignment (original or filtered)
   - Similarity matrix where each cell represents the alignment score between sequence pairs
   - Similarity matrix checksum for data integrity verification
 - **Size Considerations**:

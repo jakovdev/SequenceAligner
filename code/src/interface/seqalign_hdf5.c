@@ -17,7 +17,6 @@ static struct {
 	hid_t file_id;
 	hid_t matrix_id;
 	hid_t sequences_id;
-	hid_t lengths_id;
 	s32 *matrix;
 	size_t matrix_b;
 	s64 dim;
@@ -48,7 +47,6 @@ bool h5_open(void)
 	g_h5.file_id = H5I_INVALID_HID;
 	g_h5.matrix_id = H5I_INVALID_HID;
 	g_h5.sequences_id = H5I_INVALID_HID;
-	g_h5.lengths_id = H5I_INVALID_HID;
 
 	if (g_h5.disabled) {
 		g_h5.is_init = true;
@@ -138,54 +136,19 @@ bool h5_open(void)
 
 	pverb("Storing " Ps32 " sequences in HDF5 file", g_seq_n);
 
-	hid_t seq_group = H5Gcreate2(g_h5.file_id, "/sequences", H5P_DEFAULT,
-				     H5P_DEFAULT, H5P_DEFAULT);
-	if unlikely (seq_group < 0) {
-		perr("Failed to create HDF5 group for sequences");
-		h5_file_close();
-		return false;
-	}
-	H5Gclose(seq_group);
-
 	hsize_t seq_dims[1] = { dim_size };
-	hid_t lengths_space = H5Screate_simple(1, seq_dims, NULL);
-	if unlikely (lengths_space < 0) {
-		perr("Failed to create HDF5 dataspace for sequence lengths");
-		h5_file_close();
-		return false;
-	}
-
-	g_h5.lengths_id = H5Dcreate2(g_h5.file_id, "/sequences/lengths",
-				     H5T_STD_I32LE, lengths_space, H5P_DEFAULT,
-				     H5P_DEFAULT, H5P_DEFAULT);
-	H5Sclose(lengths_space);
-	if unlikely (g_h5.lengths_id < 0) {
-		perr("Failed to create HDF5 dataset for sequence lengths");
-		h5_file_close();
-		return false;
-	}
-
-	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_INT32, H5S_ALL,
-				 H5S_ALL, H5P_DEFAULT, g_lengths);
-	if unlikely (status < 0) {
-		perr("Failed to write sequence lengths to HDF5 dataset");
+	hid_t seq_space = H5Screate_simple(1, seq_dims, NULL);
+	if unlikely (seq_space < 0) {
+		perr("Failed to create HDF5 dataspace for sequences");
 		h5_file_close();
 		return false;
 	}
 
 	hid_t string_type = H5Tcopy(H5T_C_S1);
 	H5Tset_size(string_type, H5T_VARIABLE);
-	hid_t seq_space = H5Screate_simple(1, seq_dims, NULL);
-	if unlikely (seq_space < 0) {
-		perr("Failed to create HDF5 dataspace for sequences");
-		H5Tclose(string_type);
-		h5_file_close();
-		return false;
-	}
-
-	g_h5.sequences_id = H5Dcreate2(g_h5.file_id, "/sequences/dataset",
-				       string_type, seq_space, H5P_DEFAULT,
-				       H5P_DEFAULT, H5P_DEFAULT);
+	g_h5.sequences_id = H5Dcreate2(g_h5.file_id, "/sequences", string_type,
+				       seq_space, H5P_DEFAULT, H5P_DEFAULT,
+				       H5P_DEFAULT);
 	if unlikely (g_h5.sequences_id < 0) {
 		perr("Failed to create HDF5 dataset for sequences");
 		H5Sclose(seq_space);
@@ -206,8 +169,8 @@ bool h5_open(void)
 	for (s32 i = 0; i < g_seq_n; i++)
 		seq_data[i] = g_seqs[i].letters;
 
-	status = H5Dwrite(g_h5.sequences_id, string_type, H5S_ALL, H5S_ALL,
-			  H5P_DEFAULT, seq_data);
+	herr_t status = H5Dwrite(g_h5.sequences_id, string_type, H5S_ALL,
+				 H5S_ALL, H5P_DEFAULT, seq_data);
 	free(seq_data);
 	if unlikely (status < 0) {
 		perr("Failed to write sequence data to HDF5 dataset");
@@ -360,11 +323,6 @@ static void h5_file_close(void)
 	if (g_h5.sequences_id > 0) {
 		H5Dclose(g_h5.sequences_id);
 		g_h5.sequences_id = H5I_INVALID_HID;
-	}
-
-	if (g_h5.lengths_id > 0) {
-		H5Dclose(g_h5.lengths_id);
-		g_h5.lengths_id = H5I_INVALID_HID;
 	}
 
 	if (g_h5.matrix_id > 0) {
