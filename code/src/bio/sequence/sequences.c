@@ -83,7 +83,7 @@ static bool validate_sequence(char *restrict letters, s32 length)
 	return true;
 }
 
-static bool seq_len_valid(size_t len)
+static bool validate_length(size_t len)
 {
 	const s32 gap_pen = -(arg_gap_pen());
 	if (!gap_pen)
@@ -124,30 +124,27 @@ bool sequences_load_from_file(void)
 
 	s64 letters_used = 0;
 	s32 seq_n_curr = 0;
-	s32 seq_n_skip = 0;
+	s32 seq_n_long = 0;
 	s32 seq_n_invalid = 0;
-	bool skip_long = false;
-	bool ask_long = false;
-	bool skip_invalid = false;
-	bool ask_invalid = false;
+	int large = -1;
+	int invalid = -1;
 
 	bench_io_start();
 	do {
 		size_t length = 0;
 		ifile_sequence_length(&ifile, &length);
 
-		if (!seq_len_valid(length)) {
-			if (!ask_long) {
+		if (!validate_length(length)) {
+			if (large < 0) {
 				bench_io_end();
 				pwarn("Overflow from large sequence length: %zu",
 				      length);
-				skip_long = print_yN("Skip long sequences?");
-				ask_long = true;
+				large = print_yN("Skip long sequences?");
 				bench_io_start();
 			}
 
-			if (skip_long) {
-				seq_n_skip++;
+			if (large > 0) {
+				seq_n_long++;
 				continue;
 			}
 
@@ -169,16 +166,14 @@ bool sequences_load_from_file(void)
 		char *letters = g_letters + letters_used;
 		ifile_sequence_extract(&ifile, letters, length);
 		if (!validate_sequence(letters, seq_len)) {
-			if (!ask_invalid) {
+			if (invalid < 0) {
 				bench_io_end();
 				pwarn("Found sequence with invalid letters");
-				skip_invalid =
-					print_yN("Skip invalid sequences?");
-				ask_invalid = true;
+				invalid = print_yN("Skip invalid sequences?");
 				bench_io_start();
 			}
 
-			if (skip_invalid) {
+			if (invalid > 0) {
 				seq_n_invalid++;
 				continue;
 			}
@@ -196,9 +191,9 @@ bool sequences_load_from_file(void)
 	} while (ifile_sequence_next(&ifile));
 	bench_io_end();
 
-	if (seq_n_skip > 0)
+	if (seq_n_long > 0)
 		pinfo("Skipped " Ps32 " sequences that were too long",
-		      seq_n_skip);
+		      seq_n_long);
 
 	if (seq_n_invalid > 0)
 		pinfo("Skipped " Ps32 " sequences with invalid letters",
