@@ -35,4 +35,4 @@ jobs:
         run: cmake --build build --config Debug -- -j$(nproc)
 
       - name: Run test
-        run: ./bin/seqalign -i datasets/avppred.csv -t amino -a nw -m blosum62 -p 4 -BVFDWP
+        run: ./bin/seqalign -i datasets/avppred.csv -m blosum62 -a nw -p 4 -BVFDWP
