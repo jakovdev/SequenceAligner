@@ -10,7 +10,7 @@ extern thread_local s32 *g_restrict g_match;
 extern thread_local s32 *g_restrict g_gap_x;
 extern thread_local s32 *g_restrict g_gap_y;
 
-void matrix_buffers_init(s32 seq_len_max);
+void matrix_buffers_init(void);
 
 void matrix_buffers_free(void);
 

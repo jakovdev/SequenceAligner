@@ -11,6 +11,7 @@
 #define GiB (MiB << 10)
 
 #define CACHE_LINE ((size_t)64)
+#define PAGE_SIZE (4 * KiB)
 
 #define sizeof_field(t, f) (sizeof(((t *)0)->f))
 #define bytesof(ptr, nmemb) (sizeof(*(ptr)) * (nmemb))
@@ -32,26 +33,28 @@
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define _MCAT_2(a, b) a##b
+#define _MCAT(a, b) _MCAT_2(a, b)
 
 #define MALLOC(ptr, bytes) ptr = malloc(bytes)
 #define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
-#define MALLOC_CL(ptr, bytes) ptr = alloc_aligned(CACHE_LINE, bytes)
-#define MALLOCA_CL(ptr, nmemb) MALLOC_CL(ptr, bytesof(ptr, nmemb))
+#define MALLOC_AL(ptr, al, bytes) ptr = alloc_aligned(al, bytes)
+#define MALLOCA_AL(ptr, al, nmemb) MALLOC_AL(ptr, al, bytesof(ptr, nmemb))
 /* Continue with { ... } for failure case */
-#define REALLOC(ptr, bytes)                \
-	void *_Rmem = realloc(ptr, bytes); \
-	if likely (_Rmem) {                \
-		ptr = _Rmem;               \
+#define REALLOC(ptr, bytes)                               \
+	void *_MCAT(_NM, __LINE__) = realloc(ptr, bytes); \
+	if likely (_MCAT(_NM, __LINE__)) {                \
+		ptr = _MCAT(_NM, __LINE__);               \
 	} else
 #define REALLOCA(ptr, nmemb) REALLOC(ptr, bytesof(ptr, nmemb))
-#define REALLOC_CL(ptr, oldb, newb)                            \
-	void *_Rmem = realloc_aligned(ptr, CACHE_LINE, newb);  \
-	if likely (_Rmem) {                                    \
-		_realloc_aligned_free(ptr, _Rmem, oldb, newb); \
-		ptr = _Rmem;                                   \
+#define REALLOC_AL(ptr, al, oldb, newb)                                       \
+	void *_MCAT(_NM, __LINE__) = realloc_aligned(ptr, al, newb);          \
+	if likely (_MCAT(_NM, __LINE__)) {                                    \
+		_realloc_aligned_free(ptr, _MCAT(_NM, __LINE__), oldb, newb); \
+		ptr = _MCAT(_NM, __LINE__);                                   \
 	} else
-#define REALLOCA_CL(ptr, oldn, newn) \
-	REALLOC_CL(ptr, bytesof(ptr, oldn), bytesof(ptr, newn))
+#define REALLOCA_AL(ptr, al, oldn, newn) \
+	REALLOC_AL(ptr, al, bytesof(ptr, oldn), bytesof(ptr, newn))
 
 /* Free with free_aligned() */
 #if defined(__GNUC__) || defined(__clang__)

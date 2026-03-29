@@ -59,8 +59,8 @@ ForEachMacros:
   - 'for_each_nws'
   - 'REALLOC'
   - 'REALLOCA'
-  - 'REALLOC_CL'
-  - 'REALLOCA_CL'
+  - 'REALLOC_AL'
+  - 'REALLOCA_AL'
 IncludeBlocks: Preserve
 IncludeCategories:
   - Regex: '.*'

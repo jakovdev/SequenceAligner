@@ -7,7 +7,7 @@
 
 extern thread_local s32 *g_restrict g_seq1_i;
 
-void indices_buffers_init(s32 seq_len_max);
+void indices_buffers_init(void);
 
 void indices_buffers_free(void);
 

@@ -1,20 +1,21 @@
 #include "bio/algorithm/indices.h"
 
+#include "bio/sequence/sequences.h"
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "util/print.h"
 
 thread_local s32 *g_restrict g_seq1_i;
 
-void indices_buffers_init(s32 seq_len_max)
+void indices_buffers_init(void)
 {
-	if (seq_len_max < SEQ_LEN_MIN || seq_len_max > SEQ_LEN_MAX) {
+	if (g_seq_len_max < SEQ_LEN_MIN || g_seq_len_max > SEQ_LEN_MAX) {
 		pdev("Invalid seq_len_max in indices_buffers_init()");
 		perr("Internal error during sequence indices allocation");
 		pabort();
 	}
 
-	MALLOCA_CL(g_seq1_i, (size_t)seq_len_max);
+	MALLOCA_AL(g_seq1_i, CACHE_LINE, (size_t)g_seq_len_max);
 	if unlikely (!g_seq1_i) {
 		perr("Out of memory allocating sequence indices");
 		exit(EXIT_FAILURE);

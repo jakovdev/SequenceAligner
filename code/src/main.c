@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	if (arg_mode_cuda() && !cuda_device_init())
 		return 1;
 
-	if (!h5_open(sequences_seqs(), sequences_seq_n())) {
+	if (!h5_open()) {
 		cuda_device_close();
 		return 1;
 	}
@@ -38,6 +38,6 @@ int main(int argc, char *argv[])
 	}
 
 	h5_close(0);
-	bench_total_print(sequences_alignments());
+	bench_total_print(g_alignments);
 	return 0;
 }

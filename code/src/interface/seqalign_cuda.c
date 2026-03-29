@@ -11,7 +11,6 @@
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
 #include "system/compiler.h"
-#include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 
@@ -97,6 +96,11 @@ bool cuda_align(void)
 		pabort();
 	}
 
+	if (g_seq_len_max > MAX_CUDA_SEQUENCE_LENGTH) {
+		perr("Sequence length exceeds CUDA Device limits");
+		return false;
+	}
+
 	cudaError_t err = { 0 };
 	cudaStream_t compute = { 0 }, memory = { 0 };
 	CALLR(cudaStreamCreate(&compute));
@@ -112,7 +116,7 @@ bool cuda_align(void)
 	}
 
 	struct Constants C = {
-		.seq_n = sequences_seq_n(),
+		.seq_n = g_seq_n,
 		.gap_pen = arg_gap_pen(),
 		.gap_open = arg_gap_open(),
 		.gap_ext = arg_gap_ext(),
@@ -120,72 +124,25 @@ bool cuda_align(void)
 
 	memcpy(C.seq_lup, SEQ_LUP, sizeof(C.seq_lup));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
-	size_t seq_n = (size_t)C.seq_n;
 
-	{
-		const sequence_t *seqs = sequences_seqs();
-		size_t seq_len_sum = (size_t)sequences_seq_len_sum();
-		if (sequences_seq_len_max() > MAX_CUDA_SEQUENCE_LENGTH) {
-			perr("Sequence length exceeds CUDA Device limits");
-			return false;
-		}
+	size_t seq_n = (size_t)g_seq_n;
+	size_t sum = (size_t)(g_offsets[seq_n - 1] + g_lengths[seq_n - 1] + 1);
 
-		s64 *MALLOCA(indices, seq_n);
-		s64 *MALLOCA(offsets, seq_n);
-		s32 *MALLOCA(lengths, seq_n);
-		char *MALLOCA(letters, seq_len_sum);
-		if (!indices || !offsets || !lengths || !letters) {
-			perr("Out of memory during sequence upload");
-arrays_error:
-			free(indices);
-			free(offsets);
-			free(lengths);
-			free(letters);
-			return false;
-		}
+	CALLR(cudaMalloc((void **)&C.indices, sizeof(*C.indices) * seq_n));
+	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*C.offsets) * seq_n));
+	CALLR(cudaMalloc((void **)&C.lengths, sizeof(*C.lengths) * seq_n));
+	CALLR(cudaMalloc((void **)&C.letters, sizeof(*C.letters) * sum));
 
-		for (s64 i = 0, offs = 0; i < C.seq_n; i++) {
-			indices[i] = (i * (i - 1)) / 2;
-			offsets[i] = offs;
-			lengths[i] = seqs[i].length;
-			memcpy(letters + offs, seqs[i].letters,
-			       (size_t)seqs[i].length);
-			offs += seqs[i].length;
-		}
+	CALLR(cudaMemcpy(C.indices, g_indices, sizeof(*C.indices) * seq_n,
+			 cudaMemcpyHostToDevice));
+	CALLR(cudaMemcpy(C.offsets, g_offsets, sizeof(*C.offsets) * seq_n,
+			 cudaMemcpyHostToDevice));
+	CALLR(cudaMemcpy(C.lengths, g_lengths, sizeof(*C.lengths) * seq_n,
+			 cudaMemcpyHostToDevice));
+	CALLR(cudaMemcpy(C.letters, g_letters, sizeof(*C.letters) * sum,
+			 cudaMemcpyHostToDevice));
 
-		CALLJ(cudaMalloc((void **)&C.indices,
-				 sizeof(*C.indices) * seq_n),
-		      arrays_error);
-		CALLJ(cudaMalloc((void **)&C.offsets,
-				 sizeof(*C.offsets) * seq_n),
-		      arrays_error);
-		CALLJ(cudaMalloc((void **)&C.lengths,
-				 sizeof(*C.lengths) * seq_n),
-		      arrays_error);
-		CALLJ(cudaMalloc((void **)&C.letters,
-				 sizeof(*C.letters) * seq_len_sum),
-		      arrays_error);
-		CALLJ(cudaMemcpy(C.indices, indices, sizeof(*C.indices) * seq_n,
-				 cudaMemcpyHostToDevice),
-		      arrays_error);
-		CALLJ(cudaMemcpy(C.offsets, offsets, sizeof(*C.offsets) * seq_n,
-				 cudaMemcpyHostToDevice),
-		      arrays_error);
-		CALLJ(cudaMemcpy(C.lengths, lengths, sizeof(*C.lengths) * seq_n,
-				 cudaMemcpyHostToDevice),
-		      arrays_error);
-		CALLJ(cudaMemcpy(C.letters, letters,
-				 sizeof(*C.letters) * seq_len_sum,
-				 cudaMemcpyHostToDevice),
-		      arrays_error);
-
-		free(indices);
-		free(offsets);
-		free(lengths);
-		free(letters);
-	}
-
-	const s64 alignments = sequences_alignments();
+	const s64 alignments = g_alignments;
 	const s64 batch_size = INT64_C(64) << 20;
 	s32 *matrix = h5_matrix_data();
 

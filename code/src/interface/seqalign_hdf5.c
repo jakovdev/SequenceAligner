@@ -3,6 +3,7 @@
 #include <hdf5.h>
 #include <string.h>
 
+#include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_cuda.h"
 #include "io/mmap.h"
@@ -33,13 +34,10 @@ static struct {
 static void h5_file_close(void);
 static s32 h5_chunk_dimensions_calculate(void);
 
-#define H5_SEQUENCE_BATCH_SIZE (1 << 13)
 #define H5_MIN_CHUNK_SIZE (1 << 8)
 #define H5_MAX_CHUNK_SIZE (1 << 12)
-#define ALIGN_POW2(value, pow2) \
-	(((value) + ((pow2 >> 1) - 1)) / (pow2)) * (pow2)
 
-bool h5_open(sequence_t *seqs, s32 seq_n)
+bool h5_open(void)
 {
 	if (g_h5.is_init) {
 		pdev("Call h5_close() before calling h5_open() again");
@@ -57,19 +55,13 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 		return true;
 	}
 
-	if unlikely (seq_n < SEQ_N_MIN) {
-		pdev("seq_n too small in h5_open()");
+	if unlikely (g_seq_n < SEQ_N_MIN || !g_seqs) {
+		pdev("Sequences not initialized before h5_open()");
 		perr("Internal error initializing HDF5 storage");
 		pabort();
 	}
 
-	if unlikely (!seqs) {
-		pdev("NULL sequences in h5_open()");
-		perr("Internal error initializing HDF5 storage");
-		pabort();
-	}
-
-	g_h5.dim = seq_n;
+	g_h5.dim = g_seq_n;
 	const size_t dim_size = (size_t)g_h5.dim;
 	bench_io_start();
 
@@ -92,7 +84,7 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 		g_h5.matrix = g_h5.mmap.matrix;
 		g_h5.matrix_b = g_h5.mmap.bytes;
 	} else {
-		MALLOC_CL(g_h5.matrix, bytes);
+		MALLOC_AL(g_h5.matrix, PAGE_SIZE, bytes);
 		if unlikely (!g_h5.matrix) {
 			perr("Out of memory allocating similarity matrix");
 			return false;
@@ -144,7 +136,7 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 		return false;
 	}
 
-	pverb("Storing " Ps32 " sequences in HDF5 file", seq_n);
+	pverb("Storing " Ps32 " sequences in HDF5 file", g_seq_n);
 
 	hid_t seq_group = H5Gcreate2(g_h5.file_id, "/sequences", H5P_DEFAULT,
 				     H5P_DEFAULT, H5P_DEFAULT);
@@ -173,19 +165,8 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 		return false;
 	}
 
-	s32 *MALLOCA(lengths, (size_t)seq_n);
-	if unlikely (!lengths) {
-		perr("Out of memory allocating sequence lengths for HDF5 storage");
-		h5_file_close();
-		return false;
-	}
-
-	for (s32 i = 0; i < seq_n; i++)
-		lengths[i] = seqs[i].length;
-
 	herr_t status = H5Dwrite(g_h5.lengths_id, H5T_NATIVE_INT32, H5S_ALL,
-				 H5S_ALL, H5P_DEFAULT, lengths);
-	free(lengths);
+				 H5S_ALL, H5P_DEFAULT, g_lengths);
 	if unlikely (status < 0) {
 		perr("Failed to write sequence lengths to HDF5 dataset");
 		h5_file_close();
@@ -213,59 +194,28 @@ bool h5_open(sequence_t *seqs, s32 seq_n)
 		return false;
 	}
 
-	ppercent(0, "Storing sequences");
-
-	const s32 batch_size = H5_SEQUENCE_BATCH_SIZE;
-	for (s32 batch_start = 0; batch_start < seq_n;
-	     batch_start += batch_size) {
-		s32 batch_end = min(batch_start + batch_size, seq_n);
-		s32 current_batch = batch_end - batch_start;
-
-		char **MALLOCA(seq_data, (size_t)current_batch);
-		if unlikely (!seq_data) {
-			perr("Out of memory allocating HDF5 sequence batch data");
-			H5Sclose(seq_space);
-			H5Tclose(string_type);
-			h5_file_close();
-			return false;
-		}
-
-		for (s32 i = 0; i < current_batch; i++)
-			seq_data[i] = seqs[batch_start + i].letters;
-
-		hsize_t batch_dims[1] = { (hsize_t)current_batch };
-		hid_t batch_mem_space = H5Screate_simple(1, batch_dims, NULL);
-		if unlikely (batch_mem_space < 0) {
-			perr("Failed to create HDF5 dataspace for sequence batch data");
-			free(seq_data);
-			H5Sclose(seq_space);
-			H5Tclose(string_type);
-			h5_file_close();
-			return false;
-		}
-
-		hsize_t start[1] = { (hsize_t)batch_start };
-		hsize_t count[1] = { (hsize_t)current_batch };
-		status = H5Sselect_hyperslab(seq_space, H5S_SELECT_SET, start,
-					     NULL, count, NULL);
-		if likely (status >= 0)
-			status = H5Dwrite(g_h5.sequences_id, string_type,
-					  batch_mem_space, seq_space,
-					  H5P_DEFAULT, seq_data);
-		H5Sclose(batch_mem_space);
-		free(seq_data);
-		if unlikely (status < 0) {
-			perr("Failed to write sequence batch data to HDF5 dataset");
-			H5Sclose(seq_space);
-			H5Tclose(string_type);
-			h5_file_close();
-			return false;
-		}
-
-		pproport(batch_end / seq_n, "Storing sequences");
+	const char **MALLOCA(seq_data, dim_size);
+	if unlikely (!seq_data) {
+		perr("Out of memory allocating HDF5 sequence data");
+		H5Sclose(seq_space);
+		H5Tclose(string_type);
+		h5_file_close();
+		return false;
 	}
 
-	ppercent(100, "Storing sequences");
+	for (s32 i = 0; i < g_seq_n; i++)
+		seq_data[i] = g_seqs[i].letters;
+
+	status = H5Dwrite(g_h5.sequences_id, string_type, H5S_ALL, H5S_ALL,
+			  H5P_DEFAULT, seq_data);
+	free(seq_data);
+	if unlikely (status < 0) {
+		perr("Failed to write sequence data to HDF5 dataset");
+		H5Sclose(seq_space);
+		H5Tclose(string_type);
+		h5_file_close();
+		return false;
+	}
 
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
@@ -485,11 +435,11 @@ static void h5_flush_matrix(void)
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
-	s32 *MALLOC_CL(buf, row_bytes * (size_t)chunk_size);
+	s32 *MALLOC_AL(buf, PAGE_SIZE, row_bytes * (size_t)chunk_size);
 	if unlikely (!buf) {
 		pwarn("Out of memory, trying minimal amount for conversion");
 		chunk_size = 1;
-		MALLOC_CL(buf, row_bytes * (size_t)chunk_size);
+		MALLOC_AL(buf, CACHE_LINE, row_bytes * (size_t)chunk_size);
 		if unlikely (!buf) {
 			perr("Out of memory, aborting conversion");
 			H5Sclose(file_space);

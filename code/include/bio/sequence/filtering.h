@@ -2,10 +2,8 @@
 #ifndef BIO_SEQUENCE_FILTERING_H
 #define BIO_SEQUENCE_FILTERING_H
 
-#include "bio/types.h"
+#include <stdbool.h>
 
-bool arg_mode_filter(void);
-
-bool filter_seqs(sequence_t *seqs, bool *kept, s32 seq_n, s32 *seq_n_filter);
+bool filter_seqs(void);
 
 #endif /* BIO_SEQUENCE_FILTERING_H */

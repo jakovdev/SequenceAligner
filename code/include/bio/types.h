@@ -57,7 +57,7 @@ extern s32 SEQ_LUP[SCHAR_MAX + 1];
 extern s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 
 typedef struct {
-	char *letters;
+	const char *restrict letters;
 	s32 length;
 } sequence_t;
 

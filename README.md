@@ -29,7 +29,6 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
   - SIMD vectorization (AVX512/AVX2/SSE)
   - Efficient OpenMP multithreading with minimal overhead
   - Memory-mapped disk storage for large similarity matrices
-  - Sequence memory pools
 - [Multiple configurable options](#usage)
 - Predefined substitution matrices
 - HDF5 output format with optional compression
@@ -300,17 +299,15 @@ All implementations use dynamic programming with optimized matrix operations.
 - Cache friendly memory access patterns and data structures
 - Low overhead OpenMP multithreading
 - Memory mapped similarity matrix storage from large datasets
-- Sequence memory pools for fast sequence storage
 - Triangular matrix computation to reduce redundant calculations
 </details>
 
 <details>
 <summary><strong>CUDA GPU Optimization Techniques</strong></summary>
 
-- Device-specific tuning of thread and block dimensions
 - Asynchronous data transfer to and from GPU memory
-- Memory mapped similarity matrix storage from large datasets
 - Batched execution when similarity matrix exceeds GPU memory
+- Memory mapped similarity matrix storage from large datasets
 - Triangular matrix computation to reduce redundant calculations
 </details>
 

@@ -5,9 +5,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-#include "bio/types.h"
+#include "system/types.h"
 
-bool h5_open(sequence_t *seqs, s32 seq_n);
+bool h5_open(void);
 
 void h5_matrix_column_set(s32 col, const s32 *values);
 

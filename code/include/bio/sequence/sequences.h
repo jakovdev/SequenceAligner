@@ -3,21 +3,19 @@
 #define BIO_SEQUENCE_SEQUENCES_H
 
 #include "bio/types.h"
-
-bool sequences_load_from_file(void);
-
-sequence_t *sequences_seqs(void);
-
-s32 sequences_seq_n(void);
-
-s64 sequences_alignments(void);
-
-sequence_t *sequence(s32 index);
-
-s32 sequences_seq_len_max(void);
+#include "system/compiler.h"
 
 #ifdef USE_CUDA
-s64 sequences_seq_len_sum(void);
+extern s64 *g_restrict g_indices;
 #endif
+extern s32 *g_restrict g_lengths;
+extern s64 *g_restrict g_offsets;
+extern char *g_restrict g_letters;
+extern sequence_t *g_restrict g_seqs;
+extern s64 g_alignments;
+extern s32 g_seq_len_max;
+extern s32 g_seq_n;
+
+bool sequences_load_from_file(void);
 
 #endif /* BIO_SEQUENCE_SEQUENCES_H */
