@@ -10,72 +10,59 @@ AMINO_ALPHABET = "ARNDCQEGHILKMFPSTWYVBZX*"
 NUCLEO_ALPHABET = "ATGCSWRYKMBVHDN*"
 STRIDE = len(AMINO_ALPHABET)
 
-AMINO_LUT = [-1] * 128
-for index, letter in enumerate(AMINO_ALPHABET):
-    AMINO_LUT[ord(letter)] = index
-
-NUCLEO_LUT = [-1] * 128
-for index, letter in enumerate(NUCLEO_ALPHABET):
-    NUCLEO_LUT[ord(letter)] = index
+LUT = [-1] * 128 * 2
+for offset, alphabet in enumerate((AMINO_ALPHABET, NUCLEO_ALPHABET)):
+    for index, letter in enumerate(alphabet):
+        LUT[ord(letter) + offset * 128] = index
 
 lines = []
-for name, lut in (("AMINO_LUT", AMINO_LUT), ("NUCLEO_LUT", NUCLEO_LUT)):
-    lines.append(f"static const s32 {name}[SEQ_LUT_SIZE] = {{")
-    for i in range(0, len(lut), 16):
-        row = lut[i : i + 16]
-        row_values = ", ".join(f"{value:>3}" for value in row)
-        lines.append(f"{row_values},")
-    lines.append("};\n")
+lines.append("static const s32 LUT[SEQ_LUT_SIZE * 2] = {")
+for i in range(0, len(LUT), 16):
+    lines.append(", ".join(f"{n:>3}" for n in LUT[i : i + 16]) + ",")
+lines.append("};\n")
 lut_block = "\n".join(lines)
 
 AMINO_MATRICES = []
 NUCLEO_MATRICES = []
 
-for matrix in sorted(attr for attr in dir(parasail) if not attr.startswith("__")):
-    is_amino = matrix.startswith(("blosum", "pam"))
-    is_nucleo = matrix in ("dnafull", "nuc44")
-    if not is_amino and not is_nucleo:
-        continue
-
-    matrix_obj = getattr(parasail, matrix)
-    raw = getattr(matrix_obj, "matrix", None)
-    if raw is None:
-        continue
-
-    if is_amino:
-        alphabet = AMINO_ALPHABET
-        target = AMINO_MATRICES
-        lut_name = "AMINO_LUT"
-    elif is_nucleo:
-        alphabet = NUCLEO_ALPHABET
-        target = NUCLEO_MATRICES
-        lut_name = "NUCLEO_LUT"
+for name in sorted(attr for attr in dir(parasail) if not attr.startswith("__")):
+    if name.startswith(("blosum", "pam")):
+        matrices, alphabet = AMINO_MATRICES, AMINO_ALPHABET
+    elif name in ("dnafull", "nuc44"):
+        matrices, alphabet = NUCLEO_MATRICES, NUCLEO_ALPHABET
     else:
+        continue
+
+    raw = getattr(getattr(parasail, name), "matrix", None)
+    if raw is None:
         continue
 
     size = len(alphabet)
     values = [[int(raw[i][j]) for j in range(size)] for i in range(size)]
-    data = list(zip(alphabet, values))
-    target.append((matrix, matrix.upper(), lut_name, data))
+    matrices.append((name, alphabet, values))
 
 lines = []
 lines.append(f"#define AMINO_MAT_N ({len(AMINO_MATRICES)})")
 lines.append(f"#define NUCLEO_MAT_N ({len(NUCLEO_MATRICES)})\n")
-for matrices in (AMINO_MATRICES, NUCLEO_MATRICES):
-    for _, symbol, _, data in matrices:
-        lines.append(f"static const s32 {symbol}[SUB_MAT_DIM * SUB_MAT_DIM] = {{")
-        lines.extend(
-            [
-                f"[{row_index * STRIDE:>3}] = {', '.join(f'{value:>3}' for value in row)}, /* {letter} */"
-                for row_index, (letter, row) in enumerate(data)
-            ]
-        )
-        lines.append("};\n")
+MATRICES = AMINO_MATRICES + NUCLEO_MATRICES
 
-lines.append("static const matrix MATRICES[] = {")
-for matrices in (AMINO_MATRICES, NUCLEO_MATRICES):
-    for name, symbol, lut_name, _ in matrices:
-        lines.append(f'{{"{name}", {symbol}, {lut_name}}},')
+lines.append("static const char *NAMES[AMINO_MAT_N + NUCLEO_MAT_N] = {")
+for name, _, _ in MATRICES:
+    lines.append(f'"{name}",')
+lines.append("};\n")
+
+lines.append(
+    "static const s32 MATRICES[SUB_MAT_DIM * SUB_MAT_DIM * (AMINO_MAT_N + NUCLEO_MAT_N)] = {"
+)
+for offset, (name, alphabet, values) in enumerate(MATRICES):
+    lines.append(f"/* {name} */")
+    offset *= STRIDE * STRIDE
+    lines.extend(
+        [
+            f"[{offset + (i * STRIDE):>5}] = {', '.join(f'{n:>3}' for n in row)}, /* {alphabet[i]} */"
+            for i, row in enumerate(values)
+        ]
+    )
 lines.append("};")
 matrices_block = "\n".join(lines)
 

@@ -1,4 +1,6 @@
 #include "bio/score/matrices.h"
+#define GENERATED_MATRICES_IMPLEMENTATION
+#include "generated/bio/score/matrices.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -10,25 +12,18 @@
 alignas(CACHE_LINE) s32 SEQ_LUT[SEQ_LUT_SIZE];
 alignas(CACHE_LINE) s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
-typedef struct {
-	const char *name;
-	const s32 *data;
-	const s32 *lut;
-} matrix;
-
-#define GENERATED_MATRICES_IMPLEMENTATION
-#include "generated/bio/score/matrices.h"
-
 static const char *selected;
 
 static struct arg_callback parse_matrix(const char *str, void *dest)
 {
 	(void)dest;
-	for (size_t i = 0; i < ARRAY_SIZE(MATRICES); i++) {
-		if (strcasecmp(str, MATRICES[i].name) == 0) {
-			selected = MATRICES[i].name;
-			memcpy(SEQ_LUT, MATRICES[i].lut, sizeof(SEQ_LUT));
-			memcpy(SUB_MAT, MATRICES[i].data, sizeof(SUB_MAT));
+	for (int i = 0; i < (AMINO_MAT_N + NUCLEO_MAT_N); i++) {
+		if (strcasecmp(str, NAMES[i]) == 0) {
+			selected = NAMES[i];
+			const int moff = i * SUB_MAT_DIM * SUB_MAT_DIM;
+			const int loff = i >= AMINO_MAT_N ? SEQ_LUT_SIZE : 0;
+			memcpy(SEQ_LUT, &LUT[loff], sizeof(SEQ_LUT));
+			memcpy(SUB_MAT, &MATRICES[moff], sizeof(SUB_MAT));
 			return ARG_VALID();
 		}
 	}
@@ -48,7 +43,7 @@ static void print_matrix_group(const char *title, int count, int start)
 		const int next = i + 5;
 		const int row_end = next < count ? next : count;
 		for (int j = i; j < row_end; j++)
-			printf("%-10s", MATRICES[start + j].name);
+			printf("%-10s", NAMES[start + j]);
 		putchar('\n');
 	}
 }
