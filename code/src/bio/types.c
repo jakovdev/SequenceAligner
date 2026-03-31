@@ -37,8 +37,6 @@ static struct {
 	/* NOTE: EXPANDABLE enum AlignmentMethod, enum GapPenaltyType */
 };
 
-s32 SEQ_LUP[SEQ_LUP_SIZE];
-s32 SUB_MAT[SUBMAT_MAX][SUBMAT_MAX];
 s32 GAP_PEN;
 s32 GAP_OPEN;
 s32 GAP_EXT;
@@ -47,37 +45,6 @@ static enum AlignmentMethod method_id = ALIGN_INVALID;
 enum AlignmentMethod arg_align_method(void)
 {
 	return method_id;
-}
-
-static const char *matrix_name;
-static struct arg_callback parse_matrix(const char *str, void *dest)
-{
-	(void)dest;
-	memset(SEQ_LUP, -1, sizeof(SEQ_LUP));
-
-	for (int i = 0; i < NUM_AMINO_MATRICES; i++) {
-		if (strcasecmp(str, AMINO_MATRIX[i].name) != 0)
-			continue;
-
-		for (int j = 0; j < AMINO_SIZE; j++)
-			SEQ_LUP[(uchar)AMINO_ALPHABET[j]] = j;
-		memcpy(SUB_MAT, AMINO_MATRIX[i].matrix, AMINO_MATSIZE);
-		matrix_name = AMINO_MATRIX[i].name;
-		return ARG_VALID();
-	}
-
-	for (int i = 0; i < NUM_NUCLEO_MATRICES; i++) {
-		if (strcasecmp(str, NUCLEO_MATRIX[i].name) != 0)
-			continue;
-
-		for (int j = 0; j < NUCLEO_SIZE; j++)
-			SEQ_LUP[(uchar)NUCLEO_ALPHABET[j]] = j;
-		memcpy(SUB_MAT, NUCLEO_MATRIX[i].matrix, NUCLEO_MATSIZE);
-		matrix_name = NUCLEO_MATRIX[i].name;
-		return ARG_VALID();
-	}
-
-	return ARG_INVALID("Invalid substitution matrix name");
 }
 
 static struct arg_callback parse_align_method(const char *str, void *dest)
@@ -137,10 +104,6 @@ static struct arg_callback validate_gap_affine(void)
 
 	return ARG_VALID();
 }
-static void print_matrix(void)
-{
-	pinfom("Matrix: %s", matrix_name);
-}
 static void print_config_method(void)
 {
 	pinfom("Method: %s", ALIGNMENT_METHODS[method_id].name);
@@ -185,45 +148,7 @@ _ARGS_CONSTRUCTOR(build_help_strings)
 	}
 }
 
-static struct arg_callback list_matrices(const char *str, void *dest)
-{
-	(void)str;
-	(void)dest;
-	printf("Listing available substitution matrices\n\n");
-
-	printf("Amino Acid Matrices (%d):\n", NUM_AMINO_MATRICES);
-	for (int i = 0; i < NUM_AMINO_MATRICES; i++) {
-		const char *sep = ((i + 1) % 5 == 0)		? "\n" :
-				  (i == NUM_AMINO_MATRICES - 1) ? "\n" :
-								  ", ";
-		printf("  %s%s", AMINO_MATRIX[i].name, sep);
-	}
-
-	printf("\nNucleotide Matrices (%d):\n", NUM_NUCLEO_MATRICES);
-	for (int i = 0; i < NUM_NUCLEO_MATRICES; i++) {
-		const char *sep = ((i + 1) % 5 == 0)		 ? "\n" :
-				  (i == NUM_NUCLEO_MATRICES - 1) ? "\n" :
-								   ", ";
-		printf("  %s%s", NUCLEO_MATRIX[i].name, sep);
-	}
-
-	exit(EXIT_SUCCESS);
-}
-
-ARG_EXTERN(output_path);
-
-ARGUMENT(substitution_matrix) = {
-	.opt = 'm',
-	.lopt = "matrix",
-	.help = "Substitution matrix\n  Use -l, --list-matrices to see all available matrices",
-	.param = "MATRIX",
-	.param_req = ARG_PARAM_REQUIRED,
-	.arg_req = ARG_REQUIRED,
-	.parse_callback = parse_matrix,
-	.action_callback = print_matrix,
-	.action_order = ARG_ORDER_AFTER(ARG(output_path)),
-	.help_order = ARG_ORDER_AFTER(ARG(output_path)),
-};
+ARG_EXTERN(substitution_matrix);
 
 ARGUMENT(alignment_method) = {
 	.opt = 'a',
@@ -288,12 +213,4 @@ ARGUMENT(gap_extend) = {
 	.parse_callback = parse_gap_value,
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
-};
-
-ARGUMENT(list_matrices) = {
-	.opt = 'l',
-	.lopt = "list-matrices",
-	.help = "List available substitution matrices",
-	.parse_callback = list_matrices,
-	.help_order = ARG_ORDER_FIRST,
 };

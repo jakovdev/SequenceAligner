@@ -2,6 +2,7 @@
 
 #include "bio/algorithm/indices.h"
 #include "bio/algorithm/matrix.h"
+#include "bio/score/matrices.h"
 #include "system/compiler.h"
 #include "system/simd.h"
 
@@ -87,7 +88,7 @@ s32 affine_local_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	for (s32 i = 1; i <= len2; ++i) {
 		const s64 row = cols * i;
 		const s64 p_row = cols * (i - 1);
-		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
+		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
 
 		for (s32 j = 1; j <= len1; j++) {
 			const s32 similarity = SUB_MAT[g_seq1_i[j - 1]][c2_idx];

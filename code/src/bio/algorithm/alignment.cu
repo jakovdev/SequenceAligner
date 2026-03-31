@@ -1,17 +1,18 @@
 #include "bio/algorithm/alignment.cuh"
 
 #ifdef USE_CUDA
+#include "bio/types.h"
 
 __constant__ Constants C;
 
-__forceinline__ __device__ s32 d_seq_lup(const s32 ij, const s32 pos)
+__forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
 {
-	return C.seq_lup[(uchar)C.letters[C.offsets[ij] + pos]];
+	return C.seq_lut[(uchar)C.letters[C.offsets[ij] + pos]];
 }
 
 __forceinline__ __device__ s32 d_sub_mat(const s32 c1, const s32 c2)
 {
-	return C.sub_mat[c1 * SUBMAT_MAX + c2];
+	return C.sub_mat[c1 * SUB_MAT_DIM + c2];
 }
 
 __forceinline__ __device__ s32 d_find_j(const s64 alignment)
@@ -50,8 +51,8 @@ __global__ void k_nw(s32 *scores, s64 start, s64 batch)
 		dp_curr[0] = row * C.gap_pen;
 
 		for (s32 col = 1; col <= len2; col++) {
-			const s32 c1 = d_seq_lup(i, row - 1);
-			const s32 c2 = d_seq_lup(j, col - 1);
+			const s32 c1 = d_seq_lut(i, row - 1);
+			const s32 c2 = d_seq_lut(j, col - 1);
 			const s32 match = dp_prev[col - 1] + d_sub_mat(c1, c2);
 			const s32 gap_v = dp_prev[col] + C.gap_pen;
 			const s32 gap_h = dp_curr[col - 1] + C.gap_pen;
@@ -114,9 +115,9 @@ __global__ void k_ga(s32 *scores, s64 start, s64 batch)
 		gap_y[0] = max(p_match[0] + C.gap_open, p_gap_y[0] + C.gap_ext);
 		match[0] = gap_y[0];
 
-		const s32 c1 = d_seq_lup(i, row - 1);
+		const s32 c1 = d_seq_lut(i, row - 1);
 		for (s32 col = 1; col <= len2; col++) {
-			const s32 c2 = d_seq_lup(j, col - 1);
+			const s32 c2 = d_seq_lut(j, col - 1);
 			const s32 similarity = d_sub_mat(c1, c2);
 
 			const s32 d_score = p_match[col - 1] + similarity;
@@ -183,9 +184,9 @@ __global__ void k_sw(s32 *scores, s64 start, s64 batch)
 		match[0] = 0;
 		gap_x[0] = gap_y[0] = SCORE_MIN;
 
-		const s32 c1 = d_seq_lup(i, row - 1);
+		const s32 c1 = d_seq_lut(i, row - 1);
 		for (s32 col = 1; col <= len2; col++) {
-			const s32 c2 = d_seq_lup(j, col - 1);
+			const s32 c2 = d_seq_lut(j, col - 1);
 			const s32 similarity = d_sub_mat(c1, c2);
 
 			const s32 d_score = p_match[col - 1] + similarity;

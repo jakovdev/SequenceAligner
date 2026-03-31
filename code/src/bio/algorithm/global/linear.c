@@ -2,6 +2,7 @@
 
 #include "bio/algorithm/indices.h"
 #include "bio/algorithm/matrix.h"
+#include "bio/score/matrices.h"
 #include "system/compiler.h"
 
 void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
@@ -34,7 +35,7 @@ s32 linear_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	for (s32 i = 1; i <= len2; ++i) {
 		const s64 row = cols * i;
 		const s64 p_row = cols * (i - 1);
-		const s32 c2_idx = SEQ_LUP[(uchar)seq2->letters[i - 1]];
+		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
 
 		for (s32 j = 1; j <= len1; j++) {
 			const s32 match = g_matrix[p_row + j - 1] +

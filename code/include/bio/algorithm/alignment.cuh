@@ -11,7 +11,8 @@ extern "C" {
 #include <driver_types.h>
 #include <stdbool.h>
 
-#include "bio/types.h"
+#include "bio/score/matrices.h"
+#include "system/types.h"
 
 #define MAX_CUDA_SEQUENCE_LENGTH (1023)
 
@@ -21,8 +22,8 @@ struct Constants {
 	s64 *offsets;
 	sll *progress;
 	sll *checksum;
-	s32 seq_lup[SEQ_LUP_SIZE];
-	s32 sub_mat[SUBMAT_MAX * SUBMAT_MAX];
+	s32 seq_lut[SEQ_LUT_SIZE];
+	s32 sub_mat[SUB_MAT_DIM * SUB_MAT_DIM];
 	s32 seq_n;
 	s32 gap_pen;
 	s32 gap_open;

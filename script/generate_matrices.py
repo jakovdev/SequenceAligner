@@ -1,285 +1,95 @@
 #!/usr/bin/env python3
 import parasail
 import os
-import logging
-import re
+from pathlib import Path
 
-logging.basicConfig(level=logging.INFO, format="%(message)s")
-logger = logging.getLogger(__name__)
+ROOT = Path(__file__).resolve().parents[1]
+AUTOGEN_INCLUDE_FILE = ROOT / "code/include/generated/bio/score/matrices.h"
 
-if os.path.exists("script/generate_matrices.py"):
-    HEADER_FILE = "code/include/bio/score/matrices.h"
-    SOURCE_FILE = "code/src/bio/score/matrices.c"
-else:
-    HEADER_FILE = "../code/include/bio/score/matrices.h"
-    SOURCE_FILE = "../code/src/bio/score/matrices.c"
+AMINO_ALPHABET = "ARNDCQEGHILKMFPSTWYVBZX*"
+NUCLEO_ALPHABET = "ATGCSWRYKMBVHDN*"
+STRIDE = len(AMINO_ALPHABET)
 
-AMINO_ACIDS = "ARNDCQEGHILKMFPSTWYVBZX*"
-NUCLEOTIDES = "ATGCSWRYKMBVHDN*"
+AMINO_LUT = [-1] * 128
+for index, letter in enumerate(AMINO_ALPHABET):
+    AMINO_LUT[ord(letter)] = index
 
-MATRIX_TYPES = {
-    "amino": {
-        "alphabet": AMINO_ACIDS,
-        "matrices": [],
-        "pattern": r"(blosum\d+|pam\d+)",
-    },
-    "nucleo": {
-        "alphabet": NUCLEOTIDES,
-        "matrices": [],
-        "pattern": r"(dnafull|nuc44)",
-    },
-}
+NUCLEO_LUT = [-1] * 128
+for index, letter in enumerate(NUCLEO_ALPHABET):
+    NUCLEO_LUT[ord(letter)] = index
 
+lines = []
+for name, lut in (("AMINO_LUT", AMINO_LUT), ("NUCLEO_LUT", NUCLEO_LUT)):
+    lines.append(f"static const s32 {name}[SEQ_LUT_SIZE] = {{")
+    for i in range(0, len(lut), 16):
+        row = lut[i : i + 16]
+        row_values = ", ".join(f"{value:>3}" for value in row)
+        lines.append(f"{row_values},")
+    lines.append("};\n")
+lut_block = "\n".join(lines)
 
-def get_available_matrices():
-    matrix_attributes = [
-        attr
-        for attr in dir(parasail)
-        if (re.match(r"blosum\d+|pam\d+|dnafull|nuc44", attr))
-        and not attr.startswith("__")
-    ]
+AMINO_MATRICES = []
+NUCLEO_MATRICES = []
 
-    logger.info(f"Found {len(matrix_attributes)} potential matrices in parasail")
+for matrix in sorted(attr for attr in dir(parasail) if not attr.startswith("__")):
+    is_amino = matrix.startswith(("blosum", "pam"))
+    is_nucleo = matrix in ("dnafull", "nuc44")
+    if not is_amino and not is_nucleo:
+        continue
 
-    for name in matrix_attributes:
-        try:
-            matrix = getattr(parasail, name)
-            matrix_type = None
+    matrix_obj = getattr(parasail, matrix)
+    raw = getattr(matrix_obj, "matrix", None)
+    if raw is None:
+        continue
 
-            # Determine matrix type by name pattern
-            for type_name, type_info in MATRIX_TYPES.items():
-                if re.match(type_info["pattern"], name):
-                    matrix_type = type_name
-                    break
+    if is_amino:
+        alphabet = AMINO_ALPHABET
+        target = AMINO_MATRICES
+        lut_name = "AMINO_LUT"
+    elif is_nucleo:
+        alphabet = NUCLEO_ALPHABET
+        target = NUCLEO_MATRICES
+        lut_name = "NUCLEO_LUT"
+    else:
+        continue
 
-            if not matrix_type:
-                continue
+    size = len(alphabet)
+    values = [[int(raw[i][j]) for j in range(size)] for i in range(size)]
+    data = list(zip(alphabet, values))
+    target.append((matrix, matrix.upper(), lut_name, data))
 
-            # Wrapper to provide the get_value method
-            class ParasailMatrixWrapper:
-                def __init__(self, matrix_obj, matrix_name, alphabet):
-                    self.matrix_obj = matrix_obj
-                    self.name = matrix_name
-                    self.alphabet = alphabet
-                    self.size = len(alphabet)
-
-                def get_value(self, a, b):
-                    try:
-                        if hasattr(self.matrix_obj, "matrix"):
-                            i = self.alphabet.find(a)
-                            j = self.alphabet.find(b)
-                            if (
-                                i >= 0
-                                and j >= 0
-                                and i < len(self.matrix_obj.matrix)
-                                and j < len(self.matrix_obj.matrix[0])
-                            ):
-                                return self.matrix_obj.matrix[i][j]
-                        return 0
-                    except Exception:
-                        return 0
-
-            alphabet = MATRIX_TYPES[matrix_type]["alphabet"]
-            wrapped_matrix = ParasailMatrixWrapper(matrix, name, alphabet)
-
-            # Test
-            wrapped_matrix.get_value(alphabet[0], alphabet[0])
-
-            MATRIX_TYPES[matrix_type]["matrices"].append((name.upper(), wrapped_matrix))
-
-        except (AttributeError, TypeError):
-            pass
-
-    for type_name, type_info in MATRIX_TYPES.items():
-        logger.info(
-            f"Successfully loaded {len(type_info['matrices'])} {type_name} matrices"
-        )
-
-    return MATRIX_TYPES
-
-
-def format_matrix_as_c_array(matrix):
-    formatted_rows = []
-    alphabet = matrix.alphabet
-
-    FIXED_WIDTH = 3
-    for aa1 in alphabet:
-        row_values = []
-        for aa2 in alphabet:
-            val = matrix.get_value(aa1, aa2)
-            formatted_val = f"{val:>{FIXED_WIDTH}}"
-            row_values.append(formatted_val)
-
-        formatted_row = "{" + ", ".join(row_values) + "}, /* " + aa1 + " */"
-        formatted_rows.append(formatted_row)
-
-    return "{\n" + "\n".join(formatted_rows) + "\n}"
-
-
-def generate_header_file(matrix_types):
-    header_content = [
-        "#pragma once",
-        "#ifndef BIO_SCORE_MATRICES_H",
-        "#define BIO_SCORE_MATRICES_H",
-        "/* clang-format off */",
-        "",
-    ]
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet_name = type_name.upper()
-        header_content.append(
-            f"#define {alphabet_name}_SIZE {len(type_info['alphabet'])}"
-        )
-        header_content.append(
-            f"#define {alphabet_name}_MATSIZE ({alphabet_name}_SIZE * {alphabet_name}_SIZE * sizeof(int))"
-        )
-        header_content.append(f"extern const char {alphabet_name}_ALPHABET[];")
-        header_content.append("")
-
-    max_dim = 0
-    max_dim_name = ""
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        dim_size = len(type_info["alphabet"])
-        if dim_size > max_dim:
-            max_dim = dim_size
-            max_dim_name = f"{type_name.upper()}_SIZE"
-
-    header_content.append(f"#define SUBMAT_MAX {max_dim_name}")
-    header_content.append("")
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet_name = type_name.upper()
-        header_content.append(
-            f"#define NUM_{alphabet_name}_MATRICES {len(type_info['matrices'])}"
-        )
-    header_content.append("")
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet_name = type_name.upper()
-        header_content.extend(
+lines = []
+lines.append(f"#define AMINO_MAT_N ({len(AMINO_MATRICES)})")
+lines.append(f"#define NUCLEO_MAT_N ({len(NUCLEO_MATRICES)})\n")
+for matrices in (AMINO_MATRICES, NUCLEO_MATRICES):
+    for _, symbol, _, data in matrices:
+        lines.append(f"static const s32 {symbol}[SUB_MAT_DIM * SUB_MAT_DIM] = {{")
+        lines.extend(
             [
-                f"typedef struct {{",
-                "	const char *name;",
-                f"	const int (*matrix)[{alphabet_name}_SIZE];",
-                f"}} {type_name.capitalize()}Matrix;",
-                "",
+                f"[{row_index * STRIDE:>3}] = {', '.join(f'{value:>3}' for value in row)}, /* {letter} */"
+                for row_index, (letter, row) in enumerate(data)
             ]
         )
+        lines.append("};\n")
 
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
+lines.append("static const matrix MATRICES[] = {")
+for matrices in (AMINO_MATRICES, NUCLEO_MATRICES):
+    for name, symbol, lut_name, _ in matrices:
+        lines.append(f'{{"{name}", {symbol}, {lut_name}}},')
+lines.append("};")
+matrices_block = "\n".join(lines)
 
-        alphabet_name = type_name.upper()
-        header_content.append(
-            f"extern const {type_name.capitalize()}Matrix {alphabet_name}_MATRIX[NUM_{alphabet_name}_MATRICES];"
-        )
+autogen_include_content = (
+    "/* Auto-generated by script/generate_matrices.py. Do not edit manually. */\n"
+    "#ifdef GENERATED_MATRICES_IMPLEMENTATION\n"
+    "/* clang-format off */\n"
+    f"{lut_block}\n"
+    f"{matrices_block}\n"
+    "/* clang-format on */\n"
+    "#endif /* GENERATED_MATRICES_IMPLEMENTATION */\n"
+)
 
-    header_content.append("")
-    header_content.append("/* clang-format on */")
-    header_content.append("#endif /* BIO_SCORE_MATRICES_H */")
-    header_content.append("")
-    return "\n".join(header_content)
-
-
-def generate_source_file(matrix_types):
-    source_content = [
-        "/* clang-format off */",
-        '#include "bio/score/matrices.h"',
-        "",
-    ]
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet = type_info["alphabet"]
-        alphabet_name = type_name.upper()
-        source_content.extend(
-            [
-                f'const char {alphabet_name}_ALPHABET[] = "{alphabet}";',
-                "",
-            ]
-        )
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        source_content.append(f"/* {type_name.capitalize()} matrix identifiers */")
-        source_content.append(f"typedef enum {{")
-        for i, (name, _) in enumerate(type_info["matrices"]):
-            source_content.append(f"{name}_ID = {i},")
-        source_content.append(f"}} {type_name.capitalize()}MatrixID;")
-        source_content.append("")
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet_name = type_name.upper()
-        source_content.append(f"/* {type_name.capitalize()} matrices */")
-
-        for name, matrix_obj in type_info["matrices"]:
-            source_content.append(
-                f"static const int {name}[{alphabet_name}_SIZE][{alphabet_name}_SIZE] = {format_matrix_as_c_array(matrix_obj)};"
-            )
-            source_content.append("")
-
-    for type_name, type_info in matrix_types.items():
-        if not type_info["matrices"]:
-            continue
-
-        alphabet_name = type_name.upper()
-        source_content.append(
-            f"const {type_name.capitalize()}Matrix {alphabet_name}_MATRIX[NUM_{alphabet_name}_MATRICES] = {{"
-        )
-        for name, _ in type_info["matrices"]:
-            source_content.append(f'{{"{name}", {name}}},')
-        source_content.append("};")
-        source_content.append("")
-
-    source_content.append("/* clang-format on */")
-    source_content.append("")
-    return "\n".join(source_content)
-
-
-def create_matrices_files():
-    matrix_types = get_available_matrices()
-
-    header_content = generate_header_file(matrix_types)
-    source_content = generate_source_file(matrix_types)
-
-    os.makedirs(os.path.dirname(os.path.abspath(HEADER_FILE)), exist_ok=True)
-    os.makedirs(os.path.dirname(os.path.abspath(SOURCE_FILE)), exist_ok=True)
-
-    with open(HEADER_FILE, "w") as f:
-        f.write(header_content)
-
-    with open(SOURCE_FILE, "w") as f:
-        f.write(source_content)
-
-    logger.info(f"Generated {HEADER_FILE} and {SOURCE_FILE}")
-
-    for type_name, type_info in MATRIX_TYPES.items():
-        if type_info["matrices"]:
-            matrix_names = [name for name, _ in type_info["matrices"]]
-            logger.info(
-                f"{len(matrix_names)} {type_name} matrices: {', '.join(matrix_names)}"
-            )
-
-
-if __name__ == "__main__":
-    create_matrices_files()
+os.makedirs(AUTOGEN_INCLUDE_FILE.parent, exist_ok=True)
+with open(AUTOGEN_INCLUDE_FILE, "w") as f:
+    f.write(autogen_include_content)
+print(f"Generated {AUTOGEN_INCLUDE_FILE}")

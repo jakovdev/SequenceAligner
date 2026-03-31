@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
 #include "io/input.h"
 #include "system/compiler.h"
@@ -44,7 +45,7 @@ static bool validate_sequence(char *restrict letters, s32 length)
 	for (s32 i = 0; i < length; i++) {
 		char c = (char)toupper((uchar)letters[i]);
 
-		if (SEQ_LUP[(uchar)c] < 0)
+		if (SEQ_LUT[(uchar)c] < 0)
 			return false;
 
 		letters[i] = c;

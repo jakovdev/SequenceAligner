@@ -1,33 +1,18 @@
 #pragma once
 #ifndef BIO_SCORE_MATRICES_H
 #define BIO_SCORE_MATRICES_H
-/* clang-format off */
 
-#define AMINO_SIZE 24
-#define AMINO_MATSIZE (AMINO_SIZE * AMINO_SIZE * sizeof(int))
-extern const char AMINO_ALPHABET[];
+#include <limits.h>
 
-#define NUCLEO_SIZE 16
-#define NUCLEO_MATSIZE (NUCLEO_SIZE * NUCLEO_SIZE * sizeof(int))
-extern const char NUCLEO_ALPHABET[];
+#define SEQ_LUT_SIZE (SCHAR_MAX + 1)
+#define SUB_MAT_DIM (24)
 
-#define SUBMAT_MAX AMINO_SIZE
+#ifndef __cplusplus
+#include "system/types.h"
+#include "system/memory.h"
 
-#define NUM_AMINO_MATRICES 65
-#define NUM_NUCLEO_MATRICES 2
+extern alignas(CACHE_LINE) s32 SEQ_LUT[SEQ_LUT_SIZE];
+extern alignas(CACHE_LINE) s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
+#endif /* __cplusplus */
 
-typedef struct {
-	const char *name;
-	const int (*matrix)[AMINO_SIZE];
-} AminoMatrix;
-
-typedef struct {
-	const char *name;
-	const int (*matrix)[NUCLEO_SIZE];
-} NucleoMatrix;
-
-extern const AminoMatrix AMINO_MATRIX[NUM_AMINO_MATRICES];
-extern const NucleoMatrix NUCLEO_MATRIX[NUM_NUCLEO_MATRICES];
-
-/* clang-format on */
 #endif /* BIO_SCORE_MATRICES_H */

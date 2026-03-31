@@ -1,5 +1,6 @@
 #include "bio/algorithm/indices.h"
 
+#include "bio/score/matrices.h"
 #include "bio/sequence/sequences.h"
 #include "system/compiler.h"
 #include "system/memory.h"
@@ -40,5 +41,5 @@ void indices_precompute(sequence_ptr_t seq)
 		unreachable_release();
 
 	for (s32 i = 0; i < seq->length; ++i)
-		g_seq1_i[i] = SEQ_LUP[(uchar)seq->letters[i]];
+		g_seq1_i[i] = SEQ_LUT[(uchar)seq->letters[i]];
 }

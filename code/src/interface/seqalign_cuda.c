@@ -7,6 +7,7 @@
 #include <cuda_runtime_api.h>
 #include <string.h>
 
+#include "bio/score/matrices.h"
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
@@ -141,7 +142,7 @@ bool cuda_align(void)
 		.gap_ext = GAP_EXT,
 	};
 
-	memcpy(C.seq_lup, SEQ_LUP, sizeof(C.seq_lup));
+	memcpy(C.seq_lut, SEQ_LUT, sizeof(C.seq_lut));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
 
 	size_t seq_n = (size_t)g_seq_n;
