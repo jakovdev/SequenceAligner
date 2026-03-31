@@ -11,13 +11,12 @@ bool fasta_detect(struct ifile *, const char *restrict extension);
 
 bool fasta_open(struct ifile *);
 
-size_t fasta_sequence_count(struct ifile *);
+size_t fasta_entry_count(struct ifile *);
 
-void fasta_sequence_length(struct ifile *, size_t *out_length);
+void fasta_entry_length(struct ifile *, size_t *length);
 
-void fasta_sequence_extract(struct ifile *, char *restrict output,
-			    size_t expected_length);
+void fasta_entry_extract(struct ifile *, char *restrict output, size_t length);
 
-bool fasta_sequence_next(struct ifile *);
+bool fasta_entry_next(struct ifile *);
 
 #endif /* IO_FORMAT_FASTA_H */

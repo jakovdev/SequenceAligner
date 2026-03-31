@@ -81,7 +81,22 @@ bool sequences_load_from_file(void)
 	if (!ifile_open(&ifile, arg_input()))
 		return false;
 
-	size_t total = (size_t)ifile_sequence_count(&ifile);
+	size_t total = ifile_entry_total(&ifile);
+	if (total >= SEQ_N_MAX) {
+		perr("Too many sequences in input file: %zu (max: %u)", total,
+		     SEQ_N_MAX);
+		ifile_close(&ifile);
+		return false;
+	}
+
+	if (total < SEQ_N_MIN) {
+		perr("Not enough sequences in input file: %zu (min: %u)", total,
+		     SEQ_N_MIN);
+		ifile_close(&ifile);
+		return false;
+	}
+
+	pinfo("Found %zu potential sequences", total);
 	size_t capacity = PAGE_SIZE;
 	globals_dirty = true;
 	MALLOCA(g_lengths, total);
@@ -103,7 +118,7 @@ bool sequences_load_from_file(void)
 	bench_io_start();
 	do {
 		size_t length = 0;
-		ifile_sequence_length(&ifile, &length);
+		ifile_entry_length(&ifile, &length);
 
 		if (!validate_length(length)) {
 			if (large < 0) {
@@ -135,7 +150,7 @@ bool sequences_load_from_file(void)
 		}
 
 		char *letters = g_letters + letters_used;
-		ifile_sequence_extract(&ifile, letters, length);
+		ifile_entry_extract(&ifile, letters, length);
 		if (!validate_sequence(letters, seq_len)) {
 			if (invalid < 0) {
 				bench_io_end();
@@ -159,7 +174,7 @@ bool sequences_load_from_file(void)
 		letters_used += seq_len + 1;
 		if (length > g_seq_len_max)
 			g_seq_len_max = length;
-	} while (ifile_sequence_next(&ifile));
+	} while (ifile_entry_next(&ifile));
 	bench_io_end();
 
 	if (seq_n_long > 0)

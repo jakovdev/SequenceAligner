@@ -4,7 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bio/types.h"
 #include "io/format/dsv.h"
 #include "io/format/fasta.h"
 #include "system/compiler.h"
@@ -84,36 +83,18 @@ bool ifile_open(struct ifile *ifile, const char *restrict path)
 		return false;
 	}
 
-	pverb("Counting sequences in input file");
-	size_t total = 0;
 	switch (ifile->format) {
 	case INPUT_FORMAT_FASTA:
-		total = fasta_sequence_count(ifile);
+		ifile->entries = fasta_entry_count(ifile);
 		break;
 	case INPUT_FORMAT_DSV:
-		total = dsv_sequence_count(ifile);
+		ifile->entries = dsv_entry_count(ifile);
 		break;
 	case INPUT_FORMAT_UNKNOWN:
 	default:
 		unreachable();
 	}
 
-	if (total >= SEQ_N_MAX) {
-		perr("Too many sequences in input file: %zu > max:%u", total,
-		     SEQ_N_MAX);
-		ifile_close(ifile);
-		return false;
-	}
-
-	if (total < SEQ_N_MIN) {
-		perr("Not enough sequences in input file: %zu < min:%u)", total,
-		     SEQ_N_MIN);
-		ifile_close(ifile);
-		return false;
-	}
-
-	ifile->total_sequences = (s32)total;
-	pinfo("Found " Ps32 " sequences", ifile->total_sequences);
 	bench_io_end();
 	return true;
 }
@@ -129,32 +110,30 @@ void ifile_close(struct ifile *ifile)
 	if (ifile->stream)
 		fclose(ifile->stream);
 
-	if (ifile->line)
-		free(ifile->line);
-
+	free(ifile->line);
 	memset(ifile, 0, sizeof(*ifile));
 }
 
-s32 ifile_sequence_count(struct ifile *ifile)
+size_t ifile_entry_total(struct ifile *ifile)
 {
 	if unlikely (!ifile) {
-		pdev("NULL ifile in ifile_sequence_count()");
+		pdev("NULL ifile in ifile_entry_total()");
 		perr("Internal error retrieving total sequences from input file");
 		pabort();
 	}
 
-	return ifile->total_sequences;
+	return ifile->entries;
 }
 
-void ifile_sequence_length(struct ifile *ifile, size_t *out_length)
+void ifile_entry_length(struct ifile *ifile, size_t *out_length)
 {
 	if (ifile && out_length) {
 		switch (ifile->format) {
 		case INPUT_FORMAT_FASTA:
-			fasta_sequence_length(ifile, out_length);
+			fasta_entry_length(ifile, out_length);
 			return;
 		case INPUT_FORMAT_DSV:
-			dsv_sequence_length(ifile, out_length);
+			dsv_entry_length(ifile, out_length);
 			return;
 		case INPUT_FORMAT_UNKNOWN:
 		default:
@@ -162,21 +141,21 @@ void ifile_sequence_length(struct ifile *ifile, size_t *out_length)
 		}
 	}
 
-	pdev("NULL ifile or unknown format in ifile_sequence_length()");
+	pdev("NULL ifile or unknown format in ifile_entry_length()");
 	perr("Internal error retrieving sequence length from file");
 	pabort();
 }
 
-void ifile_sequence_extract(struct ifile *ifile, char *restrict output,
-			    size_t expected_length)
+void ifile_entry_extract(struct ifile *ifile, char *restrict output,
+			 size_t expected_length)
 {
 	if (ifile && output && expected_length) {
 		switch (ifile->format) {
 		case INPUT_FORMAT_FASTA:
-			fasta_sequence_extract(ifile, output, expected_length);
+			fasta_entry_extract(ifile, output, expected_length);
 			return;
 		case INPUT_FORMAT_DSV:
-			dsv_sequence_extract(ifile, output, expected_length);
+			dsv_entry_extract(ifile, output, expected_length);
 			return;
 		case INPUT_FORMAT_UNKNOWN:
 		default:
@@ -184,26 +163,26 @@ void ifile_sequence_extract(struct ifile *ifile, char *restrict output,
 		}
 	}
 
-	pdev("NULL file or unknown format in ifile_sequence_extract()");
+	pdev("NULL file or unknown format in ifile_entry_extract()");
 	perr("Internal error retrieving sequence from file");
 	pabort();
 }
 
-bool ifile_sequence_next(struct ifile *ifile)
+bool ifile_entry_next(struct ifile *ifile)
 {
 	if (ifile) {
 		switch (ifile->format) {
 		case INPUT_FORMAT_FASTA:
-			return fasta_sequence_next(ifile);
+			return fasta_entry_next(ifile);
 		case INPUT_FORMAT_DSV:
-			return dsv_sequence_next(ifile);
+			return dsv_entry_next(ifile);
 		case INPUT_FORMAT_UNKNOWN:
 		default:
 			break;
 		}
 	}
 
-	pdev("NULL file or unknown format in ifile_sequence_next()");
+	pdev("NULL file or unknown format in ifile_entry_next()");
 	perr("Internal error during file parsing");
 	pabort();
 }

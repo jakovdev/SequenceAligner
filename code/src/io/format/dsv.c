@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -163,8 +164,7 @@ static bool dsv_delimiter(struct ifile *ifile)
 	return true;
 }
 
-static void dsv_sequence_column(char **headers, size_t num_cols,
-				size_t *seq_col)
+static void dsv_target_column(char **headers, size_t num_cols, size_t *seq_col)
 {
 	if (!headers || num_cols == 0 || num_cols > INT_MAX) {
 		*seq_col = SIZE_MAX;
@@ -310,7 +310,7 @@ bool dsv_open(struct ifile *ifile)
 		while (token_len > 0 &&
 		       (token[token_len - 1] == '\n' ||
 			token[token_len - 1] == '\r' ||
-			isspace((uchar)token[token_len - 1]))) {
+			isspace((unsigned char)token[token_len - 1]))) {
 			token[token_len - 1] = '\0';
 			token_len--;
 		}
@@ -318,10 +318,9 @@ bool dsv_open(struct ifile *ifile)
 		MALLOCA(headers[column], token_len + 1);
 		if unlikely (!headers[column]) {
 			perr("Out of memory while reading DSV file");
-			for (size_t i = 0; i < column; i++) {
-				if (headers[i])
-					free(headers[i]);
-			}
+			for (size_t i = 0; i < column; i++)
+				free(headers[i]);
+
 			free(headers);
 			exit(EXIT_FAILURE);
 		}
@@ -331,7 +330,7 @@ bool dsv_open(struct ifile *ifile)
 	}
 
 	size_t seq_col = SIZE_MAX;
-	dsv_sequence_column(headers, num_columns, &seq_col);
+	dsv_target_column(headers, num_columns, &seq_col);
 
 	if (seq_col == SIZE_MAX) {
 		bench_io_end();
@@ -340,6 +339,7 @@ bool dsv_open(struct ifile *ifile)
 			perr("Out of memory while reading DSV file");
 			for (column = 0; column < num_columns; column++)
 				free(headers[column]);
+
 			free(headers);
 			exit(EXIT_FAILURE);
 		}
@@ -369,6 +369,7 @@ bool dsv_open(struct ifile *ifile)
 				perr("Out of memory while reading DSV file");
 				for (column = 0; column < num_columns; column++)
 					free(headers[column]);
+
 				free(headers);
 				exit(EXIT_FAILURE);
 			}
@@ -393,9 +394,9 @@ bool dsv_open(struct ifile *ifile)
 
 	for (column = 0; column < num_columns; column++)
 		free(headers[column]);
-	free(headers);
 
-	ifile->ctx.dsv.sequence_column = seq_col;
+	free(headers);
+	ifile->ctx.dsv.target_column = seq_col;
 	ifile->ctx.dsv.num_columns = num_columns;
 
 	if (no_header)
@@ -404,10 +405,10 @@ bool dsv_open(struct ifile *ifile)
 	return true;
 }
 
-size_t dsv_sequence_count(struct ifile *ifile)
+size_t dsv_entry_count(struct ifile *ifile)
 {
 	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_sequence_count()");
+		pdev("Invalid ifile in dsv_entry_count()");
 		perr("Internal error counting DSV lines");
 		pabort();
 	}
@@ -428,16 +429,16 @@ size_t dsv_sequence_count(struct ifile *ifile)
 	return count;
 }
 
-void dsv_sequence_length(struct ifile *ifile, size_t *out_length)
+void dsv_entry_length(struct ifile *ifile, size_t *out_length)
 {
 	if unlikely (!ifile || !ifile->stream || !out_length) {
-		pdev("Invalid parameters in dsv_sequence_length()");
+		pdev("Invalid parameters in dsv_entry_length()");
 		perr("Internal error getting sequence length in DSV file");
 		pabort();
 	}
 
 	FILE *stream = ifile->stream;
-	size_t column = ifile->ctx.dsv.sequence_column;
+	size_t column = ifile->ctx.dsv.target_column;
 	char delimiter = ifile->ctx.dsv.delimiter;
 
 	long pos = fpos_tell(stream);
@@ -466,18 +467,18 @@ void dsv_sequence_length(struct ifile *ifile, size_t *out_length)
 	*out_length = length;
 }
 
-void dsv_sequence_extract(struct ifile *ifile, char *restrict output,
-			  size_t expected_length)
+void dsv_entry_extract(struct ifile *ifile, char *restrict output,
+		       size_t expected_length)
 {
 	if unlikely (!ifile || !ifile->stream || !output) {
-		pdev("Invalid parameters for dsv_sequence_extract()");
+		pdev("Invalid parameters for dsv_entry_extract()");
 		perr("Internal error extracting sequence from DSV file");
 		pabort();
 	}
 
 	FILE *stream = ifile->stream;
 	char delimiter = ifile->ctx.dsv.delimiter;
-	size_t column = ifile->ctx.dsv.sequence_column;
+	size_t column = ifile->ctx.dsv.target_column;
 
 	long pos = fpos_tell(stream);
 	long line_len;
@@ -506,10 +507,10 @@ void dsv_sequence_extract(struct ifile *ifile, char *restrict output,
 	fpos_seek(stream, pos);
 }
 
-bool dsv_sequence_next(struct ifile *ifile)
+bool dsv_entry_next(struct ifile *ifile)
 {
 	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_sequence_next()");
+		pdev("Invalid ifile in dsv_entry_next()");
 		perr("Internal error during DSV parsing");
 		pabort();
 	}

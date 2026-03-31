@@ -22,7 +22,7 @@ static bool header(const char *line)
 #define for_each_nws(line, line_len, i)                                      \
 	for (long i = 0; i < line_len && line[i] != '\n' && line[i] != '\r'; \
 	     i++)                                                            \
-		if (!isspace((uchar)line[i]))
+		if (!isspace((unsigned char)line[i]))
 
 static bool whitespace(const char *line, long line_len)
 {
@@ -164,10 +164,10 @@ bool fasta_open(struct ifile *ifile)
 	return true;
 }
 
-size_t fasta_sequence_count(struct ifile *ifile)
+size_t fasta_entry_count(struct ifile *ifile)
 {
 	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in fasta_sequence_count()");
+		pdev("Invalid ifile in fasta_entry_count()");
 		perr("Internal error counting FASTA sequences");
 		pabort();
 	}
@@ -188,10 +188,10 @@ size_t fasta_sequence_count(struct ifile *ifile)
 	return count;
 }
 
-void fasta_sequence_length(struct ifile *ifile, size_t *out_length)
+void fasta_entry_length(struct ifile *ifile, size_t *out_length)
 {
 	if unlikely (!ifile || !ifile->stream || !out_length) {
-		pdev("Invalid parameters in fasta_sequence_length()");
+		pdev("Invalid parameters in fasta_entry_length()");
 		perr("Internal error getting sequence length in FASTA file");
 		pabort();
 	}
@@ -222,11 +222,11 @@ void fasta_sequence_length(struct ifile *ifile, size_t *out_length)
 	*out_length = length;
 }
 
-void fasta_sequence_extract(struct ifile *ifile, char *restrict output,
-			    size_t expected_length)
+void fasta_entry_extract(struct ifile *ifile, char *restrict output,
+			 size_t expected_length)
 {
 	if unlikely (!ifile || !ifile->stream || !output || !expected_length) {
-		pdev("Invalid parameters for fasta_sequence_extract()");
+		pdev("Invalid parameters for fasta_entry_extract()");
 		perr("Internal error extracting sequence from FASTA file");
 		pabort();
 	}
@@ -261,10 +261,10 @@ void fasta_sequence_extract(struct ifile *ifile, char *restrict output,
 	fpos_seek(stream, pos);
 }
 
-bool fasta_sequence_next(struct ifile *ifile)
+bool fasta_entry_next(struct ifile *ifile)
 {
 	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in fasta_sequence_next()");
+		pdev("Invalid ifile in fasta_entry_next()");
 		perr("Internal error during fasta parsing");
 		pabort();
 	}
