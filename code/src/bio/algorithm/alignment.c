@@ -18,7 +18,7 @@
 typedef s32 (*align_func_t)(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
 static align_func_t align_method(void)
 {
-	switch (arg_align_method()) {
+	switch (METHOD) {
 	case ALIGN_GOTOH_AFFINE:
 		return align_ga;
 	case ALIGN_NEEDLEMAN_WUNSCH:

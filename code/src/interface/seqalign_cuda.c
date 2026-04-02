@@ -37,25 +37,6 @@ static bool init;
 		}                                            \
 	} while (0)
 
-typedef cudaError_t (*kernel_func_t)(s32 *, s64, s64);
-static kernel_func_t kernel_function(void)
-{
-	switch (arg_align_method()) {
-	case ALIGN_GOTOH_AFFINE:
-		return kernel_ga;
-	case ALIGN_NEEDLEMAN_WUNSCH:
-		return kernel_nw;
-	case ALIGN_SMITH_WATERMAN:
-		return kernel_sw;
-	case ALIGN_INVALID:
-	case ALIGN_COUNT:
-	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
-		pdev("Invalid AlignmentMethod enum");
-		perr("Internal error retrieving CUDA kernel");
-		pabort();
-	}
-}
-
 bool cuda_device_init(void)
 {
 	if (init) {
@@ -122,17 +103,12 @@ bool cuda_align(void)
 	}
 
 	cudaError_t err = { 0 };
-	cudaStream_t compute = { 0 }, memory = { 0 };
-	CALLR(cudaStreamCreate(&compute));
-	CALLR(cudaStreamCreate(&memory));
-
+	uint block_max = 0;
 	{
 		struct cudaDeviceProp dev_prop = { 0 };
 		CALLR(cudaGetDeviceProperties(&dev_prop, 0));
 		pinfo("Using CUDA device: %s", dev_prop.name);
-		const uint grid_max = (uint)dev_prop.maxGridSize[0];
-		const uint block_max = (uint)dev_prop.maxThreadsPerBlock;
-		cuda_config(grid_max, block_max, compute);
+		block_max = (uint)dev_prop.maxThreadsPerBlock;
 	}
 
 	struct Constants C = {
@@ -204,7 +180,12 @@ bool cuda_align(void)
 	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
 	CALLR(copy_constants(&C));
 
-	kernel_func_t kernel = kernel_function();
+	const void *kernel = kernel_function();
+	dim3 block = { block_max, 1, 1 };
+	cudaStream_t compute = { 0 }, memory = { 0 };
+	CALLR(cudaStreamCreate(&compute));
+	CALLR(cudaStreamCreate(&memory));
+
 	bool subsequent = false, syncing = false, matrix_copied = false;
 	s64 progress = 0;
 
@@ -247,7 +228,9 @@ bool cuda_align(void)
 			}
 		}
 
-		CALLR(kernel(scores[active], offset, batch));
+		dim3 grid = { (uint)((batch + block.x - 1) / block.x), 1, 1 };
+		void *args[] = { &scores[active], &offset, &batch };
+		CALLR(cudaLaunchKernel(kernel, grid, block, args, 0, compute));
 		batch_last += batch;
 cuda_results:
 
@@ -279,8 +262,10 @@ cuda_results:
 		}
 
 		if (syncing) {
-			CALLR(cudaStreamQuery(memory);
-			      if (err == cudaErrorNotReady) goto cuda_progress);
+			err = cudaStreamQuery(memory);
+			if (err == cudaErrorNotReady)
+				goto cuda_progress;
+			CALLR(err);
 			syncing = false;
 		}
 

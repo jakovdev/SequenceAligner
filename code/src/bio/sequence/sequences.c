@@ -102,7 +102,7 @@ bool sequences_load_from_file(void)
 		goto cleanup_seqs;
 	}
 
-	s64 letters_used = 0;
+	size_t letters_used = 0;
 	s32 seq_n_curr = 0;
 	s32 seq_n_long = 0;
 	s32 seq_n_invalid = 0;
@@ -113,7 +113,6 @@ bool sequences_load_from_file(void)
 	do {
 		size_t length = 0;
 		ifile_entry_length(&ifile, &length);
-
 		if (!validate_length(length)) {
 			if (large < 0) {
 				bench_io_end();
@@ -132,10 +131,9 @@ bool sequences_load_from_file(void)
 			goto cleanup_seqs;
 		}
 
-		s32 seq_len = (s32)length;
-		if (letters_used + seq_len + 1 > (s64)capacity) {
+		if (letters_used + length + 1 > capacity) {
 			size_t old_cap = capacity;
-			while (letters_used + seq_len + 1 > (s64)capacity)
+			while (letters_used + length + 1 > capacity)
 				capacity *= 2;
 			REALLOCA_AL(LETTERS, PAGE_SIZE, old_cap, capacity) {
 				perr("Out of memory growing sequence letters");
@@ -143,6 +141,7 @@ bool sequences_load_from_file(void)
 			}
 		}
 
+		s32 seq_len = (s32)length;
 		char *letters = LETTERS + letters_used;
 		ifile_entry_extract(&ifile, letters, length);
 		if (!validate_sequence(seq_len, letters)) {
@@ -164,8 +163,8 @@ bool sequences_load_from_file(void)
 
 		SEQS[seq_n_curr].length = seq_len;
 		LENGTHS[seq_n_curr] = seq_len;
-		OFFSETS[seq_n_curr++] = letters_used;
-		letters_used += seq_len + 1;
+		OFFSETS[seq_n_curr++] = (s64)letters_used;
+		letters_used += length + 1;
 		if (length > LENGTHS_MAX)
 			LENGTHS_MAX = length;
 	} while (ifile_entry_next(&ifile));
@@ -185,7 +184,7 @@ bool sequences_load_from_file(void)
 	}
 
 	if (letters_used < SEQ_LEN_SUM_MIN) {
-		perr("Not enough total sequence letters: " Ps64, letters_used);
+		perr("Not enough total sequence letters: %zu", letters_used);
 		goto cleanup_seqs;
 	}
 

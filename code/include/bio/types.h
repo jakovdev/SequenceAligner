@@ -14,11 +14,6 @@
 #define SEQ_LEN_SUM_MIN (SEQ_N_MIN * SEQ_LEN_MIN)
 #define SCORE_MIN (INT32_MIN / 2)
 
-#ifndef __cplusplus
-extern s32 GAP_PEN;
-extern s32 GAP_OPEN;
-extern s32 GAP_EXT;
-
 /* NOTE: Additional alignment methods can be added here if needed.
  *       However, this requires implementing the corresponding algorithm.
  */
@@ -31,7 +26,12 @@ enum AlignmentMethod {
 	ALIGN_COUNT
 };
 
-enum AlignmentMethod arg_align_method(void);
+extern enum AlignmentMethod METHOD;
+
+#ifndef __cplusplus
+extern s32 GAP_PEN;
+extern s32 GAP_OPEN;
+extern s32 GAP_EXT;
 
 typedef struct {
 	const char *restrict letters;

@@ -37,49 +37,45 @@ static struct {
 	/* NOTE: EXPANDABLE enum AlignmentMethod, enum GapPenaltyType */
 };
 
-s32 GAP_PEN;
-s32 GAP_OPEN;
-s32 GAP_EXT;
-
-static enum AlignmentMethod method_id = ALIGN_INVALID;
-enum AlignmentMethod arg_align_method(void)
-{
-	return method_id;
-}
+enum AlignmentMethod METHOD = ALIGN_INVALID;
 
 static struct arg_callback parse_align_method(const char *str, void *dest)
 {
 	(void)dest;
-	method_id = ALIGN_INVALID;
+	METHOD = ALIGN_INVALID;
 	errno = 0;
 	char *endptr = NULL;
 	long id = strtol(str, &endptr, 10);
 	if (endptr != str && *endptr == '\0' && errno != ERANGE &&
 	    id > ALIGN_INVALID && id < ALIGN_COUNT)
-		method_id = (enum AlignmentMethod)id;
+		METHOD = (enum AlignmentMethod)id;
 
-	if (method_id == ALIGN_INVALID) {
+	if (METHOD == ALIGN_INVALID) {
 		for (int i = 0; i < ALIGN_COUNT; i++) {
 			for (const char **alias = ALIGNMENT_METHODS[i].aliases;
 			     *alias != NULL; alias++) {
 				if (strcasecmp(str, *alias) == 0)
-					method_id = ALIGNMENT_METHODS[i].method;
+					METHOD = ALIGNMENT_METHODS[i].method;
 			}
 		}
 	}
 
-	if (method_id == ALIGN_INVALID)
+	if (METHOD == ALIGN_INVALID)
 		return ARG_INVALID("Invalid alignment method");
 
 	return ARG_VALID();
 }
+
+s32 GAP_PEN;
+s32 GAP_OPEN;
+s32 GAP_EXT;
 
 ARG_PARSE_L(gap_value, 10, s32, -(s32), (val < 0 || val > INT_MAX),
 	    "Gap values must be positive integers")
 
 static struct arg_callback validate_gap_pen(void)
 {
-	if (ALIGNMENT_METHODS[method_id].gap_type != GAP_TYPE_LINEAR)
+	if (ALIGNMENT_METHODS[METHOD].gap_type != GAP_TYPE_LINEAR)
 		return ARG_INVALID(
 			"Gap penalty cannot be set for non-linear methods");
 
@@ -88,14 +84,14 @@ static struct arg_callback validate_gap_pen(void)
 
 static struct arg_callback validate_gap_affine(void)
 {
-	if (ALIGNMENT_METHODS[method_id].gap_type != GAP_TYPE_AFFINE)
+	if (ALIGNMENT_METHODS[METHOD].gap_type != GAP_TYPE_AFFINE)
 		return ARG_INVALID(
 			"Gap open/extend cannot be set for non-affine methods");
 
-	if (method_id == ALIGN_GOTOH_AFFINE && GAP_OPEN == GAP_EXT) {
+	if (METHOD == ALIGN_GOTOH_AFFINE && GAP_OPEN == GAP_EXT) {
 		if (print_Yn(
 			    "Equal gap penalties found, switch to Needleman-Wunsch?")) {
-			method_id = ALIGN_NEEDLEMAN_WUNSCH;
+			METHOD = ALIGN_NEEDLEMAN_WUNSCH;
 			GAP_PEN = GAP_OPEN;
 			GAP_OPEN = INT32_MIN;
 			GAP_EXT = INT32_MIN;
@@ -106,14 +102,14 @@ static struct arg_callback validate_gap_affine(void)
 }
 static void print_config_method(void)
 {
-	pinfom("Method: %s", ALIGNMENT_METHODS[method_id].name);
+	pinfom("Method: %s", ALIGNMENT_METHODS[METHOD].name);
 }
 
 static void print_config_gaps(void)
 {
-	if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_LINEAR)
+	if (ALIGNMENT_METHODS[METHOD].gap_type == GAP_TYPE_LINEAR)
 		pinfom("Gap penalty: " Ps32, GAP_PEN);
-	else if (ALIGNMENT_METHODS[method_id].gap_type == GAP_TYPE_AFFINE)
+	else if (ALIGNMENT_METHODS[METHOD].gap_type == GAP_TYPE_AFFINE)
 		pinfom("Gap open: " Ps32 ", extend: " Ps32, GAP_OPEN, GAP_EXT);
 	else /* NOTE: EXPANDABLE enum GapPenaltyType */
 		unreachable();

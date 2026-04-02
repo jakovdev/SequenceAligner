@@ -224,48 +224,29 @@ __global__ void k_sw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-static uint g_max;
-static uint b_max;
-static cudaStream_t g_stream;
-
 extern "C" {
+#include "util/print.h"
 cudaError_t copy_constants(const struct Constants *host)
 {
 	return cudaMemcpyToSymbol(C, host, sizeof(C));
 }
 
-void cuda_config(uint grid_max, uint block_max, cudaStream_t stream)
+const void *kernel_function(void)
 {
-	g_max = grid_max;
-	b_max = block_max;
-	g_stream = stream;
-}
-
-cudaError_t kernel_nw(s32 *scores, s64 start, s64 batch)
-{
-	const uint g = static_cast<uint>((batch + b_max - 1) / b_max);
-	if (!g || g > g_max)
-		return cudaErrorInvalidConfiguration;
-	k_nw<<<g, b_max, 0, g_stream>>>(scores, start, batch);
-	return cudaGetLastError();
-}
-
-cudaError_t kernel_ga(s32 *scores, s64 start, s64 batch)
-{
-	const uint g = static_cast<uint>((batch + b_max - 1) / b_max);
-	if (!g || g > g_max)
-		return cudaErrorInvalidConfiguration;
-	k_ga<<<g, b_max, 0, g_stream>>>(scores, start, batch);
-	return cudaGetLastError();
-}
-
-cudaError_t kernel_sw(s32 *scores, s64 start, s64 batch)
-{
-	const uint g = static_cast<uint>((batch + b_max - 1) / b_max);
-	if (!g || g > g_max)
-		return cudaErrorInvalidConfiguration;
-	k_sw<<<g, b_max, 0, g_stream>>>(scores, start, batch);
-	return cudaGetLastError();
+	switch (METHOD) {
+	case ALIGN_GOTOH_AFFINE:
+		return (const void *)k_ga;
+	case ALIGN_NEEDLEMAN_WUNSCH:
+		return (const void *)k_nw;
+	case ALIGN_SMITH_WATERMAN:
+		return (const void *)k_sw;
+	case ALIGN_INVALID:
+	case ALIGN_COUNT:
+	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
+		pdev("Invalid AlignmentMethod enum");
+		perr("Internal error retrieving CUDA kernel");
+		pabort();
+	}
 }
 }
 

@@ -31,11 +31,8 @@ struct Constants {
 	bool triangular;
 };
 
-void cuda_config(uint grid_max, uint block_max, cudaStream_t stream);
 cudaError_t copy_constants(const struct Constants *host);
-cudaError_t kernel_nw(s32 *scores, s64 start, s64 batch);
-cudaError_t kernel_ga(s32 *scores, s64 start, s64 batch);
-cudaError_t kernel_sw(s32 *scores, s64 start, s64 batch);
+const void *kernel_function(void);
 
 #ifdef __cplusplus
 }
