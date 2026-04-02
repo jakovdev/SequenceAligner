@@ -4,6 +4,6 @@
 
 #include "bio/types.h"
 
-s32 align_nw(sequence_ptr_t, sequence_ptr_t);
+s32 align_nw(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
 
 #endif /* BIO_ALGORITHM_METHOD_NW_H */

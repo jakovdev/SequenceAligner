@@ -4,8 +4,8 @@
 
 #include "bio/types.h"
 
-void affine_local_init(sequence_ptr_t, sequence_ptr_t);
+void affine_local_init(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
 
-s32 affine_local_fill(sequence_ptr_t, sequence_ptr_t);
+s32 affine_local_fill(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
 
 #endif /* BIO_ALGORITHM_LOCAL_AFFINE_H */

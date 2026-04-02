@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "io/input.h"
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "util/benchmark.h"
@@ -16,12 +15,12 @@
 #define fline_next(fline, stream, line_len) \
 	((line_len = getline(&fline->line, &fline->line_cap, stream)) != -1)
 
-static bool empty(const char *line)
+static bool empty(const char line[static 1])
 {
 	return !*line || *line == '\n' || *line == '\r';
 }
 
-static long fpos_tell(FILE *stream)
+static long fpos_tell(FILE stream[static 1])
 {
 	long pos = ftell(stream);
 	if (pos < 0) {
@@ -31,7 +30,7 @@ static long fpos_tell(FILE *stream)
 	return pos;
 }
 
-static void fpos_seek(FILE *stream, long pos)
+static void fpos_seek(FILE stream[static 1], long pos)
 {
 	if (fseek(stream, pos, SEEK_SET) != 0) {
 		perr("Failed to parse DSV file");
@@ -39,8 +38,9 @@ static void fpos_seek(FILE *stream, long pos)
 	}
 }
 
-static bool extract_column_token(char *line, char delimiter, size_t target_col,
-				 char **out_token, size_t *out_len)
+static bool extract_column_token(char line[static 1], char delimiter,
+				 size_t target_col, char *out_token[static 1],
+				 size_t out_len[static 1])
 {
 	char delim_str[3];
 	delim_str[0] = delimiter;
@@ -67,9 +67,9 @@ static bool extract_column_token(char *line, char delimiter, size_t target_col,
 	return false;
 }
 
-bool dsv_detect(struct ifile *ifile, const char *restrict extension)
+bool dsv_detect(struct ifile ifile[static 1], const char ext[restrict static 1])
 {
-	if (!ifile || !extension || !*extension)
+	if (!*ext)
 		return false;
 
 	struct {
@@ -83,7 +83,7 @@ bool dsv_detect(struct ifile *ifile, const char *restrict extension)
 	};
 
 	for (size_t i = 0; i < ARRAY_SIZE(DSV_MAPPINGS); i++) {
-		if (strcasecmp(extension, DSV_MAPPINGS[i].ext) == 0) {
+		if (strcasecmp(ext, DSV_MAPPINGS[i].ext) == 0) {
 			ifile->format = INPUT_FORMAT_DSV;
 			ifile->ctx.dsv.delimiter = DSV_MAPPINGS[i].delim;
 			return true;
@@ -93,9 +93,9 @@ bool dsv_detect(struct ifile *ifile, const char *restrict extension)
 	return false;
 }
 
-static size_t dsv_count_columns(const char *line, char delimiter)
+static size_t dsv_count_columns(const char line[static 1], char delimiter)
 {
-	if (!line || empty(line))
+	if (empty(line))
 		return 0;
 
 	size_t count = 1;
@@ -108,10 +108,10 @@ static size_t dsv_count_columns(const char *line, char delimiter)
 	return count;
 }
 
-static bool dsv_delimiter(struct ifile *ifile)
+static bool dsv_delimiter(struct ifile ifile[static 1])
 {
-	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_delimiter()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in dsv_delimiter()");
 		perr("Internal error detecting DSV delimiter");
 		pabort();
 	}
@@ -164,9 +164,10 @@ static bool dsv_delimiter(struct ifile *ifile)
 	return true;
 }
 
-static void dsv_target_column(char **headers, size_t num_cols, size_t *seq_col)
+static void dsv_target_column(char *headers[static 1], size_t num_cols,
+			      size_t seq_col[static 1])
 {
-	if (!headers || num_cols == 0 || num_cols > INT_MAX) {
+	if (num_cols == 0 || num_cols > INT_MAX) {
 		*seq_col = SIZE_MAX;
 		return;
 	}
@@ -199,10 +200,10 @@ static void dsv_target_column(char **headers, size_t num_cols, size_t *seq_col)
 	*seq_col = SIZE_MAX;
 }
 
-static bool dsv_validate(struct ifile *ifile)
+static bool dsv_validate(struct ifile ifile[static 1])
 {
-	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_validate()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in dsv_validate()");
 		perr("Internal error validating DSV file");
 		pabort();
 	}
@@ -258,10 +259,10 @@ static bool dsv_validate(struct ifile *ifile)
 	return true;
 }
 
-bool dsv_open(struct ifile *ifile)
+bool dsv_open(struct ifile ifile[static 1])
 {
-	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_open()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in dsv_open()");
 		perr("Internal error opening DSV file");
 		pabort();
 	}
@@ -388,7 +389,7 @@ bool dsv_open(struct ifile *ifile)
 		}
 	}
 
-	if (seq_col < num_columns && headers && headers[seq_col])
+	if (seq_col < num_columns && headers[seq_col])
 		pverb("Using column #%zu ('%s') for sequences", seq_col + 1,
 		      headers[seq_col]);
 
@@ -405,10 +406,10 @@ bool dsv_open(struct ifile *ifile)
 	return true;
 }
 
-size_t dsv_entry_count(struct ifile *ifile)
+size_t dsv_entry_count(struct ifile ifile[static 1])
 {
-	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_entry_count()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in dsv_entry_count()");
 		perr("Internal error counting DSV lines");
 		pabort();
 	}
@@ -429,10 +430,10 @@ size_t dsv_entry_count(struct ifile *ifile)
 	return count;
 }
 
-void dsv_entry_length(struct ifile *ifile, size_t *out_length)
+void dsv_entry_length(struct ifile ifile[static 1], size_t out_length[static 1])
 {
-	if unlikely (!ifile || !ifile->stream || !out_length) {
-		pdev("Invalid parameters in dsv_entry_length()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in dsv_entry_length()");
 		perr("Internal error getting sequence length in DSV file");
 		pabort();
 	}
@@ -467,10 +468,10 @@ void dsv_entry_length(struct ifile *ifile, size_t *out_length)
 	*out_length = length;
 }
 
-void dsv_entry_extract(struct ifile *ifile, char *restrict output,
-		       size_t expected_length)
+void dsv_entry_extract(struct ifile ifile[static 1],
+		       char output[restrict static 1], size_t expected_length)
 {
-	if unlikely (!ifile || !ifile->stream || !output) {
+	if unlikely (!ifile->stream || !expected_length) {
 		pdev("Invalid parameters for dsv_entry_extract()");
 		perr("Internal error extracting sequence from DSV file");
 		pabort();
@@ -507,10 +508,10 @@ void dsv_entry_extract(struct ifile *ifile, char *restrict output,
 	fpos_seek(stream, pos);
 }
 
-bool dsv_entry_next(struct ifile *ifile)
+bool dsv_entry_next(struct ifile ifile[static 1])
 {
-	if unlikely (!ifile || !ifile->stream) {
-		pdev("Invalid ifile in dsv_entry_next()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in dsv_entry_next()");
 		perr("Internal error during DSV parsing");
 		pabort();
 	}

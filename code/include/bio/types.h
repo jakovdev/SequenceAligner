@@ -40,9 +40,10 @@ typedef struct {
 
 /* Pointer to a specific sequence */
 typedef const sequence_t *const restrict sequence_ptr_t;
-#define SEQ_INVALID(seq_ptr)                                               \
-	(!seq_ptr || !seq_ptr->letters || seq_ptr->length < SEQ_LEN_MIN || \
-	 seq_ptr->length > SEQ_LEN_MAX)
+#define SEQUENCE_PTR_T(seq) const sequence_t seq[const restrict static 1]
+#define SEQ_BAD(seq)                                                     \
+	(!seq->letters || !*seq->letters || seq->length < SEQ_LEN_MIN || \
+	 seq->length > SEQ_LEN_MAX)
 #endif /* __cplusplus */
 
 #endif /* BIO_TYPES_H */

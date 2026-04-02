@@ -5,9 +5,9 @@
 #include "bio/score/matrices.h"
 #include "system/compiler.h"
 
-void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
+void linear_global_init(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_matrix)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_matrix)
 		unreachable_release();
 
 	const s32 len1 = seq1->length;
@@ -23,9 +23,9 @@ void linear_global_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 		g_matrix[cols * i] = i * GAP_PEN;
 }
 
-s32 linear_global_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
+s32 linear_global_fill(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_matrix || !g_seq1_i)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_matrix || !g_seq1_i)
 		unreachable_release();
 
 	const s32 len1 = seq1->length;

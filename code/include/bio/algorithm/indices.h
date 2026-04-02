@@ -11,6 +11,6 @@ void indices_buffers_init(void);
 
 void indices_buffers_free(void);
 
-void indices_precompute(sequence_ptr_t);
+void indices_precompute(SEQUENCE_PTR_T());
 
 #endif /* BIO_ALGORITHM_INDICES_H */

@@ -40,7 +40,7 @@ static void sequences_free(void)
 	globals_dirty = false;
 }
 
-static bool validate_sequence(char *restrict letters, s32 length)
+static bool validate_sequence(s32 length, char letters[restrict static length])
 {
 	for (s32 i = 0; i < length; i++) {
 		char c = (char)toupper((uchar)letters[i]);
@@ -81,8 +81,8 @@ bool sequences_load_from_file(void)
 	if (!ifile_open(&ifile, arg_input()))
 		return false;
 
-	size_t total = ifile_entry_total(&ifile);
-	if (total >= SEQ_N_MAX) {
+	size_t total = ifile.entries;
+	if (total > SEQ_N_MAX) {
 		perr("Too many sequences in input file: %zu (max: %u)", total,
 		     SEQ_N_MAX);
 		ifile_close(&ifile);
@@ -151,7 +151,7 @@ bool sequences_load_from_file(void)
 
 		char *letters = g_letters + letters_used;
 		ifile_entry_extract(&ifile, letters, length);
-		if (!validate_sequence(letters, seq_len)) {
+		if (!validate_sequence(seq_len, letters)) {
 			if (invalid < 0) {
 				bench_io_end();
 				pwarn("Found sequence with invalid letters");

@@ -19,10 +19,10 @@ static struct {
 	hid_t sequences_id;
 	s32 *matrix;
 	size_t matrix_b;
-	s64 dim;
 	s64 checksum;
 	struct MMapMatrix mmap;
 	char path[MAX_PATH];
+	s32 chunk_dim;
 	u8 compression;
 	bool disabled;
 	bool mode_mmap;
@@ -30,15 +30,34 @@ static struct {
 	bool is_init;
 } g_h5 = { 0 };
 
-static void h5_file_close(void);
-static s32 h5_chunk_dimensions_calculate(void);
-
 #define H5_MIN_CHUNK_SIZE (1 << 8)
 #define H5_MAX_CHUNK_SIZE (1 << 12)
+static void h5_chunk_dimensions_calculate(void)
+{
+	if (g_seq_n <= H5_MIN_CHUNK_SIZE) {
+		g_h5.chunk_dim = g_seq_n;
+		return;
+	}
+
+	s32 chunk_dim = 64;
+	size_t square = (size_t)(chunk_dim * chunk_dim) * sizeof(chunk_dim);
+	size_t target_bytes = (2 * MiB) / (1 + (size_t)g_h5.compression / 3);
+	while (chunk_dim < g_seq_n && square < target_bytes)
+		chunk_dim *= 2;
+	if (chunk_dim > g_seq_n || square > target_bytes)
+		chunk_dim /= 2;
+
+	chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
+	chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
+	chunk_dim = min(chunk_dim, g_seq_n);
+	g_h5.chunk_dim = chunk_dim;
+}
+
+static void h5_file_close(void);
 
 bool h5_open(void)
 {
-	if (g_h5.is_init) {
+	if unlikely (g_h5.is_init) {
 		pdev("Call h5_close() before calling h5_open() again");
 		perr("Internal error initializing HDF5 storage");
 		pabort();
@@ -59,8 +78,8 @@ bool h5_open(void)
 		pabort();
 	}
 
-	g_h5.dim = g_seq_n;
-	const size_t dim_size = (size_t)g_h5.dim;
+	const size_t dim_size = (size_t)g_seq_n;
+	h5_chunk_dimensions_calculate();
 	bench_io_start();
 
 	const size_t safe = available_memory() * 3 / 4;
@@ -75,7 +94,7 @@ bool h5_open(void)
 
 	if (g_h5.mode_mmap) {
 		char name[MAX_PATH];
-		mmap_matrix_name(name, sizeof(name), g_h5.path);
+		mmap_matrix_name(sizeof(name), name, g_h5.path);
 		pinfo("Matrix size exceeds memory limits");
 		if (!mmap_matrix_open(&g_h5.mmap, name, dim_size))
 			return false;
@@ -90,7 +109,7 @@ bool h5_open(void)
 		memset(g_h5.matrix, 0, bytes);
 		g_h5.matrix_b = bytes;
 	}
-	pverb("HDF5 matrix size: " Ps64 " x " Ps64, g_h5.dim, g_h5.dim);
+	pverb("HDF5 matrix size: %zu x %zu", dim_size, dim_size);
 
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
@@ -112,13 +131,12 @@ bool h5_open(void)
 	}
 
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-	if (g_h5.dim > H5_MIN_CHUNK_SIZE) {
-		s32 chunk_dim = h5_chunk_dimensions_calculate();
-		hsize_t chunk_dims[2] = { (hsize_t)chunk_dim,
-					  (hsize_t)chunk_dim };
+	if (dim_size > H5_MIN_CHUNK_SIZE) {
+		hsize_t chunk_dims[2] = { (hsize_t)g_h5.chunk_dim,
+					  (hsize_t)g_h5.chunk_dim };
 		H5Pset_chunk(plist_id, 2, chunk_dims);
-		pverbl("HDF5 chunk size: " Ps32 " x " Ps32, chunk_dim,
-		       chunk_dim);
+		pverbl("HDF5 chunk size: " Ps32 " x " Ps32, g_h5.chunk_dim,
+		       g_h5.chunk_dim);
 
 		if (g_h5.compression > 0)
 			H5Pset_deflate(plist_id, g_h5.compression);
@@ -134,7 +152,7 @@ bool h5_open(void)
 		return false;
 	}
 
-	pverb("Storing " Ps32 " sequences in HDF5 file", g_seq_n);
+	pverb("Storing %zu sequences in HDF5 file", dim_size);
 
 	hsize_t seq_dims[1] = { dim_size };
 	hid_t seq_space = H5Screate_simple(1, seq_dims, NULL);
@@ -187,22 +205,22 @@ bool h5_open(void)
 	return true;
 }
 
-void h5_matrix_column_set(s32 col, const s32 *values)
+void h5_matrix_column_set(s32 col, const s32 values[restrict static g_seq_n])
 {
 	if (g_h5.disabled)
 		return;
 
-	if (!g_h5.matrix || g_h5.dim <= SEQ_N_MIN || g_h5.dim > SEQ_N_MAX ||
-	    col < 0 || col >= g_h5.dim || !values)
+	if (!g_h5.matrix || col < 0 || col >= g_seq_n)
 		unreachable_release();
 
 	if (g_h5.triangular) {
 		memcpy(g_h5.matrix + ((s64)col * (col - 1)) / 2, values,
 		       bytesof(g_h5.matrix, (size_t)col));
 	} else {
+		const s64 dim = g_seq_n;
 		for (s32 row = 0; row < col; row++) {
-			g_h5.matrix[g_h5.dim * row + col] = values[row];
-			g_h5.matrix[g_h5.dim * col + row] = values[row];
+			g_h5.matrix[dim * row + col] = values[row];
+			g_h5.matrix[dim * col + row] = values[row];
 		}
 	}
 }
@@ -288,27 +306,6 @@ size_t h5_matrix_bytes(void)
 
 #endif
 
-static s32 h5_chunk_dimensions_calculate(void)
-{
-	s32 dim = (s32)g_h5.dim;
-
-	if (dim <= H5_MIN_CHUNK_SIZE)
-		return dim;
-
-	s32 chunk_dim = 64;
-	size_t target_bytes = (4 * MiB) / (1 + (size_t)g_h5.compression / 3);
-	size_t square = (size_t)chunk_dim * (size_t)chunk_dim * sizeof(s32);
-	while (chunk_dim < dim && square < target_bytes)
-		chunk_dim *= 2;
-	if (chunk_dim > dim || square > target_bytes)
-		chunk_dim /= 2;
-
-	chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
-	chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
-	chunk_dim = min(chunk_dim, dim);
-	return chunk_dim;
-}
-
 static void h5_file_close(void)
 {
 	if (g_h5.mode_mmap) {
@@ -385,11 +382,10 @@ static void h5_flush_matrix(void)
 		return;
 	}
 
-	const size_t dim = (size_t)g_h5.dim;
-	const size_t row_bytes = bytesof(g_h5.matrix, dim);
+	const s64 dim = g_seq_n;
+	const size_t row_bytes = bytesof(g_h5.matrix, (size_t)dim);
 	const s32 max_rows = (s32)(available_mem / (4 * row_bytes));
-	const s32 chunk_rows = h5_chunk_dimensions_calculate();
-	s32 chunk_size = chunk_rows > 4 ? chunk_rows : 4;
+	s32 chunk_size = g_h5.chunk_dim > 4 ? g_h5.chunk_dim : 4;
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
@@ -407,20 +403,18 @@ static void h5_flush_matrix(void)
 	memset(buf, 0, row_bytes * (size_t)chunk_size);
 
 	ppercent(0, "Converting to HDF5");
-	const s32 dim32 = (s32)g_h5.dim;
-	for (s32 off = 0; off < dim32; off += chunk_size) {
-		s32 end = min(off + chunk_size, dim32);
+	for (s32 off = 0; off < g_seq_n; off += chunk_size) {
+		s32 end = min(off + chunk_size, g_seq_n);
 
 		for (s32 i = off; i < end; i++) {
-			s64 row = g_h5.dim * (i - off);
+			s64 row = dim * (i - off);
 
-			for (s32 j = i + 1; j < dim32; j++)
+			for (s32 j = i + 1; j < g_seq_n; j++)
 				buf[row + j] = g_h5.matrix[matrix_index(i, j)];
 
 			for (s32 j = 0; j < i; j++) {
 				if (j >= off)
-					buf[row + j] =
-						buf[g_h5.dim * (j - off) + i];
+					buf[row + j] = buf[dim * (j - off) + i];
 				else
 					buf[row + j] =
 						g_h5.matrix[matrix_index(j, i)];
@@ -429,11 +423,11 @@ static void h5_flush_matrix(void)
 
 		s32 rows = end - off;
 		hsize_t start[2] = { (hsize_t)off, 0 };
-		hsize_t count[2] = { (hsize_t)rows, dim };
+		hsize_t count[2] = { (hsize_t)rows, (size_t)dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL,
 				    count, NULL);
 
-		hsize_t mem_dims[2] = { (hsize_t)rows, dim };
+		hsize_t mem_dims[2] = { (hsize_t)rows, (size_t)dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, NULL);
 		if unlikely (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
@@ -453,7 +447,7 @@ static void h5_flush_matrix(void)
 			return;
 		}
 
-		pproport(end / dim32, "Converting to HDF5");
+		pproport(end / g_seq_n, "Converting to HDF5");
 	}
 
 	ppercent(100, "Converting to HDF5");

@@ -13,9 +13,9 @@
 
 static double filter;
 
-static double similarity(sequence_ptr_t seq1, sequence_ptr_t seq2)
+static double similarity(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2))
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
 
 	const s32 min_len = min(seq1->length, seq2->length);

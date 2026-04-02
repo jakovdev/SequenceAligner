@@ -34,17 +34,17 @@ struct ifile {
 	} ctx;
 };
 
-bool ifile_open(struct ifile *, const char *restrict path);
+bool ifile_open(struct ifile[static 1], const char path[restrict static 1]);
 
-void ifile_close(struct ifile *);
+void ifile_close(struct ifile[static 1]);
 
-size_t ifile_entry_total(struct ifile *);
+void ifile_entry_length(struct ifile[static 1],
+			size_t length[restrict static 1]);
 
-void ifile_entry_length(struct ifile *, size_t *length);
+void ifile_entry_extract(struct ifile[static 1], char output[restrict static 1],
+			 size_t length);
 
-void ifile_entry_extract(struct ifile *, char *restrict output, size_t length);
-
-bool ifile_entry_next(struct ifile *);
+bool ifile_entry_next(struct ifile[static 1]);
 
 const char *arg_input(void);
 

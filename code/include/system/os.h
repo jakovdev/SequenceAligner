@@ -31,9 +31,9 @@ struct arg_callback parse_path(const char *str, void *dest);
 
 double time_current(void);
 
-const char *file_name(const char *path);
-bool path_special_exists(const char *path);
-bool path_file_exists(const char *path);
-bool path_directories_create(const char *path);
+const char *file_name(const char path[static 1]);
+bool path_special_exists(const char path[static 1]);
+bool path_file_exists(const char path[static 1]);
+bool path_directories_create(const char path[static 1]);
 
 #endif /* SYSTEM_OS_H */

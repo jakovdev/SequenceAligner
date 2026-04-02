@@ -14,16 +14,17 @@
 #include "util/print.h"
 
 static const struct {
-	bool (*detect)(struct ifile *, const char *restrict);
+	bool (*detect)(struct ifile[static 1], const char[restrict static 1]);
 	enum input_format format;
 } format_detectors[] = {
 	{ fasta_detect, INPUT_FORMAT_FASTA },
 	{ dsv_detect, INPUT_FORMAT_DSV },
 };
 
-static void detect_file_format(struct ifile *ifile, const char *path)
+static void detect_file_format(struct ifile ifile[static 1],
+			       const char path[restrict static 1])
 {
-	if (!path || !*path)
+	if (!*path)
 		unreachable();
 
 	const char *ext = strrchr(path, '.');
@@ -40,10 +41,11 @@ static void detect_file_format(struct ifile *ifile, const char *path)
 	return;
 }
 
-bool ifile_open(struct ifile *ifile, const char *restrict path)
+bool ifile_open(struct ifile ifile[static 1],
+		const char path[restrict static 1])
 {
-	if unlikely (!ifile || !path || !*path) {
-		pdev("NULL parameters for ifile_open()");
+	if unlikely (!*path) {
+		pdev("Empty input path for ifile_open()");
 		perr("Internal error opening input file");
 		pabort();
 	}
@@ -99,14 +101,8 @@ bool ifile_open(struct ifile *ifile, const char *restrict path)
 	return true;
 }
 
-void ifile_close(struct ifile *ifile)
+void ifile_close(struct ifile ifile[static 1])
 {
-	if unlikely (!ifile) {
-		pdev("NULL ifile in ifile_close()");
-		perr("Internal error while closing input file");
-		pabort();
-	}
-
 	if (ifile->stream)
 		fclose(ifile->stream);
 
@@ -114,77 +110,61 @@ void ifile_close(struct ifile *ifile)
 	memset(ifile, 0, sizeof(*ifile));
 }
 
-size_t ifile_entry_total(struct ifile *ifile)
+void ifile_entry_length(struct ifile ifile[static 1],
+			size_t out_length[restrict static 1])
 {
-	if unlikely (!ifile) {
-		pdev("NULL ifile in ifile_entry_total()");
-		perr("Internal error retrieving total sequences from input file");
+	switch (ifile->format) {
+	case INPUT_FORMAT_FASTA:
+		fasta_entry_length(ifile, out_length);
+		return;
+	case INPUT_FORMAT_DSV:
+		dsv_entry_length(ifile, out_length);
+		return;
+	case INPUT_FORMAT_UNKNOWN:
+	default:
+		pdev("Unknown format in ifile_entry_length()");
+		perr("Internal error retrieving sequence length from file");
+		pabort();
+	}
+}
+
+void ifile_entry_extract(struct ifile ifile[static 1],
+			 char output[restrict static 1], size_t expected_length)
+{
+	if (!expected_length) {
+		pdev("Invalid length in ifile_entry_extract()");
+		perr("Internal error retrieving sequence from file");
 		pabort();
 	}
 
-	return ifile->entries;
+	switch (ifile->format) {
+	case INPUT_FORMAT_FASTA:
+		fasta_entry_extract(ifile, output, expected_length);
+		return;
+	case INPUT_FORMAT_DSV:
+		dsv_entry_extract(ifile, output, expected_length);
+		return;
+	case INPUT_FORMAT_UNKNOWN:
+	default:
+		pdev("Unknown format in ifile_entry_extract()");
+		perr("Internal error retrieving sequence from file");
+		pabort();
+	}
 }
 
-void ifile_entry_length(struct ifile *ifile, size_t *out_length)
+bool ifile_entry_next(struct ifile ifile[static 1])
 {
-	if (ifile && out_length) {
-		switch (ifile->format) {
-		case INPUT_FORMAT_FASTA:
-			fasta_entry_length(ifile, out_length);
-			return;
-		case INPUT_FORMAT_DSV:
-			dsv_entry_length(ifile, out_length);
-			return;
-		case INPUT_FORMAT_UNKNOWN:
-		default:
-			break;
-		}
+	switch (ifile->format) {
+	case INPUT_FORMAT_FASTA:
+		return fasta_entry_next(ifile);
+	case INPUT_FORMAT_DSV:
+		return dsv_entry_next(ifile);
+	case INPUT_FORMAT_UNKNOWN:
+	default:
+		pdev("Unknown format in ifile_entry_next()");
+		perr("Internal error during file parsing");
+		pabort();
 	}
-
-	pdev("NULL ifile or unknown format in ifile_entry_length()");
-	perr("Internal error retrieving sequence length from file");
-	pabort();
-}
-
-void ifile_entry_extract(struct ifile *ifile, char *restrict output,
-			 size_t expected_length)
-{
-	if (ifile && output && expected_length) {
-		switch (ifile->format) {
-		case INPUT_FORMAT_FASTA:
-			fasta_entry_extract(ifile, output, expected_length);
-			return;
-		case INPUT_FORMAT_DSV:
-			dsv_entry_extract(ifile, output, expected_length);
-			return;
-		case INPUT_FORMAT_UNKNOWN:
-		default:
-			break;
-		}
-	}
-
-	pdev("NULL file or unknown format in ifile_entry_extract()");
-	perr("Internal error retrieving sequence from file");
-	pabort();
-}
-
-bool ifile_entry_next(struct ifile *ifile)
-{
-	if (ifile) {
-		switch (ifile->format) {
-		case INPUT_FORMAT_FASTA:
-			return fasta_entry_next(ifile);
-		case INPUT_FORMAT_DSV:
-			return dsv_entry_next(ifile);
-		case INPUT_FORMAT_UNKNOWN:
-		default:
-			break;
-		}
-	}
-
-	pdev("NULL file or unknown format in ifile_entry_next()");
-	perr("Internal error during file parsing");
-	pabort();
 }
 
 static char input_path[MAX_PATH];

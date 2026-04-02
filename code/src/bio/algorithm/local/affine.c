@@ -7,10 +7,9 @@
 #include "system/simd.h"
 
 #if USE_SIMD == 1
-static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
+static void affine_local_init_simd(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
-	    !g_gap_y)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_match || !g_gap_x || !g_gap_y)
 		unreachable_release();
 
 	const s32 len1 = seq1->length;
@@ -43,10 +42,9 @@ static void affine_local_init_simd(sequence_ptr_t seq1, sequence_ptr_t seq2)
 }
 #endif
 
-void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
+void affine_local_init(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
-	    !g_gap_y)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_match || !g_gap_x || !g_gap_y)
 		unreachable_release();
 
 	const s32 len1 = seq1->length;
@@ -74,9 +72,9 @@ void affine_local_init(sequence_ptr_t seq1, sequence_ptr_t seq2)
 	}
 }
 
-s32 affine_local_fill(sequence_ptr_t seq1, sequence_ptr_t seq2)
+s32 affine_local_fill(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_INVALID(seq1) || SEQ_INVALID(seq2) || !g_match || !g_gap_x ||
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_match || !g_gap_x ||
 	    !g_gap_y || !g_seq1_i)
 		unreachable_release();
 

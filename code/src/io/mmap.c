@@ -8,9 +8,10 @@
 #include "system/os.h"
 #include "util/print.h"
 
-void mmap_matrix_name(char *buffer, size_t buffer_size, const char *path)
+void mmap_matrix_name(size_t size, char buffer[restrict static size],
+		      const char path[restrict static 1])
 {
-	if unlikely (!buffer || !buffer_size || !path || !*path) {
+	if unlikely (!size || !*path) {
 		pdev("Invalid parameters for mmap_matrix_name()");
 		perr("Internal error generating matrix file name");
 		pabort();
@@ -25,7 +26,7 @@ void mmap_matrix_name(char *buffer, size_t buffer_size, const char *path)
 		size_t dir_len = delta < 0 ? 0 : (size_t)delta;
 		strncpy(dir, path, dir_len);
 		dir[dir_len] = '\0';
-		strncpy(base, last_slash + 1, MAX_PATH - 1);
+		snprintf(base, MAX_PATH, "%s", last_slash + 1);
 	} else {
 		strcpy(dir, "./");
 		strncpy(base, path, MAX_PATH - 1);
@@ -36,13 +37,11 @@ void mmap_matrix_name(char *buffer, size_t buffer_size, const char *path)
 	if (dot)
 		*dot = '\0';
 
-	snprintf(buffer, buffer_size, "%s%s.mmap", dir, base);
+	snprintf(buffer, size, "%s%s.mmap", dir, base);
 }
 
-static void mmap_matrix_init(struct MMapMatrix *file)
+static void mmap_matrix_init(struct MMapMatrix file[static 1])
 {
-	if (!file)
-		unreachable();
 #ifdef _WIN32
 	file->hFile = INVALID_HANDLE_VALUE;
 	file->hMapping = NULL;
@@ -53,10 +52,10 @@ static void mmap_matrix_init(struct MMapMatrix *file)
 	file->matrix = NULL;
 }
 
-bool mmap_matrix_open(struct MMapMatrix *restrict file,
-		      const char *restrict name, size_t dim)
+bool mmap_matrix_open(struct MMapMatrix file[static 1],
+		      const char name[restrict static 1], size_t dim)
 {
-	if unlikely (!file || !name || dim < 2) {
+	if unlikely (!*name || dim < 2) {
 		pdev("Invalid parameters for mmap_matrix_open()");
 		perr("Internal error opening score matrix file");
 		pabort();
@@ -122,14 +121,8 @@ bool mmap_matrix_open(struct MMapMatrix *restrict file,
 #undef file_error_return
 }
 
-void mmap_matrix_close(struct MMapMatrix *file)
+void mmap_matrix_close(struct MMapMatrix file[static 1])
 {
-	if unlikely (!file) {
-		pdev("NULL file in mmap_matrix_close()");
-		perr("Internal error closing score matrix file");
-		pabort();
-	}
-
 #ifdef _WIN32
 	if (file->matrix) {
 		UnmapViewOfFile(file->matrix);

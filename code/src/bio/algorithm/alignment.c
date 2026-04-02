@@ -15,7 +15,7 @@
 #include "util/progress.h"
 #include "util/print.h"
 
-typedef s32 (*align_func_t)(sequence_ptr_t, sequence_ptr_t);
+typedef s32 (*align_func_t)(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
 static align_func_t align_method(void)
 {
 	switch (arg_align_method()) {

@@ -35,9 +35,9 @@ void indices_buffers_free(void)
 	g_seq1_i = NULL;
 }
 
-void indices_precompute(sequence_ptr_t seq)
+void indices_precompute(SEQUENCE_PTR_T(seq))
 {
-	if (SEQ_INVALID(seq) || !g_seq1_i)
+	if (SEQ_BAD(seq) || !g_seq1_i)
 		unreachable_release();
 
 	for (s32 i = 0; i < seq->length; ++i)
