@@ -1,6 +1,8 @@
 #include "bio/algorithm/alignment.cuh"
 
 #ifdef USE_CUDA
+#include <array>
+
 #include "bio/types.h"
 
 __constant__ Constants C;
@@ -226,6 +228,7 @@ __global__ void k_sw(s32 *scores, s64 start, s64 batch)
 
 extern "C" {
 #include "util/print.h"
+
 cudaError_t copy_constants(const struct Constants *host)
 {
 	return cudaMemcpyToSymbol(C, host, sizeof(C));
@@ -233,20 +236,14 @@ cudaError_t copy_constants(const struct Constants *host)
 
 const void *kernel_function(void)
 {
-	switch (METHOD) {
-	case ALIGN_GOTOH_AFFINE:
-		return (const void *)k_ga;
-	case ALIGN_NEEDLEMAN_WUNSCH:
-		return (const void *)k_nw;
-	case ALIGN_SMITH_WATERMAN:
-		return (const void *)k_sw;
-	case ALIGN_INVALID:
-	case ALIGN_COUNT:
-	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
-		pdev("Invalid AlignmentMethod enum");
-		perr("Internal error retrieving CUDA kernel");
-		pabort();
-	}
+	static const auto ALIGN_KERNELS = []() {
+		std::array<const void *, ALIGN_COUNT> k{};
+		k[ALIGN_GOTOH_AFFINE] = (const void *)k_ga;
+		k[ALIGN_NEEDLEMAN_WUNSCH] = (const void *)k_nw;
+		k[ALIGN_SMITH_WATERMAN] = (const void *)k_sw;
+		return k;
+	}();
+	return ALIGN_KERNELS[METHOD];
 }
 }
 

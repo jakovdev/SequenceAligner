@@ -188,8 +188,7 @@ size_t fasta_entry_count(struct ifile ifile[static 1])
 	return count;
 }
 
-void fasta_entry_length(struct ifile ifile[static 1],
-			size_t out_length[static 1])
+size_t fasta_entry_length(struct ifile ifile[static 1])
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream in fasta_entry_length()");
@@ -220,14 +219,14 @@ void fasta_entry_length(struct ifile ifile[static 1],
 		exit(EXIT_FAILURE);
 	}
 
-	*out_length = length;
+	return length;
 }
 
-void fasta_entry_extract(struct ifile ifile[static 1],
-			 char output[restrict static 1], size_t expected_length)
+size_t fasta_entry_extract(struct ifile ifile[static 1],
+			   char output[restrict static 1])
 {
-	if unlikely (!ifile->stream || !expected_length) {
-		pdev("Invalid parameters for fasta_entry_extract()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream for fasta_entry_extract()");
 		perr("Internal error extracting sequence from FASTA file");
 		pabort();
 	}
@@ -253,13 +252,9 @@ void fasta_entry_extract(struct ifile ifile[static 1],
 		}
 	}
 
-	if (length != expected_length) {
-		perr("Possible FASTA file corruption, sequence length mismatch");
-		exit(EXIT_FAILURE);
-	}
-
 	*write_pos = '\0';
 	fpos_seek(stream, pos);
+	return length;
 }
 
 bool fasta_entry_next(struct ifile ifile[static 1])

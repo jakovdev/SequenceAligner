@@ -15,28 +15,15 @@
 #include "util/progress.h"
 #include "util/print.h"
 
-typedef s32 (*align_func_t)(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
-static align_func_t align_method(void)
-{
-	switch (METHOD) {
-	case ALIGN_GOTOH_AFFINE:
-		return align_ga;
-	case ALIGN_NEEDLEMAN_WUNSCH:
-		return align_nw;
-	case ALIGN_SMITH_WATERMAN:
-		return align_sw;
-	case ALIGN_INVALID:
-	case ALIGN_COUNT:
-	default: /* NOTE: EXPANDABLE enum AlignmentMethod */
-		pdev("Invalid AlignmentMethod enum");
-		perr("Internal error retrieving alignment method");
-		pabort();
-	}
-}
-
 bool align(void)
 {
-	const align_func_t method = align_method();
+	typedef s32 (*align_func_t)(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
+	static const align_func_t ALIGN_METHODS[] = {
+		[ALIGN_GOTOH_AFFINE] = align_ga,
+		[ALIGN_NEEDLEMAN_WUNSCH] = align_nw,
+		[ALIGN_SMITH_WATERMAN] = align_sw,
+	};
+	const align_func_t method = ALIGN_METHODS[METHOD];
 	const size_t total = (size_t)ALIGNMENTS;
 	pinfo("Performing %zu pairwise alignments", total);
 	if (!progress_start(total, arg_threads(), "Aligning sequences"))

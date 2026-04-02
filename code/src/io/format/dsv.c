@@ -430,7 +430,7 @@ size_t dsv_entry_count(struct ifile ifile[static 1])
 	return count;
 }
 
-void dsv_entry_length(struct ifile ifile[static 1], size_t out_length[static 1])
+size_t dsv_entry_length(struct ifile ifile[static 1])
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream in dsv_entry_length()");
@@ -465,14 +465,14 @@ void dsv_entry_length(struct ifile ifile[static 1], size_t out_length[static 1])
 		exit(EXIT_FAILURE);
 	}
 
-	*out_length = length;
+	return length;
 }
 
-void dsv_entry_extract(struct ifile ifile[static 1],
-		       char output[restrict static 1], size_t expected_length)
+size_t dsv_entry_extract(struct ifile ifile[static 1],
+			 char output[restrict static 1])
 {
-	if unlikely (!ifile->stream || !expected_length) {
-		pdev("Invalid parameters for dsv_entry_extract()");
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream for dsv_entry_extract()");
 		perr("Internal error extracting sequence from DSV file");
 		pabort();
 	}
@@ -498,14 +498,10 @@ void dsv_entry_extract(struct ifile ifile[static 1],
 		exit(EXIT_FAILURE);
 	}
 
-	if (length != expected_length) {
-		perr("Possible DSV file corruption, sequence length mismatch");
-		exit(EXIT_FAILURE);
-	}
-
 	memcpy(output, token, length);
 	output[length] = '\0';
 	fpos_seek(stream, pos);
+	return length;
 }
 
 bool dsv_entry_next(struct ifile ifile[static 1])

@@ -38,11 +38,9 @@ bool ifile_open(struct ifile[static 1], const char path[restrict static 1]);
 
 void ifile_close(struct ifile[static 1]);
 
-void ifile_entry_length(struct ifile[static 1],
-			size_t length[restrict static 1]);
+size_t ifile_entry_length(struct ifile[static 1]);
 
-void ifile_entry_extract(struct ifile[static 1], char output[restrict static 1],
-			 size_t length);
+size_t ifile_entry_extract(struct ifile[static 1], char[restrict static 1]);
 
 bool ifile_entry_next(struct ifile[static 1]);
 

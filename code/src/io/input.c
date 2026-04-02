@@ -13,14 +13,6 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 
-static const struct {
-	bool (*detect)(struct ifile[static 1], const char[restrict static 1]);
-	enum input_format format;
-} format_detectors[] = {
-	{ fasta_detect, INPUT_FORMAT_FASTA },
-	{ dsv_detect, INPUT_FORMAT_DSV },
-};
-
 static void detect_file_format(struct ifile ifile[static 1],
 			       const char path[restrict static 1])
 {
@@ -33,12 +25,16 @@ static void detect_file_format(struct ifile ifile[static 1],
 
 	ext++;
 
-	for (size_t i = 0; i < ARRAY_SIZE(format_detectors); i++) {
-		if (format_detectors[i].detect(ifile, ext))
+	static bool (*const DETECT[])(struct ifile[static 1],
+				      const char[restrict static 1]) = {
+		fasta_detect,
+		dsv_detect,
+	};
+
+	for (size_t i = 0; i < ARRAY_SIZE(DETECT); i++) {
+		if (DETECT[i](ifile, ext))
 			return;
 	}
-
-	return;
 }
 
 bool ifile_open(struct ifile ifile[static 1],
@@ -66,36 +62,21 @@ bool ifile_open(struct ifile ifile[static 1],
 		return false;
 	}
 
-	bool opened = false;
-	switch (ifile->format) {
-	case INPUT_FORMAT_FASTA:
-		opened = fasta_open(ifile);
-		break;
-	case INPUT_FORMAT_DSV:
-		opened = dsv_open(ifile);
-		break;
-	case INPUT_FORMAT_UNKNOWN:
-	default:
-		unreachable();
-	}
-
-	if (!opened) {
+	static bool (*const OPEN[])(struct ifile[static 1]) = {
+		[INPUT_FORMAT_FASTA] = fasta_open,
+		[INPUT_FORMAT_DSV] = dsv_open,
+	};
+	if (!OPEN[ifile->format](ifile)) {
 		fclose(ifile->stream);
 		ifile->stream = NULL;
 		return false;
 	}
 
-	switch (ifile->format) {
-	case INPUT_FORMAT_FASTA:
-		ifile->entries = fasta_entry_count(ifile);
-		break;
-	case INPUT_FORMAT_DSV:
-		ifile->entries = dsv_entry_count(ifile);
-		break;
-	case INPUT_FORMAT_UNKNOWN:
-	default:
-		unreachable();
-	}
+	static size_t (*const ENTRY_COUNT[])(struct ifile[static 1]) = {
+		[INPUT_FORMAT_FASTA] = fasta_entry_count,
+		[INPUT_FORMAT_DSV] = dsv_entry_count,
+	};
+	ifile->entries = ENTRY_COUNT[ifile->format](ifile);
 
 	bench_io_end();
 	return true;
@@ -110,61 +91,33 @@ void ifile_close(struct ifile ifile[static 1])
 	memset(ifile, 0, sizeof(*ifile));
 }
 
-void ifile_entry_length(struct ifile ifile[static 1],
-			size_t out_length[restrict static 1])
+size_t ifile_entry_length(struct ifile ifile[static 1])
 {
-	switch (ifile->format) {
-	case INPUT_FORMAT_FASTA:
-		fasta_entry_length(ifile, out_length);
-		return;
-	case INPUT_FORMAT_DSV:
-		dsv_entry_length(ifile, out_length);
-		return;
-	case INPUT_FORMAT_UNKNOWN:
-	default:
-		pdev("Unknown format in ifile_entry_length()");
-		perr("Internal error retrieving sequence length from file");
-		pabort();
-	}
+	static size_t (*const ENTRY_LENGTH[])(struct ifile[static 1]) = {
+		[INPUT_FORMAT_FASTA] = fasta_entry_length,
+		[INPUT_FORMAT_DSV] = dsv_entry_length,
+	};
+	return ENTRY_LENGTH[ifile->format](ifile);
 }
 
-void ifile_entry_extract(struct ifile ifile[static 1],
-			 char output[restrict static 1], size_t expected_length)
+size_t ifile_entry_extract(struct ifile ifile[static 1],
+			   char output[restrict static 1])
 {
-	if (!expected_length) {
-		pdev("Invalid length in ifile_entry_extract()");
-		perr("Internal error retrieving sequence from file");
-		pabort();
-	}
-
-	switch (ifile->format) {
-	case INPUT_FORMAT_FASTA:
-		fasta_entry_extract(ifile, output, expected_length);
-		return;
-	case INPUT_FORMAT_DSV:
-		dsv_entry_extract(ifile, output, expected_length);
-		return;
-	case INPUT_FORMAT_UNKNOWN:
-	default:
-		pdev("Unknown format in ifile_entry_extract()");
-		perr("Internal error retrieving sequence from file");
-		pabort();
-	}
+	static size_t (*const ENTRY_EXTRACT[])(struct ifile[static 1],
+					       char[restrict static 1]) = {
+		[INPUT_FORMAT_FASTA] = fasta_entry_extract,
+		[INPUT_FORMAT_DSV] = dsv_entry_extract,
+	};
+	return ENTRY_EXTRACT[ifile->format](ifile, output);
 }
 
 bool ifile_entry_next(struct ifile ifile[static 1])
 {
-	switch (ifile->format) {
-	case INPUT_FORMAT_FASTA:
-		return fasta_entry_next(ifile);
-	case INPUT_FORMAT_DSV:
-		return dsv_entry_next(ifile);
-	case INPUT_FORMAT_UNKNOWN:
-	default:
-		pdev("Unknown format in ifile_entry_next()");
-		perr("Internal error during file parsing");
-		pabort();
-	}
+	static bool (*const ENTRY_NEXT[])(struct ifile[static 1]) = {
+		[INPUT_FORMAT_FASTA] = fasta_entry_next,
+		[INPUT_FORMAT_DSV] = dsv_entry_next,
+	};
+	return ENTRY_NEXT[ifile->format](ifile);
 }
 
 static const char *input_path;

@@ -111,8 +111,7 @@ bool sequences_load_from_file(void)
 
 	bench_io_start();
 	do {
-		size_t length = 0;
-		ifile_entry_length(&ifile, &length);
+		size_t length = ifile_entry_length(&ifile);
 		if (!validate_length(length)) {
 			if (large < 0) {
 				bench_io_end();
@@ -143,7 +142,13 @@ bool sequences_load_from_file(void)
 
 		s32 seq_len = (s32)length;
 		char *letters = LETTERS + letters_used;
-		ifile_entry_extract(&ifile, letters, length);
+		size_t written = ifile_entry_extract(&ifile, letters);
+		if (written != length) {
+			perr("Possible file corruption, expected %zu letters, got %zu",
+			     length, written);
+			goto cleanup_seqs;
+		}
+
 		if (!validate_sequence(seq_len, letters)) {
 			if (invalid < 0) {
 				bench_io_end();
