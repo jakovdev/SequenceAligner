@@ -8,38 +8,6 @@
 #include "system/os.h"
 #include "util/print.h"
 
-void mmap_matrix_name(size_t size, char buffer[restrict static size],
-		      const char path[restrict static 1])
-{
-	if unlikely (!size || !*path) {
-		pdev("Invalid parameters for mmap_matrix_name()");
-		perr("Internal error generating matrix file name");
-		pabort();
-	}
-
-	char dir[MAX_PATH] = { 0 };
-	char base[MAX_PATH] = { 0 };
-
-	const char *last_slash = strrchr(path, '/');
-	if (last_slash) {
-		ptrdiff_t delta = last_slash - path + 1;
-		size_t dir_len = delta < 0 ? 0 : (size_t)delta;
-		strncpy(dir, path, dir_len);
-		dir[dir_len] = '\0';
-		snprintf(base, MAX_PATH, "%s", last_slash + 1);
-	} else {
-		strcpy(dir, "./");
-		strncpy(base, path, MAX_PATH - 1);
-	}
-
-	base[MAX_PATH - 1] = '\0';
-	char *dot = strrchr(base, '.');
-	if (dot)
-		*dot = '\0';
-
-	snprintf(buffer, size, "%s%s.mmap", dir, base);
-}
-
 static void mmap_matrix_init(struct MMapMatrix file[static 1])
 {
 #ifdef _WIN32
@@ -52,10 +20,9 @@ static void mmap_matrix_init(struct MMapMatrix file[static 1])
 	file->matrix = NULL;
 }
 
-bool mmap_matrix_open(struct MMapMatrix file[static 1],
-		      const char name[restrict static 1], size_t dim)
+bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
 {
-	if unlikely (!*name || dim < 2) {
+	if unlikely (dim < 2) {
 		pdev("Invalid parameters for mmap_matrix_open()");
 		perr("Internal error opening score matrix file");
 		pabort();
@@ -63,7 +30,7 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1],
 
 	mmap_matrix_init(file);
 	const size_t bytes = bytesof(file->matrix, dim * (dim - 1) / 2);
-	pinfol("Creating matrix file: %s (%.2f GiB)", file_name(name),
+	pinfol("Creating temporary matrix file (%.2f GiB)",
 	       (double)bytes / (double)GiB);
 
 #define file_error_return(message_lit)                      \
@@ -74,9 +41,19 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1],
 	} while (0)
 
 #ifdef _WIN32
-	file->hFile = CreateFileA(name, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-				  CREATE_ALWAYS, FILE_FLAG_DELETE_ON_CLOSE,
-				  NULL);
+	char dir[MAX_PATH] = { 0 };
+	char name[MAX_PATH] = "temporary matrix file";
+
+	DWORD dir_len = GetTempPathA(MAX_PATH, dir);
+	if (!dir_len || dir_len >= MAX_PATH)
+		file_error_return("Could not resolve temp directory for");
+
+	if (!GetTempFileNameA(dir, "sqa", 0, name))
+		file_error_return("Could not create temp file name for");
+
+	file->hFile = CreateFileA(
+		name, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
 	if (file->hFile == INVALID_HANDLE_VALUE)
 		file_error_return("Could not create memory-mapped file");
 
@@ -95,7 +72,8 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1],
 	if (!file->matrix)
 		file_error_return("Could not map view of file");
 #else
-	file->fd = open(name, O_RDWR | O_CREAT | O_TRUNC, 0644);
+	char name[] = "/tmp/seqalign-mmap-XXXXXX";
+	file->fd = mkstemp(name);
 	if (file->fd == -1)
 		file_error_return("Could not create memory-mapped file");
 

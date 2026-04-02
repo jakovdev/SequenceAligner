@@ -14,6 +14,7 @@
 #include "util/print.h"
 
 static struct {
+	const char *path;
 	hid_t file_id;
 	hid_t matrix_id;
 	hid_t sequences_id;
@@ -21,14 +22,13 @@ static struct {
 	size_t matrix_b;
 	s64 checksum;
 	struct MMapMatrix mmap;
-	char path[MAX_PATH];
 	s32 chunk_dim;
 	u8 compression;
 	bool disabled;
 	bool mode_mmap;
 	bool triangular;
 	bool is_init;
-} g_h5 = { 0 };
+} g_h5;
 
 #define H5_MIN_CHUNK_SIZE (1 << 8)
 #define H5_MAX_CHUNK_SIZE (1 << 12)
@@ -93,10 +93,8 @@ bool h5_open(void)
 	}
 
 	if (g_h5.mode_mmap) {
-		char name[MAX_PATH];
-		mmap_matrix_name(sizeof(name), name, g_h5.path);
 		pinfo("Matrix size exceeds memory limits");
-		if (!mmap_matrix_open(&g_h5.mmap, name, dim_size))
+		if (!mmap_matrix_open(&g_h5.mmap, dim_size))
 			return false;
 		g_h5.matrix = g_h5.mmap.matrix;
 		g_h5.matrix_b = g_h5.mmap.bytes;
@@ -505,7 +503,7 @@ ARGUMENT(output_path) = {
 	.param = "FILE",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,
-	.dest = g_h5.path,
+	.dest = &g_h5.path,
 	.parse_callback = parse_path,
 	.validate_callback = validate_output_path,
 	.validate_phase = ARG_CALLBACK_IF_SET,

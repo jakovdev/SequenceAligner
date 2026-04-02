@@ -169,7 +169,7 @@ struct arg_callback parse_path(const char *str, void *dest)
 	if (path_special_exists(str))
 		return ARG_INVALID("Path is a directory or non-regular file");
 
-	snprintf(dest, MAX_PATH, "%s", str);
+	*(const char **)dest = str;
 	return ARG_VALID();
 }
 

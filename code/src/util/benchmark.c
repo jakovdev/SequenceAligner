@@ -11,7 +11,7 @@ static struct {
 	double align;
 	double filter_start;
 	double filter;
-} g_times = { 0 };
+} g_times;
 
 static bool mode_benchmark;
 

@@ -167,7 +167,7 @@ bool ifile_entry_next(struct ifile ifile[static 1])
 	}
 }
 
-static char input_path[MAX_PATH];
+static const char *input_path;
 
 const char *arg_input(void)
 {
@@ -194,7 +194,7 @@ ARGUMENT(input_path) = {
 	.param = "FILE",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,
-	.dest = input_path,
+	.dest = &input_path,
 	.parse_callback = parse_path,
 	.validate_callback = validate_input_path,
 	.validate_phase = ARG_CALLBACK_IF_SET,

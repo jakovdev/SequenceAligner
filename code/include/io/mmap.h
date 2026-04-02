@@ -21,11 +21,7 @@ struct MMapMatrix {
 	s32 *matrix;
 };
 
-void mmap_matrix_name(size_t size, char buffer[restrict static size],
-		      const char path[restrict static 1]);
-
-bool mmap_matrix_open(struct MMapMatrix[static 1],
-		      const char name[restrict static 1], size_t dim);
+bool mmap_matrix_open(struct MMapMatrix[static 1], size_t dim);
 
 void mmap_matrix_close(struct MMapMatrix[static 1]);
 
