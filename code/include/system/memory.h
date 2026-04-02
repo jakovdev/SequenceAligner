@@ -20,7 +20,13 @@
 #include <malloc.h>
 #define free_aligned _aligned_free
 #define realloc_aligned(p, alignment, size) _aligned_realloc(p, size, alignment)
-#define _realloc_aligned_free(oldp, newp, old, new)
+#define _realloc_aligned_free(oldp, newp, old, new) \
+	do {                                        \
+		(void)(oldp);                       \
+		(void)(newp);                       \
+		(void)(old);                        \
+		(void)(new);                        \
+	} while (0)
 #else
 #include <string.h>
 #define free_aligned free

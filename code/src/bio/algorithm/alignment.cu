@@ -225,8 +225,8 @@ __global__ void k_sw(s32 *scores, s64 start, s64 batch)
 }
 
 static uint g_max;
-static uint b;
-static cudaStream_t s;
+static uint b_max;
+static cudaStream_t g_stream;
 
 extern "C" {
 cudaError_t copy_constants(const struct Constants *host)
@@ -237,34 +237,34 @@ cudaError_t copy_constants(const struct Constants *host)
 void cuda_config(uint grid_max, uint block_max, cudaStream_t stream)
 {
 	g_max = grid_max;
-	b = block_max;
-	s = stream;
+	b_max = block_max;
+	g_stream = stream;
 }
 
 cudaError_t kernel_nw(s32 *scores, s64 start, s64 batch)
 {
-	const uint g = static_cast<uint>((batch + b - 1) / b);
+	const uint g = static_cast<uint>((batch + b_max - 1) / b_max);
 	if (!g || g > g_max)
 		return cudaErrorInvalidConfiguration;
-	k_nw<<<g, b, 0, s>>>(scores, start, batch);
+	k_nw<<<g, b_max, 0, g_stream>>>(scores, start, batch);
 	return cudaGetLastError();
 }
 
 cudaError_t kernel_ga(s32 *scores, s64 start, s64 batch)
 {
-	const uint g = static_cast<uint>((batch + b - 1) / b);
+	const uint g = static_cast<uint>((batch + b_max - 1) / b_max);
 	if (!g || g > g_max)
 		return cudaErrorInvalidConfiguration;
-	k_ga<<<g, b, 0, s>>>(scores, start, batch);
+	k_ga<<<g, b_max, 0, g_stream>>>(scores, start, batch);
 	return cudaGetLastError();
 }
 
 cudaError_t kernel_sw(s32 *scores, s64 start, s64 batch)
 {
-	const uint g = static_cast<uint>((batch + b - 1) / b);
+	const uint g = static_cast<uint>((batch + b_max - 1) / b_max);
 	if (!g || g > g_max)
 		return cudaErrorInvalidConfiguration;
-	k_sw<<<g, b, 0, s>>>(scores, start, batch);
+	k_sw<<<g, b_max, 0, g_stream>>>(scores, start, batch);
 	return cudaGetLastError();
 }
 }
