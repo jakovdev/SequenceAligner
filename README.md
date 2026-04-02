@@ -265,7 +265,7 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 > For a large dataset like Drosophila, there was an issue during benchmark which lead to ~50% GPU utilization. After fixing it, the actual APS should be around 120-125M for NW, with times around 13-14 seconds.
 > The issue was related to the double buffer implementation which was erroneously blocking processing when copying results from the GPU, which halved the processing speed. This has been fixed in the latest code with asynchronous copying.
 > The table will be updated with new times soon(tm).
-> For datasets with sequences longer than 1024 amino acids or nucleotides, try editing [host_types.h](code/cuda/c_binding/host_types.h) to increase the `MAX_CUDA_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
+> For datasets with sequences longer than 1024 amino acids or nucleotides, try editing [alignment.cuh](include/bio/algorithm/alignment.cuh) to increase the `MAX_CUDA_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
 
 ## Implementation Details
 

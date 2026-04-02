@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-AUTOGEN_INCLUDE_FILE = ROOT / "code/include/generated/bio/score/matrices.h"
+AUTOGEN_INCLUDE_FILE = ROOT / "include/generated/bio/score/matrices.h"
 
 AMINO_ALPHABET = "ARNDCQEGHILKMFPSTWYVBZX*"
 NUCLEO_ALPHABET = "ATGCSWRYKMBVHDN*"
