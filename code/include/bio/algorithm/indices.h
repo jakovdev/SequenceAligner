@@ -5,7 +5,7 @@
 #include "system/compiler.h"
 #include "bio/types.h"
 
-extern thread_local s32 *g_restrict g_seq1_i;
+extern thread_local s32 *g_restrict SEQ1I;
 
 void indices_buffers_init(void);
 

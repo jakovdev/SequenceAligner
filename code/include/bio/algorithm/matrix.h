@@ -5,10 +5,10 @@
 #include "system/compiler.h"
 #include "system/types.h"
 
-extern thread_local s32 *g_restrict g_matrix;
-extern thread_local s32 *g_restrict g_match;
-extern thread_local s32 *g_restrict g_gap_x;
-extern thread_local s32 *g_restrict g_gap_y;
+extern thread_local s32 *g_restrict MATRIX;
+extern thread_local s32 *g_restrict MATCH;
+extern thread_local s32 *g_restrict GAP_X;
+extern thread_local s32 *g_restrict GAP_Y;
 
 void matrix_buffers_init(void);
 

@@ -5,43 +5,43 @@
 #include "system/memory.h"
 #include "util/print.h"
 
-thread_local s32 *g_restrict g_matrix;
-thread_local s32 *g_restrict g_match;
-thread_local s32 *g_restrict g_gap_x;
-thread_local s32 *g_restrict g_gap_y;
+thread_local s32 *g_restrict MATRIX;
+thread_local s32 *g_restrict MATCH;
+thread_local s32 *g_restrict GAP_X;
+thread_local s32 *g_restrict GAP_Y;
 
 #define MATRIX_SIZE(len) ((len + 1) * (len + 1))
 
 void matrix_buffers_init(void)
 {
-	if (g_seq_len_max < SEQ_LEN_MIN || g_seq_len_max > SEQ_LEN_MAX) {
-		pdev("Invalid g_seq_len_max in matrix_buffers_init()");
+	if (LENGTHS_MAX < SEQ_LEN_MIN || LENGTHS_MAX > SEQ_LEN_MAX) {
+		pdev("Invalid LENGTHS_MAX in matrix_buffers_init()");
 		perr("Internal error during matrix allocation");
 		pabort();
 	}
 
-	MALLOCA_AL(g_matrix, CACHE_LINE, 3 * MATRIX_SIZE(g_seq_len_max));
-	if unlikely (!g_matrix) {
+	MALLOCA_AL(MATRIX, CACHE_LINE, 3 * MATRIX_SIZE(LENGTHS_MAX));
+	if unlikely (!MATRIX) {
 		perr("Out of memory allocating alignment matrices");
 		exit(EXIT_FAILURE);
 	}
 
-	g_match = g_matrix;
-	g_gap_x = g_matrix + MATRIX_SIZE(g_seq_len_max);
-	g_gap_y = g_matrix + 2 * MATRIX_SIZE(g_seq_len_max);
+	MATCH = MATRIX;
+	GAP_X = MATRIX + MATRIX_SIZE(LENGTHS_MAX);
+	GAP_Y = MATRIX + 2 * MATRIX_SIZE(LENGTHS_MAX);
 }
 
 void matrix_buffers_free(void)
 {
-	if (!g_matrix) {
+	if (!MATRIX) {
 		pdev("Call matrix_buffers_init() before matrix_buffers_free()");
 		perr("Internal error during alignment matrices deallocation");
 		pabort();
 	}
 
-	free_aligned(g_matrix);
-	g_matrix = NULL;
-	g_match = NULL;
-	g_gap_x = NULL;
-	g_gap_y = NULL;
+	free_aligned(MATRIX);
+	MATRIX = NULL;
+	MATCH = NULL;
+	GAP_X = NULL;
+	GAP_Y = NULL;
 }

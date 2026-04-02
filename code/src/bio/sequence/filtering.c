@@ -31,14 +31,13 @@ bool filter_seqs(void)
 	if (!(filter > 0.0))
 		return true;
 
-	if (!g_lengths || !g_offsets || !g_letters || !g_seqs ||
-	    g_seq_n < SEQ_N_MIN) {
+	if (!LENGTHS || !OFFSETS || !LETTERS || !SEQS || SEQS_N < SEQ_N_MIN) {
 		pdev("Invalid globals in filter_seqs()");
 		perr("Internal error during sequence filtering");
 		pabort();
 	}
 
-	size_t seq_n = (size_t)g_seq_n;
+	size_t seq_n = (size_t)SEQS_N;
 	bool *lost = calloc(seq_n, sizeof(*lost));
 	if unlikely (!lost) {
 		perr("Out of memory allocating filtering array");
@@ -55,14 +54,14 @@ bool filter_seqs(void)
 	{
 		s32 i;
 #pragma omp for schedule(dynamic)
-		for (i = 1; i < g_seq_n; i++) {
-			sequence_ptr_t seq1 = &g_seqs[i];
+		for (i = 1; i < SEQS_N; i++) {
+			sequence_ptr_t seq1 = &SEQS[i];
 
 			for (s32 j = 0; j < i; j++) {
 				if (lost[j])
 					continue;
 
-				if (similarity(seq1, &g_seqs[j]) >= filter) {
+				if (similarity(seq1, &SEQS[j]) >= filter) {
 					lost[i] = true;
 					break;
 				}
@@ -75,57 +74,57 @@ bool filter_seqs(void)
 	}
 	progress_end();
 
-	size_t sum = (size_t)(g_offsets[seq_n - 1] + g_lengths[seq_n - 1] + 1);
-	g_seq_len_max = 0;
+	size_t sum = (size_t)(OFFSETS[seq_n - 1] + LENGTHS[seq_n - 1] + 1);
+	LENGTHS_MAX = 0;
 	s32 write_index = 0;
 	s64 used = 0;
-	for (s32 read_index = 0; read_index < g_seq_n; read_index++) {
+	for (s32 read_index = 0; read_index < SEQS_N; read_index++) {
 		if (lost[read_index])
 			continue;
 
-		s32 len = g_lengths[read_index];
-		s64 off = g_offsets[read_index];
-		char *new = g_letters + used;
+		s32 len = LENGTHS[read_index];
+		s64 off = OFFSETS[read_index];
+		char *new = LETTERS + used;
 		if (used != off)
-			memmove(new, g_letters + off, (size_t)len + 1);
-		g_lengths[write_index] = len;
-		g_offsets[write_index] = used;
-		g_seqs[write_index].length = len;
-		g_seqs[write_index++].letters = new;
+			memmove(new, LETTERS + off, (size_t)len + 1);
+		LENGTHS[write_index] = len;
+		OFFSETS[write_index] = used;
+		SEQS[write_index].length = len;
+		SEQS[write_index++].letters = new;
 		used += len + 1;
-		if ((size_t)len > g_seq_len_max)
-			g_seq_len_max = (size_t)len;
+		if ((size_t)len > LENGTHS_MAX)
+			LENGTHS_MAX = (size_t)len;
 	}
 	bench_filter_end();
 
 	free(lost);
 
-	g_seq_n = write_index;
-	g_alignments = ((s64)g_seq_n * (g_seq_n - 1)) / 2;
+	SEQS_N = write_index;
+	ALIGNMENTS = ((s64)SEQS_N * (SEQS_N - 1)) / 2;
 
-	if (seq_n > (size_t)g_seq_n && (sum - (size_t)used) >= PAGE_SIZE) {
-		REALLOCA(g_lengths, (size_t)g_seq_n)
+	if (seq_n > (size_t)SEQS_N && (sum - (size_t)used) >= PAGE_SIZE) {
+		REALLOCA(LENGTHS, (size_t)SEQS_N)
 			pverb("Could not shrink sequence lengths array");
-		REALLOCA(g_offsets, (size_t)g_seq_n)
+		REALLOCA(OFFSETS, (size_t)SEQS_N)
 			pverb("Could not shrink sequence offsets array");
-		REALLOC_AL(g_letters, PAGE_SIZE, sum, (size_t)used)
+		REALLOC_AL(LETTERS, PAGE_SIZE, sum, (size_t)used)
 			pverb("Could not shrink sequence letters array");
 
-		for (s32 i = 0; i < g_seq_n; i++)
-			g_seqs[i].letters = g_letters + g_offsets[i];
+		for (s32 i = 0; i < SEQS_N; i++)
+			SEQS[i].letters = LETTERS + OFFSETS[i];
 
-		pinfo("Filtered %zu sequences", seq_n - (size_t)g_seq_n);
+		pinfo("Filtered %zu sequences", seq_n - (size_t)SEQS_N);
 	}
 
-	if (g_seq_n < SEQ_N_MIN) {
+	if (SEQS_N < SEQ_N_MIN) {
 		perr("Filtering removed too many sequences (" Ps32 " remain)",
-		     g_seq_n);
+		     SEQS_N);
 		return false;
 	}
 
-	if (used - g_seq_n < SEQ_LEN_SUM_MIN) {
+	if (used - SEQS_N < SEQ_LEN_SUM_MIN) {
 		perr("Not enough total sequence length after filtering: " Ps64,
-		     used - g_seq_n);
+		     used - SEQS_N);
 		return false;
 	}
 

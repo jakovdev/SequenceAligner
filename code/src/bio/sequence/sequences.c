@@ -12,32 +12,27 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 
-s32 *g_restrict g_lengths;
-s64 *g_restrict g_offsets;
-char *g_restrict g_letters;
-sequence_t *g_restrict g_seqs;
-s64 g_alignments;
-size_t g_seq_len_max;
-s32 g_seq_n;
+s64 ALIGNMENTS;
+size_t LENGTHS_MAX;
+s32 *g_restrict LENGTHS;
+s64 *g_restrict OFFSETS;
+char *g_restrict LETTERS;
+sequence_t *g_restrict SEQS;
+s32 SEQS_N;
 
-static bool globals_dirty;
 static void sequences_free(void)
 {
-	if (!globals_dirty)
-		return;
-
-	free(g_lengths);
-	free(g_offsets);
-	free_aligned(g_letters);
-	free_aligned(g_seqs);
-	g_seqs = NULL;
-	g_letters = NULL;
-	g_offsets = NULL;
-	g_lengths = NULL;
-	g_alignments = 0;
-	g_seq_len_max = 0;
-	g_seq_n = 0;
-	globals_dirty = false;
+	free(LENGTHS);
+	free(OFFSETS);
+	free_aligned(LETTERS);
+	free_aligned(SEQS);
+	SEQS = NULL;
+	LETTERS = NULL;
+	OFFSETS = NULL;
+	LENGTHS = NULL;
+	ALIGNMENTS = 0;
+	LENGTHS_MAX = 0;
+	SEQS_N = 0;
 }
 
 static bool validate_sequence(s32 length, char letters[restrict static length])
@@ -98,12 +93,11 @@ bool sequences_load_from_file(void)
 
 	pinfo("Found %zu potential sequences", total);
 	size_t capacity = PAGE_SIZE;
-	globals_dirty = true;
-	MALLOCA(g_lengths, total);
-	MALLOCA(g_offsets, total);
-	MALLOCA_AL(g_seqs, CACHE_LINE, total);
-	MALLOCA_AL(g_letters, PAGE_SIZE, capacity);
-	if unlikely (!g_lengths || !g_offsets || !g_seqs || !g_letters) {
+	MALLOCA(LENGTHS, total);
+	MALLOCA(OFFSETS, total);
+	MALLOCA_AL(SEQS, CACHE_LINE, total);
+	MALLOCA_AL(LETTERS, PAGE_SIZE, capacity);
+	if unlikely (!LENGTHS || !OFFSETS || !SEQS || !LETTERS) {
 		perr("Out of memory allocating sequences");
 		goto cleanup_seqs;
 	}
@@ -143,13 +137,13 @@ bool sequences_load_from_file(void)
 			size_t old_cap = capacity;
 			while (letters_used + seq_len + 1 > (s64)capacity)
 				capacity *= 2;
-			REALLOCA_AL(g_letters, PAGE_SIZE, old_cap, capacity) {
+			REALLOCA_AL(LETTERS, PAGE_SIZE, old_cap, capacity) {
 				perr("Out of memory growing sequence letters");
 				goto cleanup_seqs;
 			}
 		}
 
-		char *letters = g_letters + letters_used;
+		char *letters = LETTERS + letters_used;
 		ifile_entry_extract(&ifile, letters, length);
 		if (!validate_sequence(seq_len, letters)) {
 			if (invalid < 0) {
@@ -168,12 +162,12 @@ bool sequences_load_from_file(void)
 			goto cleanup_seqs;
 		}
 
-		g_seqs[seq_n_curr].length = seq_len;
-		g_lengths[seq_n_curr] = seq_len;
-		g_offsets[seq_n_curr++] = letters_used;
+		SEQS[seq_n_curr].length = seq_len;
+		LENGTHS[seq_n_curr] = seq_len;
+		OFFSETS[seq_n_curr++] = letters_used;
 		letters_used += seq_len + 1;
-		if (length > g_seq_len_max)
-			g_seq_len_max = length;
+		if (length > LENGTHS_MAX)
+			LENGTHS_MAX = length;
 	} while (ifile_entry_next(&ifile));
 	bench_io_end();
 
@@ -195,17 +189,17 @@ bool sequences_load_from_file(void)
 		goto cleanup_seqs;
 	}
 
-	g_seq_n = seq_n_curr;
-	g_alignments = ((s64)g_seq_n * (g_seq_n - 1)) / 2;
-	for (s32 i = 0; i < g_seq_n; i++)
-		g_seqs[i].letters = g_letters + g_offsets[i];
+	SEQS_N = seq_n_curr;
+	ALIGNMENTS = ((s64)SEQS_N * (SEQS_N - 1)) / 2;
+	for (s32 i = 0; i < SEQS_N; i++)
+		SEQS[i].letters = LETTERS + OFFSETS[i];
 
 	if (!filter_seqs())
 		goto cleanup_seqs;
 
-	s64 used = g_offsets[g_seq_n - 1] + g_lengths[g_seq_n - 1] + 1;
+	s64 used = OFFSETS[SEQS_N - 1] + LENGTHS[SEQS_N - 1] + 1;
 	pinfo("Average sequence length: %.2f",
-	      (double)used / (double)g_seq_n - 1.0);
+	      (double)used / (double)SEQS_N - 1.0);
 
 	ifile_close(&ifile);
 	return true;

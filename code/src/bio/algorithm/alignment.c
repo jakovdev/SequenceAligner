@@ -37,7 +37,7 @@ static align_func_t align_method(void)
 bool align(void)
 {
 	const align_func_t method = align_method();
-	const size_t total = (size_t)g_alignments;
+	const size_t total = (size_t)ALIGNMENTS;
 	pinfo("Performing %zu pairwise alignments", total);
 	if (!progress_start(total, arg_threads(), "Aligning sequences"))
 		return false;
@@ -48,7 +48,7 @@ bool align(void)
 	{
 		matrix_buffers_init();
 		indices_buffers_init();
-		s32 *MALLOCA_AL(column_buffer, CACHE_LINE, (size_t)g_seq_n);
+		s32 *MALLOCA_AL(column_buffer, CACHE_LINE, (size_t)SEQS_N);
 		if unlikely (!column_buffer) {
 			perr("Out of memory allocating similarity matrix columns");
 			exit(EXIT_FAILURE);
@@ -56,11 +56,11 @@ bool align(void)
 		s64 checksum = 0;
 		s32 col;
 #pragma omp for schedule(dynamic)
-		for (col = 1; col < g_seq_n; col++) {
-			sequence_ptr_t seq = &g_seqs[col];
+		for (col = 1; col < SEQS_N; col++) {
+			sequence_ptr_t seq = &SEQS[col];
 			indices_precompute(seq);
 			for (s32 row = 0; row < col; row++) {
-				const s32 score = method(seq, &g_seqs[row]);
+				const s32 score = method(seq, &SEQS[row]);
 				column_buffer[row] = score;
 				checksum += score;
 			}

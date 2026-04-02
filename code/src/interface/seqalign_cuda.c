@@ -116,7 +116,7 @@ bool cuda_align(void)
 		pabort();
 	}
 
-	if (g_seq_len_max > MAX_CUDA_SEQUENCE_LENGTH) {
+	if (LENGTHS_MAX > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
 		return false;
 	}
@@ -136,7 +136,7 @@ bool cuda_align(void)
 	}
 
 	struct Constants C = {
-		.seq_n = g_seq_n,
+		.seq_n = SEQS_N,
 		.gap_pen = GAP_PEN,
 		.gap_open = GAP_OPEN,
 		.gap_ext = GAP_EXT,
@@ -145,21 +145,21 @@ bool cuda_align(void)
 	memcpy(C.seq_lut, SEQ_LUT, sizeof(C.seq_lut));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
 
-	size_t seq_n = (size_t)g_seq_n;
-	size_t sum = (size_t)(g_offsets[seq_n - 1] + g_lengths[seq_n - 1] + 1);
+	size_t seq_n = (size_t)SEQS_N;
+	size_t sum = (size_t)(OFFSETS[seq_n - 1] + LENGTHS[seq_n - 1] + 1);
 
 	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*C.offsets) * seq_n));
 	CALLR(cudaMalloc((void **)&C.lengths, sizeof(*C.lengths) * seq_n));
 	CALLR(cudaMalloc((void **)&C.letters, sizeof(*C.letters) * sum));
 
-	CALLR(cudaMemcpy(C.offsets, g_offsets, sizeof(*C.offsets) * seq_n,
+	CALLR(cudaMemcpy(C.offsets, OFFSETS, sizeof(*C.offsets) * seq_n,
 			 cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.lengths, g_lengths, sizeof(*C.lengths) * seq_n,
+	CALLR(cudaMemcpy(C.lengths, LENGTHS, sizeof(*C.lengths) * seq_n,
 			 cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.letters, g_letters, sizeof(*C.letters) * sum,
+	CALLR(cudaMemcpy(C.letters, LETTERS, sizeof(*C.letters) * sum,
 			 cudaMemcpyHostToDevice));
 
-	const s64 alignments = g_alignments;
+	const s64 alignments = ALIGNMENTS;
 	const s64 batch_size = INT64_C(64) << 20;
 	s32 *matrix = h5_matrix_data();
 

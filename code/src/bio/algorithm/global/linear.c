@@ -7,25 +7,25 @@
 
 void linear_global_init(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_matrix)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !MATRIX)
 		unreachable_release();
 
 	const s32 len1 = seq1->length;
 	const s32 len2 = seq2->length;
 	const s64 cols = len1 + 1;
 
-	g_matrix[0] = 0;
+	MATRIX[0] = 0;
 
 	for (s32 j = 1; j <= len1; j++)
-		g_matrix[j] = j * GAP_PEN;
+		MATRIX[j] = j * GAP_PEN;
 
 	for (s32 i = 1; i <= len2; i++)
-		g_matrix[cols * i] = i * GAP_PEN;
+		MATRIX[cols * i] = i * GAP_PEN;
 }
 
 s32 linear_global_fill(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 {
-	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !g_matrix || !g_seq1_i)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !MATRIX || !SEQ1I)
 		unreachable_release();
 
 	const s32 len1 = seq1->length;
@@ -38,16 +38,16 @@ s32 linear_global_fill(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
 		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
 
 		for (s32 j = 1; j <= len1; j++) {
-			const s32 match = g_matrix[p_row + j - 1] +
-					  SUB_MAT[g_seq1_i[j - 1]][c2_idx];
-			const s32 del = g_matrix[p_row + j] + GAP_PEN;
-			const s32 insert = g_matrix[row + j - 1] + GAP_PEN;
+			const s32 match = MATRIX[p_row + j - 1] +
+					  SUB_MAT[SEQ1I[j - 1]][c2_idx];
+			const s32 del = MATRIX[p_row + j] + GAP_PEN;
+			const s32 insert = MATRIX[row + j - 1] + GAP_PEN;
 			s32 max_val = match;
 			max_val = del > max_val ? del : max_val;
 			max_val = insert > max_val ? insert : max_val;
-			g_matrix[row + j] = max_val;
+			MATRIX[row + j] = max_val;
 		}
 	}
 
-	return g_matrix[(s64)len2 * (len1 + 1) + len1];
+	return MATRIX[(s64)len2 * (len1 + 1) + len1];
 }
