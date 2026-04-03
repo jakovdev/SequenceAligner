@@ -43,7 +43,7 @@ static void print_matrix_group(const char *title, int count, int start)
 		const int next = i + 5;
 		const int row_end = next < count ? next : count;
 		for (int j = i; j < row_end; j++)
-			printf("%-10s", NAMES[start + j]);
+			printf("%-*s ", NAMES_LONGEST, NAMES[start + j]);
 		putchar('\n');
 	}
 }
