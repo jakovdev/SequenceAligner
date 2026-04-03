@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.30)
 
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 option(USE_CUDA "Enable CUDA support" OFF)
@@ -116,98 +116,22 @@ if(USE_CUDA)
 endif()
 
 if(IS_MINGW OR IS_MSYS2)
+	find_package(Git REQUIRED)
 	include(FetchContent)
 	cmake_policy(SET CMP0169 OLD) # Needed for automatic patching
 	FetchContent_Declare(
 		tinycthread
 		GIT_REPOSITORY https://github.com/tinycthread/tinycthread.git
-		GIT_TAG master
+		GIT_TAG 6957fc8383d6c7db25b60b8c849b29caab1caaee
 		GIT_SHALLOW TRUE
+		PATCH_COMMAND ${GIT_EXECUTABLE} -C <SOURCE_DIR> apply "${CMAKE_SOURCE_DIR}/script/tinycthread-mingw.patch"
 	)
 	FetchContent_GetProperties(tinycthread)
 	if(NOT tinycthread_POPULATED)
 		FetchContent_Populate(tinycthread)
-		set(TINYCTHREAD_SOURCE_FILE "${tinycthread_SOURCE_DIR}/source/tinycthread.c")
-		file(READ "${TINYCTHREAD_SOURCE_FILE}" TINYCTHREAD_CONTENT)
-		string(REPLACE 
-			"    timeoutMs += (ts->tv_nsec - current_ts.tv_nsec) / 1000000;"
-			"    timeoutMs += (DWORD)((ts->tv_nsec - current_ts.tv_nsec) / 1000000);"
-			TINYCTHREAD_CONTENT "${TINYCTHREAD_CONTENT}")
-		string(REPLACE 
-			"    unsigned long long nowInMilliseconds = now.tv_sec * 1000 + now.tv_nsec / 1000000;"
-			"    unsigned long long nowInMilliseconds = (unsigned long long)now.tv_sec * 1000 + (unsigned long long)now.tv_nsec / 1000000;"
-			TINYCTHREAD_CONTENT "${TINYCTHREAD_CONTENT}")
-		string(REPLACE 
-			"    unsigned long long tsInMilliseconds  = ts->tv_sec * 1000 + ts->tv_nsec / 1000000;"
-			"    unsigned long long tsInMilliseconds  = (unsigned long long)ts->tv_sec * 1000 + (unsigned long long)ts->tv_nsec / 1000000;"
-			TINYCTHREAD_CONTENT "${TINYCTHREAD_CONTENT}")
-		string(REPLACE 
-			"    switch (flag->status)
-    {
-      case 0:
-        if (InterlockedCompareExchange (&(flag->status), 1, 0) == 0) {
-          InitializeCriticalSection(&(flag->lock));
-          EnterCriticalSection(&(flag->lock));
-          flag->status = 2;
-          func();
-          flag->status = 3;
-          LeaveCriticalSection(&(flag->lock));
-          return;
-        }
-        break;
-      case 1:
-        break;
-      case 2:
-        EnterCriticalSection(&(flag->lock));
-        LeaveCriticalSection(&(flag->lock));
-        break;
-    }"
-            "    switch (flag->status)
-    {
-      case 0:
-        if (InterlockedCompareExchange (&(flag->status), 1, 0) == 0) {
-          InitializeCriticalSection(&(flag->lock));
-          EnterCriticalSection(&(flag->lock));
-          flag->status = 2;
-          func();
-          flag->status = 3;
-          LeaveCriticalSection(&(flag->lock));
-          return;
-        }
-        break;
-      case 1:
-        break;
-      case 2:
-        EnterCriticalSection(&(flag->lock));
-        LeaveCriticalSection(&(flag->lock));
-        break;
-      default:
-        break;
-    }"
-			TINYCTHREAD_CONTENT "${TINYCTHREAD_CONTENT}")
-		file(WRITE "${TINYCTHREAD_SOURCE_FILE}" "${TINYCTHREAD_CONTENT}")
 	endif()
-	set(TINYCTHREAD_SOURCE_DIR "${tinycthread_SOURCE_DIR}")
-	set(THREADS_WRAPPER_DIR "${CMAKE_BINARY_DIR}/include/threads_wrapper")
-	file(MAKE_DIRECTORY "${THREADS_WRAPPER_DIR}")
-	file(WRITE "${THREADS_WRAPPER_DIR}/threads.h" 
-"/* Auto-generated wrapper for tinycthread */
-#ifndef _THREADS_H_WRAPPER_
-#define _THREADS_H_WRAPPER_
-#include \"${TINYCTHREAD_SOURCE_DIR}/source/tinycthread.h\"
-#if defined __GNUC__ && defined __GNUC_MINOR__
-#define __GNUC_PREREQ(maj, min) ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#else
-#define __GNUC_PREREQ(maj, min) 0
-#endif
-#if (!defined __STDC_VERSION__				\
-     || __STDC_VERSION__ <= 201710L			\
-     || !__GNUC_PREREQ (13, 0)) && !defined __cplusplus
-#define thread_local _Thread_local
-#endif
-#endif
-")
-	set(TINYCTHREAD_SOURCES "${TINYCTHREAD_SOURCE_DIR}/source/tinycthread.c")
+	set(TINYCTHREAD_SOURCE_DIR "${tinycthread_SOURCE_DIR}/source")
+	set(TINYCTHREAD_SOURCES "${TINYCTHREAD_SOURCE_DIR}/tinycthread.c")
 	set(USING_TINYCTHREAD TRUE)
 endif()
 
@@ -439,8 +363,7 @@ endif()
 
 target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include)
 if(USING_TINYCTHREAD)
-	target_include_directories(seqalign PRIVATE ${THREADS_WRAPPER_DIR})
-	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_SOURCE_DIR}/source)
+	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_SOURCE_DIR})
 endif()
 
 set_c_compiler_options(seqalign)
