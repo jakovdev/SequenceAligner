@@ -140,7 +140,6 @@ bool sequences_load_from_file(void)
 			}
 		}
 
-		s32 seq_len = (s32)length;
 		char *letters = LETTERS + letters_used;
 		size_t written = ifile_entry_extract(&ifile, letters);
 		if (written != length) {
@@ -149,6 +148,7 @@ bool sequences_load_from_file(void)
 			goto cleanup_seqs;
 		}
 
+		s32 seq_len = (s32)length;
 		if (!validate_sequence(seq_len, letters)) {
 			if (invalid < 0) {
 				bench_io_end();
