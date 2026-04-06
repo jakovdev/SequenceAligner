@@ -53,7 +53,7 @@
  *
  * static void print_my_flag(void)
  * {
- *     printf("Hello from my_flag!\n");
+ *     printf("Hello from my_flag\n");
  * }
  *
  * ARGUMENT(my_flag) = {
@@ -101,8 +101,8 @@
  * @endif
  */
 
-#ifndef ARGS_H
-#define ARGS_H
+#ifndef ARGS_H_
+#define ARGS_H_
 
 #include <errno.h>
 #include <stdbool.h>
@@ -756,7 +756,7 @@ struct argument {
 	 * @code{.c}
 	 * static double mydouble;
 	 * ARG_PARSE_D(mydoubles, double, , val < 5.0,
-	 *             "Must be >= 5.0");
+	 *             "Must be >= 5.0\n");
 	 * ARGUMENT(myarg) = {
 	 *     ...
 	 *     .dest = &mydouble,
@@ -779,7 +779,7 @@ struct argument {
 	 *     else if (strcmp(str, "blue") == 0)
 	 *         col = BLUE;
 	 *     else
-	 *         return ARG_INVALID("Invalid color");
+	 *         return ARG_INVALID("Invalid color\n");
 	 *     *(enum Color *)dest = col;
 	 *     return ARG_VALID();
 	 * }
@@ -809,7 +809,7 @@ struct argument {
 	 * static bool other_option;
 	 * static struct arg_callback validate_color(void) {
 	 *     if (color == RED && other_option)
-	 *         return ARG_INVALID("Red color cannot be used.");
+	 *         return ARG_INVALID("Red color cannot be used.\n");
 	 *     return ARG_VALID();
 	 * }
 	 * ARGUMENT(color) = {
@@ -834,7 +834,7 @@ struct argument {
 	 * @code{.c}
 	 * static bool verbose;
 	 * static void print_verbose(void) {
-	 *     printf("Verbose mode is on");
+	 *     printf("Verbose mode is on\n");
 	 * }
 	 * ARGUMENT(verbose) = {
 	 *     ...
@@ -985,7 +985,7 @@ void _args_register(struct argument *);
 
 /** @endcond */
 
-#endif /* ARGS_H */
+#endif /* ARGS_H_ */
 #if defined(ARGS_IMPLEMENTATION) && !defined(_ARGS_IMPLEMENTED)
 #define _ARGS_IMPLEMENTED
 
@@ -1029,24 +1029,25 @@ void _args_register(struct argument *);
 #error ARGS_HELP_OFFSET must be at least 1 for proper formatting
 #endif
 
-#ifndef ARGS_PRINT_H
+#ifndef ARGS_PRINT_H_
 /** @ingroup args_customizable
  * @brief Allow using print.h functions for args_pe, args_pd, args_pi and args_abort.
- * @remark Define @ref ARGS_PRINT_H and include @ref print.h before including @ref args.h.
+ * @remark Define @ref ARGS_PRINT_H_ and include @ref print.h before including @ref args.h.
+ * @attention Temporarily disabled
  * @hideinitializer
  */
-#define ARGS_PRINT_H 0
+#define ARGS_PRINT_H_ 0
 #else
-#ifndef PRINT_H
+#ifndef PRINT_H_
 #error "Include print.h before including args.h"
-#endif /* PRINT_H */
-#undef ARGS_PRINT_H
-#define ARGS_PRINT_H 1
-#endif /* ARGS_PRINT_H */
+#endif /* PRINT_H_ */
+#undef ARGS_PRINT_H_
+#define ARGS_PRINT_H_ 0 /* 1 */
+#endif /* ARGS_PRINT_H_ */
 
 #ifndef args_po
 /* Disabled for now 
-#if ARGS_PRINT_H
+#if ARGS_PRINT_H_
 #define args_po print
 #else Default */
 /** @ingroup args_customizable
@@ -1054,7 +1055,7 @@ void _args_register(struct argument *);
  * @remark Overridable before including @ref args.h.
  */
 #define args_po(...) printf(__VA_ARGS__)
-/* #endif ARGS_PRINT_H */
+/* #endif ARGS_PRINT_H_ */
 #endif /* args_po */
 
 /** @} */
@@ -1062,7 +1063,7 @@ void _args_register(struct argument *);
 /** @{ */
 
 #ifndef args_pe
-#if ARGS_PRINT_H
+#if ARGS_PRINT_H_
 #define args_pe perr
 #else /* Default */
 /** @ingroup args_customizable
@@ -1070,12 +1071,12 @@ void _args_register(struct argument *);
  * @remark Overridable before including @ref args.h.
  */
 #define args_pe(...) fprintf(stderr, __VA_ARGS__)
-#endif /* ARGS_PRINT_H */
+#endif /* ARGS_PRINT_H_ */
 #endif /* args_pe */
 
 #ifndef NDEBUG /* DEBUG */
 #ifndef args_pd
-#if ARGS_PRINT_H
+#if ARGS_PRINT_H_
 #define args_pd pdev
 #else /* Default */
 /** @ingroup args_customizable
@@ -1084,7 +1085,7 @@ void _args_register(struct argument *);
  * @remark Overridable before including @ref args.h.
  */
 #define args_pd(...) fprintf(stderr, __VA_ARGS__)
-#endif /* ARGS_PRINT_H */
+#endif /* ARGS_PRINT_H_ */
 #endif /* args_pd */
 #else /* RELEASE */
 #undef args_pd
@@ -1092,19 +1093,19 @@ void _args_register(struct argument *);
 #endif /* NDEBUG */
 
 #ifndef args_pi
-#if ARGS_PRINT_H
-#define args_pi(arg) perr("Internal error for %s", arg_str(arg))
+#if ARGS_PRINT_H_
+#define args_pi(arg) perr("Internal error for %s\n", arg_str(arg))
 #else /* Default */
 /** @ingroup args_customizable
  * @brief Internal error print, user-facing dev print.
  * @remark Overridable before including @ref args.h.
  */
-#define args_pi(arg) args_pe("Internal error for %s", arg_str(arg))
-#endif /* ARGS_PRINT_H */
+#define args_pi(arg) args_pe("Internal error for %s\n", arg_str(arg))
+#endif /* ARGS_PRINT_H_ */
 #endif /* args_pi */
 
 #ifndef args_abort
-#if ARGS_PRINT_H
+#if ARGS_PRINT_H_
 #define args_abort pabort
 #else /* Default */
 /** @ingroup args_customizable
@@ -1112,7 +1113,7 @@ void _args_register(struct argument *);
  * @remark Overridable before including @ref args.h.
  */
 #define args_abort() abort()
-#endif /* ARGS_PRINT_H */
+#endif /* ARGS_PRINT_H_ */
 #endif /* args_abort */
 
 #ifndef ARGS_IMPLICIT_SETS
@@ -1188,7 +1189,7 @@ static void arg_set_new(struct argument *a)
 	static size_t sets_n = 0;
 
 	if (sets_n >= ARGS_IMPLICIT_SETS) {
-		args_pd("ARGS_IMPLICIT_SETS exceeded, try increasing it");
+		args_pd("ARGS_IMPLICIT_SETS exceeded, try increasing it\n");
 		args_pi(a);
 		args_abort();
 	}
@@ -1199,44 +1200,46 @@ static void arg_set_new(struct argument *a)
 void _args_register(struct argument *a)
 {
 	if (!a) {
-		args_pd("Cannot register %s", arg_str(a));
+		args_pd("Cannot register %s\n", arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (!a->opt && !a->lopt) {
-		args_pd("%s must have an option", arg_str(a));
+		args_pd("%s must have an option\n", arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->_.valid) {
-		args_pd("%s has internals pre-set", arg_str(a));
+		args_pd("%s has internals pre-set\n", arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->param_req != ARG_PARAM_NONE && !a->param) {
-		args_pd("%s requires parameter but has no .param", arg_str(a));
+		args_pd("%s requires parameter but has no .param\n",
+			arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->param_req != ARG_PARAM_NONE && !a->parse_callback) {
-		args_pd("%s has .param but has no .parse_callback", arg_str(a));
+		args_pd("%s has .param but has no .parse_callback\n",
+			arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->validate_phase != ARG_CALLBACK_ALWAYS && !a->validate_callback) {
-		args_pd("%s has .validate_phase but has no .validate_callback",
+		args_pd("%s has .validate_phase but has no .validate_callback\n",
 			arg_str(a));
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->action_phase != ARG_CALLBACK_ALWAYS && !a->action_callback) {
-		args_pd("%s has .action_phase but has no .action_callback",
+		args_pd("%s has .action_phase but has no .action_callback\n",
 			arg_str(a));
 		args_pi(a);
 		args_abort();
@@ -1244,7 +1247,7 @@ void _args_register(struct argument *a)
 
 	if (a->arg_req == ARG_SOMETIME && !a->_.deps && !a->_.cons &&
 	    !a->validate_callback) {
-		args_pd("%s has no dependencies, conflicts, or validator",
+		args_pd("%s has no dependencies, conflicts, or validator\n",
 			arg_str(a));
 		args_pi(a);
 		args_abort();
@@ -1271,15 +1274,15 @@ void _args_register(struct argument *a)
 
 	if (!a->_.deps) {
 		if (a->_.deps_n > 0) {
-			args_pd("%s has deps_n=%zu but deps=NULL", arg_str(a),
+			args_pd("%s has deps_n=%zu but deps=NULL\n", arg_str(a),
 				a->_.deps_n);
-			args_pd("Add dependencies using ARG_DEPENDS()");
+			args_pd("Add dependencies using ARG_DEPENDS()\n");
 			args_pi(a);
 			args_abort();
 		}
 
 		if (a->_.deps_phase != ARG_RELATION_PARSE) {
-			args_pd("%s has relation phase but no dependencies",
+			args_pd("%s has relation phase but no dependencies\n",
 				arg_str(a));
 			args_pi(a);
 			args_abort();
@@ -1292,22 +1295,22 @@ void _args_register(struct argument *a)
 		ndeps++;
 
 	if (ndeps != a->_.deps_n) {
-		args_pd("%s deps_n=%zu but actual is %zu", arg_str(a),
+		args_pd("%s deps_n=%zu but actual is %zu\n", arg_str(a),
 			a->_.deps_n, ndeps);
-		args_pd("Add dependencies using ARG_DEPENDS()");
+		args_pd("Add dependencies using ARG_DEPENDS()\n");
 		args_pi(a);
 		args_abort();
 	}
 
 	for_each_rel(a, deps, dep) {
 		if (!dep) {
-			args_pd("%s NULL deps[%zu]", arg_str(a), depi);
+			args_pd("%s NULL deps[%zu]\n", arg_str(a), depi);
 			args_pi(a);
 			args_abort();
 		}
 
 		if (dep == a) {
-			args_pd("%s depends on itself", arg_str(a));
+			args_pd("%s depends on itself\n", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1319,15 +1322,15 @@ void _args_register(struct argument *a)
 arg_no_deps:
 	if (!a->_.cons) {
 		if (a->_.cons_n > 0) {
-			args_pd("%s cons_n=%zu but cons=NULL", arg_str(a),
+			args_pd("%s cons_n=%zu but cons=NULL\n", arg_str(a),
 				a->_.cons_n);
-			args_pd("Add conflicts using ARG_CONFLICTS()");
+			args_pd("Add conflicts using ARG_CONFLICTS()\n");
 			args_pi(a);
 			args_abort();
 		}
 
 		if (a->_.cons_phase != ARG_RELATION_PARSE) {
-			args_pd("%s has relation phase but no conflicts",
+			args_pd("%s has relation phase but no conflicts\n",
 				arg_str(a));
 			args_pi(a);
 			args_abort();
@@ -1340,22 +1343,22 @@ arg_no_deps:
 		ncons++;
 
 	if (ncons != a->_.cons_n) {
-		args_pd("%s cons_n=%zu but actual is %zu", arg_str(a),
+		args_pd("%s cons_n=%zu but actual is %zu\n", arg_str(a),
 			a->_.cons_n, ncons);
-		args_pd("Add conflicts using ARG_CONFLICTS()");
+		args_pd("Add conflicts using ARG_CONFLICTS()\n");
 		args_pi(a);
 		args_abort();
 	}
 
 	for_each_rel(a, cons, con) {
 		if (!con) {
-			args_pd("%s NULL cons[%zu]", arg_str(a), coni);
+			args_pd("%s NULL cons[%zu]\n", arg_str(a), coni);
 			args_pi(a);
 			args_abort();
 		}
 
 		if (con == a) {
-			args_pd("%s conflicts itself", arg_str(a));
+			args_pd("%s conflicts itself\n", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1367,8 +1370,8 @@ arg_no_deps:
 			if (dep != con)
 				continue;
 
-			args_pd("%s both depends and conflicts %s", arg_str(a),
-				arg_str(con));
+			args_pd("%s both depends and conflicts %s\n",
+				arg_str(a), arg_str(con));
 			args_pi(a);
 			args_abort();
 		}
@@ -1377,15 +1380,16 @@ arg_no_deps:
 arg_no_cons:
 	if (!a->_.subs) {
 		if (a->_.subs_n > 0) {
-			args_pd("%s subs_n=%zu but subs=NULL", arg_str(a),
+			args_pd("%s subs_n=%zu but subs=NULL\n", arg_str(a),
 				a->_.subs_n);
-			args_pd("Specify subsets using ARG_SUBSETS()");
+			args_pd("Specify subsets using ARG_SUBSETS()\n");
 			args_pi(a);
 			args_abort();
 		}
 
 		if (a->_.subs_strs) {
-			args_pd("%s has subs_strs but no subsets", arg_str(a));
+			args_pd("%s has subs_strs but no subsets\n",
+				arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1397,9 +1401,9 @@ arg_no_cons:
 		nsubs++;
 
 	if (nsubs != a->_.subs_n) {
-		args_pd("%s subs_n=%zu but actual is %zu", arg_str(a),
+		args_pd("%s subs_n=%zu but actual is %zu\n", arg_str(a),
 			a->_.subs_n, nsubs);
-		args_pd("Specify subset args using ARG_SUBSETS()");
+		args_pd("Specify subset args using ARG_SUBSETS()\n");
 		args_pi(a);
 		args_abort();
 	}
@@ -1410,9 +1414,9 @@ arg_no_cons:
 			nsstrs++;
 
 		if (nsstrs != a->_.subs_n) {
-			args_pd("%s subs_n=%zu but subs_strs has %zu entries",
+			args_pd("%s subs_n=%zu but subs_strs has %zu entries\n",
 				arg_str(a), a->_.subs_n, nsstrs);
-			args_pd("Both lists must be the same size");
+			args_pd("Both lists must be the same size\n");
 			args_pi(a);
 			args_abort();
 		}
@@ -1420,7 +1424,7 @@ arg_no_cons:
 
 	for_each_rel(a, subs, sub) {
 		if (sub == a) {
-			args_pd("%s subsets itself", arg_str(a));
+			args_pd("%s subsets itself\n", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1431,7 +1435,7 @@ arg_no_cons:
 		if (a->param_req != ARG_PARAM_REQUIRED &&
 		    sub->param_req == ARG_PARAM_REQUIRED &&
 		    (!a->_.subs_strs || a->_.subs_strs[subi] == ARG_SUBPASS)) {
-			args_pd("%s requires param but superset %s might not and has no custom string",
+			args_pd("%s requires param but superset %s might not and has no custom string\n",
 				arg_str(sub), arg_str(a));
 			args_pi(a);
 			args_abort();
@@ -1442,7 +1446,7 @@ arg_no_cons:
 
 		for_each_rel(a, cons, con) {
 			if (con == sub) {
-				args_pd("%s both supersets and conflicts %s",
+				args_pd("%s both supersets and conflicts %s\n",
 					arg_str(a), arg_str(sub));
 				args_pi(a);
 				args_abort();
@@ -1451,7 +1455,7 @@ arg_no_cons:
 
 		for_each_rel(sub, deps, dep) {
 			if (dep == a) {
-				args_pd("%s supersets %s but also depends on it",
+				args_pd("%s supersets %s but also depends on it\n",
 					arg_str(a), arg_str(sub));
 				args_pi(a);
 				args_abort();
@@ -1463,7 +1467,7 @@ arg_no_subs:
 	for_each_arg(c, args) {
 		if ((a->opt && c->opt && a->opt == c->opt) ||
 		    (a->lopt && c->lopt && strcmp(a->lopt, c->lopt) == 0)) {
-			args_pd("%s same opts as %s", arg_str(a), arg_str(c));
+			args_pd("%s same opts as %s\n", arg_str(a), arg_str(c));
 			args_pi(a);
 			args_abort();
 		}
@@ -1488,7 +1492,7 @@ arg_no_subs:
 	if (a->help)
 		check += ARGS_HELP_OFFSET + strlen(a->help);
 	if (check >= ARG_STR_BUF_SIZE) {
-		args_pd("%s combined opt, lopt, help string too long: %zu chars",
+		args_pd("%s combined opt, lopt, help string too long: %zu chars\n",
 			arg_str(a), check);
 		args_pi(a);
 		args_abort();
@@ -1504,21 +1508,21 @@ arg_no_subs:
 static bool arg_process(struct argument *a, const char *str)
 {
 	if (!a->_.valid) {
-		args_pd("%s has internals pre-set", arg_str(a));
-		args_pd("Please register arguments using ARGUMENT()");
+		args_pd("%s has internals pre-set\n", arg_str(a));
+		args_pd("Please register arguments using ARGUMENT()\n");
 		args_pi(a);
 		args_abort();
 	}
 
 	if (a->set && *a->set) {
-		args_pe("Argument %s specified multiple times", arg_str(a));
+		args_pe("Argument %s specified multiple times\n", arg_str(a));
 		return false;
 	}
 
 	if (a->parse_callback) {
 		struct arg_callback ret = a->parse_callback(str, a->dest);
 		if (ret.error) {
-			args_pe("%s: %s", arg_str(a), ret.error);
+			args_pe("%s: %s\n", arg_str(a), ret.error);
 			return false;
 		}
 	}
@@ -1526,7 +1530,7 @@ static bool arg_process(struct argument *a, const char *str)
 	if (a->_.deps_phase == ARG_RELATION_PARSE) {
 		for_each_rel(a, deps, dep) {
 			if (!*dep->set) {
-				args_pe("%s requires %s to be set first",
+				args_pe("%s requires %s to be set first\n",
 					arg_str(a), arg_str(dep));
 				return false;
 			}
@@ -1536,7 +1540,7 @@ static bool arg_process(struct argument *a, const char *str)
 	if (a->_.cons_phase == ARG_RELATION_PARSE) {
 		for_each_rel(a, cons, con) {
 			if (*con->set) {
-				args_pe("%s conflicts with %s", arg_str(a),
+				args_pe("%s conflicts with %s\n", arg_str(a),
 					arg_str(con));
 				return false;
 			}
@@ -1562,6 +1566,35 @@ static bool arg_process(struct argument *a, const char *str)
 	return true;
 }
 
+static bool arg_option(const char *token)
+{
+	if (!token || token[0] != '-' || token[1] == '\0')
+		return false;
+
+	if (strcmp(token, "--") == 0)
+		return true;
+
+	if (token[1] == '-') {
+		const char *name = token + 2;
+		const char *eq = strchr(name, '=');
+		size_t name_len = eq ? (size_t)(eq - name) : strlen(name);
+		for_each_arg(c, args) {
+			if (c->lopt && strncmp(c->lopt, name, name_len) == 0 &&
+			    c->lopt[name_len] == '\0')
+				return true;
+		}
+
+		return false;
+	}
+
+	for_each_arg(c, args) {
+		if (c->opt && c->opt == token[1])
+			return true;
+	}
+
+	return false;
+}
+
 static bool arg_parse_lopt(int *i)
 {
 	char *arg = argr.v[*i];
@@ -1581,7 +1614,7 @@ static bool arg_parse_lopt(int *i)
 	}
 
 	if (!a) {
-		args_pe("Unknown: --%.*s", (int)name_len, name);
+		args_pe("Unknown: --%.*s\n", (int)name_len, name);
 		return false;
 	}
 
@@ -1592,15 +1625,17 @@ static bool arg_parse_lopt(int *i)
 		} else if (*i + 1 < argr.c) {
 			str = argr.v[++(*i)];
 		} else {
-			args_pe("--%s requires a parameter", a->lopt);
+			args_pe("--%s requires a parameter\n", a->lopt);
 			return false;
 		}
 	} else if (a->param_req == ARG_PARAM_OPTIONAL) {
 		if (value)
 			str = value;
+		else if (*i + 1 < argr.c && !arg_option(argr.v[*i + 1]))
+			str = argr.v[++(*i)];
 	} else {
 		if (value) {
-			args_pe("--%s does not take a parameter", a->lopt);
+			args_pe("--%s does not take a parameter\n", a->lopt);
 			return false;
 		}
 	}
@@ -1623,7 +1658,7 @@ static bool arg_parse_opt(int *i)
 		}
 
 		if (!a) {
-			args_pe("Unknown: -%c", opt);
+			args_pe("Unknown: -%c\n", opt);
 			return false;
 		}
 
@@ -1635,7 +1670,7 @@ static bool arg_parse_opt(int *i)
 			} else if (*i + 1 < argr.c) {
 				str = argr.v[++(*i)];
 			} else {
-				args_pe("-%c requires a parameter", opt);
+				args_pe("-%c requires a parameter\n", opt);
 				return false;
 			}
 		} else if (a->param_req == ARG_PARAM_OPTIONAL) {
@@ -1668,7 +1703,7 @@ static bool arg_parse_opt(int *i)
                                                                              \
 			if (!found) {                                        \
 				args_pd("%s has invalid argument in " #list  \
-					"_order",                            \
+					"_order\n",                          \
 					arg_str(a));                         \
 				args_pi(a);                                  \
 				args_abort();                                \
@@ -1802,8 +1837,8 @@ bool args_validate(void)
 
 	for_each_arg(a, validate) {
 		if (!a->_.valid) {
-			args_pd("%s has internals pre-set", arg_str(a));
-			args_pd("Please register arguments using ARGUMENT()");
+			args_pd("%s has internals pre-set\n", arg_str(a));
+			args_pd("Please register arguments using ARGUMENT()\n");
 			args_pi(a);
 			args_abort();
 		}
@@ -1817,7 +1852,7 @@ bool args_validate(void)
 				}
 			}
 			if (!any_conflict_set) {
-				args_pe("Missing required argument: %s",
+				args_pe("Missing required argument: %s\n",
 					arg_str(a));
 				a->_.valid = false;
 				any_invalid = true;
@@ -1838,7 +1873,7 @@ bool args_validate(void)
 			should_check_deps = !*a->set;
 			break;
 		default:
-			args_pd("Unknown dependency relation phase in %s",
+			args_pd("Unknown dependency relation phase in %s\n",
 				arg_str(a));
 			args_pi(a);
 			break;
@@ -1848,8 +1883,8 @@ bool args_validate(void)
 			for_each_rel(a, deps, dep) {
 				if (*dep->set)
 					continue;
-				args_pe("%s requires %s to be set", arg_str(a),
-					arg_str(dep));
+				args_pe("%s requires %s to be set\n",
+					arg_str(a), arg_str(dep));
 				any_invalid = true;
 			}
 		}
@@ -1868,7 +1903,7 @@ bool args_validate(void)
 			should_check_cons = !*a->set;
 			break;
 		default:
-			args_pd("Unknown conflict relation phase in %s",
+			args_pd("Unknown conflict relation phase in %s\n",
 				arg_str(a));
 			args_pi(a);
 			break;
@@ -1878,7 +1913,7 @@ bool args_validate(void)
 			for_each_rel(a, cons, con) {
 				if (!*con->set)
 					continue;
-				args_pe("%s conflicts with %s", arg_str(a),
+				args_pe("%s conflicts with %s\n", arg_str(a),
 					arg_str(con));
 				any_invalid = true;
 			}
@@ -1899,7 +1934,7 @@ bool args_validate(void)
 			should_validate = !*a->set;
 			break;
 		default:
-			args_pd("Unknown .validate_phase in %s", arg_str(a));
+			args_pd("Unknown .validate_phase in %s\n", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}
@@ -1907,7 +1942,7 @@ bool args_validate(void)
 		if (should_validate) {
 			struct arg_callback ret = a->validate_callback();
 			if (ret.error) {
-				args_pe("%s: %s", arg_str(a), ret.error);
+				args_pe("%s: %s\n", arg_str(a), ret.error);
 				any_invalid = true;
 				a->_.valid = false;
 			}
@@ -1935,7 +1970,7 @@ void args_actions(void)
 			should_act = !*a->set;
 			break;
 		default:
-			args_pd("Unknown .action_phase in %s", arg_str(a));
+			args_pd("Unknown .action_phase in %s\n", arg_str(a));
 			args_pi(a);
 			args_abort();
 		}

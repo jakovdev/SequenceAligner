@@ -87,8 +87,8 @@
  * print_stream_err(stderr);
  */
 
-#ifndef PRINT_H
-#define PRINT_H
+#ifndef PRINT_H_
+#define PRINT_H_
 
 #include <stddef.h>
 #include <stdio.h>
@@ -227,7 +227,7 @@ extern bool print_nodetail;
 #endif
 
 #undef P_RESTRICT
-#endif /* PRINT_H */
+#endif /* PRINT_H_ */
 #if defined(PRINT_IMPLEMENTATION) && !defined(_PRINT_IMPLEMENTED)
 #define _PRINT_IMPLEMENTED
 
@@ -253,8 +253,13 @@ extern bool print_nodetail;
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#define PRINT_UNDEF_WIN32_LEAN_AND_MEAN
 #endif
 #include <windows.h>
+#ifdef PRINT_UNDEF_WIN32_LEAN_AND_MEAN
+#undef WIN32_LEAN_AND_MEAN
+#undef PRINT_UNDEF_WIN32_LEAN_AND_MEAN
+#endif
 #define fputc_unlocked _fputc_nolock
 #define fwrite_unlocked _fwrite_nolock
 #define flockfile _lock_file
