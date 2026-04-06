@@ -146,7 +146,7 @@ static bool dsv_delimiter(struct ifile PS(ifile, 1))
 		char prompt[2] = { 0 };
 		pwarn("Could not automatically detect delimiter");
 		pinput_s(prompt, "Enter delimiter character");
-		detected = *prompt ? *prompt : ',';
+		detected = *prompt;
 		bench_io_start();
 	}
 
