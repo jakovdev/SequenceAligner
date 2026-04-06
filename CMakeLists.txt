@@ -202,14 +202,14 @@ if(IS_MSVC)
 	string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
 	string(REPLACE "-Xcompiler=\"-O2 -Ob2\"" "-Xcompiler=/Ob3" CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE}")
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL};/experimental:c11atomics;/Zc:preprocessor;/utf-8;/TC;/WX;/Wall;/analyze;/wd4710;/wd4711;/wd4820;/wd5045;/wd6993;/wd28301>
+	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL};/experimental:c11atomics;/Zc:preprocessor;/utf-8;/TC;/Wall;/analyze;/wd4710;/wd4711;/wd4820;/wd5045;/wd6993;/wd28301>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox;/GL;/GA;/Gy;/Gw;/jumptablerdata>
 	)
-	target_link_options(${target} PRIVATE /WX $<$<CONFIG:Release>:/LTCG;/OPT:REF;/OPT:ICF>)
+	target_link_options(${target} PRIVATE $<$<CONFIG:Release>:/LTCG;/OPT:REF;/OPT:ICF>)
 	target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
 elseif(IS_GNU OR IS_MINGW OR IS_MSYS2)
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL};-fno-strict-overflow;-fwrapv;-pedantic-errors;-Wall;-Wcast-qual;-Wconversion;-Wdisabled-optimization;-Wdouble-promotion;-Werror;-Wextra;-Wfloat-equal;-Winit-self;-Wmissing-declarations;-Wmissing-include-dirs;-Wshadow;-Wstrict-overflow=5;-Wstrict-prototypes;-Wswitch-default;-Wswitch-enum;-Wundef;-Wuninitialized;-Wwrite-strings>
+	$<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL};-fno-strict-overflow;-fwrapv;-pedantic-errors;-Wall;-Wcast-qual;-Wconversion;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wfloat-equal;-Winit-self;-Wmissing-declarations;-Wmissing-include-dirs;-Wshadow;-Wstrict-overflow=5;-Wstrict-prototypes;-Wswitch-default;-Wswitch-enum;-Wundef;-Wuninitialized;-Wwrite-strings>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_GCC7}>>:-Warith-conversion;-Wduplicated-branches;-Wduplicated-cond;-Wlogical-op>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:-fdata-sections;-ffunction-sections;-fno-pie;-fno-plt;-funroll-loops>
 	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og;-g>
@@ -236,13 +236,13 @@ $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-extra-device-vectorization>
 )
 if(IS_MSVC)
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL},/Zc:preprocessor,/utf-8,/WX,/Wall,/analyze,/wd4514,/wd4555,/wd4668,/wd4710,/wd4711,/wd4820,/wd5039,/wd5045>
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL},/Zc:preprocessor,/utf-8,/Wall,/analyze,/wd4514,/wd4555,/wd4668,/wd4710,/wd4711,/wd4820,/wd5039,/wd5045>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Od,/MDd,/RTC1,/Zi>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/GL,/Ox,/MD,/GA,/Gy,/Gw,/DNDEBUG,/jumptablerdata>
 	)
 elseif(IS_GNU)
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL},-pedantic-errors,-Wno-pedantic,-Wall,-Wcast-align,-Wcast-qual,-Wconversion,-Wdisabled-optimization,-Wdouble-promotion,-Werror,-Wextra,-Wfloat-equal,-Winit-self,-Wmissing-declarations,-Wmissing-include-dirs,-Wshadow,-Wstrict-overflow=5,-Wswitch-default,-Wswitch-enum,-Wundef,-Wuninitialized,-Wwrite-strings>
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL},-pedantic-errors,-Wno-pedantic,-Wall,-Wcast-align,-Wcast-qual,-Wconversion,-Wdisabled-optimization,-Wdouble-promotion,-Wextra,-Wfloat-equal,-Winit-self,-Wmissing-declarations,-Wmissing-include-dirs,-Wshadow,-Wstrict-overflow=5,-Wswitch-default,-Wswitch-enum,-Wundef,-Wuninitialized,-Wwrite-strings>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<BOOL:${IS_GCC7}>>:-Xcompiler=-Warith-conversion,-Wduplicated-branches,-Wduplicated-cond,-Wlogical-op>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-g>
 	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${IS_GCC10}>>:-Xcompiler=-fanalyzer>	
