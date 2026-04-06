@@ -44,7 +44,9 @@ LANGUAGES ${SEQALIGN_LANGUAGES}
 set(IS_MINGW FALSE)
 set(IS_MSVC FALSE)
 set(IS_MSYS2 FALSE)
-set(IS_GCC_NATIVE FALSE)
+set(IS_GNU FALSE)
+set(IS_GCC7 FALSE)
+set(IS_GCC10 FALSE)
 
 if(USE_MINGW)
 	set(IS_MINGW TRUE)
@@ -54,55 +56,85 @@ elseif(MSVC)
 		message(FATAL_ERROR "MSVC version 1939 or greater is required (Visual Studio 2022 17.9+). Current version: ${MSVC_VERSION}")
 	endif()
 	if(ARCH_LEVEL STREQUAL "native")
-		set(ARCH_LEVEL "AVX2")
+		set(_arch_probe_src [=[
+#include <stdio.h>
+#include <intrin.h>
+static int has_os_avx_state(void) {
+	int cpuInfo[4] = {0};
+	__cpuid(cpuInfo, 1);
+	const int osxsave = (cpuInfo[2] & (1 << 27)) != 0;
+	if (!osxsave) return 0;
+	unsigned long long xcr0 = _xgetbv(0);
+	return (xcr0 & 0x6) == 0x6; /* XMM+YMM */
+}
+static int has_avx512_state(void) {
+	unsigned long long xcr0 = _xgetbv(0);
+	return (xcr0 & 0xE6) == 0xE6; /* XMM+YMM+ZMM state enabled */
+}
+int main(void) {
+	int c[4] = {0};
+	__cpuid(c, 1);
+	const int sse42 = (c[2] & (1 << 20)) != 0;
+	const int avx   = (c[2] & (1 << 28)) != 0;
+	__cpuidex(c, 7, 0);
+	const int avx2   = (c[1] & (1 << 5))  != 0;
+	const int avx512 = (c[1] & (1 << 16)) != 0; /* AVX-512F */
+	if (avx512 && has_os_avx_state() && has_avx512_state())
+		puts("AVX512");
+	else if (avx2 && avx && has_os_avx_state())
+		puts("AVX2");
+	else if (avx && has_os_avx_state())
+		puts("AVX");
+	else if (sse42)
+		puts("SSE4.2");
+	else
+		puts("SSE2");
+	return 0;
+}
+		]=])
+		try_run(ARCH_DETECT_RUN_RES ARCH_DETECT_COMPILE_RES
+		SOURCE_FROM_CONTENT arch_probe.c "${_arch_probe_src}"
+		RUN_OUTPUT_VARIABLE ARCH_LEVEL
+		)
+		string(STRIP "${ARCH_LEVEL}" ARCH_LEVEL)
+		if(NOT ARCH_DETECT_COMPILE_RES OR NOT ARCH_DETECT_RUN_RES EQUAL 0 OR ARCH_LEVEL STREQUAL "")
+			message(WARNING "Native arch detection failed, falling back to SSE2")
+			set(ARCH_LEVEL "SSE2")
+		else()
+			message(STATUS "Detected native arch: ${ARCH_LEVEL}")
+		endif()
 	endif()
-	string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-	string(REPLACE "-Xcompiler=\"-O2 -Ob2\"" "-Xcompiler=/Ob3" CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE}")
 elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
 	set(IS_MSYS2 TRUE)
 elseif(UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-	set(IS_GCC_NATIVE TRUE)
+	set(IS_GNU TRUE)
 else()
-	message(WARNING "Unknown platform/compiler combination. Defaulting to GCC-like settings.")
-	set(IS_GCC_NATIVE TRUE)
+	message(WARNING "Unknown platform/compiler combination. Defaulting to GNU settings.")
+	set(IS_GNU TRUE)
 endif()
 
-set(IS_GCC_LIKE FALSE)
-if(IS_GCC_NATIVE OR IS_MINGW OR IS_MSYS2)
-	set(IS_GCC_LIKE TRUE)
-	include(CheckCCompilerFlag)
-	set(GCC_FLAGS_TO_CHECK
-	-fprefetch-loop-arrays
-	-fanalyzer
-	-Warith-conversion
-	-Wduplicated-branches
-	-Wduplicated-cond
-	-Wlogical-op
-	-Wopenmp
-	-Wuseless-cast
-	)
-	set(SUPPORTS_GCC_FLAGS TRUE)
-	foreach(_flag IN LISTS GCC_FLAGS_TO_CHECK)
-		string(REGEX REPLACE "^-+" "" _name "${_flag}")
-		string(REGEX REPLACE "[^A-Za-z0-9]" "_" _name "${_name}")
-		set(_var "HAVE_GCC_FLAG_${_name}")
-		check_c_compiler_flag("${_flag}" ${_var})
-		if(NOT ${_var})
-			set(SUPPORTS_GCC_FLAGS FALSE)
-			break()
-		endif()
-	endforeach()
-	if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-		find_program(GDB_EXECUTABLE gdb)
-		string(REGEX REPLACE ".+" "TRUE" HAS_GDB "${GDB_EXECUTABLE}")
+if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
+	if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 7)
+		set(IS_GCC7 TRUE)
+	endif()
+	if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
+		set(IS_GCC10 TRUE)
 	endif()
 endif()
 
-if(USE_ASAN AND USE_CUDA)
-	message(FATAL_ERROR "AddressSanitizer (ASAN) is not supported with CUDA")
+if(USE_CUDA)
+	if(USE_ASAN)
+		message(FATAL_ERROR "USE_CUDA=ON is not supported with USE_ASAN=ON")
+	endif()
+	if(USE_MINGW)
+		message(FATAL_ERROR "USE_CUDA=ON is not supported with USE_MINGW=ON")
+	endif()
+	if(IS_MSYS2)
+		message(FATAL_ERROR "USE_CUDA=ON is not supported on MSYS2")
+	endif()
 endif()
 
-if(USE_ASAN AND NOT IS_GCC_NATIVE)
+if(USE_ASAN AND NOT IS_GNU)
 	message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
 endif()
 
@@ -167,101 +199,28 @@ find_package(OpenMP REQUIRED COMPONENTS C)
 
 function(set_c_compiler_options target)
 if(IS_MSVC)
+	string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
+	string(REPLACE "-Xcompiler=\"-O2 -Ob2\"" "-Xcompiler=/Ob3" CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE}")
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL}>
-	$<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>
-	$<$<COMPILE_LANGUAGE:C>:/Zc:preprocessor>
-	$<$<COMPILE_LANGUAGE:C>:/utf-8>
-	$<$<COMPILE_LANGUAGE:C>:/TC>
-	$<$<COMPILE_LANGUAGE:C>:/WX>
-	$<$<COMPILE_LANGUAGE:C>:/Wall>
-	$<$<COMPILE_LANGUAGE:C>:/analyze>
-	$<$<COMPILE_LANGUAGE:C>:/wd4710> # not inlined info
-	$<$<COMPILE_LANGUAGE:C>:/wd4711> # automatic inline info
-	$<$<COMPILE_LANGUAGE:C>:/wd4820> # struct padding
-	$<$<COMPILE_LANGUAGE:C>:/wd5045> # spectre mitigation
-	$<$<COMPILE_LANGUAGE:C>:/wd6993> # analyzer ignores openmp
-	$<$<COMPILE_LANGUAGE:C>:/wd28301> # no annotations for first declaration (in Windows 10 SDK)
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/GL>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/GA>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gy>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/Gw>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:/jumptablerdata>
+	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL};/experimental:c11atomics;/Zc:preprocessor;/utf-8;/TC;/WX;/Wall;/analyze;/wd4710;/wd4711;/wd4820;/wd5045;/wd6993;/wd28301>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox;/GL;/GA;/Gy;/Gw;/jumptablerdata>
 	)
-	target_link_options(${target} PRIVATE
-	/WX
-	$<$<CONFIG:Release>:/LTCG>
-	$<$<CONFIG:Release>:/OPT:REF>
-	$<$<CONFIG:Release>:/OPT:ICF>
-	)
-	target_compile_definitions(${target} PRIVATE WIN32_LEAN_AND_MEAN)
+	target_link_options(${target} PRIVATE /WX $<$<CONFIG:Release>:/LTCG;/OPT:REF;/OPT:ICF>)
 	target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
-elseif(IS_GCC_LIKE)
+elseif(IS_GNU OR IS_MINGW OR IS_MSYS2)
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL}>
-	$<$<COMPILE_LANGUAGE:C>:-fno-strict-overflow>
-	$<$<COMPILE_LANGUAGE:C>:-fwrapv> # ~1.4% better performance
-	$<$<COMPILE_LANGUAGE:C>:-pedantic-errors>
-	$<$<COMPILE_LANGUAGE:C>:-Wall>
-	$<$<COMPILE_LANGUAGE:C>:-Wcast-qual>
-	$<$<COMPILE_LANGUAGE:C>:-Wconversion>
-	$<$<COMPILE_LANGUAGE:C>:-Wdisabled-optimization>
-	$<$<COMPILE_LANGUAGE:C>:-Wdouble-promotion>
-	$<$<COMPILE_LANGUAGE:C>:-Werror>
-	$<$<COMPILE_LANGUAGE:C>:-Wextra>
-	$<$<COMPILE_LANGUAGE:C>:-Wfloat-equal>
-	$<$<COMPILE_LANGUAGE:C>:-Winit-self>
-	$<$<COMPILE_LANGUAGE:C>:-Wmissing-declarations>
-	$<$<COMPILE_LANGUAGE:C>:-Wmissing-include-dirs>
-	$<$<COMPILE_LANGUAGE:C>:-Wshadow>
-	$<$<COMPILE_LANGUAGE:C>:-Wstrict-overflow=5>
-	$<$<COMPILE_LANGUAGE:C>:-Wstrict-prototypes>
-	$<$<COMPILE_LANGUAGE:C>:-Wswitch-default>
-	$<$<COMPILE_LANGUAGE:C>:-Wswitch-enum>
-	$<$<COMPILE_LANGUAGE:C>:-Wundef>
-	$<$<COMPILE_LANGUAGE:C>:-Wuninitialized>
-	$<$<COMPILE_LANGUAGE:C>:-Wwrite-strings>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fdata-sections>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-ffunction-sections>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fno-pie>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fno-plt>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-funroll-loops>
+	$<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL};-fno-strict-overflow;-fwrapv;-pedantic-errors;-Wall;-Wcast-qual;-Wconversion;-Wdisabled-optimization;-Wdouble-promotion;-Werror;-Wextra;-Wfloat-equal;-Winit-self;-Wmissing-declarations;-Wmissing-include-dirs;-Wshadow;-Wstrict-overflow=5;-Wstrict-prototypes;-Wswitch-default;-Wswitch-enum;-Wundef;-Wuninitialized;-Wwrite-strings>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_GCC7}>>:-Warith-conversion;-Wduplicated-branches;-Wduplicated-cond;-Wlogical-op>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:-fdata-sections;-ffunction-sections;-fno-pie;-fno-plt;-funroll-loops>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og;-g>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${IS_GCC10}>>:-fanalyzer>
+	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${USE_ASAN}>>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>
 	)
-	if(SUPPORTS_GCC_FLAGS)
-		target_compile_options(${target} PRIVATE
-		$<$<COMPILE_LANGUAGE:C>:-fanalyzer>
-		$<$<COMPILE_LANGUAGE:C>:-Warith-conversion>
-		$<$<COMPILE_LANGUAGE:C>:-Wduplicated-branches>
-		$<$<COMPILE_LANGUAGE:C>:-Wduplicated-cond>
-		$<$<COMPILE_LANGUAGE:C>:-Wlogical-op>
-		$<$<COMPILE_LANGUAGE:C>:-Wopenmp>
-		$<$<COMPILE_LANGUAGE:C>:-Wuseless-cast>
-		$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-ggdb3>
-		$<$<AND:$<COMPILE_LANGUAGE:C>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-fprefetch-loop-arrays>
-		)
-	endif()
-	if(NOT USE_ASAN)
-		target_compile_options(${target} PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-fstack-protector-strong>)
-	endif()
-	if(IS_GCC_NATIVE AND USE_ASAN)
-		target_compile_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>)
-		target_link_options(${target} PRIVATE $<$<CONFIG:Debug>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>)
-	endif()
 	target_link_options(${target} PRIVATE
-	$<$<CONFIG:Release>:-Wl,-O3>
-	$<$<CONFIG:RelWithDebInfo>:-Wl,-O2>
-	$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-flto>
-	$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-no-pie>
-	$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-Wl,--as-needed>
-	$<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>:-Wl,--gc-sections>
+	$<$<CONFIG:Release>:-flto;-no-pie;-Wl,--as-needed;-Wl,--gc-sections>
+	$<$<AND:$<CONFIG:Debug>,$<BOOL:${USE_ASAN}>>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>
 	)
-	if(WIN32)
-		target_compile_definitions(${target} PRIVATE WIN32_LEAN_AND_MEAN)
-	else()
-		target_compile_definitions(${target} PRIVATE _GNU_SOURCE)
-		target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C>:-pthread>)
-	endif()
+	target_compile_definitions(${target} PRIVATE _GNU_SOURCE)
 endif()
 endfunction()
 
@@ -272,93 +231,29 @@ endif()
 target_compile_definitions(${target} PRIVATE USE_CUDA)
 target_compile_options(${target} PRIVATE
 $<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets>
-$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
-$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-ggdb3>
-$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-extra-device-vectorization>
+$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G;-g>
+$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-extra-device-vectorization>
 )
 if(IS_MSVC)
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL}>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Zc:preprocessor>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/utf-8>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/WX>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/Wall>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/analyze>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4514> # unreferenced inline function
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4668> # #if {undefined}
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4710> # not inlined info
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4711> # automatic inline info
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4820> # struct padding
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5039> # potential throwing funcction in extern "C"
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd5045> # spectre mitigation
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Od>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/MDd>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/RTC1>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/GL>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/Ox>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=/O2>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=/Ob1>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Zi>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/MD>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/GA>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Gy>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/Gw>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/DNDEBUG>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=/jumptablerdata>
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL},/Zc:preprocessor,/utf-8,/WX,/Wall,/analyze,/wd4514,/wd4555,/wd4668,/wd4710,/wd4711,/wd4820,/wd5039,/wd5045>
+	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Od,/MDd,/RTC1,/Zi>
+	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/GL,/Ox,/MD,/GA,/Gy,/Gw,/DNDEBUG,/jumptablerdata>
 	)
-elseif(IS_GCC_NATIVE)
+elseif(IS_GNU)
 	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL}>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-pedantic-errors>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wno-pedantic>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wall>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wcast-align>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wcast-qual>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wconversion>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wdisabled-optimization>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wdouble-promotion>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Werror>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wextra>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wfloat-equal>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Winit-self>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wmissing-declarations>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wmissing-include-dirs>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wshadow>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wstrict-overflow=5>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wswitch-default>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wswitch-enum>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wundef>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wuninitialized>
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wwrite-strings>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:RelWithDebInfo>>:-Xcompiler=-O2>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-fstack-protector-strong>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-DNDEBUG>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fdata-sections>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-ffunction-sections>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fno-pie>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fno-plt>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-funroll-loops>
+	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL},-pedantic-errors,-Wno-pedantic,-Wall,-Wcast-align,-Wcast-qual,-Wconversion,-Wdisabled-optimization,-Wdouble-promotion,-Werror,-Wextra,-Wfloat-equal,-Winit-self,-Wmissing-declarations,-Wmissing-include-dirs,-Wshadow,-Wstrict-overflow=5,-Wswitch-default,-Wswitch-enum,-Wundef,-Wuninitialized,-Wwrite-strings>
+	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<BOOL:${IS_GCC7}>>:-Xcompiler=-Warith-conversion,-Wduplicated-branches,-Wduplicated-cond,-Wlogical-op>
+	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-g>
+	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${IS_GCC10}>>:-Xcompiler=-fanalyzer>	
+	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3,-DNDEBUG,-fdata-sections,-ffunction-sections,-fno-pie,-fno-plt,-funroll-loops>
 	)
-	if(SUPPORTS_GCC_FLAGS)
-		target_compile_options(${target} PRIVATE
-		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-fanalyzer>
-		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Warith-conversion>
-		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wduplicated-branches>
-		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wduplicated-cond>
-		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wlogical-op>
-		$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-Wuseless-cast>
-		$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${HAS_GDB}>>:-Xcompiler=-ggdb3>
-		$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>>>:-Xcompiler=-fprefetch-loop-arrays>
-		)
-	endif()
 endif()
 endfunction()
 
 add_executable(seqalign ${C_SOURCES})
 if(USE_CUDA)
 	target_sources(seqalign PRIVATE ${CUDA_SOURCES})
-	set_source_files_properties(${CUDA_SOURCES} PROPERTIES LANGUAGE CUDA)
 endif()
 
 target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include)

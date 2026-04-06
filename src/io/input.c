@@ -13,8 +13,8 @@
 #include "util/benchmark.h"
 #include "util/print.h"
 
-static void detect_file_format(struct ifile ifile[static 1],
-			       const char path[restrict static 1])
+static void detect_file_format(struct ifile PS(ifile, 1),
+			       const char PRS(path, 1))
 {
 	if (!*path)
 		unreachable();
@@ -25,8 +25,7 @@ static void detect_file_format(struct ifile ifile[static 1],
 
 	ext++;
 
-	static bool (*const DETECT[])(struct ifile[static 1],
-				      const char[restrict static 1]) = {
+	static bool (*const DETECT[])(struct ifile S(1), const char RS(1)) = {
 		fasta_detect,
 		dsv_detect,
 	};
@@ -37,8 +36,7 @@ static void detect_file_format(struct ifile ifile[static 1],
 	}
 }
 
-bool ifile_open(struct ifile ifile[static 1],
-		const char path[restrict static 1])
+bool ifile_open(struct ifile PS(ifile, 1), const char PRS(path, 1))
 {
 	if unlikely (!*path) {
 		pdev("Empty input path for ifile_open()");
@@ -62,7 +60,7 @@ bool ifile_open(struct ifile ifile[static 1],
 		return false;
 	}
 
-	static bool (*const OPEN[])(struct ifile[static 1]) = {
+	static bool (*const OPEN[])(struct ifile S(1)) = {
 		[INPUT_FORMAT_FASTA] = fasta_open,
 		[INPUT_FORMAT_DSV] = dsv_open,
 	};
@@ -72,7 +70,7 @@ bool ifile_open(struct ifile ifile[static 1],
 		return false;
 	}
 
-	static size_t (*const ENTRY_COUNT[])(struct ifile[static 1]) = {
+	static size_t (*const ENTRY_COUNT[])(struct ifile S(1)) = {
 		[INPUT_FORMAT_FASTA] = fasta_entry_count,
 		[INPUT_FORMAT_DSV] = dsv_entry_count,
 	};
@@ -82,7 +80,7 @@ bool ifile_open(struct ifile ifile[static 1],
 	return true;
 }
 
-void ifile_close(struct ifile ifile[static 1])
+void ifile_close(struct ifile PS(ifile, 1))
 {
 	if (ifile->stream)
 		fclose(ifile->stream);
@@ -91,29 +89,28 @@ void ifile_close(struct ifile ifile[static 1])
 	memset(ifile, 0, sizeof(*ifile));
 }
 
-size_t ifile_entry_length(struct ifile ifile[static 1])
+size_t ifile_entry_length(struct ifile PS(ifile, 1))
 {
-	static size_t (*const ENTRY_LENGTH[])(struct ifile[static 1]) = {
+	static size_t (*const ENTRY_LENGTH[])(struct ifile S(1)) = {
 		[INPUT_FORMAT_FASTA] = fasta_entry_length,
 		[INPUT_FORMAT_DSV] = dsv_entry_length,
 	};
 	return ENTRY_LENGTH[ifile->format](ifile);
 }
 
-size_t ifile_entry_extract(struct ifile ifile[static 1],
-			   char output[restrict static 1])
+size_t ifile_entry_extract(struct ifile PS(ifile, 1), char PRS(output, 1))
 {
-	static size_t (*const ENTRY_EXTRACT[])(struct ifile[static 1],
-					       char[restrict static 1]) = {
+	static size_t (*const ENTRY_EXTRACT[])(struct ifile S(1),
+					       char RS(1)) = {
 		[INPUT_FORMAT_FASTA] = fasta_entry_extract,
 		[INPUT_FORMAT_DSV] = dsv_entry_extract,
 	};
 	return ENTRY_EXTRACT[ifile->format](ifile, output);
 }
 
-bool ifile_entry_next(struct ifile ifile[static 1])
+bool ifile_entry_next(struct ifile PS(ifile, 1))
 {
-	static bool (*const ENTRY_NEXT[])(struct ifile[static 1]) = {
+	static bool (*const ENTRY_NEXT[])(struct ifile S(1)) = {
 		[INPUT_FORMAT_FASTA] = fasta_entry_next,
 		[INPUT_FORMAT_DSV] = dsv_entry_next,
 	};

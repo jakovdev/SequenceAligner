@@ -35,7 +35,7 @@ static void sequences_free(void)
 	SEQS_N = 0;
 }
 
-static bool validate_sequence(s32 length, char letters[restrict static length])
+static bool validate_sequence(s32 length, char PRS(letters, length))
 {
 	for (s32 i = 0; i < length; i++) {
 		char c = (char)toupper((uchar)letters[i]);

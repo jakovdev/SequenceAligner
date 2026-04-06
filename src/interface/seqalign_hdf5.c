@@ -203,7 +203,7 @@ bool h5_open(void)
 	return true;
 }
 
-void h5_matrix_column_set(s32 col, const s32 values[restrict static SEQS_N])
+void h5_matrix_column_set(s32 col, const s32 PRS(values, SEQS_N))
 {
 	if (g_h5.disabled)
 		return;

@@ -18,6 +18,22 @@
 #define unreachable_release() unreachable()
 #endif /* NDEBUG */
 
+#if defined(_MSC_VER) && !defined(__clang__)
+#define S(n) *
+#define RS(n) *restrict
+#define CRS(n) *const restrict
+#define PS(p, n) S(n) p
+#define PRS(p, n) RS(n) p
+#define PCRS(p, n) CRS(n) p
+#else /* GCC, Clang */
+#define S(n) [static n]
+#define RS(n) [restrict static n]
+#define CRS(n) [const restrict static n]
+#define PS(p, n) p S(n)
+#define PRS(p, n) p RS(n)
+#define PCRS(p, n) p CRS(n)
+#endif
+
 #ifdef _WIN32
 #if defined(_MSC_VER) && !defined(__clang__)
 #define likely(x) (x)
@@ -69,7 +85,7 @@ static inline long getdelim(char **buf, size_t *bufsiz, int delim, FILE *fp)
 
 	if (!*buf || !*bufsiz) {
 		*bufsiz = BUFSIZ;
-		if (!(*buf = malloc(*bufsiz)))
+		if (!(*buf = (char *)malloc(*bufsiz)))
 			return -1;
 	}
 
@@ -95,7 +111,7 @@ static inline long getdelim(char **buf, size_t *bufsiz, int delim, FILE *fp)
 			char *nbuf;
 			size_t nbufsiz = *bufsiz * 2;
 			long d = (long)(ptr - *buf);
-			if (!(nbuf = realloc(*buf, nbufsiz)))
+			if (!(nbuf = (char *)realloc(*buf, nbufsiz)))
 				return -1;
 			*buf = nbuf;
 			*bufsiz = nbufsiz;

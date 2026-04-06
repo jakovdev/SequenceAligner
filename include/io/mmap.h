@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "system/compiler.h"
 #include "system/types.h"
 #ifdef _WIN32
 #include "system/os.h"
@@ -21,9 +22,9 @@ struct MMapMatrix {
 	s32 *matrix;
 };
 
-bool mmap_matrix_open(struct MMapMatrix[static 1], size_t dim);
+bool mmap_matrix_open(struct MMapMatrix S(1), size_t dim);
 
-void mmap_matrix_close(struct MMapMatrix[static 1]);
+void mmap_matrix_close(struct MMapMatrix S(1));
 
 s64 matrix_index(s32 row, s32 col);
 

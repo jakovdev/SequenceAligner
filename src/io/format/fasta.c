@@ -13,7 +13,7 @@
 #define fline_next(fline, stream, line_len) \
 	((line_len = getline(&fline->line, &fline->line_cap, stream)) != -1)
 
-static bool header(const char line[static 1])
+static bool header(const char PS(line, 1))
 {
 	return *line == '>';
 }
@@ -23,14 +23,14 @@ static bool header(const char line[static 1])
 	     i++)                                                            \
 		if (!isspace((unsigned char)line[i]))
 
-static bool whitespace(const char line[static 1], long line_len)
+static bool whitespace(const char PS(line, 1), long line_len)
 {
 	for_each_nws(line, line_len, i)
 		return false;
 	return true;
 }
 
-static long fpos_tell(FILE stream[static 1])
+static long fpos_tell(FILE PS(stream, 1))
 {
 	long pos = ftell(stream);
 	if (pos < 0) {
@@ -40,7 +40,7 @@ static long fpos_tell(FILE stream[static 1])
 	return pos;
 }
 
-static void fpos_seek(FILE stream[static 1], long pos)
+static void fpos_seek(FILE PS(stream, 1), long pos)
 {
 	if (fseek(stream, pos, SEEK_SET) != 0) {
 		perr("Failed to parse FASTA file");
@@ -48,8 +48,7 @@ static void fpos_seek(FILE stream[static 1], long pos)
 	}
 }
 
-bool fasta_detect(struct ifile ifile[static 1],
-		  const char ext[restrict static 1])
+bool fasta_detect(struct ifile PS(ifile, 1), const char PRS(ext, 1))
 {
 	if (!*ext)
 		return false;
@@ -68,7 +67,7 @@ bool fasta_detect(struct ifile ifile[static 1],
 	return false;
 }
 
-static bool fasta_validate(struct ifile ifile[static 1])
+static bool fasta_validate(struct ifile PS(ifile, 1))
 {
 	FILE *stream = ifile->stream;
 
@@ -150,7 +149,7 @@ static bool fasta_validate(struct ifile ifile[static 1])
 	return true;
 }
 
-bool fasta_open(struct ifile ifile[static 1])
+bool fasta_open(struct ifile PS(ifile, 1))
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream in fasta_open()");
@@ -164,7 +163,7 @@ bool fasta_open(struct ifile ifile[static 1])
 	return true;
 }
 
-size_t fasta_entry_count(struct ifile ifile[static 1])
+size_t fasta_entry_count(struct ifile PS(ifile, 1))
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream in fasta_entry_count()");
@@ -188,7 +187,7 @@ size_t fasta_entry_count(struct ifile ifile[static 1])
 	return count;
 }
 
-size_t fasta_entry_length(struct ifile ifile[static 1])
+size_t fasta_entry_length(struct ifile PS(ifile, 1))
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream in fasta_entry_length()");
@@ -222,8 +221,7 @@ size_t fasta_entry_length(struct ifile ifile[static 1])
 	return length;
 }
 
-size_t fasta_entry_extract(struct ifile ifile[static 1],
-			   char output[restrict static 1])
+size_t fasta_entry_extract(struct ifile PS(ifile, 1), char PRS(output, 1))
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream for fasta_entry_extract()");
@@ -257,7 +255,7 @@ size_t fasta_entry_extract(struct ifile ifile[static 1],
 	return length;
 }
 
-bool fasta_entry_next(struct ifile ifile[static 1])
+bool fasta_entry_next(struct ifile PS(ifile, 1))
 {
 	if unlikely (!ifile->stream) {
 		pdev("Invalid ifile stream in fasta_entry_next()");

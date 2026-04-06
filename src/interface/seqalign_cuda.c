@@ -49,8 +49,8 @@ bool cuda_device_init(void)
 	int device_count = 0;
 	cudaError_t err = { 0 };
 
-	CALLR(cudaGetDeviceCount(&device_count));
-	if (!device_count) {
+	err = cudaGetDeviceCount(&device_count);
+	if (!device_count || err != cudaSuccess) {
 		perr("No CUDA devices available");
 		return false;
 	}
@@ -180,7 +180,7 @@ bool cuda_align(void)
 	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
 	CALLR(copy_constants(&C));
 
-	const void *kernel = kernel_function();
+	const void *kernel = kernel_function(METHOD);
 	dim3 block = { block_max, 1, 1 };
 	cudaStream_t compute = { 0 }, memory = { 0 };
 	CALLR(cudaStreamCreate(&compute));

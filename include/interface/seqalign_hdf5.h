@@ -5,12 +5,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#include "system/compiler.h"
 #include "system/types.h"
 #include "bio/sequence/sequences.h"
 
 bool h5_open(void);
 
-void h5_matrix_column_set(s32 col, const s32 values[restrict static SEQS_N]);
+void h5_matrix_column_set(s32 col, const s32 PRS(values, SEQS_N));
 
 void h5_checksum_set(s64 checksum);
 

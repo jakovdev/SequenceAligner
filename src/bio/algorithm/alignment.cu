@@ -3,8 +3,6 @@
 #ifdef USE_CUDA
 #include <array>
 
-#include "bio/types.h"
-
 __constant__ Constants C;
 
 __forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
@@ -234,7 +232,7 @@ cudaError_t copy_constants(const struct Constants *host)
 	return cudaMemcpyToSymbol(C, host, sizeof(C));
 }
 
-const void *kernel_function(void)
+const void *kernel_function(enum AlignmentMethod method)
 {
 	static const auto ALIGN_KERNELS = []() {
 		std::array<const void *, ALIGN_COUNT> k{};
@@ -243,7 +241,7 @@ const void *kernel_function(void)
 		k[ALIGN_SMITH_WATERMAN] = (const void *)k_sw;
 		return k;
 	}();
-	return ALIGN_KERNELS[METHOD];
+	return ALIGN_KERNELS[method];
 }
 }
 

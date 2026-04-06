@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "system/compiler.h"
+
 enum input_format {
 	INPUT_FORMAT_UNKNOWN,
 	INPUT_FORMAT_FASTA,
@@ -34,15 +36,15 @@ struct ifile {
 	} ctx;
 };
 
-bool ifile_open(struct ifile[static 1], const char path[restrict static 1]);
+bool ifile_open(struct ifile S(1), const char PRS(path, 1));
 
-void ifile_close(struct ifile[static 1]);
+void ifile_close(struct ifile S(1));
 
-size_t ifile_entry_length(struct ifile[static 1]);
+size_t ifile_entry_length(struct ifile S(1));
 
-size_t ifile_entry_extract(struct ifile[static 1], char[restrict static 1]);
+size_t ifile_entry_extract(struct ifile S(1), char RS(1));
 
-bool ifile_entry_next(struct ifile[static 1]);
+bool ifile_entry_next(struct ifile S(1));
 
 const char *arg_input(void);
 

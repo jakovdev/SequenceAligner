@@ -12,7 +12,7 @@ extern "C" {
 #include <stdbool.h>
 
 #include "bio/score/matrices.h"
-#include "system/types.h"
+#include "bio/types.h"
 
 #define MAX_CUDA_SEQUENCE_LENGTH (1023)
 
@@ -32,7 +32,7 @@ struct Constants {
 };
 
 cudaError_t copy_constants(const struct Constants *host);
-const void *kernel_function(void);
+const void *kernel_function(enum AlignmentMethod);
 
 #ifdef __cplusplus
 }
