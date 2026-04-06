@@ -67,8 +67,14 @@ bool fasta_detect(struct ifile PS(ifile, 1), const char PRS(ext, 1))
 	return false;
 }
 
-static bool fasta_validate(struct ifile PS(ifile, 1))
+bool fasta_open(struct ifile PS(ifile, 1))
 {
+	if unlikely (!ifile->stream) {
+		pdev("Invalid ifile stream in fasta_open()");
+		perr("Internal error opening FASTA file");
+		pabort();
+	}
+
 	FILE *stream = ifile->stream;
 
 	rewind(stream);
@@ -146,20 +152,6 @@ static bool fasta_validate(struct ifile PS(ifile, 1))
 	}
 
 	rewind(stream);
-	return true;
-}
-
-bool fasta_open(struct ifile PS(ifile, 1))
-{
-	if unlikely (!ifile->stream) {
-		pdev("Invalid ifile stream in fasta_open()");
-		perr("Internal error opening FASTA file");
-		pabort();
-	}
-
-	if (!fasta_validate(ifile))
-		return false;
-
 	return true;
 }
 
