@@ -15,7 +15,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 > This software is optimized for datasets with many short sequences in an all-vs-all alignment context. For single pairwise alignments or very long sequences, other tools like [Parasail](https://github.com/jeffdaily/parasail) may be more suitable.
 
 > [!WARNING]
-> This software is under active development. Although validated against libraries like Parasail, some edge cases may remain undocumented or untested. Use with caution. For questions or issues, contact me at [jakodrag345@gmail.com](mailto:jakodrag345@gmail.com)
+> This software is under active development. Although validated against libraries like Parasail, some edge cases may remain undocumented or untested. Use with caution. For questions or issues, contact me at [jakodrag345@gmail.com](mailto:jakodrag345@gmail.com) or open an issue on GitHub.
 
 <details open>
 <summary><strong>Features</strong></summary>
@@ -24,13 +24,10 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
   - Needleman-Wunsch (global alignment)
   - Smith-Waterman (local alignment)
   - Gotoh algorithm with affine gap penalties
-- GPU acceleration with CUDA support
-- CPU optimizations:
-  - SIMD vectorization (AVX512/AVX2/SSE)
-  - Efficient OpenMP multithreading with minimal overhead
-  - Memory-mapped disk storage for large similarity matrices
-- [Multiple configurable options](#usage)
 - Predefined substitution matrices
+- GPU acceleration with CUDA
+- [Multiple configurable options](#usage)
+- Memory-mapped disk storage for large similarity matrices
 - HDF5 output format with optional compression
 
 </details>
@@ -41,6 +38,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 
 #### CPU Version
 - Any x86-64 (x64, AMD64, Intel 64 or "64-bit") processor and Operating System (Linux or Windows)
+- See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
 - Disk space for output files and enough RAM for results (varies with dataset size, see [File Formats](#file-formats))
 
 #### CUDA Version
@@ -52,8 +50,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 - ~~Download the latest release from [Releases](https://github.com/jakovdev/SequenceAligner/releases/latest)~~
 
 > [!NOTE]
-> Will release once it's more user friendly (GUI instead of command line)
-
+> Will release once it's more usable.
 
 ## Building from source
 
@@ -70,10 +67,6 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 ```bash
 ./script/build_all.sh
 ```
-
-See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
-
-You will find the executable inside the `release` folder once you `tar -xf` it. See [Usage](#usage) for details on running the program and available arguments.
 
 </details>
 
@@ -92,6 +85,7 @@ You will find the executable inside the `release` folder once you `tar -xf` it. 
   - In the start menu, search for `x64 Native Tools Command Prompt for VS 2022` and open it
 
 3. Navigate to the folder you downloaded and extracted the project using (example):
+
 ```bat
 cd C:\Users\John\Downloads\SequenceAligner
 ```
@@ -102,24 +96,27 @@ cd C:\Users\John\Downloads\SequenceAligner
 .\script\build_all.bat
 ```
 
-See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
+</details>
 
-You will find the executable inside the `release` folder once you uzip it. See [Usage](#usage) for details on running the program and available arguments.
+<details>
+<summary><strong>Windows GCC</strong></summary>
 
 ### Windows MSYS2 GCC (no CUDA support)
 
 1. Install MSYS2 from https://www.msys2.org/
 2. Open the MSYS2 UCRT64 terminal
 3. Navigate to the folder you downloaded the project using:
+
 ```bash
 # Example:
 cd /c/Users/John/Downloads/SequenceAligner
 ```
 
-Replace the folder path to the location you downloaded the project files
+Replace the folder path to the location you downloaded the project files.
 > - MSYS2 uses `/c/...` instead of `C:\...`
 
 4. Install required tools by running:
+
 ```bash
 # Update package database and core system packages
 pacman -Syu
@@ -129,29 +126,28 @@ pacman -S --needed --noconfirm git mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_
 ```
 
 5. Build the project using:
+
 ```bash
 ./script/build_all_cross.sh
 ```
-
-See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
-
-- Executable will be inside the `release` folder. Unzip it to get the executable. See [Usage](#usage) for details on running the program and available arguments.
 
 While this has faster CPU-only version than MSVC, this version does not support CUDA at all.
 
 </details>
 
+You will find the executable inside the `release` folder once you uncompress it.
+
 ## Usage
 
 ```bash
 # Linux
-cd path/to/where/you/unzipped/release
+cd path/to/where/you/uncompressed/release
 ./seqalign [ARGUMENTS]
 ```
 
 ```bat
 # Windows
-cd path\to\where\you\unzipped\release
+cd path\to\where\you\uncompressed\release
 .\seqalign.exe [ARGUMENTS]
 ```
 
@@ -190,7 +186,7 @@ cd path\to\where\you\unzipped\release
 
 ### Examples
 
-Below are example commands to run the program. Adjust as needed, see [Usage](#usage) for full argument list and their descriptions.
+Below are example commands to run the program. Adjust as needed.
 
 > [!NOTE]
 > - File paths should be relative to your current directory, not the binary location
@@ -207,7 +203,7 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 ./seqalign -i datasets/avppred.csv -m pam250 -a ga -s 12 -e 2 -o results/avppred.h5
 
 # Enable benchmarking mode with verbose output and without creating the HDF5 result
-./seqalign -i datasets/avppred.csv -m blosum62 -a nw -p 4 -B -v
+./seqalign -i datasets/avppred.csv -m blosum62 -a nw -p 4 -BVW
 
 # List all available substitution matrices
 ./seqalign --list-matrices
@@ -216,70 +212,14 @@ Below are example commands to run the program. Adjust as needed, see [Usage](#us
 ./seqalign --help
 ```
 
-## Performance Benchmarks
-
-**Test Hardware:**
-- **CPU**: AMD Ryzen 7 5700X3D (Zen 3 architecture, x86-64-v3)
-- **RAM**: 2x16GB DDR4-3200 CL16
-- **GPU**: NVIDIA GeForce RTX 4060 8GB
-
-### Dataset Characteristics
-
-| **Dataset** | **Sequences** | **Avg. Length** | **Pairwise Alignments** | **Scale Category** |
-|-------------|---------------|-----------------|------------------------|-------------------|
-| AVPPred | 1,042 | 21.6 | 542,361 | Small |
-| AMP | 9,409 | 30.5 | 44,259,936 | Medium |
-| Drosophila | 58,746 | 17.9 | 1,725,516,885 | Large |
-
-> [!NOTE]
-> - To get these datasets, clone the repository with `--recurse-submodules`:
-> ```bash
-> git clone --recurse-submodules https://github.com/jakovdev/SequenceAligner.git
-> ```
-
-### CPU Threading Performance (AMP dataset)
-
-| **Algorithm** | **1 Thread** | **4 Threads** | **8 Threads** | **16 Threads** |
-|---------------|--------------|---------------|---------------|----------------|
-| Needleman-Wunsch | 27.748s | 7.081s (3.92×) | 3.578s (7.76×) | 3.508s (7.91×) |
-| Gotoh Affine | 166.204s | 42.118s (3.95×) | 21.244s (7.82×) | 13.305s (12.45×) |
-| Smith-Waterman | 174.372s | 44.692s (3.90×) | 22.253s (7.84×) | 13.757s (12.68×) |
-
-### CUDA Acceleration Performance
-
-| **Dataset** | **Algorithm** | **CPU 16T Time (s) \| APS (M)** | **CUDA Time (s) \| APS (M)** | **Speedup** |
-|-------------|---------------|------------------------------|-------------------------------|-------------|
-| **AVPPred** | NW | 0.024 \| 22.949 | 0.009 \| 58.223 | **2.54×** |
-| | GA | 0.084 \| 6.440 | 0.011 \| 49.418 | **7.67×** |
-| | SW | 0.088 \| 6.130 | 0.011 \| 50.316 | **8.21×** |
-| **AMP** | NW | 3.508 \| 12.616 | 0.670 \| 66.049 | **5.23×** |
-| | GA | 13.305 \| 3.327 | 1.610 \| 27.486 | **8.26×** |
-| | SW | 13.757 \| 3.217 | 1.602 \| 27.623 | **8.59×** |
-| **Drosophila** | NW | 51.340 \| 33.610 | 21.350 \| 80.820 | **2.40×** |
-| | GA | 180.672 \| 9.551 | 34.201 \| 50.452 | **5.28×** |
-| | SW | 185.188 \| 9.318 | 36.197 \| 47.670 | **5.12×** |
-
-*APS = Alignments per second (millions)*
-
-> [!NOTE]
-> For a large dataset like Drosophila, there was an issue during benchmark which lead to ~50% GPU utilization. After fixing it, the actual APS should be around 120-125M for NW, with times around 13-14 seconds.
-> The issue was related to the double buffer implementation which was erroneously blocking processing when copying results from the GPU, which halved the processing speed. This has been fixed in the latest code with asynchronous copying.
-> The table will be updated with new times soon(tm).
-> For datasets with sequences longer than 1024 amino acids or nucleotides, try editing [alignment.cuh](include/bio/algorithm/alignment.cuh) to increase the `MAX_CUDA_SEQUENCE_LENGTH` constant to match your dataset and recompile. However, if memory issues arise, you might need to fall back to the CPU version instead.
-
-## Implementation Details
-
-<details open>
-<summary><strong>Algorithm Implementations</strong></summary>
+## Algorithm Implementations
 
 - **Needleman-Wunsch**: Global alignment with linear gap penalties
 - **Smith-Waterman**: Local alignment with affine gap penalties 
 - **Gotoh Algorithm**: Global alignment with affine gap penalties
 
-All implementations use dynamic programming with optimized matrix operations.
-
 ### Parasail python equivalents
-- parasail.nw() is actually the Gotoh algorithm with affine gaps in SequenceAligner
+- parasail.nw() is the Gotoh algorithm with affine gaps in SequenceAligner
 - To get actual linear gaps in Parasail you need to set the `open` and `extend` parameters to the same value
 - This also applies to the Gotoh algorithm in SequenceAligner, but you should use NW since it is faster and takes one value
 
@@ -288,27 +228,6 @@ All implementations use dynamic programming with optimized matrix operations.
 | Needleman-Wunsch | `parasail.nw(..., open=gap, extend=gap, ...)` | `-a nw -p gap` |
 | Smith-Waterman | `parasail.sw(..., open=gap_open, extend=gap_extend, ...)` | `-a sw -s gap_open -e gap_extend` |
 | Gotoh (affine gaps) | `parasail.nw(..., open=gap_open, extend=gap_extend, ...)` | `-a ga -s gap_open -e gap_extend` |
-
-</details>
-
-<details>
-<summary><strong>CPU Optimization Techniques</strong></summary>
-
-- SIMD vectorization using AVX/SSE instructions
-- Cache friendly memory access patterns and data structures
-- Low overhead OpenMP multithreading
-- Memory mapped similarity matrix storage from large datasets
-- Triangular matrix computation to reduce redundant calculations
-</details>
-
-<details>
-<summary><strong>CUDA GPU Optimization Techniques</strong></summary>
-
-- Asynchronous data transfer to and from GPU memory
-- Batched execution when similarity matrix exceeds GPU memory
-- Memory mapped similarity matrix storage from large datasets
-- Triangular matrix computation to reduce redundant calculations
-</details>
 
 ## File Formats
 
