@@ -1,7 +1,5 @@
 #include "bio/algorithm/alignment.cuh"
 
-#include <array>
-
 __constant__ Constants C;
 
 __forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
@@ -231,13 +229,11 @@ cudaError_t copy_constants(const struct Constants *host)
 
 const void *kernel_function(enum AlignmentMethod method)
 {
-	static const auto ALIGN_KERNELS = []() {
-		std::array<const void *, ALIGN_COUNT> k{};
-		k[ALIGN_GOTOH_AFFINE] = (const void *)k_ga;
-		k[ALIGN_NEEDLEMAN_WUNSCH] = (const void *)k_nw;
-		k[ALIGN_SMITH_WATERMAN] = (const void *)k_sw;
-		return k;
-	}();
-	return ALIGN_KERNELS[method];
+	static const void *k[ALIGN_COUNT] = {
+		[ALIGN_GOTOH_AFFINE] = (const void *)k_ga,
+		[ALIGN_NEEDLEMAN_WUNSCH] = (const void *)k_nw,
+		[ALIGN_SMITH_WATERMAN] = (const void *)k_sw,
+	};
+	return k[method];
 }
 }

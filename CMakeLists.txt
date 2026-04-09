@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.30)
 project(SequenceAligner C)
 
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
-option(USE_ASAN "Enable AddressSanitizer (ASAN) support (GCC|Clang only, no CUDA)" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
@@ -13,11 +12,10 @@ set(IS_MSYS2 FALSE)
 set(IS_MSVC FALSE)
 set(IS_GNU FALSE)
 set(IS_GWIN FALSE)
-set(IS_GCC7 FALSE)
-set(IS_GCC10 FALSE)
 
 if(MINGW_PREFIX)
 	set(IS_MINGW TRUE)
+	set(IS_GNU TRUE)
 	set(IS_GWIN TRUE)
 	set(DLL_PREFIX "${MINGW_PREFIX}")
 	set(DLL_LIST libhdf5.dll libssp-0.dll libwinpthread-1.dll libsz.dll zlib1.dll libgomp-1.dll libgcc_s_seh-1.dll)
@@ -76,6 +74,7 @@ int main(void) {
 	endif()
 elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
 	set(IS_MSYS2 TRUE)
+	set(IS_GNU TRUE)
 	set(IS_GWIN TRUE)
 	set(DLL_PREFIX "$ENV{MSYSTEM_PREFIX}")
 	file(GLOB HDF5_DLL "${DLL_PREFIX}/bin/libhdf5-[0-9]*.dll")
@@ -93,19 +92,6 @@ elseif(UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 else()
 	message(WARNING "Unknown platform/compiler combination. Defaulting to GNU settings.")
 	set(IS_GNU TRUE)
-endif()
-
-if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
-	if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 7)
-		set(IS_GCC7 TRUE)
-	endif()
-	if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 10)
-		set(IS_GCC10 TRUE)
-	endif()
-endif()
-
-if(USE_ASAN AND NOT IS_GNU)
-	message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
 endif()
 
 set(CMAKE_C_STANDARD 11)
@@ -141,60 +127,6 @@ endif()
 
 find_package(OpenMP REQUIRED COMPONENTS C)
 
-function(set_c_compiler_options target)
-if(IS_MSVC)
-	string(REPLACE "/Ob2" "/Ob3" CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE}")
-	string(REPLACE "-Xcompiler=\"-O2 -Ob2\"" "-Xcompiler=/Ob3" CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE}")
-	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:C>:/arch:${ARCH_LEVEL};/experimental:c11atomics;/Zc:preprocessor;/utf-8;/TC;/Wall;/analyze;/wd4710;/wd4711;/wd4820;/wd5045;/wd6993;/wd28301>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:/Ox;/GL;/GA;/Gy;/Gw;/jumptablerdata>
-	)
-	target_link_options(${target} PRIVATE $<$<CONFIG:Release>:/LTCG;/OPT:REF;/OPT:ICF>)
-	target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
-elseif(IS_GNU OR IS_MINGW OR IS_MSYS2)
-	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:C>:-march=${ARCH_LEVEL};-fno-strict-overflow;-fwrapv;-pedantic-errors;-Wall;-Wcast-qual;-Wconversion;-Wdisabled-optimization;-Wdouble-promotion;-Wextra;-Wfloat-equal;-Winit-self;-Wmissing-declarations;-Wmissing-include-dirs;-Wshadow;-Wstrict-overflow=5;-Wstrict-prototypes;-Wswitch-default;-Wswitch-enum;-Wundef;-Wuninitialized;-Wwrite-strings>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_GCC7}>>:-Warith-conversion;-Wduplicated-branches;-Wduplicated-cond;-Wlogical-op>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Release>>:-fdata-sections;-ffunction-sections;-fno-pie;-fno-plt;-funroll-loops>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og;-g>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${IS_GCC10}>>:-fanalyzer>
-	$<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>,$<BOOL:${USE_ASAN}>>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>
-	)
-	target_link_options(${target} PRIVATE
-	$<$<CONFIG:Release>:-flto;-no-pie;-Wl,--as-needed;-Wl,--gc-sections>
-	$<$<AND:$<CONFIG:Debug>,$<BOOL:${USE_ASAN}>>:-fsanitize=address,undefined,leak,float-divide-by-zero,pointer-compare,pointer-subtract>
-	)
-	target_compile_definitions(${target} PRIVATE _GNU_SOURCE)
-endif()
-endfunction()
-
-function(set_cuda_compiler_options target)
-if(NOT USE_CUDA)
-	return()
-endif()
-target_compile_definitions(${target} PRIVATE USE_CUDA)
-target_compile_options(${target} PRIVATE
-$<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets;-cudart=static>
-$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G;-g>
-$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-extra-device-vectorization>
-)
-if(IS_MSVC)
-	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/arch:${ARCH_LEVEL},/Zc:preprocessor,/utf-8,/Wall,/analyze,/wd4514,/wd4555,/wd4668,/wd4710,/wd4711,/wd4820,/wd5039,/wd5045>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=/Od,/MDd,/RTC1,/Zi>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=/GL,/Ox,/MD,/GA,/Gy,/Gw,/DNDEBUG,/jumptablerdata>
-	)
-elseif(IS_GNU)
-	target_compile_options(${target} PRIVATE
-	$<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=-march=${ARCH_LEVEL},-pedantic-errors,-Wno-pedantic,-Wall,-Wcast-align,-Wcast-qual,-Wconversion,-Wdisabled-optimization,-Wdouble-promotion,-Wextra,-Wfloat-equal,-Winit-self,-Wmissing-declarations,-Wmissing-include-dirs,-Wshadow,-Wstrict-overflow=5,-Wswitch-default,-Wswitch-enum,-Wundef,-Wuninitialized,-Wwrite-strings>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<BOOL:${IS_GCC7}>>:-Xcompiler=-Warith-conversion,-Wduplicated-branches,-Wduplicated-cond,-Wlogical-op>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-Xcompiler=-g>
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>,$<BOOL:${IS_GCC10}>>:-Xcompiler=-fanalyzer>	
-	$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-Xcompiler=-O3,-DNDEBUG,-fdata-sections,-ffunction-sections,-fno-pie,-fno-plt,-funroll-loops>
-	)
-endif()
-endfunction()
-
 file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 add_executable(seqalign ${C_SOURCES})
 
@@ -211,10 +143,26 @@ if(IS_GWIN)
 	target_sources(seqalign PRIVATE ${TINYCTHREAD_DIR}/sources/tinycthread.c)
 endif()
 
-set_c_compiler_options(seqalign)
-set_cuda_compiler_options(seqalign)
+target_compile_definitions(seqalign PRIVATE
+$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${USE_CUDA}>>:USE_CUDA>
+$<$<BOOL:${IS_MSVC}>:_CRT_SECURE_NO_WARNINGS>
+$<$<BOOL:${IS_GNU}>:_GNU_SOURCE>
+)
+target_compile_options(seqalign PRIVATE
+$<$<COMPILE_LANGUAGE:CUDA>:-cudart=static>
+$<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
+$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_MSVC}>>:/W4;/utf-8;/arch:${ARCH_LEVEL};/experimental:c11atomics;/GF;/Gy;/GA;/Gw;/jumptablerdata>
+$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_MSVC}>,$<CONFIG:Release>>:/Ox;/GL>
+$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_GNU}>>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto>
+$<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${IS_GNU}>,$<CONFIG:Debug>>:-Og>
+)
+target_link_options(seqalign PRIVATE
+$<$<BOOL:${IS_MSVC}>:/OPT:REF>
+$<$<AND:$<BOOL:${IS_MSVC}>,$<CONFIG:Release>>:/LTCG;/OPT:ICF>
+$<$<BOOL:${IS_GNU}>:-flto>
+)
 
-if(LEGACY_HDF5 OR IS_MINGW OR IS_MSYS2)
+if(LEGACY_HDF5 OR IS_GWIN)
 	target_include_directories(seqalign PRIVATE ${HDF5_INCLUDE_DIRS})
 	target_link_libraries(seqalign PRIVATE ${HDF5_LIBRARIES})
 	target_link_directories(seqalign PRIVATE ${HDF5_LIBRARY_DIRS})
