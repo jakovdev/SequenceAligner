@@ -58,7 +58,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 <summary><strong>Linux</strong></summary>
 
 ### Dependencies
-- GCC, GNU Make, Ninja, CMake
+- GCC, CMake
 - HDF5 library
 - CUDA toolkit (optional, for GPU acceleration)
 
@@ -122,7 +122,7 @@ Replace the folder path to the location you downloaded the project files.
 pacman -Syu
 
 # Install build tools and HDF5
-pacman -S --needed --noconfirm git mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hdf5
+pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5
 ```
 
 5. Build the project using:

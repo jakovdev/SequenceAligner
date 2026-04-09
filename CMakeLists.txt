@@ -125,30 +125,7 @@ if(USE_CUDA)
 	set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 endif()
 
-if(IS_MINGW OR IS_MSYS2)
-	find_package(Git REQUIRED)
-	include(FetchContent)
-	cmake_policy(SET CMP0169 OLD) # Needed for automatic patching
-	FetchContent_Declare(
-		tinycthread
-		GIT_REPOSITORY https://github.com/tinycthread/tinycthread.git
-		GIT_TAG 6957fc8383d6c7db25b60b8c849b29caab1caaee
-		GIT_SHALLOW TRUE
-		PATCH_COMMAND ${GIT_EXECUTABLE} -C <SOURCE_DIR> apply "${CMAKE_SOURCE_DIR}/script/tinycthread-mingw.patch"
-	)
-	FetchContent_GetProperties(tinycthread)
-	if(NOT tinycthread_POPULATED)
-		FetchContent_Populate(tinycthread)
-	endif()
-	set(TINYCTHREAD_SOURCE_DIR "${tinycthread_SOURCE_DIR}/source")
-	set(TINYCTHREAD_SOURCES "${TINYCTHREAD_SOURCE_DIR}/tinycthread.c")
-	set(USING_TINYCTHREAD TRUE)
-endif()
-
 file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
-if(USING_TINYCTHREAD)
-	list(APPEND C_SOURCES ${TINYCTHREAD_SOURCES})
-endif()
 if(USE_CUDA)
 	file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cu")
 endif()
@@ -235,8 +212,11 @@ if(USE_CUDA)
 endif()
 
 target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/third_party/clix)
-if(USING_TINYCTHREAD)
-	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_SOURCE_DIR})
+
+if(IS_MINGW OR IS_MSYS2)
+	set(TINYCTHREAD_DIR "${CMAKE_SOURCE_DIR}/third_party/tinycthread")
+	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_DIR})
+	target_sources(seqalign PRIVATE ${TINYCTHREAD_DIR}/sources/tinycthread.c)
 endif()
 
 set_c_compiler_options(seqalign)
