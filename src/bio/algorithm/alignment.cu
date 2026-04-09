@@ -1,6 +1,5 @@
 #include "bio/algorithm/alignment.cuh"
 
-#ifdef USE_CUDA
 #include <array>
 
 __constant__ Constants C;
@@ -242,5 +241,3 @@ const void *kernel_function(enum AlignmentMethod method)
 	return ALIGN_KERNELS[method];
 }
 }
-
-#endif /* USE_CUDA */

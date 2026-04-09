@@ -2,8 +2,6 @@
 #ifndef BIO_ALGORITHM_ALIGNMENT_CUH
 #define BIO_ALGORITHM_ALIGNMENT_CUH
 
-#ifdef USE_CUDA
-
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus */
@@ -37,7 +35,5 @@ const void *kernel_function(enum AlignmentMethod);
 #ifdef __cplusplus
 }
 #endif /* __cplusplus */
-
-#endif /* USE_CUDA */
 
 #endif /* BIO_ALGORITHM_ALIGNMENT_CUH */

@@ -19,9 +19,8 @@ s64 h5_checksum(void);
 
 void h5_close(int skip_flush);
 
-#ifdef USE_CUDA
 s32 *h5_matrix_data(void);
+
 size_t h5_matrix_bytes(void);
-#endif
 
 #endif /* INTERFACE_SEQALIGN_HDF5_H */
