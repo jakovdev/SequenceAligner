@@ -1,23 +1,13 @@
 cmake_minimum_required(VERSION 3.30)
+project(SequenceAligner C)
 
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
-option(USE_CUDA "Enable CUDA support" OFF)
 option(USE_ASAN "Enable AddressSanitizer (ASAN) support (GCC|Clang only, no CUDA)" OFF)
 option(USE_BIN "Copy binaries to bin directory for easier execution during development" OFF)
 
-if(USE_CUDA)
-	set(SEQALIGN_LANGUAGES "C;CUDA")
-else()
-	set(SEQALIGN_LANGUAGES "C")
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release)
 endif()
-
-project(
-SequenceAligner
-VERSION 1.0
-DESCRIPTION "High performance all-vs-all pairwise sequence alignment tool"
-HOMEPAGE_URL "https://www.github.com/jakovdev/SequenceAligner"
-LANGUAGES ${SEQALIGN_LANGUAGES}
-)
 
 set(IS_MINGW FALSE)
 set(IS_MSVC FALSE)
@@ -100,18 +90,6 @@ if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
 	endif()
 endif()
 
-if(USE_CUDA)
-	if(USE_ASAN)
-		message(FATAL_ERROR "USE_CUDA=ON is not supported with USE_ASAN=ON")
-	endif()
-	if(IS_MINGW)
-		message(FATAL_ERROR "USE_CUDA=ON is not supported with mingw toolchain")
-	endif()
-	if(IS_MSYS2)
-		message(FATAL_ERROR "USE_CUDA=ON is not supported on MSYS2")
-	endif()
-endif()
-
 if(USE_ASAN AND NOT IS_GNU)
 	message(FATAL_ERROR "AddressSanitizer (ASAN) is only supported on Linux with GCC/Clang")
 endif()
@@ -120,14 +98,15 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-if(USE_CUDA)
-	set(CMAKE_CUDA_STANDARD 20)
-	set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-endif()
-
-file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
-if(USE_CUDA)
-	file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cu")
+set(USE_CUDA FALSE)
+if(NOT IS_MINGW AND NOT IS_MSYS2)
+	find_package(CUDAToolkit)
+	if(CUDAToolkit_FOUND)
+		enable_language(CUDA)
+		set(CMAKE_CUDA_STANDARD 20)
+		set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+		set(USE_CUDA TRUE)
+	endif()
 endif()
 
 if(IS_MINGW OR IS_MSYS2)
@@ -144,10 +123,6 @@ else()
 		set(LINK_LIBS ${LINK_LIBS} ${HDF5_C_${LIB_TYPE}_LIBRARY})
 		set_directory_properties(PROPERTIES INCLUDE_DIRECTORIES "${HDF5_INCLUDE_DIR}")
 	endif()
-endif()
-
-if(USE_CUDA)
-	find_package(CUDAToolkit REQUIRED)
 endif()
 
 find_package(OpenMP REQUIRED COMPONENTS C)
@@ -185,7 +160,7 @@ if(NOT USE_CUDA)
 endif()
 target_compile_definitions(${target} PRIVATE USE_CUDA)
 target_compile_options(${target} PRIVATE
-$<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets>
+$<$<COMPILE_LANGUAGE:CUDA>:-Wno-deprecated-gpu-targets;-cudart=static>
 $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G;-g>
 $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Release>>:-extra-device-vectorization>
 )
@@ -206,8 +181,11 @@ elseif(IS_GNU)
 endif()
 endfunction()
 
+file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 add_executable(seqalign ${C_SOURCES})
+
 if(USE_CUDA)
+	file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cu")
 	target_sources(seqalign PRIVATE ${CUDA_SOURCES})
 endif()
 
@@ -239,7 +217,7 @@ if(WIN32)
 endif()
 
 if(USE_CUDA)
-	target_link_libraries(seqalign PRIVATE CUDA::cudart)
+	target_link_libraries(seqalign PRIVATE CUDA::cudart_static)
 endif()
 
 target_link_libraries(seqalign PRIVATE OpenMP::OpenMP_C)
@@ -339,23 +317,17 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 endif()
 
 set(CPACK_PACKAGE_NAME "SequenceAligner")
-set(CPACK_PACKAGE_VENDOR "jakovdev")
+set(CPACK_PACKAGE_VENDOR "Jakov Dragičević")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "High-performance all-vs-all pairwise sequence alignment tool")
-set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
 set(CPACK_RESOURCE_FILE_README "${CMAKE_SOURCE_DIR}/README.md")
 set(CPACK_PACKAGE_DIRECTORY "${CMAKE_SOURCE_DIR}/release")
 
-string(TOLOWER "${ARCH_LEVEL}" arch_suffix)
-if(USE_CUDA)
-	set(arch_suffix "${arch_suffix}-cuda")
-endif()
-
 if(WIN32)
-	set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-windows-${arch_suffix}")
+	set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-windows-${ARCH_LEVEL}")
 	set(CPACK_GENERATOR "ZIP")
 else()
-	set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${PROJECT_VERSION}-linux-${arch_suffix}")
+	set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-linux-${ARCH_LEVEL}")
 	set(CPACK_GENERATOR "TGZ")
 endif()
 

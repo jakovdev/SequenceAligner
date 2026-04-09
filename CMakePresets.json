@@ -17,8 +17,8 @@
       }
     },
     {
-      "name": "linux-base",
-      "hidden": true,
+      "name": "linux",
+      "displayName": "Linux",
       "inherits": [
         "base"
       ],
@@ -29,8 +29,18 @@
       }
     },
     {
-      "name": "windows-base",
-      "hidden": true,
+      "name": "linux-debug",
+      "displayName": "Linux (Debug)",
+      "inherits": [
+        "linux"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
+      "name": "windows",
+      "displayName": "Windows",
       "inherits": [
         "base"
       ],
@@ -42,63 +52,13 @@
       "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
     },
     {
-      "name": "linux-release-cuda",
-      "displayName": "Linux (Release, CUDA)",
+      "name": "windows-debug",
+      "displayName": "Windows (Debug)",
       "inherits": [
-        "linux-base"
+        "windows"
       ],
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "ARCH_LEVEL": "native",
-        "USE_CUDA": "ON"
-      }
-    },
-    {
-      "name": "linux-debug-cuda",
-      "displayName": "Linux (Debug, CUDA)",
-      "inherits": [
-        "linux-base"
-      ],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "ARCH_LEVEL": "native",
-        "USE_CUDA": "ON"
-      }
-    },
-    {
-      "name": "linux-debug-asan",
-      "displayName": "Linux (Debug+ASAN)",
-      "inherits": [
-        "linux-base"
-      ],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "ARCH_LEVEL": "native",
-        "USE_ASAN": "ON"
-      }
-    },
-    {
-      "name": "windows-release-cuda",
-      "displayName": "Windows (Release, CUDA)",
-      "inherits": [
-        "windows-base"
-      ],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "ARCH_LEVEL": "native",
-        "USE_CUDA": "ON"
-      }
-    },
-    {
-      "name": "windows-debug-cuda",
-      "displayName": "Windows (Debug, CUDA)",
-      "inherits": [
-        "windows-base"
-      ],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug",
-        "ARCH_LEVEL": "native",
-        "USE_CUDA": "ON"
+        "CMAKE_BUILD_TYPE": "Debug"
       }
     }
   ]

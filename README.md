@@ -128,7 +128,7 @@ pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-c
 5. Build the project using:
 
 ```bash
-./script/build_all_cross.sh
+./script/build_all.sh cross
 ```
 
 While this has faster CPU-only version than MSVC, this version does not support CUDA at all.
