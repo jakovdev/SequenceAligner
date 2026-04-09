@@ -1,6 +1,14 @@
 @echo off
 setlocal enabledelayedexpansion
 
+if not defined VCPKG_ROOT (
+    echo [ERROR] Please run this in the X64 Developer Command Prompt with VCPKG installed.
+    exit /b 1
+) else if not exist "%VCPKG_ROOT%" (
+    echo [ERROR] Please run this in the X64 Developer Command Prompt with VCPKG installed.
+    exit /b 1
+)
+
 set BUILD_DIR=build
 mkdir "%BUILD_DIR%" 2>nul
 
