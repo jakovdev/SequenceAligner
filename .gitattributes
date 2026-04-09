@@ -1,7 +1,4 @@
-*.c    diff=cpp
-*.h    diff=cpp
-*.cpp  diff=cpp
-*.hpp  diff=cpp
+*.[ch] diff=cpp
 *.cu   diff=cpp
 *.cuh  diff=cpp
 * text eol=lf
