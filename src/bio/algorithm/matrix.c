@@ -1,9 +1,10 @@
 #include "bio/algorithm/matrix.h"
 
+#include <print.h>
+
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "system/memory.h"
-#include "util/print.h"
 
 thread_local s32 *g_restrict MATRIX;
 thread_local s32 *g_restrict MATCH;

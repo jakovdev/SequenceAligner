@@ -1,13 +1,13 @@
 #include "bio/types.h"
 
+#include <args.h>
 #include <errno.h>
+#include <print.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "system/compiler.h"
-#include "util/args.h"
-#include "util/print.h"
 
 /* NOTE: Additional types can be added here if needed.
  *       However, this requires implementing new arguments.

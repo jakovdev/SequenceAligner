@@ -1,9 +1,9 @@
 #define PROGRESS_IMPLEMENTATION
 #define PROGRESS_PRINT_H
-#include "util/print.h"
-#include "util/progress.h"
+#include <print.h>
+#include <progress.h>
 
-#include "util/args.h"
+#include <args.h>
 
 ARG_EXTERN(disable_write);
 ARGUMENT(disable_progress) = {

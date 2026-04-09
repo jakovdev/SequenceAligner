@@ -1,15 +1,15 @@
 #include "bio/sequence/filtering.h"
 
+#include <args.h>
+#include <print.h>
+#include <progress.h>
 #include <string.h>
 
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "system/memory.h"
 #include "system/os.h"
-#include "util/args.h"
 #include "util/benchmark.h"
-#include "util/print.h"
-#include "util/progress.h"
 
 static double filter;
 

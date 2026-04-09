@@ -1,12 +1,13 @@
 #include "interface/seqalign_cuda.h"
 
-#include "util/args.h"
-#include "util/print.h"
+#include <args.h>
+#include <print.h>
 
 #ifdef USE_CUDA
 #include <cuda_runtime_api.h>
 #include <string.h>
 
+#include "bio/algorithm/alignment.cuh"
 #include "bio/score/matrices.h"
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
@@ -14,8 +15,6 @@
 #include "system/compiler.h"
 #include "system/os.h"
 #include "util/benchmark.h"
-
-#include "bio/algorithm/alignment.cuh"
 
 static bool init;
 

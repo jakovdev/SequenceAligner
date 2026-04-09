@@ -1,6 +1,7 @@
 #include "bio/sequence/sequences.h"
 
 #include <ctype.h>
+#include <print.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -10,7 +11,6 @@
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "util/benchmark.h"
-#include "util/print.h"
 
 s64 ALIGNMENTS;
 size_t LENGTHS_MAX;

@@ -1,6 +1,8 @@
 #include "interface/seqalign_hdf5.h"
 
+#include <args.h>
 #include <hdf5.h>
+#include <print.h>
 #include <string.h>
 
 #include "bio/sequence/sequences.h"
@@ -9,9 +11,7 @@
 #include "io/mmap.h"
 #include "system/os.h"
 #include "system/memory.h"
-#include "util/args.h"
 #include "util/benchmark.h"
-#include "util/print.h"
 
 static struct {
 	const char *path;
@@ -278,8 +278,6 @@ void h5_close(int skip_flush)
 	g_h5.is_init = false;
 }
 
-#ifdef USE_CUDA
-
 s32 *h5_matrix_data(void)
 {
 	if unlikely (!g_h5.is_init) {
@@ -301,8 +299,6 @@ size_t h5_matrix_bytes(void)
 
 	return g_h5.matrix_b;
 }
-
-#endif
 
 static void h5_file_close(void)
 {

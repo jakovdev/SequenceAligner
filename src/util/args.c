@@ -1,7 +1,7 @@
 #define ARGS_IMPLEMENTATION
 #define ARGS_PRINT_H
-#include "util/print.h"
-#include "util/args.h"
+#include <print.h>
+#include <args.h>
 
 static struct arg_callback parse_help(const char *str, void *dest)
 {

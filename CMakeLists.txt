@@ -256,7 +256,7 @@ if(USE_CUDA)
 	target_sources(seqalign PRIVATE ${CUDA_SOURCES})
 endif()
 
-target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/third_party/clix)
 if(USING_TINYCTHREAD)
 	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_SOURCE_DIR})
 endif()

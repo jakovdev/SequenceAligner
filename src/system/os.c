@@ -1,13 +1,13 @@
 #include "system/os.h"
 
+#include <args.h>
 #include <errno.h>
+#include <print.h>
 #include <string.h>
 #include <stdlib.h>
 #include <omp.h>
 
 #include "system/memory.h"
-#include "util/args.h"
-#include "util/print.h"
 
 #ifdef _WIN32
 #include <direct.h>

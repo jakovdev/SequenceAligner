@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <limits.h>
+#include <print.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +11,6 @@
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "util/benchmark.h"
-#include "util/print.h"
 
 #define fline_next(fline, stream, line_len) \
 	((line_len = getline(&fline->line, &fline->line_cap, stream)) != -1)

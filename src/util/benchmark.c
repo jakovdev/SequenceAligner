@@ -1,8 +1,9 @@
 #include "util/benchmark.h"
 
+#include <args.h>
+#include <print.h>
+
 #include "system/os.h"
-#include "util/args.h"
-#include "util/print.h"
 
 static struct {
 	double io_start;

@@ -268,8 +268,12 @@ extern bool print_nodetail;
 #include <termios.h>
 #include <unistd.h>
 #include <sys/param.h>
+#ifndef max
 #define max MAX
+#endif
+#ifndef min
 #define min MIN
+#endif
 #endif
 
 #ifndef PRINT_TERMINAL_WIDTH

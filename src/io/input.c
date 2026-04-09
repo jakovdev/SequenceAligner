@@ -1,5 +1,7 @@
 #include "io/input.h"
 
+#include <args.h>
+#include <print.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,9 +11,7 @@
 #include "system/compiler.h"
 #include "system/memory.h"
 #include "system/os.h"
-#include "util/args.h"
 #include "util/benchmark.h"
-#include "util/print.h"
 
 static void detect_file_format(struct ifile PS(ifile, 1),
 			       const char PRS(path, 1))

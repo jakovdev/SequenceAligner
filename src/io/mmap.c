@@ -1,12 +1,12 @@
 #include "io/mmap.h"
 
+#include <print.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "system/memory.h"
 #include "system/os.h"
-#include "util/print.h"
 
 static void mmap_matrix_init(struct MMapMatrix PS(file, 1))
 {

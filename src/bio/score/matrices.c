@@ -2,12 +2,11 @@
 #define GENERATED_MATRICES_IMPLEMENTATION
 #include "generated/bio/score/matrices.h"
 
+#include <args.h>
+#include <print.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "util/args.h"
-#include "util/print.h"
 
 alignas(CACHE_LINE) s32 SEQ_LUT[SEQ_LUT_SIZE];
 alignas(CACHE_LINE) s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];

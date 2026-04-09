@@ -1,10 +1,11 @@
+#include <args.h>
+#include <print.h>
+
 #include "bio/algorithm/alignment.h"
 #include "bio/sequence/sequences.h"
 #include "interface/seqalign_cuda.h"
 #include "interface/seqalign_hdf5.h"
 #include "util/benchmark.h"
-#include "util/print.h"
-#include "util/args.h"
 
 int main(int argc, char *argv[])
 {

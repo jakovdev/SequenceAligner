@@ -1,7 +1,10 @@
 #include "bio/algorithm/alignment.h"
 
-#include "bio/algorithm/matrix.h"
+#include <print.h>
+#include <progress.h>
+
 #include "bio/algorithm/indices.h"
+#include "bio/algorithm/matrix.h"
 #include "bio/algorithm/method/ga.h"
 #include "bio/algorithm/method/nw.h"
 #include "bio/algorithm/method/sw.h"
@@ -12,8 +15,6 @@
 #include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
-#include "util/progress.h"
-#include "util/print.h"
 
 bool align(void)
 {

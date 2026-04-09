@@ -1,10 +1,11 @@
 #include "bio/algorithm/indices.h"
 
+#include <print.h>
+
 #include "bio/score/matrices.h"
 #include "bio/sequence/sequences.h"
 #include "system/compiler.h"
 #include "system/memory.h"
-#include "util/print.h"
 
 thread_local s32 *g_restrict SEQ1I;
 

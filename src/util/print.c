@@ -1,7 +1,7 @@
 #define PRINT_IMPLEMENTATION
-#include "util/print.h"
+#include <print.h>
 
-#include "util/args.h"
+#include <args.h>
 
 ARG_EXTERN(disable_progress);
 ARGUMENT(print_nodetail) = {

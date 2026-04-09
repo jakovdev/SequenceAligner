@@ -225,8 +225,6 @@ __global__ void k_sw(s32 *scores, s64 start, s64 batch)
 }
 
 extern "C" {
-#include "util/print.h"
-
 cudaError_t copy_constants(const struct Constants *host)
 {
 	return cudaMemcpyToSymbol(C, host, sizeof(C));
