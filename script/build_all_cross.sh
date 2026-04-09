@@ -42,7 +42,7 @@ for preset in "${PRESETS[@]}"; do
     echo ""
     MINGW_FLAG=""
     if [[ "${preset}" == *"-mingw" ]]; then
-        MINGW_FLAG="-DUSE_MINGW=ON"
+        MINGW_FLAG="--toolchain ${PWD}/script/toolchain-mingw.cmake"
         arch="${preset%-mingw}"
     else
         arch="${preset%-msys2}"
