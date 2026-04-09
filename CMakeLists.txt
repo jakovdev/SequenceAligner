@@ -3,21 +3,24 @@ project(SequenceAligner C)
 
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 option(USE_ASAN "Enable AddressSanitizer (ASAN) support (GCC|Clang only, no CUDA)" OFF)
-option(USE_BIN "Copy binaries to bin directory for easier execution during development" OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
 
 set(IS_MINGW FALSE)
-set(IS_MSVC FALSE)
 set(IS_MSYS2 FALSE)
+set(IS_MSVC FALSE)
 set(IS_GNU FALSE)
+set(IS_GWIN FALSE)
 set(IS_GCC7 FALSE)
 set(IS_GCC10 FALSE)
 
 if(MINGW_PREFIX)
 	set(IS_MINGW TRUE)
+	set(IS_GWIN TRUE)
+	set(DLL_PREFIX "${MINGW_PREFIX}")
+	set(DLL_LIST libhdf5.dll libssp-0.dll libwinpthread-1.dll libsz.dll zlib1.dll libgomp-1.dll libgcc_s_seh-1.dll)
 elseif(MSVC)
 	set(IS_MSVC TRUE)
 	if(MSVC_VERSION LESS 1939)
@@ -48,15 +51,15 @@ int main(void) {
 	const int avx2   = (c[1] & (1 << 5))  != 0;
 	const int avx512 = (c[1] & (1 << 16)) != 0; /* AVX-512F */
 	if (avx512 && has_os_avx_state() && has_avx512_state())
-		puts("AVX512");
+		printf("AVX512");
 	else if (avx2 && avx && has_os_avx_state())
-		puts("AVX2");
+		printf("AVX2");
 	else if (avx && has_os_avx_state())
-		puts("AVX");
+		printf("AVX");
 	else if (sse42)
-		puts("SSE4.2");
+		printf("SSE4.2");
 	else
-		puts("SSE2");
+		printf("SSE2");
 	return 0;
 }
 		]=])
@@ -64,7 +67,6 @@ int main(void) {
 		SOURCE_FROM_CONTENT arch_probe.c "${_arch_probe_src}"
 		RUN_OUTPUT_VARIABLE ARCH_LEVEL
 		)
-		string(STRIP "${ARCH_LEVEL}" ARCH_LEVEL)
 		if(NOT ARCH_DETECT_COMPILE_RES OR NOT ARCH_DETECT_RUN_RES EQUAL 0 OR ARCH_LEVEL STREQUAL "")
 			message(WARNING "Native arch detection failed, falling back to SSE2")
 			set(ARCH_LEVEL "SSE2")
@@ -74,6 +76,18 @@ int main(void) {
 	endif()
 elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
 	set(IS_MSYS2 TRUE)
+	set(IS_GWIN TRUE)
+	set(DLL_PREFIX "$ENV{MSYSTEM_PREFIX}")
+	file(GLOB HDF5_DLL "${DLL_PREFIX}/bin/libhdf5-[0-9]*.dll")
+	string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
+	set(DLL_LIST ${HDF5_DLL}
+	libcrypto-3-x64.dll libwinpthread-1.dll libcurl-4.dll libsz-2.dll zlib1.dll libgomp-1.dll
+	libbrotlidec.dll libidn2-0.dll libnghttp2-14.dll libnghttp3-9.dll libpsl-5.dll libssh2-1.dll
+	libbrotlicommon.dll libzstd.dll libssl-3-x64.dll libintl-8.dll libiconv-2.dll libunistring-5.dll
+	libgcc_s_seh-1.dll libngtcp2-16.dll libngtcp2_crypto_ossl-0.dll libaws-c-io.dll libaws-c-s3.dll
+	libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll libaws-c-cal.dll libaws-c-sdkutils.dll
+	libaws-c-compression.dll libaws-checksums.dll
+	)
 elseif(UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 	set(IS_GNU TRUE)
 else()
@@ -99,7 +113,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 set(USE_CUDA FALSE)
-if(NOT IS_MINGW AND NOT IS_MSYS2)
+if(NOT IS_GWIN)
 	find_package(CUDAToolkit)
 	if(CUDAToolkit_FOUND)
 		enable_language(CUDA)
@@ -109,7 +123,7 @@ if(NOT IS_MINGW AND NOT IS_MSYS2)
 	endif()
 endif()
 
-if(IS_MINGW OR IS_MSYS2)
+if(IS_GWIN)
 	find_package(PkgConfig REQUIRED)
 	pkg_check_modules(HDF5 REQUIRED hdf5)
 else()
@@ -191,7 +205,7 @@ endif()
 
 target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/third_party/clix)
 
-if(IS_MINGW OR IS_MSYS2)
+if(IS_GWIN)
 	set(TINYCTHREAD_DIR "${CMAKE_SOURCE_DIR}/third_party/tinycthread")
 	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_DIR})
 	target_sources(seqalign PRIVATE ${TINYCTHREAD_DIR}/sources/tinycthread.c)
@@ -208,12 +222,10 @@ else()
 	target_link_libraries(seqalign PRIVATE ${LINK_LIBS})
 endif()
 
-if(WIN32)
-	if(IS_MSVC)
-		target_link_libraries(seqalign PRIVATE Shlwapi)
-	else()
-		target_link_libraries(seqalign PRIVATE shlwapi)
-	endif()
+if(IS_MSVC)
+	target_link_libraries(seqalign PRIVATE Shlwapi)
+elseif(IS_GWIN)
+	target_link_libraries(seqalign PRIVATE shlwapi)
 endif()
 
 if(USE_CUDA)
@@ -222,83 +234,23 @@ endif()
 
 target_link_libraries(seqalign PRIVATE OpenMP::OpenMP_C)
 
-function(resolve_runtime_dll_path out_path dll prefix)
-if(EXISTS "${prefix}/bin/${dll}")
-	set(${out_path} "${prefix}/bin/${dll}" PARENT_SCOPE)
-elseif(EXISTS "${prefix}/lib/${dll}")
-	set(${out_path} "${prefix}/lib/${dll}" PARENT_SCOPE)
-else()
-	message(WARNING "Could not find runtime DLL ${dll} in expected locations under prefix ${prefix}")
-	set(${out_path} "" PARENT_SCOPE)
-endif()
-endfunction()
-
-function(install_runtime_dlls dll_list prefix)
-foreach(dll ${dll_list})
-	resolve_runtime_dll_path(dll_path "${dll}" "${prefix}")
-	if(dll_path)
-		install(FILES "${dll_path}" DESTINATION .)
-	endif()
-endforeach()
-endfunction()
-
-function(copy_runtime_dlls_to_bin target dll_list prefix output_dir)
-foreach(dll ${dll_list})
-	resolve_runtime_dll_path(dll_path "${dll}" "${prefix}")
-	if(dll_path)
-		add_custom_command(TARGET ${target} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-		"${dll_path}"
-		"${output_dir}/"
-		)
-	endif()
-endforeach()
-endfunction()
-
-if(WIN32)
-	if(IS_MSVC)
-		install(TARGETS seqalign 
-		RUNTIME_DEPENDENCIES
-		PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "vcruntime.*\\.dll"
-		POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
-		RUNTIME DESTINATION .
-		)
-	elseif(IS_MSYS2)
-		if(NOT DEFINED ENV{MSYSTEM_PREFIX})
-			message(FATAL_ERROR "MSYSTEM_PREFIX not set. Cannot locate MSYS2 bin directory.")
+if(IS_MSVC)
+	install(TARGETS seqalign 
+	RUNTIME_DEPENDENCIES
+	PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "vcruntime.*\\.dll"
+	POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
+	RUNTIME DESTINATION .
+	)
+elseif(IS_GWIN)
+	foreach(dll ${DLL_LIST})
+		if(EXISTS "${DLL_PREFIX}/bin/${dll}")
+			install(FILES "${DLL_PREFIX}/bin/${dll}" DESTINATION .)
+		elseif(EXISTS "${DLL_PREFIX}/lib/${dll}")
+			install(FILES "${DLL_PREFIX}/lib/${dll}" DESTINATION .)
+		else()
+			message(WARNING "Could not find runtime DLL ${dll} in expected locations under prefix ${DLL_PREFIX}")
 		endif()
-		file(GLOB HDF5_DLL "$ENV{MSYSTEM_PREFIX}/bin/libhdf5-[0-9]*.dll")
-		string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
-		set(MSYS2_DLLS ${HDF5_DLL}
-		libcrypto-3-x64.dll libwinpthread-1.dll libcurl-4.dll libsz-2.dll zlib1.dll libgomp-1.dll
-		libbrotlidec.dll libidn2-0.dll libnghttp2-14.dll libnghttp3-9.dll libpsl-5.dll libssh2-1.dll
-		libbrotlicommon.dll libzstd.dll libssl-3-x64.dll libintl-8.dll libiconv-2.dll libunistring-5.dll
-		libgcc_s_seh-1.dll libngtcp2-16.dll libngtcp2_crypto_ossl-0.dll libaws-c-io.dll libaws-c-s3.dll
-		libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll libaws-c-cal.dll libaws-c-sdkutils.dll
-		libaws-c-compression.dll libaws-checksums.dll
-		)
-		install_runtime_dlls("${MSYS2_DLLS}" "$ENV{MSYSTEM_PREFIX}")
-	elseif(IS_MINGW)		
-		set(MINGW_DLLS libhdf5.dll libssp-0.dll libwinpthread-1.dll libsz.dll zlib1.dll libgomp-1.dll libgcc_s_seh-1.dll)
-		install_runtime_dlls("${MINGW_DLLS}" "${MINGW_PREFIX}")
-	endif()
-endif()
-
-if(USE_BIN)
-	set_target_properties(seqalign PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin")
-	file(GLOB BIN_FILES "${CMAKE_SOURCE_DIR}/bin/*")
-	if(BIN_FILES)
-		file(REMOVE ${BIN_FILES})
-	endif()
-	if(IS_MSVC)
-		add_custom_command(TARGET seqalign POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:seqalign> "${CMAKE_SOURCE_DIR}/bin/")
-		install_runtime_dlls("$<TARGET_FILE_DIR:seqalign>" "${CMAKE_SOURCE_DIR}/bin")
-	elseif(IS_MSYS2)
-		copy_runtime_dlls_to_bin(seqalign "${MSYS2_DLLS}" "$ENV{MSYSTEM_PREFIX}" "${CMAKE_SOURCE_DIR}/bin")
-	elseif(IS_MINGW)
-		copy_runtime_dlls_to_bin(seqalign "${MINGW_DLLS}" "${MINGW_PREFIX}" "${CMAKE_SOURCE_DIR}/bin")
-	endif()
+	endforeach()
 endif()
 
 install(TARGETS seqalign RUNTIME DESTINATION .)
@@ -311,7 +263,7 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS)
 		file(REMOVE "${COMPILE_COMMANDS_ROOT}")
 	endif()
 	file(CREATE_LINK "${COMPILE_COMMANDS_SOURCE}" "${COMPILE_COMMANDS_ROOT}" SYMBOLIC COPY_ON_ERROR RESULT COMPILE_COMMANDS_LINK_RESULT)
-	if(NOT COMPILE_COMMANDS_LINK_RESULT STREQUAL "0")
+	if(NOT COMPILE_COMMANDS_LINK_RESULT STREQUAL "0" AND NOT EXISTS "${COMPILE_COMMANDS_ROOT}")
 		message(WARNING "Failed to link compile_commands.json to project root: ${COMPILE_COMMANDS_LINK_RESULT}")
 	endif()
 endif()
