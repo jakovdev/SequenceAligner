@@ -2,7 +2,7 @@
   "version": 6,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 25,
+    "minor": 30,
     "patch": 0
   },
   "configurePresets": [
@@ -100,28 +100,6 @@
         "ARCH_LEVEL": "native",
         "USE_CUDA": "ON"
       }
-    }
-  ],
-  "buildPresets": [
-    {
-      "name": "build-linux-release-cuda",
-      "configurePreset": "linux-release-cuda"
-    },
-    {
-      "name": "build-linux-debug-cuda",
-      "configurePreset": "linux-debug-cuda"
-    },
-    {
-      "name": "build-linux-debug-asan",
-      "configurePreset": "linux-debug-asan"
-    },
-    {
-      "name": "build-windows-release-cuda",
-      "configurePreset": "windows-release-cuda"
-    },
-    {
-      "name": "build-windows-debug-cuda",
-      "configurePreset": "windows-debug-cuda"
     }
   ]
 }
