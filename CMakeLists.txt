@@ -1,11 +1,10 @@
 cmake_minimum_required(VERSION 3.30)
-project(SequenceAligner C)
-
-set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
-
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
+project(SequenceAligner C)
+
+set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 
 set(IS_MINGW FALSE)
 set(IS_MSYS2 FALSE)
