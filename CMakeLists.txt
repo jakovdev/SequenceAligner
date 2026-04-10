@@ -98,12 +98,102 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 set(USE_CUDA FALSE)
-if(NOT IS_GWIN)
+if(NOT IS_MINGW)
 	find_package(CUDAToolkit)
 	if(CUDAToolkit_FOUND)
-		enable_language(CUDA)
-		set(CMAKE_CUDA_STANDARD 20)
-		set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+		if(NOT IS_MSYS2)
+			enable_language(CUDA)
+			set(CMAKE_CUDA_STANDARD 20)
+			set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+		else()
+			find_program(GENDEF_EXECUTABLE gendef REQUIRED)
+			find_program(DLLTOOL_EXECUTABLE dlltool REQUIRED)
+			file(GLOB CUDA_MSYS2_CUDART_DLLS LIST_DIRECTORIES FALSE "$ENV{CUDA_PATH}/bin/x64/cudart64_*.dll")
+			if(NOT CUDA_MSYS2_CUDART_DLLS)
+				message(FATAL_ERROR "Could not find cudart64_*.dll under $ENV{CUDA_PATH}/bin/x64")
+			endif()
+			list(SORT CUDA_MSYS2_CUDART_DLLS)
+			list(GET CUDA_MSYS2_CUDART_DLLS 0 CUDA_MSYS2_CUDART_DLL)
+			get_filename_component(CUDA_MSYS2_CUDART_DLL_NAME "${CUDA_MSYS2_CUDART_DLL}" NAME)
+			get_filename_component(CUDA_MSYS2_CUDART_DLL_STEM "${CUDA_MSYS2_CUDART_DLL_NAME}" NAME_WE)
+			set(CUDA_MSYS2_RUNTIME_DIR "${CMAKE_BINARY_DIR}/msys2_cuda")
+			set(CUDA_MSYS2_QUIET_RUNNER "${CUDA_MSYS2_RUNTIME_DIR}/run_quiet.cmake")
+			set(CUDA_MSYS2_CUDART_IMPORT_LIB "${CUDA_MSYS2_RUNTIME_DIR}/libcudart.dll.a")
+			set(CUDA_MSYS2_CUDART_DLL_COPY "${CUDA_MSYS2_RUNTIME_DIR}/${CUDA_MSYS2_CUDART_DLL_NAME}")
+			file(MAKE_DIRECTORY "${CUDA_MSYS2_RUNTIME_DIR}")
+			execute_process(
+				COMMAND "${GENDEF_EXECUTABLE}" "${CUDA_MSYS2_CUDART_DLL}"
+				WORKING_DIRECTORY "${CUDA_MSYS2_RUNTIME_DIR}"
+				RESULT_VARIABLE CUDA_MSYS2_GENDEF_RESULT
+				OUTPUT_QUIET
+				ERROR_QUIET
+			)
+			if(NOT CUDA_MSYS2_GENDEF_RESULT EQUAL 0)
+				execute_process(
+					COMMAND "${GENDEF_EXECUTABLE}" "${CUDA_MSYS2_CUDART_DLL}"
+					WORKING_DIRECTORY "${CUDA_MSYS2_RUNTIME_DIR}"
+					RESULT_VARIABLE CUDA_MSYS2_GENDEF_RETRY_RESULT
+					OUTPUT_VARIABLE CUDA_MSYS2_GENDEF_STDOUT
+					ERROR_VARIABLE CUDA_MSYS2_GENDEF_STDERR
+				)
+				message(FATAL_ERROR "Failed to generate cudart def from ${CUDA_MSYS2_CUDART_DLL}:\n${CUDA_MSYS2_GENDEF_STDOUT}${CUDA_MSYS2_GENDEF_STDERR}")
+			endif()
+			execute_process(
+				COMMAND "${DLLTOOL_EXECUTABLE}" -d "${CUDA_MSYS2_CUDART_DLL_STEM}.def" -l "${CUDA_MSYS2_CUDART_IMPORT_LIB}" -D "${CUDA_MSYS2_CUDART_DLL_NAME}"
+				WORKING_DIRECTORY "${CUDA_MSYS2_RUNTIME_DIR}"
+				RESULT_VARIABLE CUDA_MSYS2_DLLTOOL_RESULT
+				OUTPUT_QUIET
+				ERROR_QUIET
+			)
+			if(NOT CUDA_MSYS2_DLLTOOL_RESULT EQUAL 0)
+				execute_process(
+					COMMAND "${DLLTOOL_EXECUTABLE}" -d "${CUDA_MSYS2_CUDART_DLL_STEM}.def" -l "${CUDA_MSYS2_CUDART_IMPORT_LIB}" -D "${CUDA_MSYS2_CUDART_DLL_NAME}"
+					WORKING_DIRECTORY "${CUDA_MSYS2_RUNTIME_DIR}"
+					RESULT_VARIABLE CUDA_MSYS2_DLLTOOL_RETRY_RESULT
+					OUTPUT_VARIABLE CUDA_MSYS2_DLLTOOL_STDOUT
+					ERROR_VARIABLE CUDA_MSYS2_DLLTOOL_STDERR
+				)
+				message(FATAL_ERROR "Failed to create cudart import library at ${CUDA_MSYS2_CUDART_IMPORT_LIB}:\n${CUDA_MSYS2_DLLTOOL_STDOUT}${CUDA_MSYS2_DLLTOOL_STDERR}")
+			endif()
+			file(COPY_FILE "${CUDA_MSYS2_CUDART_DLL}" "${CUDA_MSYS2_CUDART_DLL_COPY}" ONLY_IF_DIFFERENT)
+			file(WRITE "${CUDA_MSYS2_QUIET_RUNNER}" [=[
+if(NOT DEFINED ARGN_LIST)
+	message(FATAL_ERROR "run_quiet.cmake requires ARGN_LIST")
+endif()
+execute_process(
+	COMMAND ${ARGN_LIST}
+	WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+	RESULT_VARIABLE RESULT
+	OUTPUT_QUIET
+)
+if(NOT RESULT EQUAL 0)
+	execute_process(
+		COMMAND ${ARGN_LIST}
+		WORKING_DIRECTORY "${WORKING_DIRECTORY}"
+		RESULT_VARIABLE RETRY_RESULT
+		OUTPUT_VARIABLE STDOUT
+		ERROR_VARIABLE STDERR
+	)
+	message(FATAL_ERROR "Command failed with code ${RESULT}: ${ARGN_LIST}\n${STDOUT}${STDERR}")
+endif()
+]=])
+			find_program(OBJCOPY_EXECUTABLE objcopy)
+			set(CUDA_KERNEL_OBJ "${CMAKE_BINARY_DIR}/alignment.cu.obj")
+			set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/algorithm/alignment.cu")
+			set(CUDA_MSYS2_NVCC_CMD "nvcc;-forward-unknown-to-host-compiler;-Xcompiler=/GS-,/sdl-,/MT,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/include;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}")
+			set(CUDA_MSYS2_POST_NVCC_CMD)
+			if(OBJCOPY_EXECUTABLE)
+				set(CUDA_MSYS2_POST_NVCC_CMD COMMAND "${OBJCOPY_EXECUTABLE}" --remove-section .drectve "${CUDA_KERNEL_OBJ}")
+			endif()
+			add_custom_command(
+				OUTPUT "${CUDA_KERNEL_OBJ}"
+				COMMAND "${CMAKE_COMMAND}" "-DWORKING_DIRECTORY:PATH=${CMAKE_BINARY_DIR}" "-DARGN_LIST:STRING=${CUDA_MSYS2_NVCC_CMD}" -P "${CUDA_MSYS2_QUIET_RUNNER}"
+				${CUDA_MSYS2_POST_NVCC_CMD}
+				DEPENDS "${CUDA_KERNEL_SRC}"
+				COMMENT "Building CUDA object ${CUDA_KERNEL_OBJ}"
+			)
+			add_custom_target(alignment DEPENDS "${CUDA_KERNEL_OBJ}")
+		endif()
 		set(USE_CUDA TRUE)
 	endif()
 endif()
@@ -118,9 +208,16 @@ endif()
 find_package(OpenMP REQUIRED COMPONENTS C)
 
 file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
-add_executable(seqalign ${C_SOURCES})
+if(USE_CUDA AND IS_MSYS2)
+	add_executable(seqalign ${C_SOURCES} ${CUDA_KERNEL_OBJ})
+	add_dependencies(seqalign alignment)
+	target_include_directories(seqalign PRIVATE "$ENV{CUDA_PATH}/include")
+	target_link_libraries(seqalign PRIVATE "${CUDA_MSYS2_CUDART_IMPORT_LIB}")
+else()
+	add_executable(seqalign ${C_SOURCES})
+endif()
 
-if(USE_CUDA)
+if(USE_CUDA AND NOT IS_MSYS2)
 	file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cu")
 	target_sources(seqalign PRIVATE ${CUDA_SOURCES})
 endif()
@@ -164,7 +261,7 @@ elseif(IS_GWIN)
 	target_link_libraries(seqalign PRIVATE shlwapi)
 endif()
 
-if(USE_CUDA)
+if(USE_CUDA AND NOT IS_MSYS2)
 	target_link_libraries(seqalign PRIVATE CUDA::cudart_static)
 endif()
 
@@ -187,6 +284,10 @@ elseif(IS_GWIN)
 			message(WARNING "Could not find runtime DLL ${dll} in expected locations under prefix ${DLL_PREFIX}")
 		endif()
 	endforeach()
+endif()
+
+if(USE_CUDA AND IS_MSYS2)
+	install(FILES "${CUDA_MSYS2_CUDART_DLL_COPY}" DESTINATION .)
 endif()
 
 install(TARGETS seqalign RUNTIME DESTINATION .)

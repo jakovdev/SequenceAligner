@@ -4,6 +4,9 @@
 #include <print.h>
 
 #ifdef USE_CUDA
+#ifdef __MINGW64__
+#undef __cdecl
+#endif
 #include <cuda_runtime_api.h>
 #include <string.h>
 

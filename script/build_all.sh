@@ -23,7 +23,7 @@ elif [ "$MSYSTEM" == "UCRT64" ]; then
         echo "Please install the following packages:"
         echo ""
         echo "pacman -Syu"
-        echo "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5"
+        echo "pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5"
         exit 1
     fi
 else
