@@ -84,7 +84,7 @@ elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
 	libbrotlicommon.dll libzstd.dll libssl-3-x64.dll libintl-8.dll libiconv-2.dll libunistring-5.dll
 	libgcc_s_seh-1.dll libngtcp2-16.dll libngtcp2_crypto_ossl-0.dll libaws-c-io.dll libaws-c-s3.dll
 	libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll libaws-c-cal.dll libaws-c-sdkutils.dll
-	libaws-c-compression.dll libaws-checksums.dll
+	libaws-c-compression.dll libaws-checksums.dll libz-ng2.dll
 	)
 elseif(UNIX AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
 	set(IS_GNU TRUE)
