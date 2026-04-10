@@ -128,9 +128,7 @@ endif()
 target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/third_party/clix)
 
 if(IS_GWIN)
-	set(TINYCTHREAD_DIR "${CMAKE_SOURCE_DIR}/third_party/tinycthread")
-	target_include_directories(seqalign PRIVATE ${TINYCTHREAD_DIR})
-	target_sources(seqalign PRIVATE ${TINYCTHREAD_DIR}/sources/tinycthread.c)
+	target_include_directories(seqalign PRIVATE "${CMAKE_SOURCE_DIR}/third_party/c11threads")
 endif()
 
 target_compile_definitions(seqalign PRIVATE
