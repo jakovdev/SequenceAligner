@@ -1,13 +1,11 @@
 # Program outputs
 results/
-benchmark_results/
 
 # Build outputs
 bin/
 build/
 out/
 release/
-archive/
 
 # Compiler specific files
 *.pdb
@@ -16,7 +14,6 @@ archive/
 vcpkg_installed/
 
 # IDE and editor files
-TODO
 compile_commands.json
 .vscode/
 .cache/
