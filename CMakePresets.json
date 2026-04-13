@@ -38,6 +38,16 @@
       }
     },
     {
+      "name": "linux-mingw",
+      "displayName": "Linux (MinGW)",
+      "inherits": [
+        "linux"
+      ],
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/script/toolchain-mingw.cmake"
+      }
+    },
+    {
       "name": "windows",
       "displayName": "Windows",
       "inherits": [
