@@ -4,9 +4,7 @@
 
 #if defined(__AVX512F__) && defined(__AVX512BW__)
 #include <immintrin.h>
-#ifndef _MSC_VER
 #include <x86intrin.h>
-#endif
 #define USE_SIMD 1
 #define USE_AVX512
 typedef __m512i veci_t;
@@ -93,14 +91,6 @@ __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b);
 #define PREFETCH_DISTANCE (BYTES << 4)
 #define prefetch(x) _mm_prefetch((const char *)(x), _MM_HINT_T0)
 #define prefetch_write(x) _mm_prefetch((const char *)(x), _MM_HINT_T1)
-#endif
-
-#if defined(_MSC_VER) && !defined(__clang__)
-#include <intrin.h>
-#define __builtin_popcount(x) ((int)__popcnt(x))
-#define __builtin_popcountll(x) ((int)__popcnt64(x))
-int __builtin_ctz(unsigned int x);
-int __builtin_ctzll(unsigned long long x);
 #endif
 
 #endif /* SYSTEM_SIMD_H */

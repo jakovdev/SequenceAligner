@@ -12,23 +12,4 @@ __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b)
 		_mm_shuffle_epi32(tmp1, _MM_SHUFFLE(0, 0, 2, 0)),
 		_mm_shuffle_epi32(tmp2, _MM_SHUFFLE(0, 0, 2, 0)));
 }
-
-#endif
-
-#if defined(_MSC_VER) && !defined(__clang__)
-
-int __builtin_ctz(unsigned int x)
-{
-	unsigned long index;
-	_BitScanForward(&index, x);
-	return (int)index;
-}
-
-int __builtin_ctzll(unsigned long long x)
-{
-	unsigned long index;
-	_BitScanForward64(&index, x);
-	return (int)index;
-}
-
 #endif

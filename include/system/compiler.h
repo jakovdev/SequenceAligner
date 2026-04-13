@@ -4,11 +4,7 @@
 
 #include <stddef.h>
 #if !defined(unreachable)
-#if defined(_MSC_VER) && !defined(__clang__)
-#define unreachable() __assume(0)
-#else /* GCC, Clang */
 #define unreachable() __builtin_unreachable()
-#endif /* MSVC */
 #endif /* standard conforming stddef.h macro in C23 */
 
 #ifndef NDEBUG
@@ -18,35 +14,12 @@
 #define unreachable_release() unreachable()
 #endif /* NDEBUG */
 
-#if defined(_MSC_VER) && !defined(__clang__)
-#define S(n) *
-#define RS(n) *restrict
-#define CRS(n) *const restrict
-#define PS(p, n) S(n) p
-#define PRS(p, n) RS(n) p
-#define PCRS(p, n) CRS(n) p
-#else /* GCC, Clang */
-#define S(n) [static n]
-#define RS(n) [restrict static n]
-#define CRS(n) [const restrict static n]
-#define PS(p, n) p S(n)
-#define PRS(p, n) p RS(n)
-#define PCRS(p, n) p CRS(n)
-#endif
-
-#ifdef _WIN32
-#if defined(_MSC_VER) && !defined(__clang__)
-#define likely(x) (x)
-#define unlikely(x) (x)
-#define g_restrict __restrict
-#define strcasecmp _stricmp
-#include <Shlwapi.h>
-#elif defined(__MINGW32__) || defined(__MINGW64__) || defined(__clang__)
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))
 #define g_restrict __restrict__
+
+#ifdef _WIN32
 #include <shlwapi.h>
-#endif
 #define strcasestr StrStrIA
 #include <stdio.h>
 /* https://stackoverflow.com/a/47067149 */
@@ -125,10 +98,6 @@ static inline long getline(char **buf, size_t *bufsiz, FILE *fp)
 {
 	return getdelim(buf, bufsiz, '\n', fp);
 }
-#else /* GCC, Clang */
-#define likely(x) (__builtin_expect(!!(x), 1))
-#define unlikely(x) (__builtin_expect(!!(x), 0))
-#define g_restrict __restrict__
-#endif /* MSVC */
+#endif /* _WIN32 */
 
 #endif /* SYSTEM_COMPILER_H */

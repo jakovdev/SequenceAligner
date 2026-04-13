@@ -5,7 +5,6 @@
 #include <limits.h>
 #include <stdint.h>
 
-#include "system/compiler.h"
 #include "system/types.h"
 
 #define SEQ_LEN_MAX (INT32_MAX - 1)
@@ -41,7 +40,7 @@ struct seq {
 
 /* Pointer to a specific sequence */
 typedef const struct seq *const restrict seq_ptr;
-#define SEQ_PTR(s) const struct seq PCRS(s, 1)
+#define SEQ_PTR(s) const struct seq s[const restrict static 1]
 #define SEQ_BAD(s)                                                 \
 	(!s->letters || !*s->letters || s->length < SEQ_LEN_MIN || \
 	 s->length > SEQ_LEN_MAX)
