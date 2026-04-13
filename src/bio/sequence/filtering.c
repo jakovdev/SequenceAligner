@@ -13,7 +13,7 @@
 
 static double filter;
 
-static double similarity(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
+static double similarity(SEQ_PTR(seq1), SEQ_PTR(seq2))
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
@@ -55,7 +55,7 @@ bool filter_seqs(void)
 		s32 i;
 #pragma omp for schedule(dynamic)
 		for (i = 1; i < SEQS_N; i++) {
-			sequence_ptr_t seq1 = &SEQS[i];
+			seq_ptr seq1 = &SEQS[i];
 
 			for (s32 j = 0; j < i; j++) {
 				if (lost[j])

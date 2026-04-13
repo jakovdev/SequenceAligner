@@ -1,9 +1,71 @@
 #include "bio/algorithm/method/sw.h"
 
-#include "bio/algorithm/local/affine.h"
+#include "bio/score/matrices.h"
+#include "bio/sequence/sequences.h"
 
-s32 align_sw(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
+s32 align_sw(SEQ_PTR(seq1), SEQ_PTR(seq2), s32 *restrict TABLE,
+	     s32 *restrict SEQ1I)
 {
-	affine_local_init(seq1, seq2);
-	return affine_local_fill(seq1, seq2);
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !TABLE || !SEQ1I)
+		unreachable_release();
+
+	const s32 len1 = seq1->length;
+	const s32 len2 = seq2->length;
+	const s64 cols = len1 + 1;
+
+	s32 *restrict MATCH = TABLE;
+	s32 *restrict GAP_X = TABLE + TABLE_SIZE;
+	s32 *restrict GAP_Y = TABLE + 2 * TABLE_SIZE;
+
+	MATCH[0] = 0;
+	GAP_X[0] = GAP_Y[0] = SCORE_MIN;
+
+	for (s32 j = 1; j <= len1; j++) {
+		MATCH[j] = 0;
+		GAP_X[j] = GAP_Y[j] = SCORE_MIN;
+	}
+
+	for (s32 i = 1; i <= len2; i++) {
+		s64 idx = cols * i;
+		MATCH[idx] = 0;
+		GAP_X[idx] = GAP_Y[idx] = SCORE_MIN;
+	}
+
+	s32 score = 0;
+	for (s32 i = 1; i <= len2; ++i) {
+		const s64 row = cols * i;
+		const s64 p_row = cols * (i - 1);
+		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
+
+		for (s32 j = 1; j <= len1; j++) {
+			const s32 similarity = SUB_MAT[SEQ1I[j - 1]][c2_idx];
+			const s32 d_score = MATCH[p_row + j - 1] + similarity;
+
+			const s32 p_match_x = MATCH[row + j - 1];
+			const s32 p_gap_x = GAP_X[row + j - 1];
+			const s32 p_match_y = MATCH[p_row + j];
+			const s32 p_gap_y = GAP_Y[p_row + j];
+
+			const s32 open_x = p_match_x + GAP_OPEN;
+			const s32 extend_x = p_gap_x + GAP_EXT;
+			const s32 open_y = p_match_y + GAP_OPEN;
+			const s32 extend_y = p_gap_y + GAP_EXT;
+
+			const s32 gap_x = open_x > extend_x ? open_x : extend_x;
+			const s32 gap_y = open_y > extend_y ? open_y : extend_y;
+
+			GAP_X[row + j] = gap_x;
+			GAP_Y[row + j] = gap_y;
+
+			s32 best = 0;
+			best = d_score > best ? d_score : best;
+			best = gap_x > best ? gap_x : best;
+			best = gap_y > best ? gap_y : best;
+			MATCH[row + j] = best;
+			if (best > score)
+				score = best;
+		}
+	}
+
+	return score;
 }

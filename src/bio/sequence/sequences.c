@@ -17,7 +17,7 @@ size_t LENGTHS_MAX;
 s32 *g_restrict LENGTHS;
 s64 *g_restrict OFFSETS;
 char *g_restrict LETTERS;
-sequence_t *g_restrict SEQS;
+struct seq *g_restrict SEQS;
 s32 SEQS_N;
 
 static void sequences_free(void)

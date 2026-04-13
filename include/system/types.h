@@ -5,7 +5,6 @@
 #include <inttypes.h>
 #include <stdalign.h>
 #include <stdint.h>
-#include <threads.h>
 
 /* scores, sequence lengths and counts */
 typedef int32_t s32;

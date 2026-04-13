@@ -34,17 +34,17 @@ extern s32 GAP_PEN;
 extern s32 GAP_OPEN;
 extern s32 GAP_EXT;
 
-typedef struct {
+struct seq {
 	const char *restrict letters;
 	s32 length;
-} sequence_t;
+};
 
 /* Pointer to a specific sequence */
-typedef const sequence_t *const restrict sequence_ptr_t;
-#define SEQUENCE_PTR_T(seq) const sequence_t PCRS(seq, 1)
-#define SEQ_BAD(seq)                                                     \
-	(!seq->letters || !*seq->letters || seq->length < SEQ_LEN_MIN || \
-	 seq->length > SEQ_LEN_MAX)
+typedef const struct seq *const restrict seq_ptr;
+#define SEQ_PTR(s) const struct seq PCRS(s, 1)
+#define SEQ_BAD(s)                                                 \
+	(!s->letters || !*s->letters || s->length < SEQ_LEN_MIN || \
+	 s->length > SEQ_LEN_MAX)
 #endif /* __cplusplus */
 
 #endif /* BIO_TYPES_H */

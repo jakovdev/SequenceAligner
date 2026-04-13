@@ -3,11 +3,10 @@
 #include <print.h>
 #include <progress.h>
 
-#include "bio/algorithm/indices.h"
-#include "bio/algorithm/matrix.h"
 #include "bio/algorithm/method/ga.h"
 #include "bio/algorithm/method/nw.h"
 #include "bio/algorithm/method/sw.h"
+#include "bio/score/matrices.h"
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
@@ -18,7 +17,8 @@
 
 bool align(void)
 {
-	typedef s32 (*align_func_t)(SEQUENCE_PTR_T(), SEQUENCE_PTR_T());
+	typedef s32 (*align_func_t)(SEQ_PTR(), SEQ_PTR(), s32 *restrict,
+				    s32 *restrict);
 	static const align_func_t ALIGN_METHODS[] = {
 		[ALIGN_GOTOH_AFFINE] = align_ga,
 		[ALIGN_NEEDLEMAN_WUNSCH] = align_nw,
@@ -34,21 +34,23 @@ bool align(void)
 	s64 total_checksum = 0;
 #pragma omp parallel reduction(+ : total_checksum)
 	{
-		matrix_buffers_init();
-		indices_buffers_init();
+		s32 *MALLOCA_AL(TABLE, CACHE_LINE, 3 * TABLE_SIZE);
+		s32 *MALLOCA_AL(SEQ1I, CACHE_LINE, LENGTHS_MAX);
 		s32 *MALLOCA_AL(column_buffer, CACHE_LINE, (size_t)SEQS_N);
-		if unlikely (!column_buffer) {
-			perr("Out of memory allocating similarity matrix columns");
+		if unlikely (!TABLE || !SEQ1I || !column_buffer) {
+			perr("Out of memory allocating alignment buffers");
 			exit(EXIT_FAILURE);
 		}
 		s64 checksum = 0;
 		s32 col;
 #pragma omp for schedule(dynamic)
 		for (col = 1; col < SEQS_N; col++) {
-			sequence_ptr_t seq = &SEQS[col];
-			indices_precompute(seq);
+			seq_ptr seq = &SEQS[col];
+			for (s32 i = 0; i < seq->length; ++i)
+				SEQ1I[i] = SEQ_LUT[(uchar)seq->letters[i]];
 			for (s32 row = 0; row < col; row++) {
-				const s32 score = method(seq, &SEQS[row]);
+				const s32 score =
+					method(seq, &SEQS[row], TABLE, SEQ1I);
 				column_buffer[row] = score;
 				checksum += score;
 			}
@@ -60,8 +62,8 @@ bool align(void)
 		progress_flush();
 		total_checksum += checksum;
 		free_aligned(column_buffer);
-		indices_buffers_free();
-		matrix_buffers_free();
+		free_aligned(SEQ1I);
+		free_aligned(TABLE);
 	}
 
 	bench_align_end();

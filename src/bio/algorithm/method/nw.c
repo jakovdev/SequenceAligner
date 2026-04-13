@@ -1,9 +1,44 @@
 #include "bio/algorithm/method/nw.h"
 
-#include "bio/algorithm/global/linear.h"
+#include "bio/score/matrices.h"
 
-s32 align_nw(SEQUENCE_PTR_T(seq1), SEQUENCE_PTR_T(seq2))
+s32 align_nw(SEQ_PTR(seq1), SEQ_PTR(seq2), s32 *restrict TABLE,
+	     s32 *restrict SEQ1I)
 {
-	linear_global_init(seq1, seq2);
-	return linear_global_fill(seq1, seq2);
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !TABLE || !SEQ1I)
+		unreachable_release();
+
+	const s32 len1 = seq1->length;
+	const s32 len2 = seq2->length;
+	const s64 cols = (s64)len1 + 1;
+
+	TABLE[0] = 0;
+
+	for (s32 j = 1; j <= len1; j++)
+		TABLE[j] = j * GAP_PEN;
+
+	for (s32 i = 1; i <= len2; i++)
+		TABLE[cols * i] = i * GAP_PEN;
+
+	for (s32 i = 1; i <= len2; ++i) {
+		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
+		const s32 *restrict sub_row = SUB_MAT[c2_idx];
+		s32 *restrict curr = TABLE + cols * i;
+		const s32 *restrict prev = curr - cols;
+		s32 left = curr[0];
+
+		for (s32 j = 1; j <= len1; j++) {
+			const s32 match = prev[j - 1] + sub_row[SEQ1I[j - 1]];
+			const s32 del = prev[j] + GAP_PEN;
+			const s32 ins = left + GAP_PEN;
+
+			s32 max_val = match;
+			max_val = del > max_val ? del : max_val;
+			max_val = ins > max_val ? ins : max_val;
+			curr[j] = max_val;
+			left = max_val;
+		}
+	}
+
+	return TABLE[(s64)len2 * cols + len1];
 }
