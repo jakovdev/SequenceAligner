@@ -14,10 +14,10 @@
 
 s64 ALIGNMENTS;
 size_t LENGTHS_MAX;
-s32 *g_restrict LENGTHS;
-s64 *g_restrict OFFSETS;
-char *g_restrict LETTERS;
-struct seq *g_restrict SEQS;
+s32 *LENGTHS;
+s64 *OFFSETS;
+char *LETTERS;
+struct seq *SEQS;
 s32 SEQS_N;
 
 static void sequences_free(void)

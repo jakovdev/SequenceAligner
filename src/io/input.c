@@ -16,9 +16,6 @@
 static void detect_file_format(struct ifile ifile[static 1],
 			       const char path[restrict static 1])
 {
-	if (!*path)
-		unreachable();
-
 	const char *ext = strrchr(path, '.');
 	if (!ext)
 		return;

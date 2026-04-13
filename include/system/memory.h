@@ -63,9 +63,7 @@
 	REALLOC_AL(ptr, al, bytesof(ptr, oldn), bytesof(ptr, newn))
 
 /* Free with free_aligned() */
-#if defined(__GNUC__) || defined(__clang__)
-__attribute__((malloc, alloc_size(2)))
-#endif
+[[gnu::malloc, gnu::alloc_size(2)]]
 void *alloc_aligned(size_t alignment, size_t bytes);
 
 size_t available_memory(void);

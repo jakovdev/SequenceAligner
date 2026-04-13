@@ -87,7 +87,7 @@ __m128i _mm_mullo_epi32_fallback(__m128i a, __m128i b);
 #define prefetch_write(x)
 #endif
 
-#if USE_SIMD == 1
+#if USE_SIMD
 #define PREFETCH_DISTANCE (BYTES << 4)
 #define prefetch(x) _mm_prefetch((const char *)(x), _MM_HINT_T0)
 #define prefetch_write(x) _mm_prefetch((const char *)(x), _MM_HINT_T1)

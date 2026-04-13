@@ -107,12 +107,16 @@ static void print_config_method(void)
 
 static void print_config_gaps(void)
 {
-	if (ALIGNMENT_METHODS[METHOD].gap_type == GAP_TYPE_LINEAR)
+	switch (ALIGNMENT_METHODS[METHOD].gap_type) {
+	case GAP_TYPE_LINEAR:
 		pinfom("Gap penalty: " Ps32, GAP_PEN);
-	else if (ALIGNMENT_METHODS[METHOD].gap_type == GAP_TYPE_AFFINE)
+		break;
+	case GAP_TYPE_AFFINE:
 		pinfom("Gap open: " Ps32 ", extend: " Ps32, GAP_OPEN, GAP_EXT);
-	else /* NOTE: EXPANDABLE enum GapPenaltyType */
-		unreachable();
+		break;
+	default: /* NOTE: EXPANDABLE enum GapPenaltyType */
+		unreachable_release();
+	}
 }
 
 static char align_help[512];
@@ -125,7 +129,7 @@ static const char *gap_type_name(enum AlignmentMethod method)
 	case GAP_TYPE_AFFINE:
 		return "Affine";
 	default: /* NOTE: EXPANDABLE enum GapPenaltyType */
-		unreachable();
+		unreachable_release();
 	}
 }
 

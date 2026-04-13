@@ -3,7 +3,6 @@
 #define SYSTEM_TYPES_H
 
 #include <inttypes.h>
-#include <stdalign.h>
 #include <stdint.h>
 
 /* scores, sequence lengths and counts */

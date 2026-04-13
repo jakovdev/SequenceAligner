@@ -7,9 +7,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/sysinfo.h>
-#endif
-
 #include "system/types.h"
+#endif
 
 void *alloc_aligned(size_t alignment, size_t bytes)
 {

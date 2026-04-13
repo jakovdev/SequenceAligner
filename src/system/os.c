@@ -95,9 +95,6 @@ bool path_file_exists(const char path[static 1])
 
 static const char *_find_last_sep(const char path[static 1])
 {
-	if (!*path)
-		unreachable();
-
 	const char *last1 = strrchr(path, '/');
 #ifdef _WIN32
 	const char *last2 = strrchr(path, '\\');

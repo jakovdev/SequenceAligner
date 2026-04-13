@@ -2,21 +2,15 @@
 #ifndef SYSTEM_COMPILER_H
 #define SYSTEM_COMPILER_H
 
-#include <stddef.h>
-#if !defined(unreachable)
-#define unreachable() __builtin_unreachable()
-#endif /* standard conforming stddef.h macro in C23 */
-
 #ifndef NDEBUG
 #include <stdlib.h>
 #define unreachable_release() abort()
 #else /* Release */
-#define unreachable_release() unreachable()
+#define unreachable_release() __builtin_unreachable()
 #endif /* NDEBUG */
 
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))
-#define g_restrict __restrict__
 
 #ifdef _WIN32
 #include <shlwapi.h>

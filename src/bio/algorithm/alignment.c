@@ -17,14 +17,12 @@
 
 bool align(void)
 {
-	typedef s32 (*align_func_t)(SEQ_PTR(), SEQ_PTR(), s32 *restrict,
-				    s32 *restrict);
-	static const align_func_t ALIGN_METHODS[] = {
+	static const typeof(&align_ga) ALIGN_METHODS[] = {
 		[ALIGN_GOTOH_AFFINE] = align_ga,
 		[ALIGN_NEEDLEMAN_WUNSCH] = align_nw,
 		[ALIGN_SMITH_WATERMAN] = align_sw,
 	};
-	const align_func_t method = ALIGN_METHODS[METHOD];
+	const typeof(&align_ga) method = ALIGN_METHODS[METHOD];
 	const size_t total = (size_t)ALIGNMENTS;
 	pinfo("Performing %zu pairwise alignments", total);
 	if (!progress_start(total, arg_threads(), "Aligning sequences"))
