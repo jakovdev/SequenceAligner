@@ -25,7 +25,7 @@ bool align(void)
 	const typeof(&align_ga) method = ALIGN_METHODS[METHOD];
 	const size_t total = (size_t)ALIGNMENTS;
 	pinfo("Performing %zu pairwise alignments", total);
-	if (!progress_start(total, arg_threads(), "Aligning sequences"))
+	if (!progress_start(total, THREAD_NUM, "Aligning sequences"))
 		return false;
 
 	bench_align_start();

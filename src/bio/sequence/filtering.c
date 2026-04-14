@@ -44,7 +44,7 @@ bool filter_seqs(void)
 		return false;
 	}
 
-	if (!progress_start(seq_n - 1, arg_threads(), "Filtering sequences")) {
+	if (!progress_start(seq_n - 1, THREAD_NUM, "Filtering sequences")) {
 		free(lost);
 		return false;
 	}

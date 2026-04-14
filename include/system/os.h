@@ -24,7 +24,7 @@
 
 #include <stdbool.h>
 
-int arg_threads(void);
+extern int THREAD_NUM;
 struct arg_callback parse_path(const char *str, void *dest);
 
 double time_current(void);

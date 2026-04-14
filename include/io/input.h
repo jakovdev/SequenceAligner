@@ -44,6 +44,6 @@ size_t ifile_entry_extract(struct ifile[static 1], char[restrict static 1]);
 
 bool ifile_entry_next(struct ifile[static 1]);
 
-const char *arg_input(void);
+extern const char *INPUT_PATH;
 
 #endif /* IO_INPUT_H */

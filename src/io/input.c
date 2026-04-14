@@ -117,21 +117,16 @@ bool ifile_entry_next(struct ifile ifile[static 1])
 	return ENTRY_NEXT[ifile->format](ifile);
 }
 
-static const char *input_path;
-
-const char *arg_input(void)
-{
-	return input_path;
-}
+const char *INPUT_PATH;
 
 static void print_input_path(void)
 {
-	pinfo("Input: %s", file_name(input_path));
+	pinfo("Input: %s", file_name(INPUT_PATH));
 }
 
 static struct arg_callback validate_input_path(void)
 {
-	if (!path_file_exists(input_path))
+	if (!path_file_exists(INPUT_PATH))
 		return ARG_INVALID("Input file does not exist");
 
 	return ARG_VALID();
@@ -144,7 +139,7 @@ ARGUMENT(input_path) = {
 	.param = "FILE",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,
-	.dest = &input_path,
+	.dest = &INPUT_PATH,
 	.parse_callback = parse_path,
 	.validate_callback = validate_input_path,
 	.validate_phase = ARG_CALLBACK_IF_SET,

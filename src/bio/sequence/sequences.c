@@ -73,7 +73,7 @@ bool sequences_load_from_file(void)
 {
 	sequences_free();
 	struct ifile ifile = { 0 };
-	if (!ifile_open(&ifile, arg_input()))
+	if (!ifile_open(&ifile, INPUT_PATH))
 		return false;
 
 	size_t total = ifile.entries;
