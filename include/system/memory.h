@@ -62,8 +62,7 @@
 #define REALLOCA_AL(ptr, al, oldn, newn) \
 	REALLOC_AL(ptr, al, bytesof(ptr, oldn), bytesof(ptr, newn))
 
-/* Free with free_aligned() */
-[[gnu::malloc, gnu::alloc_size(2)]]
+[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_size(2)]]
 void *alloc_aligned(size_t alignment, size_t bytes);
 
 size_t available_memory(void);
