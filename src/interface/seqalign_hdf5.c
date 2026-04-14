@@ -23,7 +23,7 @@ static struct {
 	s64 checksum;
 	struct MMapMatrix mmap;
 	s32 chunk_dim;
-	u8 compression;
+	unsigned int compression;
 	bool disabled;
 	bool mode_mmap;
 	bool triangular;
@@ -41,7 +41,7 @@ static void h5_chunk_dimensions_calculate(void)
 
 	s32 chunk_dim = 64;
 	size_t square = (size_t)(chunk_dim * chunk_dim) * sizeof(chunk_dim);
-	size_t target_bytes = (2 * MiB) / (1 + (size_t)g_h5.compression / 3);
+	size_t target_bytes = (2 * MiB) / (1 + g_h5.compression / 3);
 	while (chunk_dim < SEQS_N && square < target_bytes)
 		chunk_dim *= 2;
 	if (chunk_dim > SEQS_N || square > target_bytes)
@@ -511,12 +511,12 @@ ARGUMENT(output_path) = {
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(disable_write)),
 };
 
-ARG_PARSE_L(compression, 10, u8, (u8), (val < 0 || val > 9),
-	    "Compression level must be between 0-9")
+ARG_PARSE_UL(compression, 10, unsigned int, (unsigned int), val > 9,
+	     "Compression level must be between 0-9")
 
 static void print_compression(void)
 {
-	pinfom("Compression: " Pu8, g_h5.compression);
+	pinfom("Compression: %u", g_h5.compression);
 }
 
 ARG_EXTERN(filter_threshold);
