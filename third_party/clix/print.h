@@ -95,7 +95,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef const union {
+typedef const union _P_INPUT {
 	char **choices;
 #define P_INPUT_C(c, n) (P_INPUT){ .choices = c }, n, P_CHOICE
 #define P_INPUT_CS(choices) P_INPUT_C(choices, sizeof(choices))
