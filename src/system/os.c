@@ -172,12 +172,14 @@ struct arg_callback parse_path(const char *str, void *dest)
 
 int THREAD_NUM;
 
-ARG_PARSE_UL(thread_num, 10, int, (int), val > INT_MAX, "Invalid thread count");
+ARG_PARSE_UL(thread_num, 10, int, (int), val > INT_MAX, "Invalid thread count")
 
 static struct arg_callback validate_thread_num(void)
 {
-	THREAD_NUM ? omp_set_num_threads(THREAD_NUM) :
-		     (THREAD_NUM = omp_get_max_threads());
+	if (THREAD_NUM)
+		omp_set_num_threads(THREAD_NUM);
+	else
+		THREAD_NUM = omp_get_max_threads();
 	return ARG_VALID();
 }
 
