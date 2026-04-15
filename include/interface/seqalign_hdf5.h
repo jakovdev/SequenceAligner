@@ -2,7 +2,6 @@
 #ifndef INTERFACE_SEQALIGN_HDF5_H
 #define INTERFACE_SEQALIGN_HDF5_H
 
-#include <stdbool.h>
 #include <stddef.h>
 
 #include "system/types.h"

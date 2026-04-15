@@ -117,13 +117,13 @@ bool filter_seqs(void)
 	}
 
 	if (SEQS_N < SEQ_N_MIN) {
-		perr("Filtering removed too many sequences (" Ps32 " remain)",
+		perr("Filtering removed too many sequences (%w32d remain)",
 		     SEQS_N);
 		return false;
 	}
 
 	if (used - SEQS_N < SEQ_LEN_SUM_MIN) {
-		perr("Not enough total sequence length after filtering: " Ps64,
+		perr("Not enough total sequence length after filtering: %w64d",
 		     used - SEQS_N);
 		return false;
 	}

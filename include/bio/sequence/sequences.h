@@ -2,7 +2,6 @@
 #ifndef BIO_SEQUENCE_SEQUENCES_H
 #define BIO_SEQUENCE_SEQUENCES_H
 
-#include <stdbool.h>
 #include <stddef.h>
 
 #include "bio/types.h"

@@ -2,7 +2,6 @@
 #ifndef IO_INPUT_H
 #define IO_INPUT_H
 
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
@@ -31,7 +30,7 @@ struct ifile {
 	union {
 		struct dsv_context dsv;
 		struct fasta_context fasta;
-	} ctx;
+	};
 };
 
 bool ifile_open(struct ifile[static 1], const char path[restrict static 1]);

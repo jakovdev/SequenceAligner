@@ -13,9 +13,9 @@
 void *alloc_aligned(size_t alignment, size_t bytes)
 {
 	if unlikely (alignment < sizeof(void *) || alignment & (alignment - 1))
-		return NULL;
+		return nullptr;
 
-	void *ptr = NULL;
+	void *ptr = {};
 #if __STDC_VERSION__ >= 201112L && !defined(__APPLE__)
 	if (bytes % alignment != 0)
 		bytes = (bytes + alignment - 1) & ~(alignment - 1);
@@ -23,7 +23,7 @@ void *alloc_aligned(size_t alignment, size_t bytes)
 	ptr = aligned_alloc(alignment, bytes);
 #else
 	if unlikely (posix_memalign(&ptr, alignment, bytes) != 0)
-		ptr = NULL;
+		ptr = nullptr;
 #endif
 	return ptr;
 }

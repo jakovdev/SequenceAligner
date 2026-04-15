@@ -22,8 +22,6 @@
 
 #endif
 
-#include <stdbool.h>
-
 extern int THREAD_NUM;
 struct arg_callback parse_path(const char *str, void *dest);
 

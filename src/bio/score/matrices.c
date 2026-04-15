@@ -13,9 +13,8 @@ alignas(CACHE_LINE) s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
 static const char *selected;
 
-static struct arg_callback parse_matrix(const char *str, void *dest)
+static struct arg_callback parse_matrix(const char *str, void *)
 {
-	(void)dest;
 	for (int i = 0; i < (AMINO_MAT_N + NUCLEO_MAT_N); i++) {
 		if (strcasecmp(str, NAMES[i]) == 0) {
 			selected = NAMES[i];
@@ -47,10 +46,8 @@ static void print_matrix_group(const char *title, int count, int start)
 	}
 }
 
-static struct arg_callback list_matrices(const char *str, void *dest)
+static struct arg_callback list_matrices(const char *, void *)
 {
-	(void)str;
-	(void)dest;
 	printf("\nListing available substitution matrices\n");
 	print_matrix_group("Amino Matrices", AMINO_MAT_N, 0);
 	print_matrix_group("Nucleotide Matrices", NUCLEO_MAT_N, AMINO_MAT_N);

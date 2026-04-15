@@ -65,7 +65,7 @@ bool ifile_open(struct ifile ifile[static 1],
 	};
 	if (!OPEN[ifile->format](ifile)) {
 		fclose(ifile->stream);
-		ifile->stream = NULL;
+		ifile->stream = nullptr;
 		return false;
 	}
 

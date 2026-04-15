@@ -2,7 +2,6 @@
 #ifndef INTERFACE_SEQALIGN_CUDA_H
 #define INTERFACE_SEQALIGN_CUDA_H
 
-#include <stdbool.h>
 #include <stddef.h>
 
 bool arg_mode_cuda(void);

@@ -18,9 +18,9 @@ enum GapPenaltyType {
 	/* NOTE: EXPANDABLE enum GapPenaltyType */
 };
 
-#define GA_ALIASES ((const char *[]){ "ga", "gotoh", NULL })
-#define NW_ALIASES ((const char *[]){ "nw", "needleman", NULL })
-#define SW_ALIASES ((const char *[]){ "sw", "smith", NULL })
+#define GA_ALIASES ((const char *[]){ "ga", "gotoh", nullptr })
+#define NW_ALIASES ((const char *[]){ "nw", "needleman", nullptr })
+#define SW_ALIASES ((const char *[]){ "sw", "smith", nullptr })
 static struct {
 	const char *name;
 	const char *description;
@@ -39,12 +39,11 @@ static struct {
 
 enum AlignmentMethod METHOD = ALIGN_INVALID;
 
-static struct arg_callback parse_align_method(const char *str, void *dest)
+static struct arg_callback parse_align_method(const char *str, void *)
 {
-	(void)dest;
 	METHOD = ALIGN_INVALID;
 	errno = 0;
-	char *endptr = NULL;
+	char *endptr = {};
 	long id = strtol(str, &endptr, 10);
 	if (endptr != str && *endptr == '\0' && errno != ERANGE &&
 	    id > ALIGN_INVALID && id < ALIGN_COUNT)
@@ -53,7 +52,7 @@ static struct arg_callback parse_align_method(const char *str, void *dest)
 	if (METHOD == ALIGN_INVALID) {
 		for (int i = 0; i < ALIGN_COUNT; i++) {
 			for (const char **alias = ALIGNMENT_METHODS[i].aliases;
-			     *alias != NULL; alias++) {
+			     *alias; alias++) {
 				if (strcasecmp(str, *alias) == 0)
 					METHOD = ALIGNMENT_METHODS[i].method;
 			}
@@ -109,10 +108,10 @@ static void print_config_gaps(void)
 {
 	switch (ALIGNMENT_METHODS[METHOD].gap_type) {
 	case GAP_TYPE_LINEAR:
-		pinfom("Gap penalty: " Ps32, GAP_PEN);
+		pinfom("Gap penalty: %w32d", GAP_PEN);
 		break;
 	case GAP_TYPE_AFFINE:
-		pinfom("Gap open: " Ps32 ", extend: " Ps32, GAP_OPEN, GAP_EXT);
+		pinfom("Gap open: %w32d, extend: %w32d", GAP_OPEN, GAP_EXT);
 		break;
 	default: /* NOTE: EXPANDABLE enum GapPenaltyType */
 		unreachable_release();

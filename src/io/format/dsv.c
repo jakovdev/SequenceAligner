@@ -49,7 +49,7 @@ static bool extract_column_token(char line[static 1], char delimiter,
 
 	while (token && current_col < target_col) {
 		current_col++;
-		token = strtok(NULL, delim_str);
+		token = strtok(nullptr, delim_str);
 	}
 
 	if (token && current_col == target_col) {
@@ -82,7 +82,7 @@ bool dsv_detect(struct ifile ifile[static 1], const char ext[restrict static 1])
 	for (size_t i = 0; i < ARRAY_SIZE(DSV_MAPPINGS); i++) {
 		if (strcasecmp(ext, DSV_MAPPINGS[i].ext) == 0) {
 			ifile->format = INPUT_FORMAT_DSV;
-			ifile->ctx.dsv.delimiter = DSV_MAPPINGS[i].delim;
+			ifile->dsv.delimiter = DSV_MAPPINGS[i].delim;
 			return true;
 		}
 	}
@@ -143,7 +143,7 @@ static bool dsv_delimiter(struct ifile ifile[static 1])
 
 	if (detected == '\0') {
 		bench_io_end();
-		char prompt[2] = { 0 };
+		char prompt[2] = {};
 		pwarn("Could not automatically detect delimiter");
 		pinput_s(prompt, "Enter delimiter character");
 		detected = *prompt;
@@ -155,7 +155,7 @@ static bool dsv_delimiter(struct ifile ifile[static 1])
 		return false;
 	}
 
-	ifile->ctx.dsv.delimiter = detected;
+	ifile->dsv.delimiter = detected;
 	pverb("Detected delimiter: '%c'", detected);
 	return true;
 }
@@ -205,7 +205,7 @@ static bool dsv_validate(struct ifile ifile[static 1])
 	}
 
 	FILE *stream = ifile->stream;
-	char delimiter = ifile->ctx.dsv.delimiter;
+	char delimiter = ifile->dsv.delimiter;
 
 	rewind(stream);
 
@@ -264,7 +264,7 @@ bool dsv_open(struct ifile ifile[static 1])
 	}
 
 	FILE *stream = ifile->stream;
-	char delimiter = ifile->ctx.dsv.delimiter;
+	char delimiter = ifile->dsv.delimiter;
 
 	rewind(stream);
 
@@ -295,9 +295,7 @@ bool dsv_open(struct ifile ifile[static 1])
 		exit(EXIT_FAILURE);
 	}
 
-	for (size_t i = 0; i < num_columns; i++)
-		headers[i] = NULL;
-
+	memset(headers, 0, sizeof(*headers) * num_columns);
 	char delim_str[2] = { delimiter, '\0' };
 	char *token = strtok(ifile->line, delim_str);
 	size_t column = 0;
@@ -319,7 +317,7 @@ bool dsv_open(struct ifile ifile[static 1])
 		}
 		memcpy(headers[column], token, token_len + 1);
 		column++;
-		token = strtok(NULL, delim_str);
+		token = strtok(nullptr, delim_str);
 	}
 
 	size_t seq_col = SIZE_MAX;
@@ -381,8 +379,8 @@ bool dsv_open(struct ifile ifile[static 1])
 		free(headers[column]);
 
 	free(headers);
-	ifile->ctx.dsv.target_column = seq_col;
-	ifile->ctx.dsv.num_columns = num_columns;
+	ifile->dsv.target_column = seq_col;
+	ifile->dsv.num_columns = num_columns;
 
 	if (no_header)
 		rewind(stream);
@@ -423,8 +421,8 @@ size_t dsv_entry_length(struct ifile ifile[static 1])
 	}
 
 	FILE *stream = ifile->stream;
-	size_t column = ifile->ctx.dsv.target_column;
-	char delimiter = ifile->ctx.dsv.delimiter;
+	size_t column = ifile->dsv.target_column;
+	char delimiter = ifile->dsv.delimiter;
 
 	long pos = fpos_tell(stream);
 	long line_len;
@@ -462,8 +460,8 @@ size_t dsv_entry_extract(struct ifile ifile[static 1],
 	}
 
 	FILE *stream = ifile->stream;
-	char delimiter = ifile->ctx.dsv.delimiter;
-	size_t column = ifile->ctx.dsv.target_column;
+	char delimiter = ifile->dsv.delimiter;
+	size_t column = ifile->dsv.target_column;
 
 	long pos = fpos_tell(stream);
 	long line_len;
@@ -497,8 +495,8 @@ bool dsv_entry_next(struct ifile ifile[static 1])
 	}
 
 	FILE *stream = ifile->stream;
-	char delimiter = ifile->ctx.dsv.delimiter;
-	size_t expected_columns = ifile->ctx.dsv.num_columns;
+	char delimiter = ifile->dsv.delimiter;
+	size_t expected_columns = ifile->dsv.num_columns;
 
 	long line_len;
 

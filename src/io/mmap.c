@@ -12,12 +12,12 @@ static void mmap_matrix_init(struct MMapMatrix file[static 1])
 {
 #ifdef _WIN32
 	file->hFile = INVALID_HANDLE_VALUE;
-	file->hMapping = NULL;
+	file->hMapping = nullptr;
 #else
 	file->fd = -1;
 #endif
 	file->bytes = 0;
-	file->matrix = NULL;
+	file->matrix = nullptr;
 }
 
 bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
@@ -41,7 +41,7 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
 	} while (0)
 
 #ifdef _WIN32
-	char dir[MAX_PATH] = { 0 };
+	char dir[MAX_PATH] = {};
 	char name[MAX_PATH] = "temporary matrix file";
 
 	DWORD dir_len = GetTempPathA(MAX_PATH, dir);
@@ -52,18 +52,18 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
 		file_error_return("Could not create temp file name for");
 
 	file->hFile = CreateFileA(
-		name, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
-		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+		name, GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
 	if (file->hFile == INVALID_HANDLE_VALUE)
 		file_error_return("Could not create memory-mapped file");
 
 	LARGE_INTEGER file_size;
 	file_size.QuadPart = (LONGLONG)bytes;
-	SetFilePointerEx(file->hFile, file_size, NULL, FILE_BEGIN);
+	SetFilePointerEx(file->hFile, file_size, nullptr, FILE_BEGIN);
 	SetEndOfFile(file->hFile);
 
-	file->hMapping = CreateFileMapping(file->hFile, NULL, PAGE_READWRITE, 0,
-					   0, NULL);
+	file->hMapping = CreateFileMapping(file->hFile, nullptr, PAGE_READWRITE,
+					   0, 0, nullptr);
 	if (!file->hMapping)
 		file_error_return("Could not create file mapping for");
 
@@ -83,7 +83,7 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
 	if (ftruncate(file->fd, (off_t)bytes) == -1)
 		file_error_return("Could not set size for file");
 
-	file->matrix = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
+	file->matrix = mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED,
 			    file->fd, 0);
 	if (file->matrix == MAP_FAILED)
 		file_error_return("Could not memory map file");
@@ -104,12 +104,12 @@ void mmap_matrix_close(struct MMapMatrix file[static 1])
 #ifdef _WIN32
 	if (file->matrix) {
 		UnmapViewOfFile(file->matrix);
-		file->matrix = NULL;
+		file->matrix = nullptr;
 	}
 
 	if (file->hMapping) {
 		CloseHandle(file->hMapping);
-		file->hMapping = NULL;
+		file->hMapping = nullptr;
 	}
 
 	if (file->hFile != INVALID_HANDLE_VALUE) {
@@ -119,7 +119,7 @@ void mmap_matrix_close(struct MMapMatrix file[static 1])
 #else
 	if (file->matrix) {
 		munmap(file->matrix, file->bytes);
-		file->matrix = NULL;
+		file->matrix = nullptr;
 	}
 
 	if (file->fd != -1) {

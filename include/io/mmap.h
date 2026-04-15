@@ -2,7 +2,6 @@
 #ifndef IO_MMAP_H
 #define IO_MMAP_H
 
-#include <stdbool.h>
 #include <stddef.h>
 
 #include "system/types.h"

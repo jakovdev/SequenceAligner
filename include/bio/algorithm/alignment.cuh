@@ -7,7 +7,6 @@ extern "C" {
 #endif /* __cplusplus */
 
 #include <driver_types.h>
-#include <stdbool.h>
 
 #include "bio/score/matrices.h"
 #include "bio/types.h"

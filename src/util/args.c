@@ -3,10 +3,8 @@
 #include <print.h>
 #include <args.h>
 
-static struct arg_callback parse_help(const char *str, void *dest)
+static struct arg_callback parse_help(const char *, void *)
 {
-	(void)str;
-	(void)dest;
 	args_help_print("Usage: ", argr.v[0], " [ARGUMENTS]\n",
 			"\nRequired arguments:\n", "\nOptional arguments:\n");
 	exit(EXIT_SUCCESS);

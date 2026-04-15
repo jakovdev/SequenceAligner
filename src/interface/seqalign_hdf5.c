@@ -121,7 +121,7 @@ bool h5_open(void)
 	}
 
 	hsize_t matrix_dims[2] = { dim_size, dim_size };
-	hid_t matrix_space = H5Screate_simple(2, matrix_dims, NULL);
+	hid_t matrix_space = H5Screate_simple(2, matrix_dims, nullptr);
 	if unlikely (matrix_space < 0) {
 		perr("Failed to create HDF5 dataspace for similarity matrix");
 		h5_file_close();
@@ -133,7 +133,7 @@ bool h5_open(void)
 		hsize_t chunk_dims[2] = { (hsize_t)g_h5.chunk_dim,
 					  (hsize_t)g_h5.chunk_dim };
 		H5Pset_chunk(plist_id, 2, chunk_dims);
-		pverbl("HDF5 chunk size: " Ps32 " x " Ps32, g_h5.chunk_dim,
+		pverbl("HDF5 chunk size: %w32d x %w32d", g_h5.chunk_dim,
 		       g_h5.chunk_dim);
 
 		if (g_h5.compression > 0)
@@ -153,7 +153,7 @@ bool h5_open(void)
 	pverb("Storing %zu sequences in HDF5 file", dim_size);
 
 	hsize_t seq_dims[1] = { dim_size };
-	hid_t seq_space = H5Screate_simple(1, seq_dims, NULL);
+	hid_t seq_space = H5Screate_simple(1, seq_dims, nullptr);
 	if unlikely (seq_space < 0) {
 		perr("Failed to create HDF5 dataspace for sequences");
 		h5_file_close();
@@ -258,7 +258,7 @@ void h5_close(int skip_flush)
 
 	if likely (!skip_flush) {
 		psection("Finalizing Results");
-		pinfo("Matrix checksum: " Ps64, g_h5.checksum);
+		pinfo("Matrix checksum: %w64d", g_h5.checksum);
 	}
 
 	if (!g_h5.disabled) {
@@ -308,7 +308,7 @@ static void h5_file_close(void)
 		if (g_h5.matrix)
 			free_aligned(g_h5.matrix);
 	}
-	g_h5.matrix = NULL;
+	g_h5.matrix = nullptr;
 	g_h5.matrix_b = 0;
 
 	if (g_h5.sequences_id > 0) {
@@ -418,11 +418,11 @@ static void h5_flush_matrix(void)
 		s32 rows = end - off;
 		hsize_t start[2] = { (hsize_t)off, 0 };
 		hsize_t count[2] = { (hsize_t)rows, (size_t)dim };
-		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, NULL,
-				    count, NULL);
+		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, nullptr,
+				    count, nullptr);
 
 		hsize_t mem_dims[2] = { (hsize_t)rows, (size_t)dim };
-		hid_t mem_space = H5Screate_simple(2, mem_dims, NULL);
+		hid_t mem_space = H5Screate_simple(2, mem_dims, nullptr);
 		if unlikely (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
 			H5Sclose(file_space);

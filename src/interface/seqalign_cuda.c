@@ -49,7 +49,7 @@ bool cuda_device_init(void)
 	}
 
 	int device_count = 0;
-	cudaError_t err = { 0 };
+	cudaError_t err = {};
 
 	err = cudaGetDeviceCount(&device_count);
 	if (!device_count || err != cudaSuccess) {
@@ -80,7 +80,7 @@ bool cuda_memory(size_t bytes)
 
 	size_t free = 0;
 	size_t total = 0;
-	cudaError_t err = { 0 };
+	cudaError_t err = {};
 	CALLJ(cudaMemGetInfo(&free, &total), memory_error);
 	if (free < bytes * 4 / 3)
 		return false;
@@ -104,10 +104,10 @@ bool cuda_align(void)
 		return false;
 	}
 
-	cudaError_t err = { 0 };
+	cudaError_t err = {};
 	uint block_max = 0;
 	{
-		struct cudaDeviceProp dev_prop = { 0 };
+		struct cudaDeviceProp dev_prop = {};
 		CALLR(cudaGetDeviceProperties(&dev_prop, 0));
 		pinfo("Using CUDA device: %s", dev_prop.name);
 		block_max = (uint)dev_prop.maxThreadsPerBlock;
@@ -156,7 +156,7 @@ bool cuda_align(void)
 		C.triangular = true;
 
 	s64 batch = 0, batch_last = 0, batch_done = 0;
-	s32 *scores[2] = { 0 };
+	s32 *scores[2] = {};
 	s32 active = 0;
 	if (C.triangular) {
 		batch = min(batch_size, alignments);
@@ -184,14 +184,14 @@ bool cuda_align(void)
 
 	const void *kernel = kernel_function(METHOD);
 	dim3 block = { block_max, 1, 1 };
-	cudaStream_t compute = { 0 }, memory = { 0 };
+	cudaStream_t compute = {}, memory = {};
 	CALLR(cudaStreamCreate(&compute));
 	CALLR(cudaStreamCreate(&memory));
 
 	bool subsequent = false, syncing = false, matrix_copied = false;
 	s64 progress = 0;
 
-	pinfol("Performing " Ps64 " pairwise alignments", alignments);
+	pinfol("Performing %w64d pairwise alignments", alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();
@@ -364,9 +364,8 @@ void cuda_device_close(void)
 	return;
 }
 
-bool cuda_memory(size_t bytes)
+bool cuda_memory(size_t)
 {
-	(void)bytes;
 	return false;
 }
 

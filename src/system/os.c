@@ -44,7 +44,7 @@ double time_current(void)
 const char *file_name(const char path[static 1])
 {
 	if unlikely (!*path)
-		return NULL;
+		return nullptr;
 #ifdef _WIN32
 	const char *name = strrchr(path, '\\');
 #else

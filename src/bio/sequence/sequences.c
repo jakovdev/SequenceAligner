@@ -26,10 +26,10 @@ static void sequences_free(void)
 	free(OFFSETS);
 	free_aligned(LETTERS);
 	free_aligned(SEQS);
-	SEQS = NULL;
-	LETTERS = NULL;
-	OFFSETS = NULL;
-	LENGTHS = NULL;
+	SEQS = nullptr;
+	LETTERS = nullptr;
+	OFFSETS = nullptr;
+	LENGTHS = nullptr;
 	ALIGNMENTS = 0;
 	LENGTHS_MAX = 0;
 	SEQS_N = 0;
@@ -64,7 +64,7 @@ static bool validate_length(size_t len)
 	else if (gap_pen > 100)
 		pwarn("Unusually high gap penalty (>100)");
 
-	perr("Sequence length %zu exceeds limits for gap penalty " Ps32, len,
+	perr("Sequence length %zu exceeds limits for gap penalty %w32d", len,
 	     gap_pen);
 	return false;
 }
@@ -72,7 +72,7 @@ static bool validate_length(size_t len)
 bool sequences_load_from_file(void)
 {
 	sequences_free();
-	struct ifile ifile = { 0 };
+	struct ifile ifile = {};
 	if (!ifile_open(&ifile, INPUT_PATH))
 		return false;
 
@@ -176,15 +176,14 @@ bool sequences_load_from_file(void)
 	bench_io_end();
 
 	if (seq_n_long > 0)
-		pinfo("Skipped " Ps32 " sequences that were too long",
-		      seq_n_long);
+		pinfo("Skipped %w32d sequences that were too long", seq_n_long);
 
 	if (seq_n_invalid > 0)
-		pinfo("Skipped " Ps32 " sequences with invalid letters",
+		pinfo("Skipped %w32d sequences with invalid letters",
 		      seq_n_invalid);
 
 	if (seq_n_curr < SEQ_N_MIN) {
-		perr("Not enough valid sequences loaded: " Ps32, seq_n_curr);
+		perr("Not enough valid sequences loaded: %w32d", seq_n_curr);
 		goto cleanup_seqs;
 	}
 

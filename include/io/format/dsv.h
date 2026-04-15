@@ -2,7 +2,6 @@
 #ifndef IO_FORMAT_DSV_H
 #define IO_FORMAT_DSV_H
 
-#include <stdbool.h>
 #include <stddef.h>
 
 #include "io/input.h"
