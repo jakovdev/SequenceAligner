@@ -59,7 +59,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 
 ### Dependencies
 - GCC, CMake
-- HDF5 library
+- HDF5 library (development files)
 - CUDA toolkit (optional, for GPU acceleration)
 
 ### Building
@@ -68,88 +68,69 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 ./script/build_all.sh
 ```
 
+You will find the executable inside the `release` folder once you uncompress it.
+
 </details>
 
 <details>
 <summary><strong>Windows</strong></summary>
 
-0. Download the project files using the green "Code" button on GitHub and select "Download ZIP". Extract the ZIP file to a folder of your choice. Take note of its location.
-
-### (RECOMMENDED) Windows MSVC (CUDA support)
-
-1. Install [CUDA Toolkit](https://developer.nvidia.com/cuda-downloads)
+### Dependencies
+- [MSYS2](https://www.msys2.org/)
+  - Use default install location (`C:\msys64`). If you changed it, adjust the paths in the build instructions accordingly.
+- [CUDA Toolkit (optional)](https://developer.nvidia.com/cuda-downloads)
   - Required components: Runtime, Development
+- [Visual Studio Build Tools (optional, for CUDA)](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026)
+  - Standalone packages: MSVC Build Tools for x64/x86 (Latest), Windows Universal CRT SDK
 
-2. Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
-  - Standalone packages: MSVC (latest x64/x86), vcpkg, any Windows 10/11 SDK, cmake
-  - In the start menu, search for `x64 Native Tools Command Prompt for VS 2022` and open it
+1. Download the project files using the green "Code" button on GitHub and select "Download ZIP". Extract the ZIP file to a folder of your choice. Take note of its location.
 
-3. Navigate to the folder you downloaded and extracted the project using (example):
+2. Open `x64 Native Tools Command Prompt for VS 2026` if building with CUDA
+  - Open `Terminal`/`Powershell` if building without CUDA
 
-```bat
-cd C:\Users\John\Downloads\SequenceAligner
-```
-
-4. Building from source:
-
-```bat
-.\script\build_all.bat
-```
-
-</details>
-
-<details>
-<summary><strong>Windows GCC</strong></summary>
-
-### Windows MSYS2 GCC (no CUDA support)
-
-1. Install MSYS2 from https://www.msys2.org/
-2. Open the MSYS2 UCRT64 terminal
 3. Navigate to the folder you downloaded the project using:
 
-```bash
-# Example:
-cd /c/Users/John/Downloads/SequenceAligner
+```cmd
+cd "C:\path\to\SequenceAligner"
 ```
 
-Replace the folder path to the location you downloaded the project files.
-> - MSYS2 uses `/c/...` instead of `C:\...`
+4. Run this command to open an MSYS2 shell with the correct environment variables:
 
-4. Install required tools by running:
+```cmd
+C:\msys64\msys2_shell.cmd -ucrt64 -use-full-path -defterm -no-start -here
+```
+
+5. Install required tools by running:
 
 ```bash
 # Update package database and core system packages
 pacman -Syu
 
 # Install build tools and HDF5
-pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5
+pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5
 ```
 
-5. Build the project using:
+6. Build the project using:
 
 ```bash
-./script/build_all.sh cross
+./script/build_all.sh
 ```
-
-While this has faster CPU-only version than MSVC, this version does not support CUDA at all.
-
-</details>
 
 You will find the executable inside the `release` folder once you uncompress it.
 
+</details>
+
 ## Usage
 
+### Linux
+
 ```bash
-# Linux
 cd path/to/where/you/uncompressed/release
 ./seqalign [ARGUMENTS]
 ```
+### Windows
 
-```bat
-# Windows
-cd path\to\where\you\uncompressed\release
-.\seqalign.exe [ARGUMENTS]
-```
+Double click `seqalign.exe`, it should automatically open a terminal window with instructions.
 
 <details open>
 <summary><strong>Command line arguments</strong></summary>
@@ -251,10 +232,9 @@ Below are example commands to run the program. Adjust as needed.
   - Similarity matrix where each cell represents the alignment score between sequence pairs
   - Similarity matrix checksum for data integrity verification
 - **Size Considerations**:
-  - The matrix grows with the square of the sequence count (1,000 sequences = 1 million cells = 4 MB)
-    > Each score number (cell) is 4 bytes
-  - For very large datasets, the program will automatically use disk-based storage when needed, so check if you have enough free disk storage if aligning a dataset with hundreds of thousands of sequences (100+ GB simlarity matrix!)
-  - Compression can be enabled with the `-z` option (0-9 levels) to reduce file size at the cost of processing time
+  - Similarity matrix size grows quadratically with sequence count (1000 sequences = 4MB, 50000 sequences = 10GB)
+  - Large matrices above RAM limits use temporary disk-based storage, which means you will need to store 2 of them (one temporary and one final)
+  - Compression (`-z [0-9]`) reduces the final HDF5 file size but not temporary disk or RAM usage during alignment. Levels above 5 are not recommended due to extreme compression times after alignment is complete.
 - **Viewing Results**:
   - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
   - Many programming languages have libraries to read HDF5 (Python: h5py, R: rhdf5)

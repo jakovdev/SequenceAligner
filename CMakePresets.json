@@ -16,6 +16,13 @@
       }
     },
     {
+      "name": "debug",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    },
+    {
       "name": "linux",
       "displayName": "Linux",
       "inherits": [
@@ -31,21 +38,27 @@
       "name": "linux-debug",
       "displayName": "Linux (Debug)",
       "inherits": [
-        "linux"
-      ],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
+        "linux",
+        "debug"
+      ]
     },
     {
-      "name": "linux-mingw",
-      "displayName": "Linux (MinGW)",
+      "name": "windows-mingw",
+      "displayName": "Windows",
       "inherits": [
         "linux"
       ],
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/script/toolchain-mingw.cmake"
       }
+    },
+    {
+      "name": "windows-mingw-debug",
+      "displayName": "Windows (Debug)",
+      "inherits": [
+        "windows-mingw",
+        "debug"
+      ]
     },
     {
       "name": "windows",
@@ -57,18 +70,15 @@
         "type": "equals",
         "lhs": "${hostSystemName}",
         "rhs": "Windows"
-      },
-      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+      }
     },
     {
       "name": "windows-debug",
       "displayName": "Windows (Debug)",
       "inherits": [
-        "windows"
-      ],
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
+        "windows",
+        "debug"
+      ]
     }
   ]
 }
