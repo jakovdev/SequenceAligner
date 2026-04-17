@@ -170,7 +170,7 @@ $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og>
 $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static>
 $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
 )
-target_link_options(seqalign PRIVATE -flto)
+target_link_options(seqalign PRIVATE -flto=auto)
 
 if(IS_MSYS2 OR IS_MINGW)
 	target_include_directories(seqalign PRIVATE ${HDF5_INCLUDE_DIRS})
