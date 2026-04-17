@@ -1,8 +1,8 @@
 #include "bio/algorithm/method/ga.h"
 
 #include "bio/score/matrices.h"
-#include "bio/sequence/sequences.h"
-#include "system/os.h"
+#include "bio/types.h"
+#include "system/compiler.h"
 
 [[gnu::sysv_abi, gnu::noinline, gnu::hot]] s32
 align_ga(SEQ_PTR(seq1), SEQ_PTR(seq2), s32 *restrict TABLE, s32 *restrict SEQ1I)

@@ -12,6 +12,11 @@
 #define likely(x) (__builtin_expect(!!(x), 1))
 #define unlikely(x) (__builtin_expect(!!(x), 0))
 
+#ifndef __cplusplus
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
 #ifdef _WIN32
 #include <shlwapi.h>
 #define strcasestr StrStrIA

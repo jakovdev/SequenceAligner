@@ -2,6 +2,10 @@
 #ifndef UTIL_BENCHMARK_H
 #define UTIL_BENCHMARK_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void bench_io_start(void);
 void bench_align_start(void);
 void bench_filter_start(void);
@@ -15,5 +19,9 @@ void bench_align_print(void);
 void bench_filter_print(void);
 
 void bench_total_print(double alignments);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* UTIL_BENCHMARK_H */

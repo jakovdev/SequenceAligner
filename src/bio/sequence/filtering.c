@@ -6,7 +6,7 @@
 #include <string.h>
 
 #include "bio/sequence/sequences.h"
-#include "bio/types.h"
+#include "system/compiler.h"
 #include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
@@ -28,7 +28,7 @@ static double similarity(SEQ_PTR(seq1), SEQ_PTR(seq2))
 
 bool filter_seqs(void)
 {
-	if (!(filter > 0.0))
+	if (!filter)
 		return true;
 
 	if (!LENGTHS || !OFFSETS || !LETTERS || !SEQS || SEQS_N < SEQ_N_MIN) {
@@ -40,7 +40,7 @@ bool filter_seqs(void)
 	size_t seq_n = (size_t)SEQS_N;
 	bool *lost = calloc(seq_n, sizeof(*lost));
 	if unlikely (!lost) {
-		perr("Out of memory allocating filtering array");
+		perr("Out of memory during sequence filtering");
 		return false;
 	}
 

@@ -2,6 +2,10 @@
 #ifndef SYSTEM_OS_H
 #define SYSTEM_OS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -11,9 +15,6 @@
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-
-#define max(a, b) MAX(a, b)
-#define min(a, b) MIN(a, b)
 
 #ifndef PATH_MAX
 #define PATH_MAX _POSIX_PATH_MAX
@@ -27,9 +28,17 @@ struct arg_callback parse_path(const char *str, void *dest);
 
 double time_current(void);
 
-const char *file_name(const char path[static 1]);
-bool path_special_exists(const char path[static 1]);
-bool path_file_exists(const char path[static 1]);
-bool path_directories_create(const char path[static 1]);
+[[gnu::nonnull(1)]]
+const char *file_name(const char *path);
+[[gnu::nonnull(1)]]
+bool path_special_exists(const char *path);
+[[gnu::nonnull(1)]]
+bool path_file_exists(const char *path);
+[[gnu::nonnull(1)]]
+bool path_directories_create(const char *path);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SYSTEM_OS_H */

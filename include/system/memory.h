@@ -2,6 +2,10 @@
 #ifndef SYSTEM_MEMORY_H
 #define SYSTEM_MEMORY_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 
 #include "system/compiler.h"
@@ -42,9 +46,9 @@
 #define _MCAT_2(a, b) a##b
 #define _MCAT(a, b) _MCAT_2(a, b)
 
-#define MALLOC(ptr, bytes) ptr = malloc(bytes)
+#define MALLOC(ptr, bytes) ptr = (typeof(ptr))malloc(bytes)
 #define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
-#define MALLOC_AL(ptr, al, bytes) ptr = alloc_aligned(al, bytes)
+#define MALLOC_AL(ptr, al, bytes) ptr = (typeof(ptr))alloc_aligned(al, bytes)
 #define MALLOCA_AL(ptr, al, nmemb) MALLOC_AL(ptr, al, bytesof(ptr, nmemb))
 /* Continue with { ... } for failure case */
 #define REALLOC(ptr, bytes)                               \
@@ -66,5 +70,9 @@
 void *alloc_aligned(size_t alignment, size_t bytes);
 
 size_t available_memory(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SYSTEM_MEMORY_H */

@@ -41,7 +41,7 @@ double time_current(void)
 
 #endif
 
-const char *file_name(const char path[static 1])
+const char *file_name(const char *path)
 {
 	if unlikely (!*path)
 		return nullptr;
@@ -53,7 +53,7 @@ const char *file_name(const char path[static 1])
 	return name ? name + 1 : path;
 }
 
-bool path_special_exists(const char path[static 1])
+bool path_special_exists(const char *path)
 {
 	if unlikely (!*path)
 		return false;
@@ -74,7 +74,7 @@ bool path_special_exists(const char path[static 1])
 #endif
 }
 
-bool path_file_exists(const char path[static 1])
+bool path_file_exists(const char *path)
 {
 	if unlikely (!*path)
 		return false;
@@ -93,7 +93,8 @@ bool path_file_exists(const char path[static 1])
 #endif
 }
 
-static const char *_find_last_sep(const char path[static 1])
+[[gnu::nonnull(1)]]
+static const char *_find_last_sep(const char *path)
 {
 	const char *last1 = strrchr(path, '/');
 #ifdef _WIN32
@@ -110,7 +111,7 @@ static const char *_find_last_sep(const char path[static 1])
 #endif
 }
 
-bool path_directories_create(const char path[static 1])
+bool path_directories_create(const char *path)
 {
 	if unlikely (!*path)
 		return false;

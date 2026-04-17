@@ -8,8 +8,8 @@
 #include <string.h>
 #include <stdio.h>
 
-alignas(CACHE_LINE) s32 SEQ_LUT[SEQ_LUT_SIZE];
-alignas(CACHE_LINE) s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
+s32 SEQ_LUT[SEQ_LUT_SIZE];
+s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
 static const char *selected;
 

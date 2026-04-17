@@ -14,4 +14,8 @@ typedef unsigned int uint;
 typedef unsigned long long ull;
 typedef signed long long sll;
 
+#ifdef __cplusplus
+#define restrict __restrict__
+#endif
+
 #endif /* SYSTEM_TYPES_H */

@@ -16,7 +16,6 @@
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
 #include "system/compiler.h"
-#include "system/os.h"
 #include "util/benchmark.h"
 
 static bool init;

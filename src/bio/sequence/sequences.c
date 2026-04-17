@@ -7,6 +7,7 @@
 
 #include "bio/score/matrices.h"
 #include "bio/sequence/filtering.h"
+#include "bio/types.h"
 #include "io/input.h"
 #include "system/compiler.h"
 #include "system/memory.h"
@@ -17,7 +18,7 @@ size_t LENGTHS_MAX;
 s32 *LENGTHS;
 s64 *OFFSETS;
 char *LETTERS;
-struct seq *SEQS;
+struct sequence *SEQS;
 s32 SEQS_N;
 
 static void sequences_free(void)

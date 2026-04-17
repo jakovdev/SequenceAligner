@@ -4,7 +4,7 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif /* __cplusplus */
+#endif
 
 #include <driver_types.h>
 
@@ -33,6 +33,6 @@ const void *kernel_function(enum AlignmentMethod);
 
 #ifdef __cplusplus
 }
-#endif /* __cplusplus */
+#endif
 
 #endif /* BIO_ALGORITHM_ALIGNMENT_CUH */

@@ -2,6 +2,8 @@
 
 #include <array>
 
+#include "bio/sequence/sequences.h"
+
 __constant__ Constants C;
 
 __forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
