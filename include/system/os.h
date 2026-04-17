@@ -28,13 +28,13 @@ struct arg_callback parse_path(const char *str, void *dest);
 
 double time_current(void);
 
-[[gnu::nonnull(1)]]
+[[gnu::nonnull]]
 const char *file_name(const char *path);
-[[gnu::nonnull(1)]]
+[[gnu::nonnull]]
 bool path_special_exists(const char *path);
-[[gnu::nonnull(1)]]
+[[gnu::nonnull]]
 bool path_file_exists(const char *path);
-[[gnu::nonnull(1)]]
+[[gnu::nonnull]]
 bool path_directories_create(const char *path);
 
 #ifdef __cplusplus

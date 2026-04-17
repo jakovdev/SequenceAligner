@@ -35,7 +35,6 @@ extern size_t LENGTHS_MAX;
 #define TABLE_SIZE ((LENGTHS_MAX + 1) * (LENGTHS_MAX + 1))
 
 typedef const struct sequence *const restrict seq_ptr;
-#define SEQ_PTR(s) const struct sequence s[const restrict static 1]
 #define SEQ_BAD(s)                                                 \
 	(!s->letters || !*s->letters || s->length < SEQ_LEN_MIN || \
 	 s->length > SEQ_LEN_MAX)

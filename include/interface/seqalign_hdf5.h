@@ -5,11 +5,10 @@
 #include <stddef.h>
 
 #include "system/types.h"
-#include "bio/sequence/sequences.h"
 
 bool h5_open(void);
-
-void h5_matrix_column_set(s32 col, const s32 values[restrict static SEQS_N]);
+[[gnu::nonnull]]
+void h5_matrix_column_set(s32 col, const s32 *values);
 
 void h5_checksum_set(s64 checksum);
 

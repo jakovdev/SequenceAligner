@@ -20,9 +20,11 @@ struct MMapMatrix {
 	s32 *matrix;
 };
 
-bool mmap_matrix_open(struct MMapMatrix[static 1], size_t dim);
+[[gnu::nonnull]]
+bool mmap_matrix_open(struct MMapMatrix *, size_t dim);
 
-void mmap_matrix_close(struct MMapMatrix[static 1]);
+[[gnu::nonnull]]
+void mmap_matrix_close(struct MMapMatrix *);
 
 s64 matrix_index(s32 row, s32 col);
 

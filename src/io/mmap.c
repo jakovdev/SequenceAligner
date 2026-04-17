@@ -8,7 +8,8 @@
 #include "system/memory.h"
 #include "system/os.h"
 
-static void mmap_matrix_init(struct MMapMatrix file[static 1])
+[[gnu::nonnull]]
+static void mmap_matrix_init(struct MMapMatrix *file)
 {
 #ifdef _WIN32
 	file->hFile = INVALID_HANDLE_VALUE;
@@ -20,7 +21,7 @@ static void mmap_matrix_init(struct MMapMatrix file[static 1])
 	file->matrix = nullptr;
 }
 
-bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
+bool mmap_matrix_open(struct MMapMatrix *file, size_t dim)
 {
 	if unlikely (dim < 2) {
 		pdev("Invalid parameters for mmap_matrix_open()");
@@ -99,7 +100,7 @@ bool mmap_matrix_open(struct MMapMatrix file[static 1], size_t dim)
 #undef file_error_return
 }
 
-void mmap_matrix_close(struct MMapMatrix file[static 1])
+void mmap_matrix_close(struct MMapMatrix *file)
 {
 #ifdef _WIN32
 	if (file->matrix) {

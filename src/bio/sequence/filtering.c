@@ -13,7 +13,8 @@
 
 static double filter;
 
-static double similarity(SEQ_PTR(seq1), SEQ_PTR(seq2))
+[[gnu::nonnull]]
+static double similarity(seq_ptr seq1, seq_ptr seq2)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();

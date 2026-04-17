@@ -93,7 +93,7 @@ bool path_file_exists(const char *path)
 #endif
 }
 
-[[gnu::nonnull(1)]]
+[[gnu::nonnull]]
 static const char *_find_last_sep(const char *path)
 {
 	const char *last1 = strrchr(path, '/');

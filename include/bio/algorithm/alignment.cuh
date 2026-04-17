@@ -28,6 +28,7 @@ struct Constants {
 	bool triangular;
 };
 
+[[gnu::nonnull]]
 cudaError_t copy_constants(const struct Constants *host);
 const void *kernel_function(enum AlignmentMethod);
 

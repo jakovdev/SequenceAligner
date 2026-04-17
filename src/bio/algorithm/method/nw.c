@@ -5,9 +5,9 @@
 #include "system/compiler.h"
 
 [[gnu::noinline, gnu::hot]] s32
-align_nw(SEQ_PTR(seq1), SEQ_PTR(seq2), s32 *restrict TABLE, s32 *restrict SEQ1I)
+align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE, s32 *restrict SEQ1I)
 {
-	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !TABLE || !SEQ1I)
+	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
 
 	const s32 len1 = seq1->length;
