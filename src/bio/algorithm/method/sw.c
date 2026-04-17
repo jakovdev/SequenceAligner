@@ -4,7 +4,7 @@
 #include "bio/types.h"
 #include "system/compiler.h"
 
-[[gnu::sysv_abi, gnu::noinline, gnu::hot]] s32
+[[gnu::noinline, gnu::hot]] s32
 align_sw(SEQ_PTR(seq1), SEQ_PTR(seq2), s32 *restrict TABLE, s32 *restrict SEQ1I)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2) || !TABLE || !SEQ1I)
