@@ -1,10 +1,23 @@
 #include "bio/algorithm/alignment.cuh"
 
-#include <array>
-
 #include "bio/sequence/sequences.h"
 
+struct kernel {
+	kernel(enum AlignmentMethod method, void(k)(s32 *, s64, s64)) noexcept
+	{
+		kernels[method] = (const void *)k;
+	}
+};
+
 __constant__ Constants C;
+
+extern "C" {
+const void *kernels[ALIGN_COUNT];
+cudaError_t copy_constants(const struct Constants *host)
+{
+	return cudaMemcpyToSymbol(C, host, sizeof(C));
+}
+}
 
 __forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
 {
@@ -31,7 +44,7 @@ __forceinline__ __device__ s32 d_find_j(const s64 alignment)
 	return low - 1;
 }
 
-__global__ void k_nw(s32 *scores, s64 start, s64 batch)
+__global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -78,8 +91,9 @@ __global__ void k_nw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
+static kernel nw(ALIGN_NEEDLEMAN_WUNSCH, kernel_nw);
 
-__global__ void k_ga(s32 *scores, s64 start, s64 batch)
+__global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -151,8 +165,9 @@ __global__ void k_ga(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
+static kernel ga(ALIGN_GOTOH_AFFINE, kernel_ga);
 
-__global__ void k_sw(s32 *scores, s64 start, s64 batch)
+__global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 {
 	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -224,22 +239,4 @@ __global__ void k_sw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-
-extern "C" {
-cudaError_t copy_constants(const struct Constants *host)
-{
-	return cudaMemcpyToSymbol(C, host, sizeof(C));
-}
-
-const void *kernel_function(enum AlignmentMethod method)
-{
-	static const auto ALIGN_KERNELS = []() {
-		std::array<const void *, ALIGN_COUNT> k{};
-		k[ALIGN_GOTOH_AFFINE] = (const void *)k_ga;
-		k[ALIGN_NEEDLEMAN_WUNSCH] = (const void *)k_nw;
-		k[ALIGN_SMITH_WATERMAN] = (const void *)k_sw;
-		return k;
-	}();
-	return ALIGN_KERNELS[method];
-}
-}
+static kernel sw(ALIGN_SMITH_WATERMAN, kernel_sw);

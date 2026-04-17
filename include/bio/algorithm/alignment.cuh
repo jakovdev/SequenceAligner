@@ -30,7 +30,7 @@ struct Constants {
 
 [[gnu::nonnull]]
 cudaError_t copy_constants(const struct Constants *host);
-const void *kernel_function(enum AlignmentMethod);
+extern const void *kernels[ALIGN_COUNT];
 
 #ifdef __cplusplus
 }

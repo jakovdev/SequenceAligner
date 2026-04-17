@@ -181,7 +181,7 @@ bool cuda_align(void)
 	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
 	CALLR(copy_constants(&C));
 
-	const void *kernel = kernel_function(METHOD);
+	const void *kernel = kernels[METHOD];
 	dim3 block = { block_max, 1, 1 };
 	cudaStream_t compute = {}, memory = {};
 	CALLR(cudaStreamCreate(&compute));
