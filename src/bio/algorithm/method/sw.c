@@ -4,8 +4,8 @@
 #include "bio/types.h"
 #include "system/compiler.h"
 
-[[gnu::noinline, gnu::hot]] s32
-align_sw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE, s32 *restrict SEQ1I)
+s32 align_sw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
+	     s32 *restrict SEQ1I)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
