@@ -6,9 +6,9 @@
 #include <string.h>
 
 #include "bio/sequence/sequences.h"
-#include "system/compiler.h"
 #include "system/os.h"
 #include "util/benchmark.h"
+#include "util/macros.h"
 
 static double filter;
 

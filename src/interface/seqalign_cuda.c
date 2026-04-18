@@ -15,8 +15,8 @@
 #include "bio/sequence/sequences.h"
 #include "bio/types.h"
 #include "interface/seqalign_hdf5.h"
-#include "system/compiler.h"
 #include "util/benchmark.h"
+#include "util/macros.h"
 
 static bool init;
 

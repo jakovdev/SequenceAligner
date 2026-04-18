@@ -2,7 +2,7 @@
 
 #include "bio/score/matrices.h"
 #include "bio/types.h"
-#include "system/compiler.h"
+#include "util/macros.h"
 
 extern size_t TABLE_SIZE;
 

@@ -1,5 +1,5 @@
-#ifndef SYSTEM_COMPILER_H
-#define SYSTEM_COMPILER_H
+#ifndef UTIL_MACROS_H
+#define UTIL_MACROS_H
 
 #ifndef NDEBUG
 #include <stdlib.h>
@@ -16,4 +16,4 @@
 #define max(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#endif /* SYSTEM_COMPILER_H */
+#endif /* UTIL_MACROS_H */

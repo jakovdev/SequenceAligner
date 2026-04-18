@@ -2,7 +2,7 @@
 
 #include "bio/score/matrices.h"
 #include "bio/types.h"
-#include "system/compiler.h"
+#include "util/macros.h"
 
 s32 align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
 	     s32 *restrict SEQ1I)

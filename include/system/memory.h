@@ -7,7 +7,7 @@ extern "C" {
 
 #include <stdlib.h>
 
-#include "system/compiler.h"
+#include "util/macros.h"
 
 #define KiB ((size_t)1 << 10)
 #define MiB (KiB << 10)
