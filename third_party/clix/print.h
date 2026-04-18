@@ -96,7 +96,7 @@
 #include <stdlib.h>
 
 typedef const union _P_INPUT {
-	char **choices;
+	const char **choices;
 #define P_INPUT_C(c, n) (P_INPUT){ .choices = c }, n, P_CHOICE
 #define P_INPUT_CS(choices) P_INPUT_C(choices, sizeof(choices))
 	char *output;
@@ -1052,7 +1052,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 	flockfile(out);
 
 	if (type == T_CHOICE) {
-		char **choices = in.choices;
+		const char **choices = in.choices;
 		size_t c_count = size;
 
 		if (c_count < 2) {
