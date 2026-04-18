@@ -90,7 +90,7 @@ memory_error:
 	exit(EXIT_FAILURE);
 }
 
-bool cuda_align(void)
+bool cuda_align(struct sequences *dataset)
 {
 	if (!init) {
 		pdev("CUDA Device not initialized before alignment");
@@ -98,7 +98,7 @@ bool cuda_align(void)
 		pabort();
 	}
 
-	if (LENGTHS_MAX > MAX_CUDA_SEQUENCE_LENGTH) {
+	if (dataset->lengths_max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
 		return false;
 	}
@@ -113,7 +113,7 @@ bool cuda_align(void)
 	}
 
 	struct Constants C = {
-		.seq_n = SEQS_N,
+		.seq_n = dataset->seqs_n,
 		.gap_pen = GAP_PEN,
 		.gap_open = GAP_OPEN,
 		.gap_ext = GAP_EXT,
@@ -122,7 +122,10 @@ bool cuda_align(void)
 	memcpy(C.seq_lut, SEQ_LUT, sizeof(C.seq_lut));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
 
-	size_t seq_n = (size_t)SEQS_N;
+	size_t seq_n = (size_t)dataset->seqs_n;
+	s64 *OFFSETS = dataset->offsets;
+	s32 *LENGTHS = dataset->lengths;
+	char *LETTERS = dataset->letters;
 	size_t sum = (size_t)(OFFSETS[seq_n - 1] + LENGTHS[seq_n - 1] + 1);
 
 	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*C.offsets) * seq_n));
@@ -136,7 +139,7 @@ bool cuda_align(void)
 	CALLR(cudaMemcpy(C.letters, LETTERS, sizeof(*C.letters) * sum,
 			 cudaMemcpyHostToDevice));
 
-	const s64 alignments = ALIGNMENTS;
+	const s64 alignments = dataset->alignments;
 	const s64 batch_size = INT64_C(64) << 20;
 	s32 *matrix = h5_matrix_data();
 
@@ -368,7 +371,7 @@ bool cuda_memory(size_t)
 	return false;
 }
 
-bool cuda_align(void)
+bool cuda_align(struct sequences *)
 {
 	return false;
 }

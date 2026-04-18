@@ -15,24 +15,29 @@ struct sequence {
 	s32 length;
 };
 
-extern s64 ALIGNMENTS;
-extern s32 *LENGTHS;
-extern s64 *OFFSETS;
-extern char *LETTERS;
-extern struct sequence *SEQS;
-extern s32 SEQS_N;
+struct sequences {
+	struct sequence *seqs;
+	s32 *lengths;
+	size_t lengths_max;
+	s64 *offsets;
+	char *letters;
+	s64 alignments;
+	double average_length;
+	s32 seqs_n;
+};
 
-bool sequences_load_from_file(void);
+[[gnu::nonnull]]
+bool sequences_load(struct sequences *);
+[[gnu::nonnull]]
+void sequences_free(struct sequences *);
+[[gnu::nonnull]]
+bool sequences_lose(struct sequences *, const bool *lost);
 
 #define SEQ_LEN_MAX (INT32_MAX - 1)
 #define SEQ_LEN_MIN (1)
 #define SEQ_N_MAX (INT32_MAX)
 #define SEQ_N_MIN (2)
 #define SCORE_MIN (INT32_MIN / 2)
-#define SEQ_LEN_SUM_MIN (SEQ_N_MIN * SEQ_LEN_MIN)
-
-extern size_t LENGTHS_MAX;
-#define TABLE_SIZE ((LENGTHS_MAX + 1) * (LENGTHS_MAX + 1))
 
 typedef const struct sequence *const restrict seq_ptr;
 #define SEQ_BAD(s)                                                 \

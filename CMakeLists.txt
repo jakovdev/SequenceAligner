@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.30)
 if(NOT CMAKE_BUILD_TYPE)
 	set(CMAKE_BUILD_TYPE Release)
 endif()
-project(SequenceAligner C)
+project(SequenceAligner C CXX)
 
 set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 
@@ -31,6 +31,10 @@ endif()
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
+
+set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 set(USE_CUDA FALSE)
 if(NOT IS_MINGW)
@@ -143,14 +147,16 @@ endif()
 find_package(OpenMP REQUIRED COMPONENTS C)
 
 file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
+file(GLOB_RECURSE CXX_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 if(USE_CUDA AND IS_MSYS2)
-	add_executable(seqalign ${C_SOURCES} ${CUDA_KERNEL_OBJ})
+	add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES} ${CUDA_KERNEL_OBJ})
 	add_dependencies(seqalign alignment)
 	target_include_directories(seqalign PRIVATE "$ENV{CUDA_PATH}/include")
 	target_link_libraries(seqalign PRIVATE "${CUDA_MSYS2_CUDART_IMPORT_LIB}")
 else()
-	add_executable(seqalign ${C_SOURCES})
+	add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES})
 endif()
+set_target_properties(seqalign PROPERTIES LINKER_LANGUAGE C)
 
 if(USE_CUDA AND NOT IS_MSYS2)
 	file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cu")
@@ -166,7 +172,9 @@ endif()
 target_compile_definitions(seqalign PRIVATE _GNU_SOURCE $<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${USE_CUDA}>>:USE_CUDA>)
 target_compile_options(seqalign PRIVATE
 $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto>
+$<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto;-fno-exceptions;-fno-rtti>
 $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og>
+$<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Debug>>:-Og>
 $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static>
 $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>
 )
@@ -176,7 +184,6 @@ if(IS_MSYS2 OR IS_MINGW)
 	target_include_directories(seqalign PRIVATE ${HDF5_INCLUDE_DIRS})
 	target_link_libraries(seqalign PRIVATE ${HDF5_LIBRARIES})
 	target_link_directories(seqalign PRIVATE ${HDF5_LIBRARY_DIRS})
-	target_link_libraries(seqalign PRIVATE shlwapi)
 else()
 	target_link_libraries(seqalign PRIVATE hdf5::hdf5)
 endif()

@@ -4,6 +4,8 @@
 #include "bio/types.h"
 #include "system/compiler.h"
 
+extern size_t TABLE_SIZE;
+
 s32 align_ga(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
 	     s32 *restrict SEQ1I)
 {

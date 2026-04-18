@@ -2,6 +2,9 @@
 #ifndef BIO_SEQUENCE_FILTERING_H
 #define BIO_SEQUENCE_FILTERING_H
 
-bool filter_seqs(void);
+#include "bio/sequence/sequences.h"
+
+[[gnu::nonnull]]
+bool filter_seqs(struct sequences *);
 
 #endif /* BIO_SEQUENCE_FILTERING_H */

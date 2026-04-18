@@ -5,8 +5,10 @@
 #include <stddef.h>
 
 #include "system/types.h"
+#include "bio/sequence/sequences.h"
 
-bool h5_open(void);
+[[gnu::nonnull]]
+bool h5_open(struct sequences *);
 [[gnu::nonnull]]
 void h5_matrix_column_set(s32 col, const s32 *values);
 

@@ -21,6 +21,7 @@ static struct {
 	size_t matrix_b;
 	s64 checksum;
 	struct MMapMatrix mmap;
+	s32 matrix_dim;
 	s32 chunk_dim;
 	unsigned int compression;
 	bool disabled;
@@ -33,28 +34,28 @@ static struct {
 #define H5_MAX_CHUNK_SIZE (1 << 12)
 static void h5_chunk_dimensions_calculate(void)
 {
-	if (SEQS_N <= H5_MIN_CHUNK_SIZE) {
-		g_h5.chunk_dim = SEQS_N;
+	if (g_h5.matrix_dim <= H5_MIN_CHUNK_SIZE) {
+		g_h5.chunk_dim = g_h5.matrix_dim;
 		return;
 	}
 
 	s32 chunk_dim = 64;
 	size_t square = (size_t)(chunk_dim * chunk_dim) * sizeof(chunk_dim);
 	size_t target_bytes = (2 * MiB) / (1 + g_h5.compression / 3);
-	while (chunk_dim < SEQS_N && square < target_bytes)
+	while (chunk_dim < g_h5.matrix_dim && square < target_bytes)
 		chunk_dim *= 2;
-	if (chunk_dim > SEQS_N || square > target_bytes)
+	if (chunk_dim > g_h5.matrix_dim || square > target_bytes)
 		chunk_dim /= 2;
 
 	chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
 	chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
-	chunk_dim = min(chunk_dim, SEQS_N);
+	chunk_dim = min(chunk_dim, g_h5.matrix_dim);
 	g_h5.chunk_dim = chunk_dim;
 }
 
 static void h5_file_close(void);
 
-bool h5_open(void)
+bool h5_open(struct sequences *S)
 {
 	if unlikely (g_h5.is_init) {
 		pdev("Call h5_close() before calling h5_open() again");
@@ -71,13 +72,14 @@ bool h5_open(void)
 		return true;
 	}
 
-	if unlikely (SEQS_N < SEQ_N_MIN || !SEQS) {
+	if unlikely (S->seqs_n < SEQ_N_MIN || !S->seqs) {
 		pdev("Sequences not initialized before h5_open()");
 		perr("Internal error initializing HDF5 storage");
 		pabort();
 	}
 
-	const size_t dim_size = (size_t)SEQS_N;
+	g_h5.matrix_dim = S->seqs_n;
+	const size_t dim_size = (size_t)g_h5.matrix_dim;
 	h5_chunk_dimensions_calculate();
 	bench_io_start();
 
@@ -181,8 +183,8 @@ bool h5_open(void)
 		return false;
 	}
 
-	for (s32 i = 0; i < SEQS_N; i++)
-		seq_data[i] = SEQS[i].letters;
+	for (s32 i = 0; i < g_h5.matrix_dim; i++)
+		seq_data[i] = S->seqs[i].letters;
 
 	herr_t status = H5Dwrite(g_h5.sequences_id, string_type, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, seq_data);
@@ -207,14 +209,14 @@ void h5_matrix_column_set(s32 col, const s32 *values)
 	if (g_h5.disabled)
 		return;
 
-	if (!g_h5.matrix || col < 0 || col >= SEQS_N)
+	if (!g_h5.matrix || col < 0 || col >= g_h5.matrix_dim)
 		unreachable_release();
 
 	if (g_h5.triangular) {
 		memcpy(g_h5.matrix + ((s64)col * (col - 1)) / 2, values,
 		       bytesof(g_h5.matrix, (size_t)col));
 	} else {
-		const s64 dim = SEQS_N;
+		const s64 dim = g_h5.matrix_dim;
 		for (s32 row = 0; row < col; row++) {
 			g_h5.matrix[dim * row + col] = values[row];
 			g_h5.matrix[dim * col + row] = values[row];
@@ -375,7 +377,7 @@ static void h5_flush_matrix(void)
 		return;
 	}
 
-	const s64 dim = SEQS_N;
+	const s64 dim = g_h5.matrix_dim;
 	const size_t row_bytes = bytesof(g_h5.matrix, (size_t)dim);
 	const s32 max_rows = (s32)(available_mem / (4 * row_bytes));
 	s32 chunk_size = g_h5.chunk_dim > 4 ? g_h5.chunk_dim : 4;
@@ -396,13 +398,13 @@ static void h5_flush_matrix(void)
 	memset(buf, 0, row_bytes * (size_t)chunk_size);
 
 	ppercent(0, "Converting to HDF5");
-	for (s32 off = 0; off < SEQS_N; off += chunk_size) {
-		s32 end = min(off + chunk_size, SEQS_N);
+	for (s32 off = 0; off < g_h5.matrix_dim; off += chunk_size) {
+		s32 end = min(off + chunk_size, g_h5.matrix_dim);
 
 		for (s32 i = off; i < end; i++) {
 			s64 row = dim * (i - off);
 
-			for (s32 j = i + 1; j < SEQS_N; j++)
+			for (s32 j = i + 1; j < g_h5.matrix_dim; j++)
 				buf[row + j] = g_h5.matrix[matrix_index(i, j)];
 
 			for (s32 j = 0; j < i; j++) {
@@ -440,7 +442,7 @@ static void h5_flush_matrix(void)
 			return;
 		}
 
-		pproport(end / SEQS_N, "Converting to HDF5");
+		pproport(end / g_h5.matrix_dim, "Converting to HDF5");
 	}
 
 	ppercent(100, "Converting to HDF5");

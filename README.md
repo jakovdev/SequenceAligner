@@ -58,7 +58,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 <summary><strong>Linux</strong></summary>
 
 ### Dependencies
-- GCC, CMake
+- GCC 15, CMake
 - HDF5 library (development files)
 - CUDA toolkit (optional, for GPU acceleration)
 
@@ -220,10 +220,7 @@ Below are example commands to run the program. Adjust as needed.
   - At least 2 sequences, each with minimum length of 1 character
 - **DSV Specific Requirements**:
   - Must contain one column with biological sequence data (amino acids or nucleotides)
-  - Does NOT support quoted fields or escaped delimiters within fields
-  - Columns can be separated by commas, tabs, or other delimiters with auto-detection
-  - No specific header requirements - the program will scan and identify the sequence column
-  - The program will prompt you to select the correct delimiter or header if it can't find one automatically
+  - The program will prompt you to select the sequence column if it can't find one automatically
 
 ### Output Format
 - **File Type**: HDF5 (.h5) - a common scientific data format
