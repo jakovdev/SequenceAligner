@@ -1,4 +1,3 @@
-#pragma once
 #ifndef UTIL_BENCHMARK_H
 #define UTIL_BENCHMARK_H
 

@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SYSTEM_SIMD_H
 #define SYSTEM_SIMD_H
 

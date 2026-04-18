@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SYSTEM_TYPES_H
 #define SYSTEM_TYPES_H
 

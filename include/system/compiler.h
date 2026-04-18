@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SYSTEM_COMPILER_H
 #define SYSTEM_COMPILER_H
 

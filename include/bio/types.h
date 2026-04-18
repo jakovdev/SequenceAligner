@@ -1,4 +1,3 @@
-#pragma once
 #ifndef BIO_TYPES_H
 #define BIO_TYPES_H
 

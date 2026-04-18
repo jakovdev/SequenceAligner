@@ -1,4 +1,3 @@
-#pragma once
 #ifndef BIO_ALGORITHM_ALIGNMENT_CUH
 #define BIO_ALGORITHM_ALIGNMENT_CUH
 

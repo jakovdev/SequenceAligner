@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SYSTEM_OS_H
 #define SYSTEM_OS_H
 

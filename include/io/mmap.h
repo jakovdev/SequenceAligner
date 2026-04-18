@@ -1,4 +1,3 @@
-#pragma once
 #ifndef IO_MMAP_H
 #define IO_MMAP_H
 

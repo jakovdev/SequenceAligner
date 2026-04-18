@@ -1,4 +1,3 @@
-#pragma once
 #ifndef BIO_SCORE_MATRICES_H
 #define BIO_SCORE_MATRICES_H
 

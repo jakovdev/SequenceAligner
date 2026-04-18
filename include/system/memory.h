@@ -1,4 +1,3 @@
-#pragma once
 #ifndef SYSTEM_MEMORY_H
 #define SYSTEM_MEMORY_H
 

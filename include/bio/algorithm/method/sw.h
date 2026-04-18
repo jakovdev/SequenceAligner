@@ -1,4 +1,3 @@
-#pragma once
 #ifndef BIO_ALGORITHM_METHOD_SW_H
 #define BIO_ALGORITHM_METHOD_SW_H
 

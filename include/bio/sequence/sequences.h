@@ -1,4 +1,3 @@
-#pragma once
 #ifndef BIO_SEQUENCE_SEQUENCES_H
 #define BIO_SEQUENCE_SEQUENCES_H
 
