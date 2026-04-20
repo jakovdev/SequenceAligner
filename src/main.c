@@ -27,17 +27,11 @@ int main(int argc, char *argv[])
 	pinfo("Loaded %w32d sequences", dataset.seqs_n);
 	pinfo("Average sequence length: %.2f", dataset.average_length);
 
-	if (arg_mode_cuda() && !cuda_device_init())
+	if (!h5_open(&dataset))
 		return 1;
-
-	if (!h5_open(&dataset)) {
-		cuda_device_close();
-		return 1;
-	}
 
 	psection("Performing Alignments");
-	if (!(arg_mode_cuda() ? cuda_align(&dataset) : align(&dataset))) {
-		cuda_device_close();
+	if (!cuda_align(&dataset)) {
 		h5_close(1);
 		return 1;
 	}

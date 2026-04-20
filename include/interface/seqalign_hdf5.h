@@ -4,7 +4,8 @@
 #include <stddef.h>
 
 #include "system/types.h"
-#include "bio/sequences.h"
+
+struct input;
 
 [[gnu::nonnull]]
 bool h5_open(const struct input *);

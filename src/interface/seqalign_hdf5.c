@@ -85,8 +85,7 @@ bool h5_open(const struct input *dataset)
 
 	const size_t safe = available_memory() * 3 / 4;
 	size_t bytes = bytesof(g_h5.matrix, dim_size * dim_size);
-	bool device_limited = arg_mode_cuda() && !cuda_memory(bytes);
-	if (device_limited || bytes > safe) {
+	if (!cuda_memory(bytes) || bytes > safe) {
 		bytes = bytesof(g_h5.matrix, dim_size * (dim_size - 1) / 2);
 		g_h5.mode_mmap = bytes > safe;
 		g_h5.triangular = true;

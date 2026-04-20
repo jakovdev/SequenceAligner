@@ -16,8 +16,6 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-static bool init;
-
 #define CALLR(cuda_func)                                     \
 	do {                                                 \
 		err = cuda_func;                             \
@@ -36,18 +34,24 @@ static bool init;
 		}                                            \
 	} while (0)
 
-bool cuda_device_init(void)
+static bool init;
+static bool no_cuda;
+static void cuda_device_close(void)
 {
 	if (init) {
-		cuda_device_close();
-		pdev("CUDA Device already initialized");
-		perr("Internal error initializing CUDA Device");
-		pabort();
+		cudaDeviceReset();
+		init = false;
 	}
+}
 
-	int device_count = 0;
+bool cuda_device_init(void)
+{
+	if (init || no_cuda)
+		return true;
+
 	cudaError_t err = {};
 
+	int device_count = 0;
 	err = cudaGetDeviceCount(&device_count);
 	if (!device_count || err != cudaSuccess) {
 		perr("No CUDA devices available");
@@ -56,24 +60,14 @@ bool cuda_device_init(void)
 
 	CALLR(cudaSetDevice(0));
 	init = true;
+	atexit(cuda_device_close);
 	return true;
-}
-
-void cuda_device_close(void)
-{
-	if (init) {
-		cudaDeviceReset();
-		init = false;
-	}
 }
 
 bool cuda_memory(size_t bytes)
 {
-	if (!init) {
-		pdev("CUDA Device not initialized before checking memory");
-		perr("Internal error checking CUDA Device memory");
-		pabort();
-	}
+	if (!init && !cuda_device_init())
+		return false;
 
 	size_t free = 0;
 	size_t total = 0;
@@ -84,17 +78,16 @@ bool cuda_memory(size_t bytes)
 
 	return true;
 memory_error:
-	cuda_device_close();
 	exit(EXIT_FAILURE);
 }
 
 bool cuda_align(const struct input *dataset)
 {
-	if (!init) {
-		pdev("CUDA Device not initialized before alignment");
-		perr("Internal error performing CUDA alignment");
-		pabort();
-	}
+	if (no_cuda)
+		return align(dataset);
+
+	if (!init && !cuda_device_init())
+		return false;
 
 	if (dataset->lengths_max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
@@ -141,10 +134,9 @@ bool cuda_align(const struct input *dataset)
 	const s64 batch_size = INT64_C(64) << 20;
 	s32 *matrix = h5_matrix_data();
 
-	if (!cuda_memory(sizeof(*matrix) * seq_n * seq_n)) {
-		if (!cuda_memory(sizeof(*matrix) * (size_t)alignments)) {
-			if (!cuda_memory(sizeof(*matrix) *
-					 (size_t)batch_size)) {
+	if (!cuda_memory(bytesof(matrix, seq_n * seq_n))) {
+		if (!cuda_memory(bytesof(matrix, (size_t)alignments))) {
+			if (!cuda_memory(bytesof(matrix, (size_t)batch_size))) {
 				perr("Not enough CUDA Device memory for alignment");
 				return false;
 			}
@@ -312,17 +304,9 @@ cuda_progress:
 	CALLR(cudaMemcpy(&checksum, C.checksum, sizeof(checksum),
 			 cudaMemcpyDeviceToHost));
 	h5_checksum_set(checksum * 2);
-	cuda_device_close();
 
 	bench_align_print();
 	return true;
-}
-
-static bool no_cuda;
-
-bool arg_mode_cuda(void)
-{
-	return !no_cuda;
 }
 
 static void print_no_cuda(void)
@@ -345,33 +329,18 @@ ARGUMENT(disable_cuda) = {
 	.help_order = ARG_ORDER_AFTER(ARG(threads)),
 };
 
-#undef RETURN_CUDA_ERRORS
-
 #else
 
-bool arg_mode_cuda(void)
-{
-	return false;
-}
-
-bool cuda_device_init(void)
-{
-	return false;
-}
-
-void cuda_device_close(void)
-{
-	return;
-}
+#include "bio/alignment.h"
 
 bool cuda_memory(size_t)
 {
-	return false;
+	return true;
 }
 
-bool cuda_align(const struct input *)
+bool cuda_align(const struct input *dataset)
 {
-	return false;
+	return align(dataset);
 }
 
 static void print_cuda_ignored(void)
