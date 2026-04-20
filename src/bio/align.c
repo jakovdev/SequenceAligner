@@ -13,7 +13,7 @@ align_fn ALIGN_METHODS[ALIGN_COUNT];
 enum align_method METHOD_ID = ALIGN_INVALID;
 
 s32 GAP_PEN;
-s32 GAP_OPEN;
+s32 GAP_OPN;
 s32 GAP_EXT;
 
 size_t TABLE_SIZE;
@@ -33,10 +33,10 @@ bool align(const struct input *dataset)
 	struct sequence *seqs = dataset->seqs;
 #pragma omp parallel reduction(+ : total_checksum)
 	{
-		s32 *MALLOCA_AL(TABLE, CACHE_LINE, 3 * TABLE_SIZE);
-		s32 *MALLOCA_AL(SEQ1I, CACHE_LINE, dataset->lengths_max);
-		s32 *MALLOCA_AL(column_buffer, CACHE_LINE, (size_t)seqs_n);
-		if unlikely (!TABLE || !SEQ1I || !column_buffer) {
+		s32 *MALLOCA_AL(table, CACHE_LINE, 3 * TABLE_SIZE);
+		s32 *MALLOCA_AL(ind, CACHE_LINE, dataset->lengths_max);
+		s32 *MALLOCA_AL(columns, CACHE_LINE, (size_t)seqs_n);
+		if unlikely (!table || !ind || !columns) {
 			perr("Out of memory allocating alignment buffers");
 			exit(EXIT_FAILURE);
 		}
@@ -46,23 +46,22 @@ bool align(const struct input *dataset)
 		for (col = 1; col < seqs_n; col++) {
 			seq_ptr seq = &seqs[col];
 			for (s32 i = 0; i < seq->length; ++i)
-				SEQ1I[i] = SEQ_LUT[(uchar)seq->letters[i]];
+				ind[i] = SEQ_LUT[(uchar)seq->letters[i]];
 			for (s32 row = 0; row < col; row++) {
-				const s32 score =
-					method(seq, &seqs[row], TABLE, SEQ1I);
-				column_buffer[row] = score;
+				s32 score = method(seq, &seqs[row], table, ind);
+				columns[row] = score;
 				checksum += score;
 			}
 
-			h5_matrix_column_set(col, column_buffer);
+			h5_matrix_column_set(col, columns);
 			progress_add((size_t)col);
 		}
 
 		progress_flush();
 		total_checksum += checksum;
-		free_aligned(column_buffer);
-		free_aligned(SEQ1I);
-		free_aligned(TABLE);
+		free_aligned(columns);
+		free_aligned(ind);
+		free_aligned(table);
 	}
 
 	bench_align_end();
@@ -145,11 +144,11 @@ static struct arg_callback validate_gap_pen(void)
 
 static struct arg_callback validate_gap_affine(void)
 {
-	if (METHOD_ID == ALIGN_GA && GAP_OPEN == GAP_EXT &&
+	if (METHOD_ID == ALIGN_GA && GAP_OPN == GAP_EXT &&
 	    print_Yn("Equal affine gaps found, switch to Needleman-Wunsch?")) {
 		METHOD_ID = ALIGN_NW;
-		GAP_PEN = GAP_OPEN;
-		GAP_OPEN = SCORE_MIN;
+		GAP_PEN = GAP_OPN;
+		GAP_OPN = SCORE_MIN;
 		GAP_EXT = SCORE_MIN;
 		return ARG_VALID();
 	}
@@ -167,7 +166,7 @@ static void print_config_gaps(void)
 		pinfom("Gap penalty: %w32d", GAP_PEN);
 		break;
 	case GAP_AFFINE:
-		pinfom("Gap open: %w32d, extend: %w32d", GAP_OPEN, GAP_EXT);
+		pinfom("Gap open: %w32d, extend: %w32d", GAP_OPN, GAP_EXT);
 		break;
 	default:
 		unreachable_release();
@@ -203,7 +202,7 @@ ARGUMENT(gap_open) = {
 	.param = "N",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,
-	.dest = &GAP_OPEN,
+	.dest = &GAP_OPN,
 	.parse_callback = parse_gap_value,
 	.validate_callback = validate_gap_affine,
 	.validate_phase = ARG_CALLBACK_IF_SET,

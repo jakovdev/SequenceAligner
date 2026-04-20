@@ -17,7 +17,7 @@ extern s32 SEQ_LUT[SEQ_LUT_SIZE];
 extern s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
 extern s32 GAP_PEN;
-extern s32 GAP_OPEN;
+extern s32 GAP_OPN;
 extern s32 GAP_EXT;
 #define SCORE_MIN (INT32_MIN / 2)
 

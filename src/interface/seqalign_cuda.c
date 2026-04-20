@@ -106,7 +106,7 @@ bool cuda_align(const struct input *dataset)
 	struct Constants C = {
 		.seq_n = dataset->seqs_n,
 		.gap_pen = GAP_PEN,
-		.gap_open = GAP_OPEN,
+		.gap_open = GAP_OPN,
 		.gap_ext = GAP_EXT,
 	};
 
