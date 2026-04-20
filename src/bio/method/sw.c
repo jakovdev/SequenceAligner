@@ -1,7 +1,4 @@
-#include "bio/algorithm/method/sw.h"
-
-#include "bio/score/matrices.h"
-#include "bio/types.h"
+#include "bio/alignment.h"
 #include "util/macros.h"
 
 extern size_t TABLE_SIZE;
@@ -72,3 +69,5 @@ s32 align_sw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
 
 	return score;
 }
+ALIGN_METHOD(ALIGN_SW, align_sw, GAP_AFFINE, "Smith-Waterman", "sw", "smith",
+	     "waterman");

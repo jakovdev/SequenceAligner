@@ -1,5 +1,5 @@
-#ifndef BIO_ALGORITHM_ALIGNMENT_CUH
-#define BIO_ALGORITHM_ALIGNMENT_CUH
+#ifndef BIO_KERNELS_CUH
+#define BIO_KERNELS_CUH
 
 #ifdef __cplusplus
 extern "C" {
@@ -7,8 +7,7 @@ extern "C" {
 
 #include <driver_types.h>
 
-#include "bio/score/matrices.h"
-#include "bio/types.h"
+#include "bio/alignment.h"
 
 #define MAX_CUDA_SEQUENCE_LENGTH (1023)
 
@@ -35,4 +34,4 @@ extern const void *kernels[ALIGN_COUNT];
 }
 #endif
 
-#endif /* BIO_ALGORITHM_ALIGNMENT_CUH */
+#endif /* BIO_KERNELS_CUH */

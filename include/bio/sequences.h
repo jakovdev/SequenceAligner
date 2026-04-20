@@ -1,9 +1,5 @@
-#ifndef BIO_SEQUENCE_SEQUENCES_H
-#define BIO_SEQUENCE_SEQUENCES_H
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#ifndef BIO_SEQUENCES_H
+#define BIO_SEQUENCES_H
 
 #include <stddef.h>
 
@@ -36,15 +32,10 @@ bool sequences_lose(struct sequences *, const bool *lost);
 #define SEQ_LEN_MIN (1)
 #define SEQ_N_MAX (INT32_MAX)
 #define SEQ_N_MIN (2)
-#define SCORE_MIN (INT32_MIN / 2)
 
 typedef const struct sequence *const restrict seq_ptr;
 #define SEQ_BAD(s)                                                 \
 	(!s->letters || !*s->letters || s->length < SEQ_LEN_MIN || \
 	 s->length > SEQ_LEN_MAX)
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* BIO_SEQUENCE_SEQUENCES_H */
+#endif /* BIO_SEQUENCES_H */

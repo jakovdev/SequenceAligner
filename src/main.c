@@ -1,9 +1,8 @@
 #include <args.h>
 #include <print.h>
 
-#include "bio/algorithm/alignment.h"
-#include "bio/sequence/sequences.h"
-#include "bio/sequence/filtering.h"
+#include "bio/alignment.h"
+#include "bio/sequences.h"
 #include "interface/seqalign_cuda.h"
 #include "interface/seqalign_hdf5.h"
 #include "util/benchmark.h"
@@ -22,7 +21,7 @@ int main(int argc, char *argv[])
 
 	psection("Setting Up Alignment");
 	[[gnu::cleanup(sequences_free)]] struct sequences dataset = {};
-	if (!sequences_load(&dataset) || !filter_seqs(&dataset))
+	if (!sequences_load(&dataset) || !filter(&dataset))
 		return 1;
 
 	pinfo("Loaded %w32d sequences", dataset.seqs_n);

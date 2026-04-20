@@ -1,10 +1,6 @@
 #ifndef SYSTEM_OS_H
 #define SYSTEM_OS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -35,9 +31,5 @@ bool path_special_exists(const char *path);
 bool path_file_exists(const char *path);
 [[gnu::nonnull]]
 bool path_directories_create(const char *path);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* SYSTEM_OS_H */

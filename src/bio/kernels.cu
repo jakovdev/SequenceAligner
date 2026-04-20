@@ -1,18 +1,10 @@
-#include "bio/algorithm/alignment.cuh"
-
-#include "bio/sequence/sequences.h"
-
-struct kernel {
-	kernel(enum AlignmentMethod method, void(k)(s32 *, s64, s64)) noexcept
-	{
-		kernels[method] = (const void *)k;
-	}
-};
+#include "bio/kernels.cuh"
 
 __constant__ Constants C;
 
 extern "C" {
 const void *kernels[ALIGN_COUNT];
+#define KERNEL_REGISTER(ID, FN) ALIGN_REGISTER(kernels, ID, (const void *)FN)
 cudaError_t copy_constants(const struct Constants *host)
 {
 	return cudaMemcpyToSymbol(C, host, sizeof(C));
@@ -91,7 +83,7 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-static kernel nw(ALIGN_NEEDLEMAN_WUNSCH, kernel_nw);
+KERNEL_REGISTER(ALIGN_NW, kernel_nw);
 
 __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 {
@@ -165,7 +157,7 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-static kernel ga(ALIGN_GOTOH_AFFINE, kernel_ga);
+KERNEL_REGISTER(ALIGN_GA, kernel_ga);
 
 __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 {
@@ -239,4 +231,4 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-static kernel sw(ALIGN_SMITH_WATERMAN, kernel_sw);
+KERNEL_REGISTER(ALIGN_SW, kernel_sw);

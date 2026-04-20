@@ -1,10 +1,6 @@
 #ifndef SYSTEM_MEMORY_H
 #define SYSTEM_MEMORY_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdlib.h>
 
 #include "util/macros.h"
@@ -15,9 +11,6 @@ extern "C" {
 
 #define CACHE_LINE ((size_t)64)
 #define PAGE_SIZE (4 * KiB)
-
-#define sizeof_field(t, f) (sizeof(((t *)0)->f))
-#define bytesof(ptr, nmemb) (sizeof(*(ptr)) * (nmemb))
 
 #ifdef _WIN32
 #include <malloc.h>
@@ -41,7 +34,6 @@ extern "C" {
 	} while (0)
 #endif
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define _MCAT_2(a, b) a##b
 #define _MCAT(a, b) _MCAT_2(a, b)
 
@@ -69,9 +61,5 @@ extern "C" {
 void *alloc_aligned(size_t alignment, size_t bytes);
 
 size_t available_memory(void);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* SYSTEM_MEMORY_H */

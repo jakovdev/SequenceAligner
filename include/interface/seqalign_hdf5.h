@@ -4,7 +4,7 @@
 #include <stddef.h>
 
 #include "system/types.h"
-#include "bio/sequence/sequences.h"
+#include "bio/sequences.h"
 
 [[gnu::nonnull]]
 bool h5_open(struct sequences *);

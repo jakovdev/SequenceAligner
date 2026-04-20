@@ -1,16 +1,14 @@
-#include "bio/sequence/filtering.h"
+#include "bio/alignment.h"
 
 #include <args.h>
 #include <print.h>
 #include <progress.h>
-#include <string.h>
 
-#include "bio/sequence/sequences.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-static double filter;
+static double threshold;
 
 [[gnu::nonnull]]
 static double similarity(seq_ptr seq1, seq_ptr seq2)
@@ -26,9 +24,9 @@ static double similarity(seq_ptr seq1, seq_ptr seq2)
 	return (double)matches / (double)min_len;
 }
 
-bool filter_seqs(struct sequences *S)
+bool filter(struct sequences *S)
 {
-	if (!filter)
+	if (!threshold)
 		return true;
 
 	size_t seq_n = (size_t)S->seqs_n;
@@ -54,11 +52,10 @@ bool filter_seqs(struct sequences *S)
 			for (s32 j = 0; j < i; j++) {
 				if (lost[j])
 					continue;
-
-				if (similarity(seq1, &S->seqs[j]) >= filter) {
-					lost[i] = true;
-					break;
-				}
+				if (similarity(seq1, &S->seqs[j]) < threshold)
+					continue;
+				lost[i] = true;
+				break;
 			}
 
 			progress_add(1);
@@ -82,8 +79,8 @@ ARG_PARSE_D(filter, double, , (val < 0.0 || val > 1.0),
 
 static void print_filter(void)
 {
-	if (filter > 0.0)
-		pinfom("Filter threshold: %.1f%%", filter * 100.0);
+	if (threshold > 0.0)
+		pinfom("Filter threshold: %.1f%%", threshold * 100.0);
 	else
 		pwarnm("Filter: Ignored");
 }

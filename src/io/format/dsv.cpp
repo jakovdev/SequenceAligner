@@ -6,13 +6,14 @@
 #include <string_view>
 #include <vector>
 
+#include "system/types.h"
+
 extern "C" {
 #include <print.h>
-}
 
 #include "system/memory.h"
-#include "system/types.h"
 #include "util/benchmark.h"
+}
 
 struct dsv_pair {
 	std::string_view extension{};
@@ -88,7 +89,7 @@ static bool parse_dsv(source &src) noexcept
 
 	int header{};
 	size_t first_row{};
-	for (size_t col = 0; col < headers.size(); col++) {
+	for (size_t col = 0; col < headers.size() && !first_row; col++) {
 		std::string column(headers[col]);
 		for (char &ch : column)
 			ch = (char)std::tolower((uchar)ch);
@@ -96,7 +97,6 @@ static bool parse_dsv(source &src) noexcept
 			if (column.find(key) != std::string::npos) {
 				header = col;
 				first_row = 1;
-				col = headers.size();
 				break;
 			}
 		}

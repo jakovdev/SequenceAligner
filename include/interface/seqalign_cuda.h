@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#include "bio/sequence/sequences.h"
+#include "bio/sequences.h"
 
 bool arg_mode_cuda(void);
 bool cuda_device_init(void);

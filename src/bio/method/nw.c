@@ -1,7 +1,4 @@
-#include "bio/algorithm/method/nw.h"
-
-#include "bio/score/matrices.h"
-#include "bio/types.h"
+#include "bio/alignment.h"
 #include "util/macros.h"
 
 s32 align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
@@ -44,3 +41,5 @@ s32 align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
 
 	return TABLE[(s64)len2 * cols + len1];
 }
+ALIGN_METHOD(ALIGN_NW, align_nw, GAP_LINEAR, "Needleman-Wunsch", "nw",
+	     "needleman", "wunsch");

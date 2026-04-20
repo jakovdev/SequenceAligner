@@ -1,13 +1,11 @@
-#include "bio/algorithm/method/ga.h"
-
-#include "bio/score/matrices.h"
-#include "bio/types.h"
+#include "bio/alignment.h"
 #include "util/macros.h"
 
 extern size_t TABLE_SIZE;
 
-s32 align_ga(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
-	     s32 *restrict SEQ1I)
+[[gnu::nonnull, gnu::noinline, gnu::hot]]
+static s32 align_ga(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
+		    s32 *restrict SEQ1I)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
@@ -71,3 +69,4 @@ s32 align_ga(seq_ptr seq1, seq_ptr seq2, s32 *restrict TABLE,
 
 	return MATCH[(s64)len2 * (len1 + 1) + len1];
 }
+ALIGN_METHOD(ALIGN_GA, align_ga, GAP_AFFINE, "Gotoh", "ga", "gotoh")

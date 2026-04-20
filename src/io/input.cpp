@@ -6,19 +6,17 @@
 #include <fstream>
 #include <string>
 #include <string_view>
-#include <vector>
 
 extern "C" {
 #include <args.h>
 #include <print.h>
-}
 
-#include "bio/score/matrices.h"
-#include "bio/sequence/sequences.h"
-#include "bio/types.h"
+#include "bio/alignment.h"
+#include "bio/sequences.h"
 #include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
+}
 
 std::string_view trim(std::string_view text) noexcept
 {

@@ -5,7 +5,7 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/sequence/sequences.h"
+#include "bio/sequences.h"
 #include "interface/seqalign_cuda.h"
 #include "io/mmap.h"
 #include "system/os.h"

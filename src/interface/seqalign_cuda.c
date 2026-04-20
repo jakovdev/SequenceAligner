@@ -10,10 +10,8 @@
 #include <cuda_runtime_api.h>
 #include <string.h>
 
-#include "bio/algorithm/alignment.cuh"
-#include "bio/score/matrices.h"
-#include "bio/sequence/sequences.h"
-#include "bio/types.h"
+#include "bio/kernels.cuh"
+#include "bio/sequences.h"
 #include "interface/seqalign_hdf5.h"
 #include "util/benchmark.h"
 #include "util/macros.h"
@@ -184,7 +182,7 @@ bool cuda_align(struct sequences *dataset)
 	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
 	CALLR(copy_constants(&C));
 
-	const void *kernel = kernels[METHOD];
+	const void *kernel = kernels[METHOD_ID];
 	dim3 block = { block_max, 1, 1 };
 	cudaStream_t compute = {}, memory = {};
 	CALLR(cudaStreamCreate(&compute));
