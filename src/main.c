@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 
 	pinfo("Loaded %w32d sequences", dataset.seqs_n);
 	pinfo("Average sequence length: %.2f", dataset.average_length);
+	bench_input_print();
 
 	if (!h5_open(&dataset))
 		return 1;

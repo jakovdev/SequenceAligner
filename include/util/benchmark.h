@@ -1,17 +1,20 @@
 #ifndef UTIL_BENCHMARK_H
 #define UTIL_BENCHMARK_H
 
-void bench_io_start(void);
-void bench_align_start(void);
+void bench_input_start(void);
 void bench_filter_start(void);
+void bench_align_start(void);
+void bench_output_start(void);
 
-void bench_io_end(void);
-void bench_align_end(void);
+void bench_input_end(void);
 void bench_filter_end(void);
+void bench_align_end(void);
+void bench_output_end(void);
 
-void bench_io_print(void);
-void bench_align_print(void);
+void bench_input_print(void);
 void bench_filter_print(void);
+void bench_align_print(void);
+void bench_output_print(void);
 
 void bench_total_print(double alignments);
 

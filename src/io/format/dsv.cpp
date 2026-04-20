@@ -97,7 +97,7 @@ static result parse_dsv(source &src) noexcept
 	}
 
 	if (!first_row && headers.size() > 1) {
-		bench_io_end();
+		bench_input_end();
 		const char **MALLOCA(labels, headers.size() + 2);
 		if (!labels) {
 			perr("Memory allocation failure during DSV parsing");
@@ -117,7 +117,7 @@ static result parse_dsv(source &src) noexcept
 			first_row = 1;
 		}
 		free(labels);
-		bench_io_start();
+		bench_input_start();
 	}
 
 	src.seqs.reserve(src.lines.size() - first_row);

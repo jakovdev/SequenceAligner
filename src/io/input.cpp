@@ -149,11 +149,11 @@ parse_success:
 		auto &seq = this->seqs[i];
 		if (!sequence_length_limit(seq.size())) {
 			if (large < 0) {
-				bench_io_end();
+				bench_input_end();
 				pwarn("Sequence %zu exceeds length limits",
 				      i + 1);
 				large = print_yN("Skip long sequences?");
-				bench_io_start();
+				bench_input_start();
 			}
 
 			if (large > 0) {
@@ -167,11 +167,11 @@ parse_success:
 
 		if (!sequence_normalize(seq)) {
 			if (invalid < 0) {
-				bench_io_end();
+				bench_input_end();
 				pwarn("Sequence %zu has invalid letters",
 				      i + 1);
 				invalid = print_yN("Skip invalid sequences?");
-				bench_io_start();
+				bench_input_start();
 			}
 
 			if (invalid > 0) {
@@ -230,13 +230,13 @@ void input_free(struct input *in)
 
 bool input_load(struct input *in)
 {
-	bench_io_start();
+	bench_input_start();
 
 	source src{};
 	if (!src.load(in, INPUT_PATH))
 		return false;
 
-	bench_io_end();
+	bench_input_end();
 	return true;
 }
 

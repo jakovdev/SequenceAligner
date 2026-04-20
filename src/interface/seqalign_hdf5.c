@@ -81,7 +81,7 @@ bool h5_open(const struct input *dataset)
 	g_h5.matrix_dim = dataset->seqs_n;
 	const size_t dim_size = (size_t)g_h5.matrix_dim;
 	h5_chunk_dimensions_calculate();
-	bench_io_start();
+	bench_output_start();
 
 	const size_t safe = available_memory() * 3 / 4;
 	size_t bytes = bytesof(g_h5.matrix, dim_size * dim_size);
@@ -198,7 +198,7 @@ bool h5_open(const struct input *dataset)
 
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
-	bench_io_end();
+	bench_output_end();
 	g_h5.is_init = true;
 	return true;
 }
@@ -262,7 +262,7 @@ void h5_close(int skip_flush)
 	}
 
 	if (!g_h5.disabled) {
-		bench_io_start();
+		bench_output_start();
 		if likely (!skip_flush) {
 			pinfol("Writing results to HDF5");
 			h5_store_checksum();
@@ -270,11 +270,11 @@ void h5_close(int skip_flush)
 		}
 
 		h5_file_close();
-		bench_io_end();
+		bench_output_end();
 	}
 
 	if likely (!skip_flush)
-		bench_io_print();
+		bench_output_print();
 	g_h5.is_init = false;
 }
 

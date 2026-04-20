@@ -6,8 +6,11 @@
 #include "system/os.h"
 
 static struct {
-	double io_start;
-	double io;
+	double total;
+	double input_start;
+	double input;
+	double output_start;
+	double output;
 	double align_start;
 	double align;
 	double filter_start;
@@ -15,79 +18,49 @@ static struct {
 } g_times;
 
 static bool mode_benchmark;
+#define BENCH(type, name)                                                    \
+	void bench_##type##_start(void)                                      \
+	{                                                                    \
+		if (mode_benchmark)                                          \
+			g_times.type##_start = time_current();               \
+	}                                                                    \
+	void bench_##type##_end(void)                                        \
+	{                                                                    \
+		if (mode_benchmark) {                                        \
+			double time = time_current() - g_times.type##_start; \
+			g_times.type += time;                                \
+			g_times.total += time;                               \
+		}                                                            \
+	}                                                                    \
+	void bench_##type##_print(void)                                      \
+	{                                                                    \
+		if (mode_benchmark)                                          \
+			pinfo(name ": %.3f sec", g_times.type);              \
+	}
 
-void bench_io_start(void)
-{
-	if (mode_benchmark)
-		g_times.io_start = time_current();
-}
+BENCH(input, "Input")
+BENCH(filter, "Filtering")
+BENCH(align, "Alignment")
+BENCH(output, "Output")
 
-void bench_align_start(void)
-{
-	if (mode_benchmark)
-		g_times.align_start = time_current();
-}
-
-void bench_filter_start(void)
-{
-	if (mode_benchmark)
-		g_times.filter_start = time_current();
-}
-
-void bench_io_end(void)
-{
-	if (mode_benchmark)
-		g_times.io += time_current() - g_times.io_start;
-}
-
-void bench_align_end(void)
-{
-	if (mode_benchmark)
-		g_times.align += time_current() - g_times.align_start;
-}
-
-void bench_filter_end(void)
-{
-	if (mode_benchmark)
-		g_times.filter += time_current() - g_times.filter_start;
-}
-
-void bench_io_print(void)
-{
-	if (mode_benchmark)
-		pinfo("I/O operations: %.3f sec", g_times.io);
-}
-
-void bench_align_print(void)
-{
-	if (mode_benchmark)
-		pinfo("Computation: %.3f sec", g_times.align);
-}
-
-void bench_filter_print(void)
-{
-	if (mode_benchmark)
-		pinfo("Filtering: %.3f sec", g_times.filter);
-}
+#define BENCH_TOTAL(type, name)                          \
+	pinfom(name ": %.3f sec (%.1f%%)", g_times.type, \
+	       (g_times.type / g_times.total) * 100)
 
 void bench_total_print(double alignments)
 {
-	if (mode_benchmark) {
-		double time_total = g_times.align + g_times.io + g_times.filter;
-		psection("Performance Summary");
-		pinfo("Timing breakdown:");
-		pinfom("Compute: %.3f sec (%.1f%%)", g_times.align,
-		       (g_times.align / time_total) * 100);
-		pinfom("I/O: %.3f sec (%.1f%%)", g_times.io,
-		       (g_times.io / time_total) * 100);
-		if (g_times.filter > 0.0)
-			pinfom("Filtering: %.3f sec (%.1f%%)", g_times.filter,
-			       (g_times.filter / time_total) * 100);
-
-		pinfol("Total: %.3f sec", time_total);
-		pinfo("Alignments per second: %.2f",
-		      alignments / g_times.align);
-	}
+	if (!mode_benchmark)
+		return;
+	psection("Performance Summary");
+	pinfo("Timing breakdown:");
+	BENCH_TOTAL(input, "Input");
+	if (g_times.filter > 0.0)
+		BENCH_TOTAL(filter, "Filtering");
+	BENCH_TOTAL(align, "Alignment");
+	if (g_times.output > 0.0)
+		BENCH_TOTAL(output, "Output");
+	pinfol("Total: %.3f sec", g_times.total);
+	pinfo("Alignments per second: %.2f", alignments / g_times.align);
 }
 
 static void print_benchmark(void)
