@@ -34,19 +34,15 @@
 		}                                            \
 	} while (0)
 
-static bool init;
-static bool no_cuda;
 static void cuda_device_close(void)
 {
-	if (init) {
-		cudaDeviceReset();
-		init = false;
-	}
+	cudaDeviceReset();
 }
 
-bool cuda_device_init(void)
+static bool cuda_device_init(void)
 {
-	if (init || no_cuda)
+	static bool init;
+	if (init)
 		return true;
 
 	cudaError_t err = {};
@@ -59,14 +55,19 @@ bool cuda_device_init(void)
 	}
 
 	CALLR(cudaSetDevice(0));
-	init = true;
 	atexit(cuda_device_close);
+	init = true;
 	return true;
 }
 
+static bool no_cuda;
+
 bool cuda_memory(size_t bytes)
 {
-	if (!init && !cuda_device_init())
+	if (no_cuda)
+		return true;
+
+	if (!cuda_device_init())
 		return false;
 
 	size_t free = 0;
@@ -86,7 +87,7 @@ bool cuda_align(const struct input *dataset)
 	if (no_cuda)
 		return align(dataset);
 
-	if (!init && !cuda_device_init())
+	if (!cuda_device_init())
 		return false;
 
 	if (dataset->lengths_max > MAX_CUDA_SEQUENCE_LENGTH) {
