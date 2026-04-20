@@ -55,7 +55,7 @@ static void h5_chunk_dimensions_calculate(void)
 
 static void h5_file_close(void);
 
-bool h5_open(struct sequences *S)
+bool h5_open(const struct input *dataset)
 {
 	if unlikely (g_h5.is_init) {
 		pdev("Call h5_close() before calling h5_open() again");
@@ -72,13 +72,13 @@ bool h5_open(struct sequences *S)
 		return true;
 	}
 
-	if unlikely (S->seqs_n < SEQ_N_MIN || !S->seqs) {
+	if unlikely (dataset->seqs_n < SEQ_N_MIN || !dataset->seqs) {
 		pdev("Sequences not initialized before h5_open()");
 		perr("Internal error initializing HDF5 storage");
 		pabort();
 	}
 
-	g_h5.matrix_dim = S->seqs_n;
+	g_h5.matrix_dim = dataset->seqs_n;
 	const size_t dim_size = (size_t)g_h5.matrix_dim;
 	h5_chunk_dimensions_calculate();
 	bench_io_start();
@@ -184,7 +184,7 @@ bool h5_open(struct sequences *S)
 	}
 
 	for (s32 i = 0; i < g_h5.matrix_dim; i++)
-		seq_data[i] = S->seqs[i].letters;
+		seq_data[i] = dataset->seqs[i].letters;
 
 	herr_t status = H5Dwrite(g_h5.sequences_id, string_type, H5S_ALL,
 				 H5S_ALL, H5P_DEFAULT, seq_data);

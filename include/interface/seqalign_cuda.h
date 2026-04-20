@@ -10,6 +10,6 @@ bool cuda_device_init(void);
 void cuda_device_close(void);
 bool cuda_memory(size_t bytes);
 [[gnu::nonnull]]
-bool cuda_align(struct sequences *);
+bool cuda_align(const struct input *);
 
 #endif /* INTERFACE_SEQALIGN_CUDA_H */

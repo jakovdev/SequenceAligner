@@ -24,12 +24,12 @@ static double similarity(seq_ptr seq1, seq_ptr seq2)
 	return (double)matches / (double)min_len;
 }
 
-bool filter(struct sequences *S)
+bool filter(struct input *dataset)
 {
 	if (!threshold)
 		return true;
 
-	size_t seq_n = (size_t)S->seqs_n;
+	size_t seq_n = (size_t)dataset->seqs_n;
 	bool *lost = calloc(seq_n, sizeof(*lost));
 	if unlikely (!lost) {
 		perr("Out of memory during sequence filtering");
@@ -41,21 +41,23 @@ bool filter(struct sequences *S)
 		return false;
 	}
 
+	s32 seqs_n = dataset->seqs_n;
+	struct sequence *seqs = dataset->seqs;
 	bench_filter_start();
 #pragma omp parallel
 	{
 		s32 i;
 #pragma omp for schedule(dynamic)
-		for (i = 1; i < S->seqs_n; i++) {
-			seq_ptr seq1 = &S->seqs[i];
+		for (i = 1; i < seqs_n; i++) {
+			seq_ptr seq1 = &seqs[i];
 
 			for (s32 j = 0; j < i; j++) {
 				if (lost[j])
 					continue;
-				if (similarity(seq1, &S->seqs[j]) < threshold)
-					continue;
-				lost[i] = true;
-				break;
+				if (similarity(seq1, &seqs[j]) >= threshold) {
+					lost[i] = true;
+					break;
+				}
 			}
 
 			progress_add(1);
@@ -64,7 +66,7 @@ bool filter(struct sequences *S)
 		progress_flush();
 	}
 	progress_end();
-	if (!sequences_lose(S, lost)) {
+	if (!input_lose(dataset, lost)) {
 		free(lost);
 		return false;
 	}

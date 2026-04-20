@@ -88,7 +88,7 @@ memory_error:
 	exit(EXIT_FAILURE);
 }
 
-bool cuda_align(struct sequences *dataset)
+bool cuda_align(const struct input *dataset)
 {
 	if (!init) {
 		pdev("CUDA Device not initialized before alignment");
@@ -369,7 +369,7 @@ bool cuda_memory(size_t)
 	return false;
 }
 
-bool cuda_align(struct sequences *)
+bool cuda_align(const struct input *)
 {
 	return false;
 }

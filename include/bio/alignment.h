@@ -7,9 +7,9 @@
 #include "util/macros.h"
 
 [[gnu::nonnull]]
-bool filter(struct sequences *);
+bool filter(struct input *);
 [[gnu::nonnull]]
-bool align(struct sequences *);
+bool align(const struct input *);
 
 #define SEQ_LUT_SIZE (SCHAR_MAX + 1)
 extern s32 SEQ_LUT[SEQ_LUT_SIZE];

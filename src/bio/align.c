@@ -18,7 +18,7 @@ s32 GAP_EXT;
 
 size_t TABLE_SIZE;
 
-bool align(struct sequences *dataset)
+bool align(const struct input *dataset)
 {
 	const align_fn method = ALIGN_METHODS[METHOD_ID];
 	const size_t total = (size_t)dataset->alignments;

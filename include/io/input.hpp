@@ -8,17 +8,15 @@
 std::string_view trim(std::string_view text) noexcept;
 
 struct source {
-	using parser_fn = bool (*)(source &) noexcept;
+	enum class parse_result { SUCCESS, ERROR, UNSUPPORTED };
+	using parser_fn = parse_result (*)(source &) noexcept;
 	inline static constinit std::vector<parser_fn> parsers{};
 	std::vector<std::string_view> lines{};
 	std::string extension{};
 	std::vector<std::string> seqs{};
 
 	[[gnu::nonnull]]
-	explicit source(const char *path) noexcept;
-
-	[[gnu::nonnull]]
-	bool load(struct sequences *) noexcept;
+	bool load(struct input *, const char *path) noexcept;
 };
 
 struct format {

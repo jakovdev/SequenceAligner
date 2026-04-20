@@ -20,8 +20,8 @@ int main(int argc, char *argv[])
 	args_actions();
 
 	psection("Setting Up Alignment");
-	[[gnu::cleanup(sequences_free)]] struct sequences dataset = {};
-	if (!sequences_load(&dataset) || !filter(&dataset))
+	[[gnu::cleanup(input_free)]] struct input dataset = {};
+	if (!input_load(&dataset) || !filter(&dataset))
 		return 1;
 
 	pinfo("Loaded %w32d sequences", dataset.seqs_n);

@@ -1,5 +1,6 @@
 #include "io/input.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <string>
@@ -14,6 +15,8 @@ extern "C" {
 #include "system/memory.h"
 #include "util/benchmark.h"
 }
+
+using result = source::parse_result;
 
 struct dsv_pair {
 	std::string_view extension{};
@@ -35,8 +38,8 @@ static void dsv_split(std::vector<std::string_view> &tokens,
 		      std::string_view line, char delimiter) noexcept
 {
 	tokens.clear();
-	size_t token_start = 0;
-	bool quoted = false;
+	size_t token_start{};
+	bool quoted{};
 	for (size_t i = 0; i < line.size(); i++) {
 		char ch = line[i];
 		if (ch == '"') {
@@ -61,28 +64,19 @@ static void dsv_split(std::vector<std::string_view> &tokens,
 	tokens.emplace_back(trim(line.substr(token_start)));
 }
 
-static bool parse_dsv(source &src) noexcept
+static result parse_dsv(source &src) noexcept
 {
-	char delimiter{};
-	for (const auto &pair : DSV_PAIRS) {
-		if (pair.extension == src.extension) {
-			delimiter = pair.delimiter;
-			break;
-		}
-	}
-	if (!delimiter)
-		return false;
+	auto it = std::ranges::find(DSV_PAIRS, src.extension,
+				    &dsv_pair::extension);
+	if (it == DSV_PAIRS.end())
+		return result::UNSUPPORTED;
 
-	if (src.lines.empty()) {
-		perr("No sequences found in DSV file");
-		return false;
-	}
-
+	char delimiter = it->delimiter;
 	std::vector<std::string_view> tokens{};
 	dsv_split(tokens, src.lines.front(), delimiter);
 	if (!tokens.size()) {
 		perr("No sequences found in DSV file");
-		return false;
+		return result::ERROR;
 	}
 
 	std::vector<std::string> headers(tokens.begin(), tokens.end());
@@ -105,6 +99,10 @@ static bool parse_dsv(source &src) noexcept
 	if (!first_row && headers.size() > 1) {
 		bench_io_end();
 		const char **MALLOCA(labels, headers.size() + 2);
+		if (!labels) {
+			perr("Memory allocation failure during DSV parsing");
+			return result::ERROR;
+		}
 		for (size_t i = 0; i < headers.size(); i++)
 			labels[i] = headers[i].c_str();
 		labels[headers.size()] = "No header line";
@@ -128,25 +126,23 @@ static bool parse_dsv(source &src) noexcept
 		dsv_split(tokens, line, delimiter);
 		if (tokens.size() != headers.size()) {
 			perr("Column count mismatch at row %zu", row + 1);
-			src.seqs.clear();
-			return false;
+			return result::ERROR;
 		}
 
 		auto token = tokens[header];
 		if (token.empty()) {
 			perr("Empty sequence found at row %zu", row + 1);
-			src.seqs.clear();
-			return false;
+			return result::ERROR;
 		}
 		src.seqs.emplace_back(token);
 	}
 
 	if (src.seqs.empty()) {
 		perr("No sequences found in DSV file");
-		return false;
+		return result::ERROR;
 	}
 
-	return true;
+	return result::SUCCESS;
 }
 
 static format dsv_format(parse_dsv);

@@ -46,13 +46,13 @@ static bool sequence_length_limit(size_t len) noexcept
 	return len <= SEQ_LEN_MAX / (size_t)gap;
 }
 
-source::source(const char *path) noexcept
+bool source::load(struct input *in, const char *path) noexcept
 {
 	std::string_view path_view(path);
 	size_t dot = path_view.rfind('.');
 	if (dot == std::string::npos) {
 		perr("File extension not found: %s", file_name(path));
-		return;
+		return false;
 	}
 	this->extension = path_view.substr(dot + 1);
 	for (char &ch : this->extension)
@@ -61,7 +61,7 @@ source::source(const char *path) noexcept
 	std::ifstream f(path, std::ios::binary);
 	if (!f) {
 		perr("Could not open file: %s", file_name(path));
-		return;
+		return false;
 	}
 
 	std::string data;
@@ -70,13 +70,13 @@ source::source(const char *path) noexcept
 
 	if (f.bad()) {
 		perr("Failed to read file: %s", file_name(path));
-		return;
+		return false;
 	}
 
 	if (data.find('\0') != std::string::npos) {
 		perr("File contains null bytes which may indicate corruption: %s",
 		     file_name(path));
-		return;
+		return false;
 	}
 
 	this->lines.reserve(1 + std::ranges::count(data, '\n'));
@@ -97,44 +97,47 @@ source::source(const char *path) noexcept
 			i = end + 1;
 	}
 
-	for (auto parser : parsers) {
-		if (parser(*this))
-			break;
-	}
-}
-
-bool source::load(struct sequences *S) noexcept
-{
-	if (lines.empty())
-		return false;
-
-	if (seqs.empty()) {
-		perr("Unsupported file format");
+	if (this->lines.empty()) {
+		perr("Empty file: %s", file_name(path));
 		return false;
 	}
 
-	if (seqs.size() < SEQ_N_MIN) {
-		perr("Not enough sequences: %zu (min: %d)", seqs.size(),
+	for (auto parse : this->parsers) {
+		switch (parse(*this)) {
+		case parse_result::SUCCESS:
+			goto parse_success;
+		case parse_result::ERROR:
+			return false;
+		case parse_result::UNSUPPORTED:
+			continue;
+		}
+	}
+
+	perr("Unsupported file format: %s", file_name(path));
+	return false;
+parse_success:
+	if (this->seqs.size() < SEQ_N_MIN) {
+		perr("Not enough sequences: %zu (min: %d)", this->seqs.size(),
 		     SEQ_N_MIN);
 		return false;
 	}
-	if (seqs.size() > SEQ_N_MAX) {
-		perr("Too many sequences: %zu (max: %d)", seqs.size(),
+	if (this->seqs.size() > SEQ_N_MAX) {
+		perr("Too many sequences: %zu (max: %d)", this->seqs.size(),
 		     SEQ_N_MAX);
 		return false;
 	}
 
 	size_t total = 0;
-	for (const auto &seq : seqs)
+	for (const auto &seq : this->seqs)
 		total += seq.size() + 1;
 
-	sequences_free(S);
-	MALLOCA_AL(S->seqs, CACHE_LINE, seqs.size());
-	MALLOCA_AL(S->lengths, CACHE_LINE, seqs.size());
-	MALLOCA_AL(S->offsets, CACHE_LINE, seqs.size());
-	MALLOCA_AL(S->letters, PAGE_SIZE, total);
-	if (!S->lengths || !S->offsets || !S->seqs || !S->letters) {
-		perr("Out of memory allocating %zu sequences", seqs.size());
+	input_free(in);
+	MALLOCA_AL(in->seqs, CACHE_LINE, this->seqs.size());
+	MALLOCA_AL(in->lengths, CACHE_LINE, this->seqs.size());
+	MALLOCA_AL(in->offsets, CACHE_LINE, this->seqs.size());
+	MALLOCA_AL(in->letters, PAGE_SIZE, total);
+	if (!in->lengths || !in->offsets || !in->seqs || !in->letters) {
+		perr("Out of memory for %zu sequences", this->seqs.size());
 		return false;
 	}
 
@@ -142,8 +145,8 @@ bool source::load(struct sequences *S) noexcept
 	s32 seq_n_long = 0;
 	int invalid = -1;
 	s32 seq_n_invalid = 0;
-	for (size_t i = 0, offset = 0; i < seqs.size(); i++) {
-		auto &seq = seqs[i];
+	for (size_t i = 0, offset = 0; i < this->seqs.size(); i++) {
+		auto &seq = this->seqs[i];
 		if (!sequence_length_limit(seq.size())) {
 			if (large < 0) {
 				bench_io_end();
@@ -180,18 +183,18 @@ bool source::load(struct sequences *S) noexcept
 			return false;
 		}
 
-		char *dst = S->letters + offset;
+		char *dst = in->letters + offset;
 		std::memcpy(dst, seq.data(), seq.size());
 		dst[seq.size()] = '\0';
 
-		S->lengths[S->seqs_n] = (s32)seq.size();
-		S->offsets[S->seqs_n] = (s64)offset;
-		S->seqs[S->seqs_n].letters = dst;
-		S->seqs[S->seqs_n].length = (s32)seq.size();
-		S->lengths_max = std::max(S->lengths_max, seq.size());
+		in->lengths[in->seqs_n] = (s32)seq.size();
+		in->offsets[in->seqs_n] = (s64)offset;
+		in->seqs[in->seqs_n].letters = dst;
+		in->seqs[in->seqs_n].length = (s32)seq.size();
+		in->lengths_max = std::max(in->lengths_max, seq.size());
 
 		offset += seq.size() + 1;
-		S->seqs_n++;
+		in->seqs_n++;
 	}
 
 	if (seq_n_long)
@@ -200,15 +203,15 @@ bool source::load(struct sequences *S) noexcept
 	if (seq_n_invalid)
 		pinfo("Skipped %w32d invalid sequences", seq_n_invalid);
 
-	if (S->seqs_n < SEQ_N_MIN) {
-		perr("Not enough valid sequences: %w32d (min: %d)", S->seqs_n,
+	if (in->seqs_n < SEQ_N_MIN) {
+		perr("Not enough valid sequences: %w32d (min: %d)", in->seqs_n,
 		     SEQ_N_MIN);
 		return false;
 	}
 
-	S->alignments = ((s64)S->seqs_n * (S->seqs_n - 1)) / 2;
-	s64 t_len = S->offsets[S->seqs_n - 1] + S->lengths[S->seqs_n - 1] + 1;
-	S->average_length = (double)t_len / (double)S->seqs_n - 1.0;
+	in->alignments = ((s64)in->seqs_n * (in->seqs_n - 1)) / 2;
+	s64 sum = in->offsets[in->seqs_n - 1] + in->lengths[in->seqs_n - 1] + 1;
+	in->average_length = (double)sum / (double)in->seqs_n - 1.0;
 	return true;
 }
 
@@ -216,47 +219,47 @@ extern "C" {
 
 static const char *INPUT_PATH;
 
-void sequences_free(struct sequences *S)
+void input_free(struct input *in)
 {
-	free_aligned(S->lengths);
-	free_aligned(S->offsets);
-	free_aligned(S->letters);
-	free_aligned(S->seqs);
-	std::memset(S, 0, sizeof(*S));
+	free_aligned(in->lengths);
+	free_aligned(in->offsets);
+	free_aligned(in->letters);
+	free_aligned(in->seqs);
+	std::memset(in, 0, sizeof(*in));
 }
 
-bool sequences_load(struct sequences *S)
+bool input_load(struct input *in)
 {
 	bench_io_start();
 
-	source src(INPUT_PATH);
-	if (!src.load(S))
+	source src{};
+	if (!src.load(in, INPUT_PATH))
 		return false;
 
 	bench_io_end();
 	return true;
 }
 
-bool sequences_lose(struct sequences *S, const bool *lost)
+bool input_lose(struct input *in, const bool *lost)
 {
 	s64 used = 0;
 	s32 write = 0;
-	S->lengths_max = 0;
-	for (s32 read = 0; read < S->seqs_n; read++) {
+	in->lengths_max = 0;
+	for (s32 read = 0; read < in->seqs_n; read++) {
 		if (lost[read])
 			continue;
 
-		s32 len = S->lengths[read];
-		s64 off = S->offsets[read];
-		char *dst = S->letters + used;
+		s32 len = in->lengths[read];
+		s64 off = in->offsets[read];
+		char *dst = in->letters + used;
 		size_t LEN = (size_t)len;
 		if (used != off)
-			memmove(dst, S->letters + off, LEN + 1);
-		S->lengths[write] = len;
-		S->offsets[write] = used;
-		S->seqs[write].length = len;
-		S->seqs[write++].letters = dst;
-		S->lengths_max = std::max(S->lengths_max, LEN);
+			memmove(dst, in->letters + off, LEN + 1);
+		in->lengths[write] = len;
+		in->offsets[write] = used;
+		in->seqs[write].length = len;
+		in->seqs[write++].letters = dst;
+		in->lengths_max = std::max(in->lengths_max, LEN);
 		used += len + 1;
 	}
 
@@ -266,10 +269,10 @@ bool sequences_lose(struct sequences *S, const bool *lost)
 		return false;
 	}
 
-	S->seqs_n = write;
-	S->alignments = ((s64)write * (write - 1)) / 2;
-	s64 total = S->offsets[write - 1] + S->lengths[write - 1] + 1;
-	S->average_length = (double)total / (double)write - 1.0;
+	in->seqs_n = write;
+	in->alignments = ((s64)write * (write - 1)) / 2;
+	s64 total = in->offsets[write - 1] + in->lengths[write - 1] + 1;
+	in->average_length = (double)total / (double)write - 1.0;
 	return true;
 }
 

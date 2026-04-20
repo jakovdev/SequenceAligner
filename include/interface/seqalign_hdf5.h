@@ -7,7 +7,7 @@
 #include "bio/sequences.h"
 
 [[gnu::nonnull]]
-bool h5_open(struct sequences *);
+bool h5_open(const struct input *);
 [[gnu::nonnull]]
 void h5_matrix_column_set(s32 col, const s32 *values);
 

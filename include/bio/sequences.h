@@ -10,7 +10,7 @@ struct sequence {
 	s32 length;
 };
 
-struct sequences {
+struct input {
 	struct sequence *seqs;
 	s32 *lengths;
 	size_t lengths_max;
@@ -22,11 +22,11 @@ struct sequences {
 };
 
 [[gnu::nonnull]]
-bool sequences_load(struct sequences *);
+bool input_load(struct input *);
 [[gnu::nonnull]]
-void sequences_free(struct sequences *);
+void input_free(struct input *);
 [[gnu::nonnull]]
-bool sequences_lose(struct sequences *, const bool *lost);
+bool input_lose(struct input *, const bool *lost);
 
 #define SEQ_LEN_MAX (INT32_MAX - 1)
 #define SEQ_LEN_MIN (1)
