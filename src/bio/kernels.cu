@@ -87,7 +87,6 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 KERNEL_REGISTER(ALIGN_NW, kernel_nw);
@@ -161,7 +160,6 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 KERNEL_REGISTER(ALIGN_GA, kernel_ga);
@@ -235,7 +233,6 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(C.checksum), static_cast<ull>(score));
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 KERNEL_REGISTER(ALIGN_SW, kernel_sw);

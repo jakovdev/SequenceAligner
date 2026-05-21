@@ -27,46 +27,38 @@ bool align(const struct input *dataset, struct output *sm)
 		return false;
 
 	bench_align_start();
-	s64 total_checksum = 0;
 	s32 seqs_n = dataset->seqs_n;
 	TABLE_SIZE = (dataset->lengths_max + 1) * (dataset->lengths_max + 1);
 	struct sequence *seqs = dataset->seqs;
-#pragma omp parallel reduction(+ : total_checksum)
+#pragma omp parallel
 	{
 		s32 *MALLOCA_AL(table, CACHE_LINE, 3 * TABLE_SIZE);
 		s32 *MALLOCA_AL(ind, CACHE_LINE, dataset->lengths_max);
-		s32 *MALLOCA_AL(columns, CACHE_LINE, (size_t)seqs_n);
-		if unlikely (!table || !ind || !columns) {
+		s32 *MALLOCA_AL(cols, CACHE_LINE, (size_t)seqs_n);
+		if unlikely (!table || !ind || !cols) {
 			perr("Out of memory allocating alignment buffers");
 			exit(EXIT_FAILURE);
 		}
-		s64 checksum = 0;
-		s32 col;
 #pragma omp for schedule(dynamic)
-		for (col = 1; col < seqs_n; col++) {
+		for (s32 col = 1; col < seqs_n; col++) {
 			seq_ptr seq = &seqs[col];
 			for (s32 i = 0; i < seq->length; ++i)
 				ind[i] = SEQ_LUT[(uchar)seq->letters[i]];
-			for (s32 row = 0; row < col; row++) {
-				s32 score = method(seq, &seqs[row], table, ind);
-				columns[row] = score;
-				checksum += score;
-			}
+			for (s32 row = 0; row < col; row++)
+				cols[row] = method(seq, &seqs[row], table, ind);
 
-			output_fill(sm, col, columns);
+			output_fill(sm, col, cols);
 			progress_add((size_t)col);
 		}
 
 		progress_flush();
-		total_checksum += checksum;
-		free_aligned(columns);
+		free_aligned(cols);
 		free_aligned(ind);
 		free_aligned(table);
 	}
 
 	bench_align_end();
 	progress_end();
-	sm->checksum = total_checksum * 2;
 	bench_align_print();
 	return true;
 }

@@ -227,7 +227,6 @@ Below are example commands to run the program. Adjust as needed.
 - **Content**:
   - Sequences used during alignment (original or filtered)
   - Similarity matrix where each cell represents the alignment score between sequence pairs
-  - Similarity matrix checksum for data integrity verification
 - **Size Considerations**:
   - Similarity matrix size grows quadratically with sequence count (1000 sequences = 4MB, 50000 sequences = 10GB)
   - Large matrices above RAM limits use temporary disk-based storage, which means you will need to store 2 of them (one temporary and one final)

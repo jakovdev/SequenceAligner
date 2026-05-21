@@ -46,9 +46,8 @@ bool filter(struct input *dataset)
 	bench_filter_start();
 #pragma omp parallel
 	{
-		s32 i;
 #pragma omp for schedule(dynamic)
-		for (i = 1; i < seqs_n; i++) {
+		for (s32 i = 1; i < seqs_n; i++) {
 			seq_ptr seq1 = &seqs[i];
 
 			for (s32 j = 0; j < i; j++) {

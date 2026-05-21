@@ -5,7 +5,7 @@
 
 /* scores, sequence lengths and counts */
 typedef int32_t s32;
-/* checksums, alignment sizes, counters, products */
+/* alignment sizes, counters, products */
 typedef int64_t s64;
 
 typedef unsigned char uchar;

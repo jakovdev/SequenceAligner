@@ -170,9 +170,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	}
 
 	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
-	CALLR(cudaMalloc((void **)&C.checksum, sizeof(*C.checksum)));
 	CALLR(cudaMemset(C.progress, 0, sizeof(*C.progress)));
-	CALLR(cudaMemset(C.checksum, 0, sizeof(*C.checksum)));
 	CALLR(copy_constants(&C));
 
 	const void *kernel = kernels[METHOD_ID];
@@ -300,12 +298,6 @@ cuda_progress:
 
 	bench_align_end();
 	ppercent(100, "Aligning sequences");
-
-	sll checksum = 0;
-	CALLR(cudaMemcpy(&checksum, C.checksum, sizeof(checksum),
-			 cudaMemcpyDeviceToHost));
-	sm->checksum = checksum * 2;
-
 	bench_align_print();
 	return true;
 }

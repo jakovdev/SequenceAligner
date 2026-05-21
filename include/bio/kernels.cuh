@@ -16,7 +16,6 @@ struct Constants {
 	s32 *lengths;
 	s64 *offsets;
 	sll *progress;
-	sll *checksum;
 	s32 seq_lut[SEQ_LUT_SIZE];
 	s32 sub_mat[SUB_MAT_DIM * SUB_MAT_DIM];
 	s32 seq_n;

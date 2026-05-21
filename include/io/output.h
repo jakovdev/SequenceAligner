@@ -23,7 +23,6 @@ struct output {
 	size_t bytes;
 	const char **seqs;
 	size_t dim;
-	s64 checksum;
 	struct mmap file;
 	bool mmap;
 	bool triangular;
