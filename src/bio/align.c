@@ -3,7 +3,7 @@
 #include <print.h>
 #include <progress.h>
 
-#include "interface/seqalign_hdf5.h"
+#include "io/output.h"
 #include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
@@ -18,7 +18,7 @@ s32 GAP_EXT;
 
 size_t TABLE_SIZE;
 
-bool align(const struct input *dataset)
+bool align(const struct input *dataset, struct output *sm)
 {
 	const align_fn method = ALIGN_METHODS[METHOD_ID];
 	const size_t total = (size_t)dataset->alignments;
@@ -53,7 +53,7 @@ bool align(const struct input *dataset)
 				checksum += score;
 			}
 
-			h5_matrix_column_set(col, columns);
+			output_fill(sm, col, columns);
 			progress_add((size_t)col);
 		}
 
@@ -66,7 +66,7 @@ bool align(const struct input *dataset)
 
 	bench_align_end();
 	progress_end();
-	h5_checksum_set(total_checksum * 2);
+	sm->checksum = total_checksum * 2;
 	bench_align_print();
 	return true;
 }

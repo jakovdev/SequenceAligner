@@ -12,7 +12,7 @@
 
 #include "bio/kernels.cuh"
 #include "bio/sequences.h"
-#include "interface/seqalign_hdf5.h"
+#include "io/output.h"
 #include "util/benchmark.h"
 #include "util/macros.h"
 
@@ -82,10 +82,10 @@ memory_error:
 	exit(EXIT_FAILURE);
 }
 
-bool cuda_align(const struct input *dataset)
+bool cuda_align(const struct input *dataset, struct output *sm)
 {
 	if (no_cuda)
-		return align(dataset);
+		return align(dataset, sm);
 
 	if (!cuda_device_init())
 		return false;
@@ -133,7 +133,7 @@ bool cuda_align(const struct input *dataset)
 
 	const s64 alignments = dataset->alignments;
 	const s64 batch_size = INT64_C(64) << 20;
-	s32 *matrix = h5_matrix_data();
+	s32 *matrix = sm->matrix;
 
 	if (!cuda_memory(bytesof(matrix, seq_n * seq_n))) {
 		if (!cuda_memory(bytesof(matrix, (size_t)alignments))) {
@@ -145,7 +145,7 @@ bool cuda_align(const struct input *dataset)
 		C.triangular = true;
 	}
 
-	if (h5_matrix_bytes() == (sizeof(*matrix) * (size_t)alignments))
+	if (sm->triangular)
 		C.triangular = true;
 
 	s64 batch = 0, batch_last = 0, batch_done = 0;
@@ -304,7 +304,7 @@ cuda_progress:
 	sll checksum = 0;
 	CALLR(cudaMemcpy(&checksum, C.checksum, sizeof(checksum),
 			 cudaMemcpyDeviceToHost));
-	h5_checksum_set(checksum * 2);
+	sm->checksum = checksum * 2;
 
 	bench_align_print();
 	return true;
@@ -339,9 +339,9 @@ bool cuda_memory(size_t)
 	return true;
 }
 
-bool cuda_align(const struct input *dataset)
+bool cuda_align(const struct input *dataset, struct output *sm)
 {
-	return align(dataset);
+	return align(dataset, sm);
 }
 
 static void print_cuda_ignored(void)

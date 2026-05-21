@@ -6,10 +6,12 @@
 #include "bio/sequences.h"
 #include "util/macros.h"
 
+struct output;
+
 [[gnu::nonnull]]
 bool filter(struct input *);
 [[gnu::nonnull]]
-bool align(const struct input *);
+bool align(const struct input *, struct output *);
 
 #define SEQ_LUT_SIZE (SCHAR_MAX + 1)
 extern s32 SEQ_LUT[SEQ_LUT_SIZE];

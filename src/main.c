@@ -4,7 +4,7 @@
 #include "bio/alignment.h"
 #include "bio/sequences.h"
 #include "interface/seqalign_cuda.h"
-#include "interface/seqalign_hdf5.h"
+#include "io/output.h"
 #include "util/benchmark.h"
 
 int main(int argc, char *argv[])
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 	psection("Configuration");
 	args_actions();
 
-	psection("Setting Up Alignment");
+	psection("Reading Dataset");
 	[[gnu::cleanup(input_free)]] struct input dataset = {};
 	if (!input_load(&dataset) || !filter(&dataset))
 		return 1;
@@ -28,16 +28,19 @@ int main(int argc, char *argv[])
 	pinfo("Average sequence length: %.2f", dataset.average_length);
 	bench_input_print();
 
-	if (!h5_open(&dataset))
+	psection("Creating Similarity Matrix");
+	[[gnu::cleanup(output_free)]] struct output sm = {};
+	if (!output_load(&sm, &dataset))
 		return 1;
 
 	psection("Performing Alignments");
-	if (!cuda_align(&dataset)) {
-		h5_close(1);
+	if (!cuda_align(&dataset, &sm))
 		return 1;
-	}
 
-	h5_close(0);
+	psection("Writing Similarity Matrix");
+	if (!output_flush(&sm))
+		return 1;
+
 	bench_total_print((double)dataset.alignments);
 	return 0;
 }
