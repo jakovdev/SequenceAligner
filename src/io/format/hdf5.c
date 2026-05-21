@@ -235,7 +235,7 @@ static bool flush_hdf5(struct output *sm, const char *path)
 	H5Fclose(file_id);
 	return true;
 }
-FLUSH_REGISTER(FLUSH_HDF5, flush_hdf5);
+FLUSH_REGISTER(FLUSH_HDF5, flush_hdf5)
 
 ARG_PARSE_UL(compression, 10, unsigned int, (unsigned int), val > 9,
 	     "Compression level must be between 0-9")

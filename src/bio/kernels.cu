@@ -4,7 +4,14 @@ __constant__ Constants C;
 
 extern "C" {
 const void *kernels[ALIGN_COUNT];
-#define KERNEL_REGISTER(ID, FN) ALIGN_REGISTER(kernels, ID, (const void *)FN)
+
+#define KERNEL_REGISTER(ID, FN)                                        \
+	_ARGS_CONSTRUCTOR(KERNEL_REGISTER_##ID)                        \
+	{                                                              \
+		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT); \
+		kernels[ID] = (const void *)FN;                        \
+	}
+
 cudaError_t copy_constants(const struct Constants *host)
 {
 	return cudaMemcpyToSymbol(C, host, sizeof(C));

@@ -4,7 +4,6 @@
 #include <limits.h>
 
 #include "bio/sequences.h"
-#include "util/macros.h"
 
 struct output;
 
@@ -23,7 +22,7 @@ extern s32 GAP_OPN;
 extern s32 GAP_EXT;
 #define SCORE_MIN (INT32_MIN / 2)
 
-extern enum align_method {
+extern enum align_methods {
 	ALIGN_INVALID = -1,
 	ALIGN_GA,
 	ALIGN_NW,
@@ -31,36 +30,26 @@ extern enum align_method {
 	ALIGN_COUNT
 } METHOD_ID;
 
-enum gap_type {
-	GAP_LINEAR,
-	GAP_AFFINE,
-};
-
 typedef s32 (*align_fn)(seq_ptr, seq_ptr, s32 *restrict, s32 *restrict);
-extern align_fn ALIGN_METHODS[ALIGN_COUNT];
-extern const char *ALIGN_NAMES[ALIGN_COUNT];
-extern const char **ALIGN_ALIASES[ALIGN_COUNT];
-extern enum gap_type ALIGN_GAPS[ALIGN_COUNT];
+
+extern struct align_method {
+	align_fn method;
+	const char *name;
+	const char **aliases;
+	enum {
+		GAP_LINEAR,
+		GAP_AFFINE,
+	} gap;
+} ALIGN_METHODS[ALIGN_COUNT];
 
 #include <args.h>
 
-#define ALIGN_REGISTER(ALIGN_ARRAY, ID, FN)                            \
-	_ARGS_CONSTRUCTOR(ALIGN_ARRAY##_REGISTER_##ID)                 \
-	{                                                              \
-		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT); \
-		static_assert(ARRAY_SIZE(ALIGN_ARRAY) == ALIGN_COUNT); \
-		ALIGN_ARRAY[ID] = FN;                                  \
-	}
-
-#define ALIGN_METHOD(ID, FN, GAP, NAME, ...)                                  \
-	_ARGS_CONSTRUCTOR(REGISTER_##ID)                                      \
-	{                                                                     \
-		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT);        \
-		ALIGN_METHODS[ID] = FN;                                       \
-		ALIGN_GAPS[ID] = GAP;                                         \
-		ALIGN_NAMES[ID] = NAME;                                       \
-		static const char *ID##_ALIASES[] = { __VA_ARGS__, nullptr }; \
-		ALIGN_ALIASES[ID] = ID##_ALIASES;                             \
+#define ALIGN_METHOD(ID, FN, GAP, NAME, ALIAS, ...)                            \
+	_ARGS_CONSTRUCTOR(METHOD_REGISTER_##ID)                                \
+	{                                                                      \
+		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT);         \
+		static const char *a[] = { ALIAS, ##__VA_ARGS__, nullptr };    \
+		ALIGN_METHODS[ID] = (struct align_method){ FN, NAME, a, GAP }; \
 	}
 
 #endif /* BIO_ALIGNMENT_H */

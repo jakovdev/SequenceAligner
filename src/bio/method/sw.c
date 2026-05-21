@@ -70,4 +70,4 @@ static s32 align_sw(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
 	return score;
 }
 ALIGN_METHOD(ALIGN_SW, align_sw, GAP_AFFINE, "Smith-Waterman", "sw", "smith",
-	     "waterman");
+	     "waterman")

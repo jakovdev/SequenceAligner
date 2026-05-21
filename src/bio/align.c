@@ -9,8 +9,8 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-align_fn ALIGN_METHODS[ALIGN_COUNT];
-enum align_method METHOD_ID = ALIGN_INVALID;
+struct align_method ALIGN_METHODS[ALIGN_COUNT];
+enum align_methods METHOD_ID = ALIGN_INVALID;
 
 s32 GAP_PEN;
 s32 GAP_OPN;
@@ -20,7 +20,7 @@ size_t TABLE_SIZE;
 
 bool align(const struct input *dataset, struct output *sm)
 {
-	const align_fn method = ALIGN_METHODS[METHOD_ID];
+	const align_fn method = ALIGN_METHODS[METHOD_ID].method;
 	const size_t total = (size_t)dataset->alignments;
 	pinfo("Performing %zu pairwise alignments", total);
 	if (!progress_start(total, THREAD_NUM, "Aligning sequences"))
@@ -71,19 +71,15 @@ bool align(const struct input *dataset, struct output *sm)
 	return true;
 }
 
-const char **ALIGN_ALIASES[ALIGN_COUNT];
-const char *ALIGN_NAMES[ALIGN_COUNT];
-enum gap_type ALIGN_GAPS[ALIGN_COUNT];
-
 static char help[512];
 _ARGS_CONSTRUCTOR(build_help_strings)
 {
 	snprintf(help, sizeof(help), "Alignment method\n");
 	for (int i = 0; i < ALIGN_COUNT; i++) {
-		const char *newline = (i == ALIGN_COUNT - 1) ? "" : "\n";
+		const char *n = (i == ALIGN_COUNT - 1) ? "" : "\n";
 		size_t len = strlen(help);
 		snprintf(help + len, sizeof(help) - len, "  %s: %s%s",
-			 ALIGN_ALIASES[i][0], ALIGN_NAMES[i], newline);
+			 ALIGN_METHODS[i].aliases[0], ALIGN_METHODS[i].name, n);
 	}
 }
 
@@ -95,12 +91,12 @@ static struct arg_callback parse_align_method(const char *str, void *)
 	long id = strtol(str, &endptr, 10);
 	if (endptr != str && *endptr == '\0' && errno != ERANGE &&
 	    id > ALIGN_INVALID && id < ALIGN_COUNT)
-		METHOD_ID = (enum align_method)id;
+		METHOD_ID = (enum align_methods)id;
 
 	for (int i = 0; METHOD_ID == ALIGN_INVALID && i < ALIGN_COUNT; i++) {
-		for (const char **a = ALIGN_ALIASES[i]; *a; a++) {
+		for (const char **a = ALIGN_METHODS[i].aliases; *a; a++) {
 			if (strcasecmp(str, *a) == 0) {
-				METHOD_ID = (enum align_method)i;
+				METHOD_ID = (enum align_methods)i;
 				break;
 			}
 		}
@@ -114,7 +110,7 @@ static struct arg_callback parse_align_method(const char *str, void *)
 
 static void print_config_method(void)
 {
-	pinfom("Method: %s", ALIGN_NAMES[METHOD_ID]);
+	pinfom("Method: %s", ALIGN_METHODS[METHOD_ID].name);
 }
 
 ARG_EXTERN(substitution_matrix);
@@ -137,7 +133,7 @@ ARG_PARSE_L(gap_value, 10, s32, -(s32), (val < 0 || val > INT_MAX),
 
 static struct arg_callback validate_gap_pen(void)
 {
-	if (ALIGN_GAPS[METHOD_ID] == GAP_LINEAR)
+	if (ALIGN_METHODS[METHOD_ID].gap == GAP_LINEAR)
 		return ARG_VALID();
 	return ARG_INVALID("Gap penalty cannot be set for non-linear methods");
 }
@@ -153,7 +149,7 @@ static struct arg_callback validate_gap_affine(void)
 		return ARG_VALID();
 	}
 
-	if (ALIGN_GAPS[METHOD_ID] == GAP_AFFINE)
+	if (ALIGN_METHODS[METHOD_ID].gap == GAP_AFFINE)
 		return ARG_VALID();
 
 	return ARG_INVALID("Affine gaps cannot be set for non-affine methods");
@@ -161,7 +157,7 @@ static struct arg_callback validate_gap_affine(void)
 
 static void print_config_gaps(void)
 {
-	switch (ALIGN_GAPS[METHOD_ID]) {
+	switch (ALIGN_METHODS[METHOD_ID].gap) {
 	case GAP_LINEAR:
 		pinfom("Gap penalty: %w32d", GAP_PEN);
 		break;

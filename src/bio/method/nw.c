@@ -42,4 +42,4 @@ static s32 align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
 	return table[(s64)len2 * cols + len1];
 }
 ALIGN_METHOD(ALIGN_NW, align_nw, GAP_LINEAR, "Needleman-Wunsch", "nw",
-	     "needleman", "wunsch");
+	     "needleman", "wunsch")
