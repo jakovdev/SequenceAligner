@@ -19,8 +19,8 @@ struct source {
 	bool load(struct input *, const char *path) noexcept;
 };
 
-struct format {
-	format(source::parser_fn parser) noexcept
+struct input_format {
+	input_format(source::parser_fn parser) noexcept
 	{
 		source::parsers.push_back(parser);
 	}

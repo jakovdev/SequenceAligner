@@ -83,4 +83,4 @@ static result parse_fasta(source &src) noexcept
 	return result::SUCCESS;
 }
 
-static format fasta_format(parse_fasta);
+static input_format fasta_format(parse_fasta);
