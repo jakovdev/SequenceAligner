@@ -70,9 +70,9 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 			const s32 gap_v = dp_prev[col] + C.gap_pen;
 			const s32 gap_h = dp_curr[col - 1] + C.gap_pen;
 
-			s32 max = match > gap_v ? match : gap_v;
-			max = max > gap_h ? max : gap_h;
-			dp_curr[col] = max;
+			s32 val_max = max(match, gap_v);
+			val_max = max(val_max, gap_h);
+			dp_curr[col] = val_max;
 		}
 
 		for (s32 col = 0; col <= len2; col++)

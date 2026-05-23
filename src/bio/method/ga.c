@@ -1,68 +1,62 @@
 #include "bio/alignment.h"
 #include "util/macros.h"
 
-extern size_t TABLE_SIZE;
-
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
 static s32 align_ga(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
-		    s32 *restrict ind)
+		    const s32 *restrict ind)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
 
-	const s32 len1 = seq1->length;
-	const s32 len2 = seq2->length;
-	const s64 cols = len1 + 1;
+	s32 len1 = seq1->length;
+	s32 len2 = seq2->length;
+	s64 cols = len1 + 1;
 
+	extern size_t TABLE_SIZE;
 	s32 *restrict match = table;
 	s32 *restrict gap_x = table + TABLE_SIZE;
-	s32 *restrict gap_y = table + 2 * TABLE_SIZE;
+	s32 *restrict gap_y = table + TABLE_SIZE * 2;
 
 	match[0] = 0;
 	gap_x[0] = gap_y[0] = SCORE_MIN;
 
-	for (s32 j = 1; j <= len1; j++) {
-		gap_x[j] = max(match[j - 1] + GAP_OPN, gap_x[j - 1] + GAP_EXT);
-		match[j] = gap_x[j];
-		gap_y[j] = SCORE_MIN;
+	for (s32 i = 1; i <= len1; i++) {
+		gap_x[i] = max(match[i - 1] + GAP_OPN, gap_x[i - 1] + GAP_EXT);
+		match[i] = gap_x[i];
+		gap_y[i] = SCORE_MIN;
 	}
 
 	for (s32 i = 1; i <= len2; i++) {
-		const s64 idx = cols * i;
-		gap_y[idx] = max(match[idx - cols] + GAP_OPN,
-				 gap_y[idx - cols] + GAP_EXT);
-		match[idx] = gap_y[idx];
-		gap_x[idx] = SCORE_MIN;
+		s64 j = cols * i;
+		gap_y[j] = max(match[j - cols] + GAP_OPN,
+			       gap_y[j - cols] + GAP_EXT);
+		match[j] = gap_y[j];
+		gap_x[j] = SCORE_MIN;
 	}
 
 	for (s32 i = 1; i <= len2; ++i) {
-		const s64 row = cols * i;
-		const s64 p_row = cols * (i - 1);
-		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
+		s64 row = cols * i;
+		s64 row_prev = cols * (i - 1);
+		s32 c2 = SEQ_LUT[(uchar)seq2->letters[i - 1]];
 
 		for (s32 j = 1; j <= len1; j++) {
-			const s32 similarity = SUB_MAT[ind[j - 1]][c2_idx];
-			const s32 d_score = match[p_row + j - 1] + similarity;
+			s32 similarity = SUB_MAT[ind[j - 1]][c2];
+			s32 score_diag = match[row_prev + j - 1] + similarity;
 
-			const s32 p_match_x = match[row + j - 1];
-			const s32 p_gap_x = gap_x[row + j - 1];
-			const s32 p_match_y = match[p_row + j];
-			const s32 p_gap_y = gap_y[p_row + j];
+			s32 opn_x = match[row + j - 1] + GAP_OPN;
+			s32 ext_x = gap_x[row + j - 1] + GAP_EXT;
+			s32 opn_y = match[row_prev + j] + GAP_OPN;
+			s32 ext_y = gap_y[row_prev + j] + GAP_EXT;
 
-			const s32 opn_x = p_match_x + GAP_OPN;
-			const s32 ext_x = p_gap_x + GAP_EXT;
-			const s32 opn_y = p_match_y + GAP_OPN;
-			const s32 ext_y = p_gap_y + GAP_EXT;
+			s32 gap_x_curr = max(opn_x, ext_x);
+			s32 gap_y_curr = max(opn_y, ext_y);
 
-			const s32 c_gap_x = opn_x > ext_x ? opn_x : ext_x;
-			const s32 c_gap_y = opn_y > ext_y ? opn_y : ext_y;
+			gap_x[row + j] = gap_x_curr;
+			gap_y[row + j] = gap_y_curr;
 
-			gap_x[row + j] = c_gap_x;
-			gap_y[row + j] = c_gap_y;
-
-			s32 best = d_score;
-			best = c_gap_x > best ? c_gap_x : best;
-			best = c_gap_y > best ? c_gap_y : best;
+			s32 best = score_diag;
+			best = max(gap_x_curr, best);
+			best = max(gap_y_curr, best);
 			match[row + j] = best;
 		}
 	}

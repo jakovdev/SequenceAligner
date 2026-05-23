@@ -3,40 +3,40 @@
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
 static s32 align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
-		    s32 *restrict ind)
+		    const s32 *restrict ind)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
 
-	const s32 len1 = seq1->length;
-	const s32 len2 = seq2->length;
-	const s64 cols = (s64)len1 + 1;
+	s32 len1 = seq1->length;
+	s32 len2 = seq2->length;
+	s64 cols = len1 + 1;
 
 	table[0] = 0;
 
-	for (s32 j = 1; j <= len1; j++)
-		table[j] = j * GAP_PEN;
+	for (s32 i = 1; i <= len1; i++)
+		table[i] = i * GAP_PEN;
 
 	for (s32 i = 1; i <= len2; i++)
 		table[cols * i] = i * GAP_PEN;
 
 	for (s32 i = 1; i <= len2; ++i) {
-		const s32 c2_idx = SEQ_LUT[(uchar)seq2->letters[i - 1]];
-		const s32 *restrict sub_row = SUB_MAT[c2_idx];
+		s32 c2 = SEQ_LUT[(uchar)seq2->letters[i - 1]];
+		s32 *restrict sub = SUB_MAT[c2];
 		s32 *restrict curr = table + cols * i;
-		const s32 *restrict prev = curr - cols;
+		s32 *restrict prev = curr - cols;
 		s32 left = curr[0];
 
 		for (s32 j = 1; j <= len1; j++) {
-			const s32 match = prev[j - 1] + sub_row[ind[j - 1]];
-			const s32 del = prev[j] + GAP_PEN;
-			const s32 ins = left + GAP_PEN;
+			s32 match = prev[j - 1] + sub[ind[j - 1]];
+			s32 del = prev[j] + GAP_PEN;
+			s32 ins = left + GAP_PEN;
 
-			s32 max_val = match;
-			max_val = del > max_val ? del : max_val;
-			max_val = ins > max_val ? ins : max_val;
-			curr[j] = max_val;
-			left = max_val;
+			s32 val_max = match;
+			val_max = max(del, val_max);
+			val_max = max(ins, val_max);
+			curr[j] = val_max;
+			left = val_max;
 		}
 	}
 

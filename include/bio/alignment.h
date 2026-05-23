@@ -30,7 +30,7 @@ extern enum align_methods {
 	ALIGN_COUNT
 } METHOD_ID;
 
-typedef s32 (*align_fn)(seq_ptr, seq_ptr, s32 *restrict, s32 *restrict);
+typedef s32 (*align_fn)(seq_ptr, seq_ptr, s32 *restrict, const s32 *restrict);
 
 extern struct align_method {
 	align_fn method;
