@@ -3,6 +3,7 @@
 
 extern size_t TABLE_SIZE;
 
+[[gnu::nonnull, gnu::noinline, gnu::hot]]
 static s32 align_sw(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
 		    s32 *restrict ind)
 {

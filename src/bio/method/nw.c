@@ -1,6 +1,7 @@
 #include "bio/alignment.h"
 #include "util/macros.h"
 
+[[gnu::nonnull, gnu::noinline, gnu::hot]]
 static s32 align_nw(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
 		    s32 *restrict ind)
 {
