@@ -105,7 +105,7 @@ static const char *_find_last_sep(const char *path)
 	if (!last2)
 		return last1;
 
-	return (last1 > last2) ? last1 : last2;
+	return max(last1, last2);
 #else
 	return last1;
 #endif

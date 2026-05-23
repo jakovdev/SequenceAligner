@@ -4,6 +4,8 @@
 #include <print.h>
 #include <string.h>
 
+#include "util/macros.h"
+
 #define GENERATED_MATRICES_IMPLEMENTATION
 #include "generated/matrices.h"
 
@@ -15,9 +17,7 @@ static void print_matrix_group(const char *title, int count, int start)
 	printf("\n%s (%d):\n", title, count);
 	for (int i = 0; i < count; i += 5) {
 		printf("  ");
-		const int next = i + 5;
-		const int row_end = next < count ? next : count;
-		for (int j = i; j < row_end; j++)
+		for (int j = i; j < min(i + 5, count); j++)
 			printf("%-*s ", NAMES_LONGEST, NAMES[start + j]);
 		putchar('\n');
 	}

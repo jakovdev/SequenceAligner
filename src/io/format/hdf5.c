@@ -1,6 +1,7 @@
 #include <args.h>
 #include <hdf5.h>
 #include <print.h>
+#include <string.h>
 
 #include "io/output.h"
 #include "system/os.h"
@@ -125,7 +126,7 @@ static bool flush_hdf5(struct output *sm, const char *path)
 	s64 dim = sm->dim;
 	size_t row_bytes = bytesof(sm->matrix, sm->dim);
 	s32 max_rows = (s32)(available / (4 * row_bytes));
-	s32 chunk_size = (s32)(chunk_dim > 4 ? chunk_dim : 4);
+	s32 chunk_size = (s32)max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 

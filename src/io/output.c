@@ -2,6 +2,7 @@
 
 #include <args.h>
 #include <print.h>
+#include <string.h>
 
 #include "bio/sequences.h"
 #include "interface/seqalign_cuda.h"

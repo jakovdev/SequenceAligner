@@ -2,6 +2,7 @@
 
 #include <print.h>
 #include <progress.h>
+#include <string.h>
 
 #include "io/output.h"
 #include "system/memory.h"
