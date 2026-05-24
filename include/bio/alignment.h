@@ -42,10 +42,9 @@ extern struct align_method {
 	} gap;
 } ALIGN_METHODS[ALIGN_COUNT];
 
-#include <args.h>
-
 #define ALIGN_METHOD(ID, FN, GAP, NAME, ALIAS, ...)                            \
-	_ARGS_CONSTRUCTOR(METHOD_REGISTER_##ID)                                \
+	[[gnu::constructor]]                                                   \
+	static void ID##_REGISTER(void)                                        \
 	{                                                                      \
 		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT);         \
 		static const char *a[] = { ALIAS, ##__VA_ARGS__, nullptr };    \

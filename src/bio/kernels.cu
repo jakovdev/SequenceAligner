@@ -2,20 +2,9 @@
 
 __constant__ Constants C;
 
-extern "C" {
-const void *kernels[ALIGN_COUNT];
-
-#define KERNEL_REGISTER(ID, FN)                                        \
-	_ARGS_CONSTRUCTOR(KERNEL_REGISTER_##ID)                        \
-	{                                                              \
-		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT); \
-		kernels[ID] = (const void *)FN;                        \
-	}
-
-cudaError_t copy_constants(const struct Constants *host)
+extern "C" cudaError_t copy_constants(const struct Constants *host)
 {
 	return cudaMemcpyToSymbol(C, host, sizeof(C));
-}
 }
 
 __forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
@@ -89,7 +78,6 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-KERNEL_REGISTER(ALIGN_NW, kernel_nw);
 
 __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 {
@@ -162,7 +150,6 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-KERNEL_REGISTER(ALIGN_GA, kernel_ga);
 
 __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 {
@@ -235,4 +222,9 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
-KERNEL_REGISTER(ALIGN_SW, kernel_sw);
+
+extern "C" const void *kernels[ALIGN_COUNT] = {
+	/* [ALIGN_GA] = */ (const void *)kernel_ga,
+	/* [ALIGN_NW] = */ (const void *)kernel_nw,
+	/* [ALIGN_SW] = */ (const void *)kernel_sw,
+};

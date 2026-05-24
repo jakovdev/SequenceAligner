@@ -7,6 +7,7 @@
 #ifdef _WIN32
 #include "system/os.h"
 #endif
+#include "util/macros.h"
 
 struct input;
 
@@ -46,12 +47,9 @@ extern enum output_format {
 typedef bool (*flush_fn)(struct output *, const char *);
 extern flush_fn FLUSH_FORMATS[FLUSH_COUNT];
 
-#include <args.h>
-
-#include "util/macros.h"
-
 #define FLUSH_REGISTER(ID, FN)                                           \
-	_ARGS_CONSTRUCTOR(FLUSH_FORMATS_REGISTER_##ID)                   \
+	[[gnu::constructor]]                                             \
+	static void ID##_REGISTER(void)                                  \
 	{                                                                \
 		static_assert(ID > FLUSH_INVALID && ID < FLUSH_COUNT);   \
 		static_assert(ARRAY_SIZE(FLUSH_FORMATS) == FLUSH_COUNT); \

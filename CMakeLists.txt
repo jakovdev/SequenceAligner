@@ -12,19 +12,16 @@ set(IS_MSYS2 FALSE)
 if(MINGW_PREFIX)
 	set(IS_MINGW TRUE)
 	set(DLL_PREFIX "${MINGW_PREFIX}")
-	set(DLL_LIST libhdf5.dll libssp-0.dll libwinpthread-1.dll libsz.dll zlib1.dll libgomp-1.dll libgcc_s_seh-1.dll)
+	set(DLL_LIST libhdf5.dll libwinpthread-1.dll libsz.dll libgomp-1.dll libgcc_s_seh-1.dll libstdc++-6.dll libssp-0.dll zlib1.dll)
 elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
 	set(IS_MSYS2 TRUE)
 	set(DLL_PREFIX "$ENV{MSYSTEM_PREFIX}")
 	file(GLOB HDF5_DLL "${DLL_PREFIX}/bin/libhdf5-[0-9]*.dll")
 	string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
 	set(DLL_LIST ${HDF5_DLL}
-	libcrypto-3-x64.dll libwinpthread-1.dll libcurl-4.dll libsz-2.dll zlib1.dll libgomp-1.dll
-	libbrotlidec.dll libidn2-0.dll libnghttp2-14.dll libnghttp3-9.dll libpsl-5.dll libssh2-1.dll
-	libbrotlicommon.dll libzstd.dll libssl-3-x64.dll libintl-8.dll libiconv-2.dll libunistring-5.dll
-	libgcc_s_seh-1.dll libngtcp2-16.dll libngtcp2_crypto_ossl-0.dll libaws-c-io.dll libaws-c-s3.dll
-	libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll libaws-c-cal.dll libaws-c-sdkutils.dll
-	libaws-c-compression.dll libaws-checksums.dll libz-ng2.dll
+	libwinpthread-1.dll libsz-2.dll libgomp-1.dll libgcc_s_seh-1.dll libstdc++-6.dll libz-ng2.dll
+	libaws-c-io.dll libaws-c-s3.dll libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll
+	libaws-c-cal.dll libaws-c-sdkutils.dll libaws-c-compression.dll libaws-checksums.dll
 	)
 endif()
 
@@ -117,8 +114,8 @@ if(NOT RESULT EQUAL 0)
 endif()
 ]=])
 			find_program(OBJCOPY_EXECUTABLE objcopy)
-			set(CUDA_KERNEL_OBJ "${CMAKE_BINARY_DIR}/alignment.cu.obj")
-			set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/algorithm/alignment.cu")
+			set(CUDA_KERNEL_OBJ "${CMAKE_BINARY_DIR}/kernels.cu.obj")
+			set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
 			set(CUDA_MSYS2_NVCC_CMD "nvcc;-forward-unknown-to-host-compiler;-Xcompiler=/GS-,/sdl-,/MT,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/include;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}")
 			set(CUDA_MSYS2_POST_NVCC_CMD)
 			if(OBJCOPY_EXECUTABLE)
@@ -131,7 +128,7 @@ endif()
 				DEPENDS "${CUDA_KERNEL_SRC}"
 				COMMENT "Building CUDA object ${CUDA_KERNEL_OBJ}"
 			)
-			add_custom_target(alignment DEPENDS "${CUDA_KERNEL_OBJ}")
+			add_custom_target(kernels DEPENDS "${CUDA_KERNEL_OBJ}")
 		endif()
 		set(USE_CUDA TRUE)
 	endif()
@@ -150,7 +147,7 @@ file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 file(GLOB_RECURSE CXX_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 if(USE_CUDA AND IS_MSYS2)
 	add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES} ${CUDA_KERNEL_OBJ})
-	add_dependencies(seqalign alignment)
+	add_dependencies(seqalign kernels)
 	target_include_directories(seqalign PRIVATE "$ENV{CUDA_PATH}/include")
 	target_link_libraries(seqalign PRIVATE "${CUDA_MSYS2_CUDART_IMPORT_LIB}")
 else()

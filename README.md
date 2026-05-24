@@ -58,7 +58,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 <summary><strong>Linux</strong></summary>
 
 ### Dependencies
-- GCC 15, CMake
+- GCC 16, CMake
 - HDF5 library (development files)
 - CUDA toolkit (optional, for GPU acceleration)
 
@@ -79,9 +79,21 @@ You will find the executable inside the `release` folder once you uncompress it.
 - [MSYS2](https://www.msys2.org/)
   - Use default install location (`C:\msys64`). If you changed it, adjust the paths in the build instructions accordingly.
 - [CUDA Toolkit (optional)](https://developer.nvidia.com/cuda-downloads)
-  - Required components: Runtime, Development
+  - CUDA
+    - Development
+      - Compiler
+        - Libraries
+          - [x] `CRT`
+          - [x] `NVVM`
+        - [x] `nvcc`
+    - Runtime
+      - Libraries
+        - [x] `CCCL`
+        - [x] `CUDART`
 - [Visual Studio Build Tools (optional, for CUDA)](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026)
-  - Standalone packages: MSVC Build Tools for x64/x86 (Latest), Windows Universal CRT SDK
+  - Individual components
+    - [x] `MSVC Build Tools for x64/x86 (Latest)`
+    - [x] `Windows Universal CRT SDK`
 
 1. Download the project files using the green "Code" button on GitHub and select "Download ZIP". Extract the ZIP file to a folder of your choice. Take note of its location.
 
@@ -104,7 +116,8 @@ C:\msys64\msys2_shell.cmd -ucrt64 -use-full-path -defterm -no-start -here
 
 ```bash
 # Update package database and core system packages
-pacman -Syu
+pacman -Syu --noconfirm
+# If this only updated pacman and/or msys, reopen with the same command as step 4 and run this again. This usually happens if you have an older installation.
 
 # Install build tools and HDF5
 pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5

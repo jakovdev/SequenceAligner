@@ -15,7 +15,8 @@
 
 static double g_freq_inv;
 
-_ARGS_CONSTRUCTOR(time_init)
+[[gnu::constructor]]
+static void time_init(void)
 {
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);

@@ -1,5 +1,6 @@
 #include "bio/alignment.h"
 
+#include <args.h>
 #include <print.h>
 #include <progress.h>
 #include <string.h>
@@ -65,7 +66,9 @@ bool align(const struct input *dataset, struct output *sm)
 }
 
 static char help[512];
-_ARGS_CONSTRUCTOR(build_help_strings)
+
+[[gnu::constructor]]
+static void build_help_strings(void)
 {
 	snprintf(help, sizeof(help), "Alignment method\n");
 	for (int i = 0; i < ALIGN_COUNT; i++) {
