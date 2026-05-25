@@ -1,26 +1,35 @@
 #ifndef SYSTEM_OS_H
 #define SYSTEM_OS_H
 
-#ifdef _WIN32
-#define WIN32_LEAN_AND_MEAN
-#define NOGDI
-#include <windows.h>
-#else /* POSIX/Linux */
+#include <stddef.h>
 
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/param.h>
-#include <sys/stat.h>
+#include "util/macros.h"
 
-#ifndef PATH_MAX
-#define PATH_MAX _POSIX_PATH_MAX
-#endif
-#define MAX_PATH PATH_MAX
+#define KiB ((size_t)1 << 10)
+#define MiB (KiB << 10)
+#define GiB (MiB << 10)
 
-#endif
+#define CACHE_LINE ((size_t)64)
+#define PAGE_SIZE (4 * KiB)
+
+#define MALLOC(ptr, bytes) ptr = (typeof(ptr))malloc(bytes)
+#define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
+#define MALLOC_AL(ptr, al, bytes) ptr = (typeof(ptr))alloc_aligned(al, bytes)
+#define MALLOCA_AL(ptr, al, nmemb) MALLOC_AL(ptr, al, bytesof(ptr, nmemb))
+
+size_t available_memory(void);
+
+void free_aligned(void *ptr);
+
+[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_size(2)]]
+void *alloc_aligned(size_t alignment, size_t bytes);
+
+void free_mmap(void *mmap);
+
+[[gnu::malloc, gnu::malloc(free_mmap, 1), gnu::alloc_size(1)]]
+void *alloc_mmap(size_t bytes);
 
 extern int THREAD_NUM;
-struct arg_callback parse_path(const char *str, void *dest);
 
 double time_current(void);
 
@@ -32,5 +41,7 @@ bool path_special_exists(const char *path);
 bool path_file_exists(const char *path);
 [[gnu::nonnull]]
 bool path_directories_create(const char *path);
+
+struct arg_callback parse_path(const char *str, void *dest);
 
 #endif /* SYSTEM_OS_H */

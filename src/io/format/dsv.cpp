@@ -7,12 +7,11 @@
 #include <string_view>
 #include <vector>
 
-#include "system/types.h"
-
 extern "C" {
 #include <print.h>
 
-#include "system/memory.h"
+#include "system/os.h"
+#include "system/types.h"
 #include "util/benchmark.h"
 }
 

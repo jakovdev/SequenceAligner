@@ -6,114 +6,11 @@
 
 #include "bio/sequences.h"
 #include "interface/seqalign_cuda.h"
-#include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 
 static bool disable_write;
 static const char *OUTPUT_PATH;
-
-[[gnu::nonnull]]
-static void mmap_init(struct mmap *file)
-{
-#ifdef _WIN32
-	file->hFile = INVALID_HANDLE_VALUE;
-	file->hMapping = nullptr;
-#else
-	file->fd = -1;
-#endif
-}
-
-[[gnu::nonnull]]
-static void mmap_close(struct mmap *file)
-{
-#ifdef _WIN32
-	if (file->hMapping) {
-		CloseHandle(file->hMapping);
-		file->hMapping = nullptr;
-	}
-
-	if (file->hFile != INVALID_HANDLE_VALUE) {
-		CloseHandle(file->hFile);
-		file->hFile = INVALID_HANDLE_VALUE;
-	}
-#else
-	if (file->fd != -1) {
-		close(file->fd);
-		file->fd = -1;
-	}
-#endif
-}
-
-[[gnu::nonnull]]
-static bool mmap_open(struct output *sm)
-{
-	mmap_init(&sm->file);
-
-#define file_error_return(message_lit)                      \
-	do {                                                \
-		perr(message_lit " '%s'", file_name(name)); \
-		mmap_close(&sm->file);                      \
-		return false;                               \
-	} while (0)
-
-#ifdef _WIN32
-	char dir[MAX_PATH] = {};
-	char name[MAX_PATH] = "temporary matrix file";
-
-	DWORD dir_len = GetTempPathA(MAX_PATH, dir);
-	if (!dir_len || dir_len >= MAX_PATH)
-		file_error_return("Could not resolve temp directory for");
-
-	if (!GetTempFileNameA(dir, "sqa", 0, name))
-		file_error_return("Could not create temp file name for");
-
-	sm->file.hFile = CreateFileA(
-		name, GENERIC_READ | GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
-	if (sm->file.hFile == INVALID_HANDLE_VALUE)
-		file_error_return("Could not create memory-mapped file");
-
-	LARGE_INTEGER file_size;
-	file_size.QuadPart = (LONGLONG)sm->bytes;
-	SetFilePointerEx(sm->file.hFile, file_size, nullptr, FILE_BEGIN);
-	SetEndOfFile(sm->file.hFile);
-
-	sm->file.hMapping = CreateFileMapping(sm->file.hFile, nullptr,
-					      PAGE_READWRITE, 0, 0, nullptr);
-	if (!sm->file.hMapping)
-		file_error_return("Could not create file mapping for");
-
-	sm->matrix =
-		MapViewOfFile(sm->file.hMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
-	if (!sm->matrix)
-		file_error_return("Could not map view of file");
-#else
-	char name[] = "/tmp/seqalign-mmap-XXXXXX";
-	sm->file.fd = mkstemp(name);
-	if (sm->file.fd == -1)
-		file_error_return("Could not create memory-mapped file");
-
-	if (unlink(name) == -1)
-		file_error_return("Could not unlink memory-mapped file");
-
-	if (ftruncate(sm->file.fd, (off_t)sm->bytes) == -1)
-		file_error_return("Could not set size for file");
-
-	sm->matrix = mmap(nullptr, sm->bytes, PROT_READ | PROT_WRITE,
-			  MAP_SHARED, sm->file.fd, 0);
-	if (sm->matrix == MAP_FAILED)
-		file_error_return("Could not memory map file");
-
-	madvise(sm->matrix, sm->bytes, MADV_RANDOM);
-	madvise(sm->matrix, sm->bytes, MADV_HUGEPAGE);
-	madvise(sm->matrix, sm->bytes, MADV_DONTFORK);
-	madvise(sm->matrix, sm->bytes, MADV_DONTDUMP);
-#endif
-	return true;
-
-#undef file_error_return
-}
 
 bool output_load(struct output *sm, const struct input *in)
 {
@@ -130,11 +27,11 @@ bool output_load(struct output *sm, const struct input *in)
 	for (size_t i = 0; i < sm->dim; i++)
 		sm->seqs[i] = in->seqs[i].letters;
 
-	const size_t safe = available_memory() * 3 / 4;
-	sm->bytes = bytesof(sm->matrix, sm->dim * sm->dim);
-	if (!cuda_memory(sm->bytes) || sm->bytes > safe) {
-		sm->bytes = bytesof(sm->matrix, sm->dim * (sm->dim - 1) / 2);
-		sm->mmap = sm->bytes > safe;
+	sm->triangular = false;
+	size_t bytes = bytesof(sm->matrix, sm->dim * sm->dim);
+	sm->mmap = bytes > (available_memory() * 3 / 4);
+	if (sm->mmap || !cuda_memory(bytes)) {
+		bytes = bytesof(sm->matrix, sm->dim * (sm->dim - 1) / 2);
 		sm->triangular = true;
 		pverb("Using triangular matrix storage");
 	}
@@ -143,16 +40,17 @@ bool output_load(struct output *sm, const struct input *in)
 	if (sm->mmap) {
 		pinfo("Similarity Matrix size exceeds memory limits");
 		pinfol("Creating temporary matrix file (%.2f GiB)",
-		       (double)sm->bytes / (double)GiB);
-		if (!mmap_open(sm))
+		       (double)bytes / (double)GiB);
+		sm->matrix = alloc_mmap(bytes);
+		if (!sm->matrix)
 			return false;
 	} else {
-		MALLOC_AL(sm->matrix, PAGE_SIZE, sm->bytes);
+		MALLOC_AL(sm->matrix, PAGE_SIZE, bytes);
 		if unlikely (!sm->matrix) {
 			perr("Out of memory allocating Similarity Matrix");
 			return false;
 		}
-		memset(sm->matrix, 0, sm->bytes);
+		memset(sm->matrix, 0, bytes);
 	}
 	bench_output_end();
 
@@ -196,18 +94,10 @@ bool output_flush(struct output *sm)
 void output_free(struct output *sm)
 {
 	free(sm->seqs);
-	if (!sm->mmap) {
+	if (sm->mmap)
+		free_mmap(sm->matrix);
+	else
 		free_aligned(sm->matrix);
-	} else {
-#ifdef _WIN32
-		if (sm->matrix)
-			UnmapViewOfFile(sm->matrix);
-#else
-		if (sm->matrix && sm->matrix != MAP_FAILED)
-			munmap(sm->matrix, sm->bytes);
-#endif
-		mmap_close(&sm->file);
-	}
 	memset(sm, 0, sizeof(*sm));
 }
 

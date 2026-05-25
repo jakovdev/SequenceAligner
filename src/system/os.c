@@ -4,34 +4,162 @@
 #include <errno.h>
 #include <print.h>
 #include <string.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <omp.h>
 
-#include "system/memory.h"
-
 #ifdef _WIN32
 #include <direct.h>
+#include <malloc.h>
+#include <windef.h>
+#include <winbase.h>
+#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
 #define mkdir(dir, mode) _mkdir(dir)
+#else
+#include <sys/mman.h>
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/sysinfo.h>
+#include <time.h>
+#ifndef PATH_MAX
+#define PATH_MAX _POSIX_PATH_MAX
+#endif
+#define MAX_PATH PATH_MAX
+#endif
 
-static double g_freq_inv;
+struct mmap {
+#ifdef _WIN32
+	HANDLE file, map;
+#else
+	size_t bytes;
+	int fd;
+#endif
+};
+
+void *alloc_mmap(size_t bytes)
+{
+	size_t total = sizeof(struct mmap) + bytes;
+#ifdef _WIN32
+	char dir[MAX_PATH] = {};
+	char name[MAX_PATH] = "temporary matrix file";
+
+	DWORD dir_len = GetTempPathA(MAX_PATH, dir);
+	if (!dir_len || dir_len >= MAX_PATH) {
+		perr("Could not resolve temp directory for '%s'",
+		     file_name(name));
+		return nullptr;
+	}
+
+	if (!GetTempFileNameA(dir, "sqa", 0, name)) {
+		perr("Could not create temp file name for '%s'",
+		     file_name(name));
+		return nullptr;
+	}
+
+	HANDLE file = CreateFileA(
+		name, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
+		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
+	if (file == INVALID_HANDLE_VALUE) {
+		perr("Could not create memory-mapped file '%s'",
+		     file_name(name));
+		return nullptr;
+	}
+
+	LARGE_INTEGER file_size;
+	file_size.QuadPart = (LONGLONG)total;
+	SetFilePointerEx(file, file_size, NULL, FILE_BEGIN);
+	SetEndOfFile(file);
+
+	HANDLE map = CreateFileMappingA(file, NULL, PAGE_READWRITE, 0, 0, NULL);
+	if (!map) {
+		perr("Could not create file mapping for '%s'", file_name(name));
+		CloseHandle(file);
+		return nullptr;
+	}
+
+	struct mmap *m = MapViewOfFile(map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	if (!m) {
+		perr("Could not map view of file '%s'", file_name(name));
+		CloseHandle(map);
+		CloseHandle(file);
+		return nullptr;
+	}
+	m->file = file;
+	m->map = map;
+#else
+	char name[] = "/tmp/seqalign-mmap-XXXXXX";
+	int fd = mkstemp(name);
+	if (fd == -1) {
+		perr("Could not create memory-mapped file '%s'",
+		     file_name(name));
+		return nullptr;
+	}
+
+	if (unlink(name) == -1) {
+		perr("Could not unlink memory-mapped file '%s'",
+		     file_name(name));
+		close(fd);
+		return nullptr;
+	}
+
+	if (ftruncate(fd, (off_t)total) == -1) {
+		perr("Could not set size for file '%s'", file_name(name));
+		close(fd);
+		return nullptr;
+	}
+
+	struct mmap *m =
+		mmap(NULL, total, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	if (m == MAP_FAILED) {
+		perr("Could not memory map file '%s'", file_name(name));
+		close(fd);
+		return nullptr;
+	}
+
+	m->fd = fd;
+	m->bytes = bytes;
+	madvise(m, total, MADV_RANDOM);
+	madvise(m, total, MADV_HUGEPAGE);
+	madvise(m, total, MADV_DONTFORK);
+	madvise(m, total, MADV_DONTDUMP);
+#endif
+	return m + 1;
+}
+
+void free_mmap(void *mmap)
+{
+	if (!mmap)
+		return;
+	struct mmap *m = (struct mmap *)mmap - 1;
+#ifdef _WIN32
+	UnmapViewOfFile(m);
+	CloseHandle(m->map);
+	CloseHandle(m->file);
+#else
+	munmap(m, sizeof(*m) + m->bytes);
+	close(m->fd);
+#endif
+}
+
+#ifdef _WIN32
+static double FREQ_INV;
 
 [[gnu::constructor]]
 static void time_init(void)
 {
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
-	g_freq_inv = 1.0 / (double)freq.QuadPart;
+	FREQ_INV = 1.0 / (double)freq.QuadPart;
 }
 
 double time_current(void)
 {
 	LARGE_INTEGER count;
 	QueryPerformanceCounter(&count);
-	return (double)count.QuadPart * g_freq_inv;
+	return (double)count.QuadPart * FREQ_INV;
 }
 
 #else
-#include <time.h>
 
 double time_current(void)
 {
@@ -41,6 +169,61 @@ double time_current(void)
 }
 
 #endif
+
+size_t available_memory(void)
+{
+	size_t available_mem = 0;
+#ifdef _WIN32
+	MEMORYSTATUSEX status;
+	status.dwLength = sizeof(status);
+	GlobalMemoryStatusEx(&status);
+	available_mem = status.ullAvailPhys;
+#else
+	FILE *fp = fopen("/proc/meminfo", "r");
+	if unlikely (!fp)
+		goto file_error;
+
+	char line[256];
+	while (fgets(line, sizeof(line), fp)) {
+		if (strncmp(line, "MemAvailable:", 13) == 0) {
+			char *endptr;
+			auto val = strtoull(line + 13, &endptr, 10);
+			if (endptr != line + 13) {
+				available_mem = val * KiB;
+				break;
+			}
+		}
+	}
+	fclose(fp);
+file_error:
+	if (!available_mem) {
+		struct sysinfo info;
+		if (sysinfo(&info) == 0)
+			available_mem = info.freeram * info.mem_unit;
+	}
+#endif
+	return available_mem;
+}
+
+void free_aligned(void *ptr)
+{
+#ifdef _WIN32
+	_aligned_free(ptr);
+#else
+	free(ptr);
+#endif
+}
+
+void *alloc_aligned(size_t alignment, size_t bytes)
+{
+	if unlikely (alignment < sizeof(void *) || alignment & (alignment - 1))
+		return nullptr;
+
+	if (bytes % alignment != 0)
+		bytes = (bytes + alignment - 1) & ~(alignment - 1);
+
+	return aligned_alloc(alignment, bytes);
+}
 
 const char *file_name(const char *path)
 {

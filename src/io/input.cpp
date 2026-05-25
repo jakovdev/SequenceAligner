@@ -13,7 +13,6 @@ extern "C" {
 
 #include "bio/alignment.h"
 #include "bio/sequences.h"
-#include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 }

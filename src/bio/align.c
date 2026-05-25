@@ -6,7 +6,6 @@
 #include <string.h>
 
 #include "io/output.h"
-#include "system/memory.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 #include "util/macros.h"

@@ -4,27 +4,13 @@
 #include <stddef.h>
 
 #include "system/types.h"
-#ifdef _WIN32
-#include "system/os.h"
-#endif
 #include "util/macros.h"
 
 struct input;
-
-struct mmap {
-#ifdef _WIN32
-	HANDLE hFile, hMapping;
-#else
-	int fd;
-#endif
-};
-
 struct output {
 	s32 *restrict matrix;
-	size_t bytes;
 	const char **seqs;
 	size_t dim;
-	struct mmap file;
 	bool mmap;
 	bool triangular;
 };

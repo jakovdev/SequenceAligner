@@ -5,7 +5,6 @@
 
 #include "io/output.h"
 #include "system/os.h"
-#include "system/memory.h"
 #include "util/macros.h"
 
 #define H5_MAX_CHUNK_SIZE PAGE_SIZE
