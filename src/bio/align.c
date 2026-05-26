@@ -154,10 +154,10 @@ static void print_config_gaps(void)
 {
 	switch (ALIGN_METHODS[METHOD_ID].gap) {
 	case GAP_LINEAR:
-		pinfom("Gap penalty: %w32d", GAP_PEN);
+		pinfom("Gap penalty: %d", GAP_PEN);
 		break;
 	case GAP_AFFINE:
-		pinfom("Gap open: %w32d, extend: %w32d", GAP_OPN, GAP_EXT);
+		pinfom("Gap open: %d, extend: %d", GAP_OPN, GAP_EXT);
 		break;
 	default:
 		unreachable_release();

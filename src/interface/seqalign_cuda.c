@@ -182,7 +182,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	bool subsequent = false, syncing = false, matrix_copied = false;
 	s64 progress = 0;
 
-	pinfol("Performing %w64d pairwise alignments", alignments);
+	pinfol("Performing %zu pairwise alignments", (size_t)alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();

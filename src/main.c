@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	if (!input_load(&dataset) || !filter(&dataset))
 		return 1;
 
-	pinfo("Loaded %w32d sequences", dataset.seqs_n);
+	pinfo("Loaded %d sequences", dataset.seqs_n);
 	pinfo("Average sequence length: %.2f", dataset.average_length);
 	bench_input_print();
 

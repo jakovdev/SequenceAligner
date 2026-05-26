@@ -197,13 +197,13 @@ parse_success:
 	}
 
 	if (seq_n_long)
-		pinfo("Skipped %w32d sequences that were too long", seq_n_long);
+		pinfo("Skipped %d sequences that were too long", seq_n_long);
 
 	if (seq_n_invalid)
-		pinfo("Skipped %w32d invalid sequences", seq_n_invalid);
+		pinfo("Skipped %d invalid sequences", seq_n_invalid);
 
 	if (in->seqs_n < SEQ_N_MIN) {
-		perr("Not enough valid sequences: %w32d (min: %d)", in->seqs_n,
+		perr("Not enough valid sequences: %d (min: %d)", in->seqs_n,
 		     SEQ_N_MIN);
 		return false;
 	}
@@ -263,7 +263,7 @@ bool input_lose(struct input *in, const bool *lost)
 	}
 
 	if (write < SEQ_N_MIN) {
-		perr("Not enough filtered sequences: %w32d (min: %d)", write,
+		perr("Not enough filtered sequences: %d (min: %d)", write,
 		     SEQ_N_MIN);
 		return false;
 	}
