@@ -144,4 +144,4 @@ static result parse_dsv(source &src) noexcept
 	return result::SUCCESS;
 }
 
-static input_format dsv_format(parse_dsv);
+static input_format dsv_format{ parse_dsv };

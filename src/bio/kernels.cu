@@ -1,28 +1,24 @@
 #include "bio/kernels.cuh"
 
-__constant__ Constants C;
+__constant__ struct constants C;
+extern "C" const void *const pC = &C;
 
-extern "C" cudaError_t copy_constants(const struct Constants *host)
-{
-	return cudaMemcpyToSymbol(C, host, sizeof(C));
-}
-
-__forceinline__ __device__ s32 d_seq_lut(const s32 ij, const s32 pos)
+__forceinline__ __device__ s32 d_seq_lut(s32 ij, s32 pos)
 {
 	return C.seq_lut[(uchar)C.letters[C.offsets[ij] + pos]];
 }
 
-__forceinline__ __device__ s32 d_sub_mat(const s32 c1, const s32 c2)
+__forceinline__ __device__ s32 d_sub_mat(s32 c1, s32 c2)
 {
 	return C.sub_mat[c1 * SUB_MAT_DIM + c2];
 }
 
-__forceinline__ __device__ s32 d_find_j(const s64 alignment)
+__forceinline__ __device__ s32 d_find_j(s64 alignment)
 {
 	s32 low = 1, high = C.seq_n;
 
 	while (low < high) {
-		const s32 mid = low + (high - low) / 2;
+		s32 mid = low + (high - low) / 2;
 		if (((s64)mid * (mid - 1)) / 2 <= alignment)
 			low = mid + 1;
 		else
@@ -34,16 +30,16 @@ __forceinline__ __device__ s32 d_find_j(const s64 alignment)
 
 __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 {
-	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
+	s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
 		return;
 
-	const s64 alignment = start + tid;
-	const s32 j = d_find_j(alignment);
-	const s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
+	s64 alignment = start + tid;
+	s32 j = d_find_j(alignment);
+	s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
 
-	const s32 len1 = C.lengths[i];
-	const s32 len2 = C.lengths[j];
+	s32 len1 = C.lengths[i];
+	s32 len2 = C.lengths[j];
 
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -53,11 +49,11 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 		dp_curr[0] = row * C.gap_pen;
 
 		for (s32 col = 1; col <= len2; col++) {
-			const s32 c1 = d_seq_lut(i, row - 1);
-			const s32 c2 = d_seq_lut(j, col - 1);
-			const s32 match = dp_prev[col - 1] + d_sub_mat(c1, c2);
-			const s32 gap_v = dp_prev[col] + C.gap_pen;
-			const s32 gap_h = dp_curr[col - 1] + C.gap_pen;
+			s32 c1 = d_seq_lut(i, row - 1);
+			s32 c2 = d_seq_lut(j, col - 1);
+			s32 match = dp_prev[col - 1] + d_sub_mat(c1, c2);
+			s32 gap_v = dp_prev[col] + C.gap_pen;
+			s32 gap_h = dp_curr[col - 1] + C.gap_pen;
 
 			s32 val_max = max(match, gap_v);
 			val_max = max(val_max, gap_h);
@@ -68,7 +64,7 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 			dp_prev[col] = dp_curr[col];
 	}
 
-	const s32 score = dp_prev[len2];
+	s32 score = dp_prev[len2];
 	if (!C.triangular) {
 		scores[static_cast<s64>(C.seq_n) * i + j] = score;
 		scores[static_cast<s64>(C.seq_n) * j + i] = score;
@@ -81,16 +77,16 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 
 __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 {
-	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
+	s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
 		return;
 
-	const s64 alignment = start + tid;
-	const s32 j = d_find_j(alignment);
-	const s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
+	s64 alignment = start + tid;
+	s32 j = d_find_j(alignment);
+	s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
 
-	const s32 len1 = C.lengths[i];
-	const s32 len2 = C.lengths[j];
+	s32 len1 = C.lengths[i];
+	s32 len2 = C.lengths[j];
 
 	s32 match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -116,19 +112,19 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 		gap_y[0] = max(p_match[0] + C.gap_open, p_gap_y[0] + C.gap_ext);
 		match[0] = gap_y[0];
 
-		const s32 c1 = d_seq_lut(i, row - 1);
+		s32 c1 = d_seq_lut(i, row - 1);
 		for (s32 col = 1; col <= len2; col++) {
-			const s32 c2 = d_seq_lut(j, col - 1);
-			const s32 similarity = d_sub_mat(c1, c2);
+			s32 c2 = d_seq_lut(j, col - 1);
+			s32 similarity = d_sub_mat(c1, c2);
 
-			const s32 d_score = p_match[col - 1] + similarity;
+			s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] + C.gap_open;
-			const s32 extend_x = gap_x[col - 1] + C.gap_ext;
+			s32 open_x = match[col - 1] + C.gap_open;
+			s32 extend_x = gap_x[col - 1] + C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] + C.gap_open;
-			const s32 extend_y = p_gap_y[col] + C.gap_ext;
+			s32 open_y = p_match[col] + C.gap_open;
+			s32 extend_y = p_gap_y[col] + C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
 			match[col] = max(d_score, max(gap_x[col], gap_y[col]));
@@ -140,7 +136,7 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 		}
 	}
 
-	const s32 score = match[len2];
+	s32 score = match[len2];
 	if (!C.triangular) {
 		scores[static_cast<s64>(C.seq_n) * i + j] = score;
 		scores[static_cast<s64>(C.seq_n) * j + i] = score;
@@ -153,16 +149,16 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 
 __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 {
-	const s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
+	s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
 		return;
 
-	const s64 alignment = start + tid;
-	const s32 j = d_find_j(alignment);
-	const s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
+	s64 alignment = start + tid;
+	s32 j = d_find_j(alignment);
+	s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
 
-	const s32 len1 = C.lengths[i];
-	const s32 len2 = C.lengths[j];
+	s32 len1 = C.lengths[i];
+	s32 len2 = C.lengths[j];
 
 	s32 match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -184,23 +180,23 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 		match[0] = 0;
 		gap_x[0] = gap_y[0] = SCORE_MIN;
 
-		const s32 c1 = d_seq_lut(i, row - 1);
+		s32 c1 = d_seq_lut(i, row - 1);
 		for (s32 col = 1; col <= len2; col++) {
-			const s32 c2 = d_seq_lut(j, col - 1);
-			const s32 similarity = d_sub_mat(c1, c2);
+			s32 c2 = d_seq_lut(j, col - 1);
+			s32 similarity = d_sub_mat(c1, c2);
 
-			const s32 d_score = p_match[col - 1] + similarity;
+			s32 d_score = p_match[col - 1] + similarity;
 
-			const s32 open_x = match[col - 1] + C.gap_open;
-			const s32 extend_x = gap_x[col - 1] + C.gap_ext;
+			s32 open_x = match[col - 1] + C.gap_open;
+			s32 extend_x = gap_x[col - 1] + C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			const s32 open_y = p_match[col] + C.gap_open;
-			const s32 extend_y = p_gap_y[col] + C.gap_ext;
+			s32 open_y = p_match[col] + C.gap_open;
+			s32 extend_y = p_gap_y[col] + C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
-			const s32 best = max(
-				0, max(d_score, max(gap_x[col], gap_y[col])));
+			s32 best = max(0, max(d_score,
+					      max(gap_x[col], gap_y[col])));
 			match[col] = best;
 			if (best > max_score)
 				max_score = best;
@@ -212,7 +208,7 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 		}
 	}
 
-	const s32 score = max_score;
+	s32 score = max_score;
 	if (!C.triangular) {
 		scores[static_cast<s64>(C.seq_n) * i + j] = score;
 		scores[static_cast<s64>(C.seq_n) * j + i] = score;
@@ -223,7 +219,7 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
 }
 
-extern "C" const void *kernels[ALIGN_COUNT] = {
+extern "C" const void *const KERNELS[ALIGN_COUNT] = {
 	/* [ALIGN_GA] = */ (const void *)kernel_ga,
 	/* [ALIGN_NW] = */ (const void *)kernel_nw,
 	/* [ALIGN_SW] = */ (const void *)kernel_sw,

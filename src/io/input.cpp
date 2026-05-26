@@ -39,7 +39,7 @@ static bool sequence_normalize(std::string &seq) noexcept
 
 static bool sequence_length_limit(size_t len) noexcept
 {
-	const s32 gap = -(GAP_PEN);
+	s32 gap = -(GAP_PEN);
 	if (!gap)
 		return len <= SEQ_LEN_MAX;
 	return len <= SEQ_LEN_MAX / (size_t)gap;

@@ -6,7 +6,7 @@
 #include "system/types.h"
 
 struct sequence {
-	const char *restrict letters;
+	const char *letters;
 	s32 length;
 };
 
@@ -33,7 +33,6 @@ bool input_lose(struct input *, const bool *lost);
 #define SEQ_N_MAX (INT32_MAX)
 #define SEQ_N_MIN (2)
 
-typedef const struct sequence *const restrict seq_ptr;
 #define SEQ_BAD(s)                                                 \
 	(!s->letters || !*s->letters || s->length < SEQ_LEN_MIN || \
 	 s->length > SEQ_LEN_MAX)

@@ -11,7 +11,7 @@ extern "C" {
 
 #define MAX_CUDA_SEQUENCE_LENGTH (1023)
 
-struct Constants {
+struct constants {
 	char *letters;
 	s32 *lengths;
 	s64 *offsets;
@@ -25,9 +25,8 @@ struct Constants {
 	bool triangular;
 };
 
-[[gnu::nonnull]]
-cudaError_t copy_constants(const struct Constants *host);
-extern const void *kernels[ALIGN_COUNT];
+extern const void *const KERNELS[ALIGN_COUNT];
+extern const void *const pC;
 
 #ifdef __cplusplus
 }

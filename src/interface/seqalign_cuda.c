@@ -16,6 +16,8 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
+#define batch_size (64 << 20)
+
 #define CALLR(cuda_func)                                     \
 	do {                                                 \
 		err = cuda_func;                             \
@@ -104,15 +106,15 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 		block_max = (uint)dev_prop.maxThreadsPerBlock;
 	}
 
-	struct Constants C = {
+	struct constants C = {
 		.seq_n = dataset->seqs_n,
 		.gap_pen = GAP_PEN,
 		.gap_open = GAP_OPN,
 		.gap_ext = GAP_EXT,
 	};
 
-	memcpy(C.seq_lut, SEQ_LUT, sizeof(C.seq_lut));
-	memcpy(C.sub_mat, SUB_MAT, sizeof(C.sub_mat));
+	memcpy(C.seq_lut, SEQ_LUT, sizeof(SEQ_LUT));
+	memcpy(C.sub_mat, SUB_MAT, sizeof(SUB_MAT));
 
 	size_t seq_n = (size_t)dataset->seqs_n;
 	s64 *OFFSETS = dataset->offsets;
@@ -120,24 +122,23 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	char *LETTERS = dataset->letters;
 	size_t sum = (size_t)(OFFSETS[seq_n - 1] + LENGTHS[seq_n - 1] + 1);
 
-	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*C.offsets) * seq_n));
-	CALLR(cudaMalloc((void **)&C.lengths, sizeof(*C.lengths) * seq_n));
-	CALLR(cudaMalloc((void **)&C.letters, sizeof(*C.letters) * sum));
+	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*OFFSETS) * seq_n));
+	CALLR(cudaMalloc((void **)&C.lengths, sizeof(*LENGTHS) * seq_n));
+	CALLR(cudaMalloc((void **)&C.letters, sizeof(*LETTERS) * sum));
 
-	CALLR(cudaMemcpy(C.offsets, OFFSETS, sizeof(*C.offsets) * seq_n,
+	CALLR(cudaMemcpy(C.offsets, OFFSETS, sizeof(*OFFSETS) * seq_n,
 			 cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.lengths, LENGTHS, sizeof(*C.lengths) * seq_n,
+	CALLR(cudaMemcpy(C.lengths, LENGTHS, sizeof(*LENGTHS) * seq_n,
 			 cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.letters, LETTERS, sizeof(*C.letters) * sum,
+	CALLR(cudaMemcpy(C.letters, LETTERS, sizeof(*LETTERS) * sum,
 			 cudaMemcpyHostToDevice));
 
-	const s64 alignments = dataset->alignments;
-	const s64 batch_size = INT64_C(64) << 20;
 	s32 *matrix = sm->matrix;
+	s64 alignments = dataset->alignments;
 
 	if (!cuda_memory(bytesof(matrix, seq_n * seq_n))) {
 		if (!cuda_memory(bytesof(matrix, (size_t)alignments))) {
-			if (!cuda_memory(bytesof(matrix, (size_t)batch_size))) {
+			if (!cuda_memory(bytesof(matrix, batch_size))) {
 				perr("Not enough CUDA Device memory for alignment");
 				return false;
 			}
@@ -149,31 +150,25 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 		C.triangular = true;
 
 	s64 batch = 0, batch_last = 0, batch_done = 0;
-	s32 *scores[2] = {};
+	void *scores[2] = {};
 	s32 active = 0;
 	if (C.triangular) {
-		batch = min(batch_size, alignments);
-		CALLR(cudaMalloc((void **)&scores[0],
-				 sizeof(*scores[0]) * (size_t)batch));
-		CALLR(cudaMemset(scores[0], 0,
-				 sizeof(*scores[0]) * (size_t)batch));
-		CALLR(cudaMalloc((void **)&scores[1],
-				 sizeof(*scores[1]) * (size_t)batch));
-		CALLR(cudaMemset(scores[1], 0,
-				 sizeof(*scores[1]) * (size_t)batch));
+		batch = min(alignments, batch_size);
+		CALLR(cudaMalloc(&scores[0], sizeof(*matrix) * batch));
+		CALLR(cudaMemset(scores[0], 0, sizeof(*matrix) * batch));
+		CALLR(cudaMalloc(&scores[1], sizeof(*matrix) * batch));
+		CALLR(cudaMemset(scores[1], 0, sizeof(*matrix) * batch));
 	} else {
 		batch = alignments;
-		CALLR(cudaMalloc((void **)&scores[0],
-				 sizeof(*scores[0]) * seq_n * seq_n));
-		CALLR(cudaMemset(scores[0], 0,
-				 sizeof(*scores[0]) * seq_n * seq_n));
+		CALLR(cudaMalloc(&*scores, sizeof(*matrix) * seq_n * seq_n));
+		CALLR(cudaMemset(*scores, 0, sizeof(*matrix) * seq_n * seq_n));
 	}
 
 	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
 	CALLR(cudaMemset(C.progress, 0, sizeof(*C.progress)));
-	CALLR(copy_constants(&C));
+	CALLR(cudaMemcpyToSymbol(pC, &C, sizeof(C), 0, cudaMemcpyHostToDevice));
 
-	const void *kernel = kernels[METHOD_ID];
+	const void *kernel = KERNELS[METHOD_ID];
 	dim3 block = { block_max, 1, 1 };
 	cudaStream_t compute = {}, memory = {};
 	CALLR(cudaStreamCreate(&compute));
@@ -237,7 +232,7 @@ cuda_results:
 					 cudaMemcpyDeviceToHost));
 
 			if (matrix)
-				CALLR(cudaMemcpy(matrix, scores[0],
+				CALLR(cudaMemcpy(matrix, *scores,
 						 sizeof(*matrix) * seq_n *
 							 seq_n,
 						 cudaMemcpyDeviceToHost));

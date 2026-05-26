@@ -58,7 +58,7 @@ bool output_load(struct output *sm, const struct input *in)
 	return true;
 }
 
-void output_fill(struct output *sm, s32 col, const s32 *columns)
+void output_fill(struct output *sm, const s32 *columns, s32 col)
 {
 	if (disable_write)
 		return;
@@ -77,7 +77,7 @@ void output_fill(struct output *sm, s32 col, const s32 *columns)
 	}
 }
 
-flush_fn FLUSH_FORMATS[FLUSH_COUNT];
+bool (*FLUSH_FORMATS[FLUSH_COUNT])(struct output *, const char *);
 enum output_format FLUSH_ID = FLUSH_HDF5 /* FLUSH_INVALID */;
 
 bool output_flush(struct output *sm)

@@ -11,12 +11,13 @@
 static double threshold;
 
 [[gnu::nonnull]]
-static double similarity(seq_ptr seq1, seq_ptr seq2)
+static double similarity(const struct sequence *restrict seq1,
+			 const struct sequence *restrict seq2)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
 
-	const s32 min_len = min(seq1->length, seq2->length);
+	s32 min_len = min(seq1->length, seq2->length);
 	s32 matches = 0;
 	for (s32 i = 0; i < min_len; i++)
 		matches += (seq1->letters[i] == seq2->letters[i]);
@@ -42,13 +43,13 @@ bool filter(struct input *dataset)
 	}
 
 	s32 seqs_n = dataset->seqs_n;
-	struct sequence *seqs = dataset->seqs;
+	const struct sequence *restrict seqs = dataset->seqs;
 	bench_filter_start();
 #pragma omp parallel
 	{
 #pragma omp for schedule(dynamic)
 		for (s32 i = 1; i < seqs_n; i++) {
-			seq_ptr seq1 = &seqs[i];
+			const struct sequence *restrict seq1 = &seqs[i];
 
 			for (s32 j = 0; j < i; j++) {
 				if (lost[j])

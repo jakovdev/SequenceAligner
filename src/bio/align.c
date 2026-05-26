@@ -21,16 +21,16 @@ size_t TABLE_SIZE;
 
 bool align(const struct input *dataset, struct output *sm)
 {
-	const align_fn method = ALIGN_METHODS[METHOD_ID].method;
-	const size_t total = (size_t)dataset->alignments;
+	size_t total = (size_t)dataset->alignments;
 	pinfo("Performing %zu pairwise alignments", total);
 	if (!progress_start(total, THREAD_NUM, "Aligning sequences"))
 		return false;
 
-	bench_align_start();
 	s32 seqs_n = dataset->seqs_n;
 	TABLE_SIZE = (dataset->lengths_max + 1) * (dataset->lengths_max + 1);
-	struct sequence *seqs = dataset->seqs;
+	const struct sequence *restrict seqs = dataset->seqs;
+	auto method = ALIGN_METHODS[METHOD_ID].method;
+	bench_align_start();
 #pragma omp parallel
 	{
 		s32 *MALLOCA_AL(table, CACHE_LINE, 3 * TABLE_SIZE);
@@ -42,13 +42,13 @@ bool align(const struct input *dataset, struct output *sm)
 		}
 #pragma omp for schedule(dynamic)
 		for (s32 col = 1; col < seqs_n; col++) {
-			seq_ptr seq = &seqs[col];
+			const struct sequence *restrict seq = &seqs[col];
 			for (s32 i = 0; i < seq->length; ++i)
 				ind[i] = SEQ_LUT[(uchar)seq->letters[i]];
 			for (s32 row = 0; row < col; row++)
-				cols[row] = method(seq, &seqs[row], table, ind);
+				cols[row] = method(seq, &seqs[row], ind, table);
 
-			output_fill(sm, col, cols);
+			output_fill(sm, cols, col);
 			progress_add((size_t)col);
 		}
 

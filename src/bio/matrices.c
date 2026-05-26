@@ -46,8 +46,8 @@ static struct arg_callback parse_matrix(const char *str, void *)
 	for (int i = 0; i < (AMINO_MAT_N + NUCLEO_MAT_N); i++) {
 		if (strcasecmp(str, NAMES[i]) == 0) {
 			selected = NAMES[i];
-			const int moff = i * SUB_MAT_DIM * SUB_MAT_DIM;
-			const int loff = i >= AMINO_MAT_N ? SEQ_LUT_SIZE : 0;
+			int moff = i * SUB_MAT_DIM * SUB_MAT_DIM;
+			int loff = i >= AMINO_MAT_N ? SEQ_LUT_SIZE : 0;
 			memcpy(SEQ_LUT, &LUT[loff], sizeof(SEQ_LUT));
 			memcpy(SUB_MAT, &MATRICES[moff], sizeof(SUB_MAT));
 			return ARG_VALID();

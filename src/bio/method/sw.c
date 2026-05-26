@@ -2,8 +2,9 @@
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
-static s32 align_sw(seq_ptr seq1, seq_ptr seq2, s32 *restrict table,
-		    const s32 *restrict ind)
+static s32 align_sw(const struct sequence *restrict seq1,
+		    const struct sequence *restrict seq2,
+		    const s32 *restrict ind, s32 *restrict table)
 {
 	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
 		unreachable_release();
