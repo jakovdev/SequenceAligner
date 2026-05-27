@@ -7,8 +7,8 @@
 #include "system/os.h"
 #include "util/macros.h"
 
-#define H5_MAX_CHUNK_SIZE PAGE_SIZE
-#define H5_MIN_CHUNK_SIZE (1 << 8)
+constexpr size_t H5_MAX_CHUNK_SIZE = PAGE_SIZE;
+constexpr size_t H5_MIN_CHUNK_SIZE = 1 << 8;
 uint COMPRESSION;
 
 static bool flush_hdf5(struct output *sm, const char *path)

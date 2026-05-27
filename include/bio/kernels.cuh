@@ -9,7 +9,7 @@ extern "C" {
 
 #include "bio/alignment.h"
 
-#define MAX_CUDA_SEQUENCE_LENGTH (1023)
+constexpr s32 MAX_CUDA_SEQUENCE_LENGTH = 1023;
 
 struct constants {
 	char *letters;

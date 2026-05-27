@@ -6,8 +6,12 @@
 
 /* scores, sequence lengths and counts */
 typedef int32_t s32;
+constexpr s32 S32_MAX = INT32_MAX;
+constexpr s32 S32_MIN = INT32_MIN;
 /* alignment sizes, counters, products */
 typedef int64_t s64;
+constexpr s64 S64_MAX = INT64_MAX;
+constexpr s64 S64_MIN = INT64_MIN;
 
 typedef unsigned char uchar;
 typedef unsigned int uint;

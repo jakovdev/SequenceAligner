@@ -1,8 +1,6 @@
 #ifndef BIO_ALIGNMENT_H
 #define BIO_ALIGNMENT_H
 
-#include <limits.h>
-
 #include "system/types.h"
 
 struct input;
@@ -12,15 +10,15 @@ struct sequence;
 [[gnu::nonnull]]
 bool align(const struct input *, struct output *);
 
-#define SEQ_LUT_SIZE (SCHAR_MAX + 1)
+constexpr size_t SEQ_LUT_SIZE = 1 << 7;
 extern s32 SEQ_LUT[SEQ_LUT_SIZE];
-#define SUB_MAT_DIM (24)
+constexpr size_t SUB_MAT_DIM = 24;
 extern s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
 extern s32 GAP_PEN;
 extern s32 GAP_OPN;
 extern s32 GAP_EXT;
-#define SCORE_MIN (INT32_MIN / 2)
+constexpr s32 SCORE_MIN = S32_MIN / 2;
 
 extern enum align_methods {
 	ALIGN_INVALID = -1,

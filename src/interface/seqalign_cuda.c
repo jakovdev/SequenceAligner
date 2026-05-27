@@ -16,8 +16,6 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-#define batch_size (64 << 20)
-
 #define CALLR(cuda_func)                                     \
 	do {                                                 \
 		err = cuda_func;                             \
@@ -135,6 +133,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 
 	s32 *matrix = sm->matrix;
 	s64 alignments = dataset->alignments;
+	constexpr s64 batch_size = 64 << 20;
 
 	if (!cuda_memory(bytesof(matrix, seq_n * seq_n))) {
 		if (!cuda_memory(bytesof(matrix, (size_t)alignments))) {

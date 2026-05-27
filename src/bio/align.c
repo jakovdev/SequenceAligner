@@ -125,7 +125,7 @@ ARGUMENT(alignment_method) = {
 	.help_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
 };
 
-ARG_PARSE_L(gap_value, 10, s32, -(s32), (val < 0 || val > INT_MAX),
+ARG_PARSE_L(gap_value, 10, s32, -(s32), (val < 0 || val > S32_MAX),
 	    "Gap values must be positive integers")
 
 static struct arg_callback validate_gap_pen(void)

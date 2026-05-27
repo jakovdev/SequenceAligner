@@ -5,12 +5,12 @@
 
 #include "util/macros.h"
 
-#define KiB ((size_t)1 << 10)
-#define MiB (KiB << 10)
-#define GiB (MiB << 10)
+constexpr size_t KiB = 1 << 10;
+constexpr size_t MiB = KiB << 10;
+constexpr size_t GiB = MiB << 10;
 
-#define CACHE_LINE ((size_t)64)
-#define PAGE_SIZE (4 * KiB)
+constexpr size_t CACHE_LINE = 64;
+constexpr size_t PAGE_SIZE = 4 * KiB;
 
 #define MALLOC(ptr, bytes) ptr = (typeof(ptr))malloc(bytes)
 #define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
