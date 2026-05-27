@@ -4,8 +4,9 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/sequences.h"
+#include "bio/sequence.h"
 #include "interface/seqalign_cuda.h"
+#include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 

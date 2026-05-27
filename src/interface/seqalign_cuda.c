@@ -11,7 +11,7 @@
 #include <string.h>
 
 #include "bio/kernels.cuh"
-#include "bio/sequences.h"
+#include "io/input.h"
 #include "io/output.h"
 #include "util/benchmark.h"
 #include "util/macros.h"

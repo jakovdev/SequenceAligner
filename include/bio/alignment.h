@@ -3,12 +3,12 @@
 
 #include <limits.h>
 
-#include "bio/sequences.h"
+#include "system/types.h"
 
+struct input;
 struct output;
+struct sequence;
 
-[[gnu::nonnull]]
-bool filter(struct input *);
 [[gnu::nonnull]]
 bool align(const struct input *, struct output *);
 

@@ -1,9 +1,10 @@
-#include "bio/alignment.h"
-
 #include <args.h>
 #include <print.h>
 #include <progress.h>
+#include <string.h>
 
+#include "bio/sequence.h"
+#include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 #include "util/macros.h"
@@ -25,12 +26,12 @@ static double similarity(const struct sequence *restrict seq1,
 	return (double)matches / (double)min_len;
 }
 
-bool filter(struct input *dataset)
+bool filter(struct input *in)
 {
 	if (!threshold)
 		return true;
 
-	size_t seq_n = (size_t)dataset->seqs_n;
+	size_t seq_n = (size_t)in->seqs_n;
 	bool *lost = calloc(seq_n, sizeof(*lost));
 	if unlikely (!lost) {
 		perr("Out of memory during sequence filtering");
@@ -42,8 +43,8 @@ bool filter(struct input *dataset)
 		return false;
 	}
 
-	s32 seqs_n = dataset->seqs_n;
-	const struct sequence *restrict seqs = dataset->seqs;
+	s32 seqs_n = in->seqs_n;
+	const struct sequence *restrict seqs = in->seqs;
 	bench_filter_start();
 #pragma omp parallel
 	{
@@ -66,12 +67,36 @@ bool filter(struct input *dataset)
 		progress_flush();
 	}
 	progress_end();
-	if (!input_lose(dataset, lost)) {
-		free(lost);
-		return false;
+
+	in->lengths_max = 0;
+	s32 write = 0;
+	s64 used = 0;
+	for (s32 read = 0; read < in->seqs_n; read++) {
+		if (lost[read])
+			continue;
+
+		s32 len = in->lengths[read];
+		s64 off = in->offsets[read];
+		char *dst = in->letters + used;
+		if (used != off)
+			memmove(dst, in->letters + off, len + 1);
+		in->lengths[write] = len;
+		in->offsets[write] = used;
+		in->seqs[write].length = len;
+		in->seqs[write++].letters = dst;
+		in->lengths_max = max(in->lengths_max, len);
+		used += len + 1;
 	}
 	free(lost);
 	bench_filter_end();
+
+	in->seqs_n = write;
+	if (write < SEQ_N_MIN) {
+		perr("Not enough filtered sequences: %d (min: %d)", write,
+		     SEQ_N_MIN);
+		return false;
+	}
+
 	bench_filter_print();
 	return true;
 }

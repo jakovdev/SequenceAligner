@@ -9,7 +9,7 @@
 
 #define H5_MAX_CHUNK_SIZE PAGE_SIZE
 #define H5_MIN_CHUNK_SIZE (1 << 8)
-unsigned int COMPRESSION;
+uint COMPRESSION;
 
 static bool flush_hdf5(struct output *sm, const char *path)
 {
@@ -209,7 +209,7 @@ static bool flush_hdf5(struct output *sm, const char *path)
 }
 FLUSH_REGISTER(FLUSH_HDF5, flush_hdf5)
 
-ARG_PARSE_UL(compression, 10, unsigned int, (unsigned int), val > 9,
+ARG_PARSE_UL(compression, 10, uint, (uint), val > 9,
 	     "Compression level must be between 0-9")
 
 static void print_compression(void)

@@ -1,9 +1,8 @@
 #include <args.h>
 #include <print.h>
 
-#include "bio/alignment.h"
-#include "bio/sequences.h"
 #include "interface/seqalign_cuda.h"
+#include "io/input.h"
 #include "io/output.h"
 #include "util/benchmark.h"
 
@@ -21,12 +20,8 @@ int main(int argc, char *argv[])
 
 	psection("Reading Dataset");
 	[[gnu::cleanup(input_free)]] struct input dataset = {};
-	if (!input_load(&dataset) || !filter(&dataset))
+	if (!input_load(&dataset))
 		return 1;
-
-	pinfo("Loaded %d sequences", dataset.seqs_n);
-	pinfo("Average sequence length: %.2f", dataset.average_length);
-	bench_input_print();
 
 	psection("Creating Similarity Matrix");
 	[[gnu::cleanup(output_free)]] struct output sm = {};

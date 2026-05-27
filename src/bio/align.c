@@ -5,6 +5,8 @@
 #include <progress.h>
 #include <string.h>
 
+#include "bio/sequence.h"
+#include "io/input.h"
 #include "io/output.h"
 #include "system/os.h"
 #include "util/benchmark.h"

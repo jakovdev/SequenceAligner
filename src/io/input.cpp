@@ -12,9 +12,12 @@ extern "C" {
 #include <print.h>
 
 #include "bio/alignment.h"
-#include "bio/sequences.h"
+#include "bio/sequence.h"
+#include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"
+
+bool filter(struct input *);
 }
 
 std::string_view trim(std::string_view text) noexcept
@@ -115,14 +118,13 @@ bool source::load(struct input *in, const char *path) noexcept
 	perr("Unsupported file format: %s", file_name(path));
 	return false;
 parse_success:
-	if (this->seqs.size() < SEQ_N_MIN) {
-		perr("Not enough sequences: %zu (min: %d)", this->seqs.size(),
-		     SEQ_N_MIN);
+	size_t seq_n = this->seqs.size();
+	if (seq_n < SEQ_N_MIN) {
+		perr("Not enough sequences: %zu (min: %d)", seq_n, SEQ_N_MIN);
 		return false;
 	}
-	if (this->seqs.size() > SEQ_N_MAX) {
-		perr("Too many sequences: %zu (max: %d)", this->seqs.size(),
-		     SEQ_N_MAX);
+	if (seq_n > SEQ_N_MAX) {
+		perr("Too many sequences: %zu (max: %d)", seq_n, SEQ_N_MAX);
 		return false;
 	}
 
@@ -131,12 +133,12 @@ parse_success:
 		total += seq.size() + 1;
 
 	input_free(in);
-	MALLOCA_AL(in->seqs, CACHE_LINE, this->seqs.size());
-	MALLOCA_AL(in->lengths, CACHE_LINE, this->seqs.size());
-	MALLOCA_AL(in->offsets, CACHE_LINE, this->seqs.size());
+	MALLOCA_AL(in->seqs, CACHE_LINE, seq_n);
+	MALLOCA_AL(in->lengths, CACHE_LINE, seq_n);
+	MALLOCA_AL(in->offsets, CACHE_LINE, seq_n);
 	MALLOCA_AL(in->letters, PAGE_SIZE, total);
 	if (!in->lengths || !in->offsets || !in->seqs || !in->letters) {
-		perr("Out of memory for %zu sequences", this->seqs.size());
+		perr("Out of memory for %zu sequences", seq_n);
 		return false;
 	}
 
@@ -144,13 +146,14 @@ parse_success:
 	s32 seq_n_long = 0;
 	int invalid = -1;
 	s32 seq_n_invalid = 0;
-	for (size_t i = 0, offset = 0; i < this->seqs.size(); i++) {
-		auto &seq = this->seqs[i];
+	s32 i = 0;
+	s64 offset = 0;
+	for (auto &seq : this->seqs) {
+		i++;
 		if (!sequence_length_limit(seq.size())) {
 			if (large < 0) {
 				bench_input_end();
-				pwarn("Sequence %zu exceeds length limits",
-				      i + 1);
+				pwarn("Sequence #%d exceeds length limits", i);
 				large = print_yN("Skip long sequences?");
 				bench_input_start();
 			}
@@ -160,15 +163,14 @@ parse_success:
 				continue;
 			}
 
-			perr("Sequence %zu exceeds length limits", i + 1);
+			perr("Sequence #%d exceeds length limits", i);
 			return false;
 		}
 
 		if (!sequence_normalize(seq)) {
 			if (invalid < 0) {
 				bench_input_end();
-				pwarn("Sequence %zu has invalid letters",
-				      i + 1);
+				pwarn("Sequence #%d has invalid letters", i);
 				invalid = print_yN("Skip invalid sequences?");
 				bench_input_start();
 			}
@@ -178,22 +180,21 @@ parse_success:
 				continue;
 			}
 
-			perr("Sequence %zu has invalid letters", i + 1);
+			perr("Sequence #%d has invalid letters", i);
 			return false;
 		}
 
 		char *dst = in->letters + offset;
 		std::memcpy(dst, seq.data(), seq.size());
 		dst[seq.size()] = '\0';
+		s32 len = (s32)seq.size();
 
-		in->lengths[in->seqs_n] = (s32)seq.size();
-		in->offsets[in->seqs_n] = (s64)offset;
+		in->lengths[in->seqs_n] = len;
+		in->offsets[in->seqs_n] = offset;
 		in->seqs[in->seqs_n].letters = dst;
-		in->seqs[in->seqs_n].length = (s32)seq.size();
-		in->lengths_max = std::max(in->lengths_max, seq.size());
-
-		offset += seq.size() + 1;
-		in->seqs_n++;
+		in->seqs[in->seqs_n++].length = len;
+		in->lengths_max = std::max(in->lengths_max, len);
+		offset += len + 1;
 	}
 
 	if (seq_n_long)
@@ -208,10 +209,7 @@ parse_success:
 		return false;
 	}
 
-	in->alignments = ((s64)in->seqs_n * (in->seqs_n - 1)) / 2;
-	s64 sum = in->offsets[in->seqs_n - 1] + in->lengths[in->seqs_n - 1] + 1;
-	in->average_length = (double)sum / (double)in->seqs_n - 1.0;
-	return true;
+	return filter(in);
 }
 
 extern "C" {
@@ -236,42 +234,12 @@ bool input_load(struct input *in)
 		return false;
 
 	bench_input_end();
-	return true;
-}
-
-bool input_lose(struct input *in, const bool *lost)
-{
-	s64 used = 0;
-	s32 write = 0;
-	in->lengths_max = 0;
-	for (s32 read = 0; read < in->seqs_n; read++) {
-		if (lost[read])
-			continue;
-
-		s32 len = in->lengths[read];
-		s64 off = in->offsets[read];
-		char *dst = in->letters + used;
-		size_t LEN = (size_t)len;
-		if (used != off)
-			memmove(dst, in->letters + off, LEN + 1);
-		in->lengths[write] = len;
-		in->offsets[write] = used;
-		in->seqs[write].length = len;
-		in->seqs[write++].letters = dst;
-		in->lengths_max = std::max(in->lengths_max, LEN);
-		used += len + 1;
-	}
-
-	if (write < SEQ_N_MIN) {
-		perr("Not enough filtered sequences: %d (min: %d)", write,
-		     SEQ_N_MIN);
-		return false;
-	}
-
-	in->seqs_n = write;
-	in->alignments = ((s64)write * (write - 1)) / 2;
-	s64 total = in->offsets[write - 1] + in->lengths[write - 1] + 1;
-	in->average_length = (double)total / (double)write - 1.0;
+	in->alignments = ((s64)in->seqs_n * (in->seqs_n - 1)) / 2;
+	s64 sum = in->offsets[in->seqs_n - 1] + in->lengths[in->seqs_n - 1] + 1;
+	double average_length = (double)sum / (double)in->seqs_n - 1.0;
+	pinfo("Loaded %d sequences", in->seqs_n);
+	pinfo("Average sequence length: %.2f", average_length);
+	bench_input_print();
 	return true;
 }
 

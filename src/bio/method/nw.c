@@ -1,4 +1,5 @@
 #include "bio/alignment.h"
+#include "bio/sequence.h"
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]

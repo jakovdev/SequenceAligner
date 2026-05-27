@@ -2,6 +2,7 @@
 #define SYSTEM_TYPES_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* scores, sequence lengths and counts */
 typedef int32_t s32;
