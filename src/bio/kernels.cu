@@ -72,7 +72,7 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
+	atomicAdd(C.progress, 1);
 }
 
 __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
@@ -144,7 +144,7 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
+	atomicAdd(C.progress, 1);
 }
 
 __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
@@ -216,7 +216,7 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 		scores[tid] = score;
 	}
 
-	atomicAdd(reinterpret_cast<ull *>(C.progress), 1);
+	atomicAdd(C.progress, 1);
 }
 
 extern "C" const void *const KERNELS[ALIGN_COUNT] = {

@@ -11,7 +11,6 @@ typedef int64_t s64;
 typedef unsigned char uchar;
 typedef unsigned int uint;
 typedef unsigned long long ull;
-typedef signed long long sll;
 
 #ifdef __cplusplus
 #define restrict __restrict__
