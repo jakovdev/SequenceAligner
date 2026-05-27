@@ -166,7 +166,7 @@ if(IS_MSYS2 OR IS_MINGW)
 	target_include_directories(seqalign PRIVATE "${CMAKE_SOURCE_DIR}/third_party/c11threads")
 endif()
 
-target_compile_definitions(seqalign PRIVATE _GNU_SOURCE $<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${USE_CUDA}>>:USE_CUDA>)
+target_compile_definitions(seqalign PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${USE_CUDA}>>:USE_CUDA>)
 target_compile_options(seqalign PRIVATE
 $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto>
 $<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto;-fno-exceptions;-fno-rtti>

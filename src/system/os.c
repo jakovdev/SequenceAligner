@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <time.h>
+#include <unistd.h>
 #ifndef PATH_MAX
 #define PATH_MAX _POSIX_PATH_MAX
 #endif
