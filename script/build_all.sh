@@ -3,16 +3,15 @@ set -euo pipefail
 
 BASE_ARCHS=("x86-64" "x86-64-v2" "x86-64-v3" "x86-64-v4")
 BUILD_DIR="${PWD}/build"
-EXTRA_CMAKE_ARGS=()
+CMAKE="cmake"
 mkdir -p "${BUILD_DIR}"
 
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     if [[ "${1:-}" == "cross" || "${1:-}" == "mingw" ]]; then
-        if command -v x86_64-w64-mingw32-gcc &> /dev/null; then
-            EXTRA_CMAKE_ARGS+=("--toolchain ${PWD}/script/toolchain-mingw.cmake")
-        else
+        CMAKE="x86_64-w64-mingw32-cmake"
+        if ! command -v $CMAKE &> /dev/null; then
             echo ""
-            echo "MinGW cross-compiler not detected. Will not build anything."
+            echo "$CMAKE not detected. Will not build anything."
             exit 1
         fi
     fi
@@ -38,7 +37,7 @@ for arch in "${BASE_ARCHS[@]}"; do
     rm -rf "${build_subdir}"
     mkdir -p "${build_subdir}"
 
-    cmake -S . -B "${build_subdir}" -G Ninja -DARCH_LEVEL="${arch}" "${EXTRA_CMAKE_ARGS[@]}"
+    $CMAKE -S . -B "${build_subdir}" -G Ninja -DARCH_LEVEL="${arch}"
     cmake --build "${build_subdir}" -- -j $(nproc)
     (cd "${build_subdir}" && cpack)
 done

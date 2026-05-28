@@ -7,8 +7,8 @@
   },
   "configurePresets": [
     {
-      "name": "base",
-      "hidden": true,
+      "name": "release",
+      "displayName": "Release",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/${presetName}",
       "cacheVariables": {
@@ -17,68 +17,11 @@
     },
     {
       "name": "debug",
-      "hidden": true,
+      "displayName": "Debug",
+      "inherits": "release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
-    },
-    {
-      "name": "linux",
-      "displayName": "Linux",
-      "inherits": [
-        "base"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
-      }
-    },
-    {
-      "name": "linux-debug",
-      "displayName": "Linux (Debug)",
-      "inherits": [
-        "linux",
-        "debug"
-      ]
-    },
-    {
-      "name": "windows-mingw",
-      "displayName": "Windows",
-      "inherits": [
-        "linux"
-      ],
-      "cacheVariables": {
-        "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/script/toolchain-mingw.cmake"
-      }
-    },
-    {
-      "name": "windows-mingw-debug",
-      "displayName": "Windows (Debug)",
-      "inherits": [
-        "windows-mingw",
-        "debug"
-      ]
-    },
-    {
-      "name": "windows",
-      "displayName": "Windows",
-      "inherits": [
-        "base"
-      ],
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
-      }
-    },
-    {
-      "name": "windows-debug",
-      "displayName": "Windows (Debug)",
-      "inherits": [
-        "windows",
-        "debug"
-      ]
     }
   ]
 }

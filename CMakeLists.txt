@@ -9,20 +9,24 @@ set(ARCH_LEVEL "native" CACHE STRING "Architecture level")
 set(IS_MINGW FALSE)
 set(IS_MSYS2 FALSE)
 
-if(MINGW_PREFIX)
-	set(IS_MINGW TRUE)
-	set(DLL_PREFIX "${MINGW_PREFIX}")
-	set(DLL_LIST libhdf5.dll libwinpthread-1.dll libsz.dll libgomp-1.dll libgcc_s_seh-1.dll libstdc++-6.dll libssp-0.dll zlib1.dll)
-elseif(WIN32 AND CMAKE_C_COMPILER_ID MATCHES "GNU")
+if("$ENV{MSYSTEM}" STREQUAL "UCRT64")
 	set(IS_MSYS2 TRUE)
 	set(DLL_PREFIX "$ENV{MSYSTEM_PREFIX}")
 	file(GLOB HDF5_DLL "${DLL_PREFIX}/bin/libhdf5-[0-9]*.dll")
+	if(NOT HDF5_DLL)
+		message(FATAL_ERROR "Could not find hdf5 under ${DLL_PREFIX}/bin")
+	endif()
 	string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
 	set(DLL_LIST ${HDF5_DLL}
 	libwinpthread-1.dll libsz-2.dll libgomp-1.dll libgcc_s_seh-1.dll libstdc++-6.dll libz-ng2.dll
 	libaws-c-io.dll libaws-c-s3.dll libaws-c-auth.dll libaws-c-http.dll libaws-c-common.dll
 	libaws-c-cal.dll libaws-c-sdkutils.dll libaws-c-compression.dll libaws-checksums.dll
 	)
+elseif(MINGW)
+	set(IS_MINGW TRUE)
+	string(LENGTH "${CMAKE_INSTALL_LIBDIR}" ____unused)
+	list(GET CMAKE_FIND_ROOT_PATH 0 DLL_PREFIX)
+	set(DLL_LIST libhdf5.dll libwinpthread-1.dll libsz.dll libgomp-1.dll libgcc_s_seh-1.dll libstdc++-6.dll libssp-0.dll zlib1.dll)
 endif()
 
 set(CMAKE_C_STANDARD 23)
@@ -78,7 +82,7 @@ if(NOT IS_MINGW)
 
 			set(CUDA_KERNEL_OBJ "${MSYS2_CUDA}/kernels.cu.obj")
 			set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
-			set(NVCC_COMMAND "nvcc;-forward-unknown-to-host-compiler;-Xcompiler=/GS-,/sdl-,/MT,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/include;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}")
+			set(NVCC_COMMAND "nvcc;-Xcompiler=/GS-,/Zc:threadSafeInit-,/EHsc;-I;${CMAKE_SOURCE_DIR}/include;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}")
 			add_custom_command(
 				OUTPUT "${CUDA_KERNEL_OBJ}"
 				COMMAND ${NVCC_COMMAND}
