@@ -5,8 +5,6 @@
 extern "C" {
 #endif
 
-#include <driver_types.h>
-
 #include "bio/alignment.h"
 
 constexpr s32 MAX_CUDA_SEQUENCE_LENGTH = 1023;
