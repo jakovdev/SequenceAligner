@@ -56,11 +56,6 @@ FixNamespaceComments: false
 ForEachMacros:
   - 'for_each_arg'
   - 'for_each_rel'
-  - 'for_each_nws'
-  - 'REALLOC'
-  - 'REALLOCA'
-  - 'REALLOC_AL'
-  - 'REALLOCA_AL'
 IncludeBlocks: Preserve
 IncludeCategories:
   - Regex: '.*'
