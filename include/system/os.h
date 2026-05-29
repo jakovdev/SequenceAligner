@@ -19,9 +19,11 @@ constexpr size_t PAGE_SIZE = 4 * KiB;
 
 size_t available_memory(void);
 
+[[gnu::nothrow]]
 void free_aligned(void *ptr);
 
-[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_size(2)]]
+[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(1),
+  gnu::alloc_size(2), gnu::nothrow]]
 void *alloc_aligned(size_t alignment, size_t bytes);
 
 void free_mmap(void *mmap);

@@ -13,8 +13,6 @@
 #include <malloc.h>
 #include <windef.h>
 #include <winbase.h>
-#define aligned_alloc(alignment, size) _aligned_malloc(size, alignment)
-#define mkdir(dir, mode) _mkdir(dir)
 #else
 #include <sys/mman.h>
 #include <sys/param.h>
@@ -30,7 +28,8 @@
 
 struct mmap {
 #ifdef _WIN32
-	HANDLE file, map;
+	HANDLE file;
+	HANDLE map;
 #else
 	size_t bytes;
 	int fd;
@@ -41,19 +40,23 @@ void *alloc_mmap(size_t bytes)
 {
 	size_t total = sizeof(struct mmap) + bytes;
 #ifdef _WIN32
+	if (total > LONG_LONG_MAX) {
+		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
+		perr("Internal error creating temporary file");
+		return nullptr;
+	}
+
 	char dir[MAX_PATH] = {};
-	char name[MAX_PATH] = "temporary matrix file";
+	char name[MAX_PATH] = {};
 
 	DWORD dir_len = GetTempPathA(MAX_PATH, dir);
 	if (!dir_len || dir_len >= MAX_PATH) {
-		perr("Could not resolve temp directory for '%s'",
-		     file_name(name));
+		perr("Could not retrieve the temporary directory path");
 		return nullptr;
 	}
 
 	if (!GetTempFileNameA(dir, "sqa", 0, name)) {
-		perr("Could not create temp file name for '%s'",
-		     file_name(name));
+		perr("Could not create a temporary file name");
 		return nullptr;
 	}
 
@@ -61,8 +64,7 @@ void *alloc_mmap(size_t bytes)
 		name, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
 		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
 	if (file == INVALID_HANDLE_VALUE) {
-		perr("Could not create memory-mapped file '%s'",
-		     file_name(name));
+		perr("Could not create temporary file '%s'", file_name(name));
 		return nullptr;
 	}
 
@@ -88,17 +90,24 @@ void *alloc_mmap(size_t bytes)
 	m->file = file;
 	m->map = map;
 #else
+	if (total > LONG_MAX) {
+		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
+		perr("Internal error creating temporary file");
+		return nullptr;
+	}
+
 	char name[] = "/tmp/seqalign-mmap-XXXXXX";
 	int fd = mkstemp(name);
 	if (fd == -1) {
-		perr("Could not create memory-mapped file '%s'",
-		     file_name(name));
+		if (errno != EEXIST)
+			perr("Could not create temporary file '%s'", name);
+		else
+			perr("Could not create a unique temporary file");
 		return nullptr;
 	}
 
 	if (unlink(name) == -1) {
-		perr("Could not unlink memory-mapped file '%s'",
-		     file_name(name));
+		perr("Could not unlink temporary file '%s'", file_name(name));
 		close(fd);
 		return nullptr;
 	}
@@ -217,25 +226,26 @@ void free_aligned(void *ptr)
 
 void *alloc_aligned(size_t alignment, size_t bytes)
 {
-	if unlikely (alignment < sizeof(void *) || alignment & (alignment - 1))
-		return nullptr;
-
-	if (bytes % alignment != 0)
-		bytes = (bytes + alignment - 1) & ~(alignment - 1);
-
+#ifdef _WIN32
+	return _aligned_malloc(bytes, alignment);
+#else
 	return aligned_alloc(alignment, bytes);
+#endif
 }
 
 const char *file_name(const char *path)
 {
 	if unlikely (!*path)
 		return nullptr;
+	const char *name1 = strrchr(path, '/');
 #ifdef _WIN32
-	const char *name = strrchr(path, '\\');
-#else
-	const char *name = strrchr(path, '/');
+	const char *name2 = strrchr(path, '\\');
+	if (!name1)
+		name1 = name2;
+	else if (name2)
+		name1 = max(name1, name2);
 #endif
-	return name ? name + 1 : path;
+	return name1 ? name1 + 1 : path;
 }
 
 bool path_special_exists(const char *path)
@@ -264,11 +274,7 @@ bool path_file_exists(const char *path)
 	if unlikely (!*path)
 		return false;
 #ifdef _WIN32
-	DWORD attr = GetFileAttributesA(path);
-	if (attr == INVALID_FILE_ATTRIBUTES)
-		return false;
-
-	return true;
+	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
 #else
 	struct stat st;
 	if (lstat(path, &st) != 0)
@@ -279,7 +285,7 @@ bool path_file_exists(const char *path)
 }
 
 [[gnu::nonnull]]
-static const char *_find_last_sep(const char *path)
+static const char *find_last_sep(const char *path)
 {
 	const char *last1 = strrchr(path, '/');
 #ifdef _WIN32
@@ -301,7 +307,7 @@ bool path_directories_create(const char *path)
 	if unlikely (!*path)
 		return false;
 
-	const char *last_sep = _find_last_sep(path);
+	const char *last_sep = find_last_sep(path);
 	if (!last_sep)
 		return true;
 
@@ -317,17 +323,31 @@ bool path_directories_create(const char *path)
 	dirbuf[dir_len] = '\0';
 
 	char *p = dirbuf;
+#ifdef _WIN32
 	if (*p == '/' || *p == '\\')
 		p++;
-
+#else
+	if (*p == '/')
+		p++;
+#endif
+	int retval = -1;
 	for (; *p; ++p) {
+#ifdef _WIN32
 		if (*p != '/' && *p != '\\')
 			continue;
-
+#else
+		if (*p != '/')
+			continue;
+#endif
 		char saved = *p;
 		*p = '\0';
 
-		if (mkdir(dirbuf, 0755) != 0 && errno != EEXIST) {
+#ifdef _WIN32
+		retval = _mkdir(dirbuf);
+#else
+		retval = mkdir(dirbuf, 0755);
+#endif
+		if (retval < 0 && errno != EEXIST) {
 			free(dirbuf);
 			return false;
 		}
@@ -335,7 +355,12 @@ bool path_directories_create(const char *path)
 		*p = saved;
 	}
 
-	if (mkdir(dirbuf, 0755) != 0 && errno != EEXIST) {
+#ifdef _WIN32
+	retval = _mkdir(dirbuf);
+#else
+	retval = mkdir(dirbuf, 0755);
+#endif
+	if (retval < 0 && errno != EEXIST) {
 		free(dirbuf);
 		return false;
 	}
@@ -346,7 +371,7 @@ bool path_directories_create(const char *path)
 
 struct arg_callback parse_path(const char *str, void *dest)
 {
-	if (strlen(str) >= MAX_PATH)
+	if (strnlen(str, MAX_PATH + 1) > MAX_PATH)
 		return ARG_INVALID("File path is too long");
 
 	if (path_special_exists(str))
