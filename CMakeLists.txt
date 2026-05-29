@@ -82,7 +82,7 @@ if(NOT IS_MINGW)
 
 			set(CUDA_KERNEL_OBJ "${MSYS2_CUDA}/kernels.cu.obj")
 			set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
-			set(NVCC_COMMAND "nvcc;-Xcompiler=/GS-,/Zc:threadSafeInit-,/EHsc;-I;${CMAKE_SOURCE_DIR}/include;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}")
+			set(NVCC_COMMAND "nvcc;-Xcompiler=/GS-,/Zc:threadSafeInit-,/EHsc;-I;${CMAKE_SOURCE_DIR}/src;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}")
 			add_custom_command(
 				OUTPUT "${CUDA_KERNEL_OBJ}"
 				COMMAND ${NVCC_COMMAND}
@@ -123,7 +123,7 @@ if(USE_CUDA AND NOT IS_MSYS2)
 	target_sources(seqalign PRIVATE ${CUDA_SOURCES})
 endif()
 
-target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/third_party/clix)
+target_include_directories(seqalign PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/clix)
 
 if(IS_MSYS2 OR IS_MINGW)
 	target_include_directories(seqalign PRIVATE "${CMAKE_SOURCE_DIR}/third_party/c11threads")
