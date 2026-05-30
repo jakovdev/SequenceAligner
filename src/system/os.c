@@ -154,9 +154,19 @@ void free_mmap(void *mmap)
 #ifdef _WIN32
 static double FREQ_INV;
 
+#if defined(__MINGW64__) && defined(USE_CUDA)
+static void safe_exit(void)
+{
+	ExitProcess(0);
+}
+#endif
+
 [[gnu::constructor]]
 static void time_init(void)
 {
+#if defined(__MINGW64__) && defined(USE_CUDA)
+	atexit(safe_exit);
+#endif
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	FREQ_INV = 1.0 / (double)freq.QuadPart;

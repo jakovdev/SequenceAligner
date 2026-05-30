@@ -109,7 +109,7 @@ if(NOT IS_MINGW)
       set(CUDA_KERNEL_OBJ "${MSYS2_CUDA}/kernels.cu.obj")
       set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
       set(NVCC_COMMAND
-          "nvcc;-Xcompiler=/GS-,/Zc:threadSafeInit-,/EHsc;-I;${CMAKE_SOURCE_DIR}/src;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
+          "nvcc;-Xcompiler=/GS-,/GR-,/Zl,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/src;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
       )
       add_custom_command(
         OUTPUT "${CUDA_KERNEL_OBJ}"
