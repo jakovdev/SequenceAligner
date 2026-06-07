@@ -1,6 +1,8 @@
 #ifndef BIO_ALIGNMENT_H
 #define BIO_ALIGNMENT_H
 
+#include <args.h>
+
 #include "system/types.h"
 
 struct input;
@@ -20,33 +22,31 @@ extern s32 GAP_OPN;
 extern s32 GAP_EXT;
 constexpr s32 SCORE_MIN = S32_MIN / 2;
 
-extern enum align_methods {
-	ALIGN_INVALID = -1,
-	ALIGN_GA,
-	ALIGN_NW,
-	ALIGN_SW,
-	ALIGN_COUNT
-} METHOD_ID;
-
-extern struct align_method {
-	s32 (*method)(const struct sequence *restrict,
-		      const struct sequence *restrict, const s32 *restrict,
-		      s32 *restrict);
-	const char *name;
+extern const struct align {
+	s32 (*const method)(const struct sequence *restrict,
+			    const struct sequence *restrict,
+			    const s32 *restrict, s32 *restrict);
+	struct arg_callback (*const validate)(void);
+	const void *const kernel;
 	const char **aliases;
 	enum {
 		GAP_LINEAR,
 		GAP_AFFINE,
 	} gap;
-} ALIGN_METHODS[ALIGN_COUNT];
+} __start_aligns[], __stop_aligns[], *ALIGN;
 
-#define ALIGN_METHOD(ID, FN, GAP, NAME, ALIAS, ...)                            \
-	[[gnu::constructor]]                                                   \
-	static void ID##_REGISTER(void)                                        \
-	{                                                                      \
-		static_assert(ID > ALIGN_INVALID && ID < ALIGN_COUNT);         \
-		static const char *a[] = { ALIAS, ##__VA_ARGS__, nullptr };    \
-		ALIGN_METHODS[ID] = (struct align_method){ FN, NAME, a, GAP }; \
-	}
+#define ALIGN_REGISTER(NAME)                                \
+	[[gnu::aligned(alignof(struct align)), gnu::retain, \
+	  gnu::section("aligns"), gnu::used]]               \
+	static const struct align __align_##NAME
+
+#define ALIGN_ALIASES(LONG, SHORT, ...) \
+	aliases = ((const char *[]){ LONG, SHORT, ##__VA_ARGS__, nullptr })
+
+#ifdef USE_CUDA
+#define ALIGN_KERNEL(FN) extern void FN(s32 *, s64, s64)
+#else
+#define ALIGN_KERNEL(FN) static void *FN = nullptr
+#endif
 
 #endif /* BIO_ALIGNMENT_H */

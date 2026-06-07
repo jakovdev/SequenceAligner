@@ -167,7 +167,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	CALLR(cudaMemset(C.progress, 0, sizeof(*C.progress)));
 	CALLR(cudaMemcpyToSymbol(pC, &C, sizeof(C), 0, cudaMemcpyHostToDevice));
 
-	const void *kernel = KERNELS[METHOD_ID];
+	const void *kernel = ALIGN->kernel;
 	dim3 block = { block_max, 1, 1 };
 	cudaStream_t compute = {}, memory = {};
 	CALLR(cudaStreamCreate(&compute));

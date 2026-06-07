@@ -1,4 +1,8 @@
 #include "bio/alignment.h"
+
+#include <print.h>
+#include <string.h>
+
 #include "bio/sequence.h"
 #include "util/macros.h"
 
@@ -65,4 +69,33 @@ static s32 align_ga(const struct sequence *restrict seq1,
 
 	return match[(s64)len2 * (len1 + 1) + len1];
 }
-ALIGN_METHOD(ALIGN_GA, align_ga, GAP_AFFINE, "Gotoh", "ga", "gotoh")
+
+static struct arg_callback validate_ga(void)
+{
+	if (GAP_OPN != GAP_EXT)
+		return ARG_VALID();
+	auto a = __start_aligns;
+	for (; a < __stop_aligns; a++) {
+		if (strcasecmp(*a->aliases, "Needleman-Wunsch") == 0)
+			break;
+	}
+	if (a == __stop_aligns)
+		return ARG_VALID();
+	if (!print_Yn("Equal affine gaps found, switch to Needleman-Wunsch?"))
+		return ARG_VALID();
+	GAP_PEN = GAP_OPN;
+	GAP_OPN = SCORE_MIN;
+	GAP_EXT = SCORE_MIN;
+	ALIGN = a;
+	return ARG_VALID();
+}
+
+ALIGN_KERNEL(kernel_ga);
+
+ALIGN_REGISTER(ga) = {
+	.ALIGN_ALIASES("Gotoh", "ga"),
+	.method = align_ga,
+	.validate = validate_ga,
+	.kernel = kernel_ga,
+	.gap = GAP_AFFINE,
+};

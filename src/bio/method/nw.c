@@ -44,5 +44,12 @@ static s32 align_nw(const struct sequence *restrict seq1,
 
 	return table[(s64)len2 * cols + len1];
 }
-ALIGN_METHOD(ALIGN_NW, align_nw, GAP_LINEAR, "Needleman-Wunsch", "nw",
-	     "needleman", "wunsch")
+
+ALIGN_KERNEL(kernel_nw);
+
+ALIGN_REGISTER(nw) = {
+	.ALIGN_ALIASES("Needleman-Wunsch", "nw"),
+	.method = align_nw,
+	.kernel = kernel_nw,
+	.gap = GAP_LINEAR,
+};

@@ -23,7 +23,6 @@ struct constants {
 	bool triangular;
 };
 
-extern const void *const KERNELS[ALIGN_COUNT];
 extern const void *const pC;
 
 #ifdef __cplusplus

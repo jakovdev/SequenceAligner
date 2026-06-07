@@ -12,14 +12,12 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-struct align_method ALIGN_METHODS[ALIGN_COUNT];
-enum align_methods METHOD_ID = ALIGN_INVALID;
-
 s32 GAP_PEN;
 s32 GAP_OPN;
 s32 GAP_EXT;
 
 size_t TABLE_SIZE;
+const struct align *ALIGN;
 
 bool align(const struct input *dataset, struct output *sm)
 {
@@ -31,7 +29,7 @@ bool align(const struct input *dataset, struct output *sm)
 	s32 seqs_n = dataset->seqs_n;
 	TABLE_SIZE = (dataset->lengths_max + 1) * (dataset->lengths_max + 1);
 	const struct sequence *restrict seqs = dataset->seqs;
-	auto method = ALIGN_METHODS[METHOD_ID].method;
+	auto method = ALIGN->method;
 	bench_align_start();
 #pragma omp parallel
 	{
@@ -72,55 +70,49 @@ static char help[512];
 static void build_help_strings(void)
 {
 	snprintf(help, sizeof(help), "Alignment method\n");
-	for (int i = 0; i < ALIGN_COUNT; i++) {
-		const char *n = (i == ALIGN_COUNT - 1) ? "" : "\n";
+	for (auto m = __start_aligns; m < __stop_aligns; m++) {
 		size_t len = strlen(help);
-		snprintf(help + len, sizeof(help) - len, "  %s: %s%s",
-			 ALIGN_METHODS[i].aliases[0], ALIGN_METHODS[i].name, n);
+		snprintf(help + len, sizeof(help) - len, "  %s: %s\n",
+			 *m->aliases, m->aliases[1]);
 	}
 }
 
-static struct arg_callback parse_align_method(const char *str, void *)
+static struct arg_callback parse_align(const char *str, void *)
 {
-	METHOD_ID = ALIGN_INVALID;
-	errno = 0;
-	char *endptr = {};
-	long id = strtol(str, &endptr, 10);
-	if (endptr != str && *endptr == '\0' && errno != ERANGE &&
-	    id > ALIGN_INVALID && id < ALIGN_COUNT)
-		METHOD_ID = (enum align_methods)id;
-
-	for (int i = 0; METHOD_ID == ALIGN_INVALID && i < ALIGN_COUNT; i++) {
-		for (const char **a = ALIGN_METHODS[i].aliases; *a; a++) {
-			if (strcasecmp(str, *a) == 0) {
-				METHOD_ID = (enum align_methods)i;
-				break;
-			}
+	for (ALIGN = __start_aligns; ALIGN < __stop_aligns; ALIGN++) {
+		for (const char **a = ALIGN->aliases; *a; a++) {
+			if (strcasecmp(str, *a) == 0)
+				return ARG_VALID();
 		}
 	}
-
-	if (METHOD_ID == ALIGN_INVALID)
-		return ARG_INVALID("Invalid alignment method");
-
-	return ARG_VALID();
+	return ARG_INVALID("Invalid alignment method");
 }
 
-static void print_config_method(void)
+static struct arg_callback validate_align(void)
 {
-	pinfom("Method: %s", ALIGN_METHODS[METHOD_ID].name);
+	return ALIGN->validate ? ALIGN->validate() : ARG_VALID();
+}
+
+static void print_align(void)
+{
+	pinfom("Method: %s", *ALIGN->aliases);
 }
 
 ARG_EXTERN(substitution_matrix);
+ARG_EXTERN(gap_penalty);
 
-ARGUMENT(alignment_method) = {
+ARGUMENT(align) = {
 	.opt = 'a',
 	.lopt = "align",
 	.help = help,
 	.param = "METHOD",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,
-	.parse_callback = parse_align_method,
-	.action_callback = print_config_method,
+	.parse_callback = parse_align,
+	.validate_callback = validate_align,
+	.validate_phase = ARG_CALLBACK_IF_SET,
+	.validate_order = ARG_ORDER_AFTER(ARG(gap_penalty)),
+	.action_callback = print_align,
 	.action_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
 	.help_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
 };
@@ -130,40 +122,24 @@ ARG_PARSE_L(gap_value, 10, s32, -(s32), (val < 0 || val > S32_MAX),
 
 static struct arg_callback validate_gap_pen(void)
 {
-	if (ALIGN_METHODS[METHOD_ID].gap == GAP_LINEAR)
+	if (ALIGN->gap == GAP_LINEAR)
 		return ARG_VALID();
 	return ARG_INVALID("Gap penalty cannot be set for non-linear methods");
 }
 
 static struct arg_callback validate_gap_affine(void)
 {
-	if (METHOD_ID == ALIGN_GA && GAP_OPN == GAP_EXT &&
-	    print_Yn("Equal affine gaps found, switch to Needleman-Wunsch?")) {
-		METHOD_ID = ALIGN_NW;
-		GAP_PEN = GAP_OPN;
-		GAP_OPN = SCORE_MIN;
-		GAP_EXT = SCORE_MIN;
+	if (ALIGN->gap == GAP_AFFINE)
 		return ARG_VALID();
-	}
-
-	if (ALIGN_METHODS[METHOD_ID].gap == GAP_AFFINE)
-		return ARG_VALID();
-
 	return ARG_INVALID("Affine gaps cannot be set for non-affine methods");
 }
 
-static void print_config_gaps(void)
+static void print_gap_value(void)
 {
-	switch (ALIGN_METHODS[METHOD_ID].gap) {
-	case GAP_LINEAR:
+	if (ALIGN->gap == GAP_LINEAR)
 		pinfom("Gap penalty: %d", GAP_PEN);
-		break;
-	case GAP_AFFINE:
+	else if (ALIGN->gap == GAP_AFFINE)
 		pinfom("Gap open: %d, extend: %d", GAP_OPN, GAP_EXT);
-		break;
-	default:
-		unreachable_release();
-	}
 }
 
 ARG_DECLARE(gap_open);
@@ -181,10 +157,10 @@ ARGUMENT(gap_penalty) = {
 	.validate_callback = validate_gap_pen,
 	.validate_phase = ARG_CALLBACK_IF_SET,
 	.validate_order = ARG_ORDER_AFTER(ARG(gap_open)),
-	.action_callback = print_config_gaps,
-	.action_order = ARG_ORDER_AFTER(ARG(alignment_method)),
-	.help_order = ARG_ORDER_AFTER(ARG(alignment_method)),
-	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
+	.action_callback = print_gap_value,
+	.action_order = ARG_ORDER_AFTER(ARG(align)),
+	.help_order = ARG_ORDER_AFTER(ARG(align)),
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(align)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_open), ARG(gap_extend)),
 };
 
@@ -199,9 +175,9 @@ ARGUMENT(gap_open) = {
 	.parse_callback = parse_gap_value,
 	.validate_callback = validate_gap_affine,
 	.validate_phase = ARG_CALLBACK_IF_SET,
-	.validate_order = ARG_ORDER_AFTER(ARG(alignment_method)),
+	.validate_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
 	.help_order = ARG_ORDER_AFTER(ARG(gap_penalty)),
-	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(align)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
 };
 
@@ -214,6 +190,6 @@ ARGUMENT(gap_extend) = {
 	.arg_req = ARG_REQUIRED,
 	.dest = &GAP_EXT,
 	.parse_callback = parse_gap_value,
-	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(alignment_method)),
+	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(align)),
 	ARG_CONFLICTS(ARG_RELATION_PARSE, ARG(gap_penalty)),
 };

@@ -28,7 +28,7 @@ __forceinline__ __device__ s32 d_find_j(s64 alignment)
 	return low - 1;
 }
 
-__global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
+extern "C" __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 {
 	s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -75,7 +75,7 @@ __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 	atomicAdd(C.progress, 1);
 }
 
-__global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
+extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 {
 	s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -147,7 +147,7 @@ __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 	atomicAdd(C.progress, 1);
 }
 
-__global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
+extern "C" __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 {
 	s64 tid = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tid >= batch)
@@ -218,9 +218,3 @@ __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 
 	atomicAdd(C.progress, 1);
 }
-
-extern "C" const void *const KERNELS[ALIGN_COUNT] = {
-	/* [ALIGN_GA] = */ (const void *)kernel_ga,
-	/* [ALIGN_NW] = */ (const void *)kernel_nw,
-	/* [ALIGN_SW] = */ (const void *)kernel_sw,
-};
