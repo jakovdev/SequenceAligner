@@ -19,7 +19,7 @@
 #define CALLR(cuda_func)                                     \
 	do {                                                 \
 		err = cuda_func;                             \
-		if unlikely (err != cudaSuccess) {           \
+		if (err != cudaSuccess) {                    \
 			perr("%s", cudaGetErrorString(err)); \
 			return false;                        \
 		}                                            \
@@ -28,7 +28,7 @@
 #define CALLJ(cuda_func, jmp_label)                          \
 	do {                                                 \
 		err = cuda_func;                             \
-		if unlikely (err != cudaSuccess) {           \
+		if (err != cudaSuccess) {                    \
 			perr("%s", cudaGetErrorString(err)); \
 			goto jmp_label;                      \
 		}                                            \

@@ -8,9 +8,6 @@
 #define unreachable_release() __builtin_unreachable()
 #endif /* NDEBUG */
 
-#define likely(x) (__builtin_expect(!!(x), 1))
-#define unlikely(x) (__builtin_expect(!!(x), 0))
-
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define sizeof_field(t, f) (sizeof(((t *)0)->f))
 #define bytesof(ptr, nmemb) (sizeof(*(ptr)) * nmemb)

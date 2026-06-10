@@ -200,7 +200,7 @@ size_t available_memory(void)
 	available_mem = status.ullAvailPhys;
 #else
 	FILE *fp = fopen("/proc/meminfo", "r");
-	if unlikely (!fp)
+	if (!fp)
 		goto file_error;
 
 	char line[256];
@@ -245,7 +245,7 @@ void *alloc_aligned(size_t alignment, size_t bytes)
 
 const char *file_name(const char *path)
 {
-	if unlikely (!*path)
+	if (!*path)
 		return nullptr;
 	const char *name1 = strrchr(path, '/');
 #ifdef _WIN32
@@ -260,7 +260,7 @@ const char *file_name(const char *path)
 
 bool path_special_exists(const char *path)
 {
-	if unlikely (!*path)
+	if (!*path)
 		return false;
 #ifdef _WIN32
 	DWORD attr = GetFileAttributesA(path);
@@ -281,7 +281,7 @@ bool path_special_exists(const char *path)
 
 bool path_file_exists(const char *path)
 {
-	if unlikely (!*path)
+	if (!*path)
 		return false;
 #ifdef _WIN32
 	return GetFileAttributesA(path) != INVALID_FILE_ATTRIBUTES;
@@ -314,7 +314,7 @@ static const char *find_last_sep(const char *path)
 
 bool path_directories_create(const char *path)
 {
-	if unlikely (!*path)
+	if (!*path)
 		return false;
 
 	const char *last_sep = find_last_sep(path);
@@ -326,7 +326,7 @@ bool path_directories_create(const char *path)
 		return true;
 
 	char *MALLOCA(dirbuf, dir_len + 1);
-	if unlikely (!dirbuf)
+	if (!dirbuf)
 		return false;
 
 	memcpy(dirbuf, path, dir_len);

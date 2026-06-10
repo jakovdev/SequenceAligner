@@ -33,7 +33,7 @@ bool filter(struct input *in)
 
 	size_t seq_n = (size_t)in->seqs_n;
 	bool *lost = calloc(seq_n, sizeof(*lost));
-	if unlikely (!lost) {
+	if (!lost) {
 		perr("Out of memory during sequence filtering");
 		return false;
 	}

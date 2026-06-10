@@ -36,7 +36,7 @@ bool align(const struct input *dataset, const struct output *sm)
 		s32 *MALLOCA_AL(table, CACHE_LINE, 3 * TABLE_SIZE);
 		s32 *MALLOCA_AL(ind, CACHE_LINE, dataset->lengths_max);
 		s32 *MALLOCA_AL(cols, CACHE_LINE, (size_t)seqs_n);
-		if unlikely (!table || !ind || !cols) {
+		if (!table || !ind || !cols) {
 			perr("Out of memory allocating alignment buffers");
 			exit(EXIT_FAILURE);
 		}

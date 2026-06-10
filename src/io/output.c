@@ -47,7 +47,7 @@ bool output_load(struct output *sm, const struct input *in)
 			return false;
 	} else {
 		MALLOC_AL(sm->matrix, PAGE_SIZE, bytes);
-		if unlikely (!sm->matrix) {
+		if (!sm->matrix) {
 			perr("Out of memory allocating Similarity Matrix");
 			return false;
 		}
