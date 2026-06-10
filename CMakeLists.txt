@@ -83,33 +83,32 @@ if(NOT IS_MINGW)
 
       set(MSYS2_CUDA "${CMAKE_BINARY_DIR}/msys2_cuda")
       file(MAKE_DIRECTORY "${MSYS2_CUDA}")
-      get_filename_component(CUDART_DLL_NM "${CUDART_SYS_DLL}" NAME)
-      get_filename_component(CUDART_DLL_WE "${CUDART_DLL_NM}" NAME_WE)
-      set(CUDART_DLL "${MSYS2_CUDA}/${CUDART_DLL_NM}")
-      file(COPY_FILE "${CUDART_SYS_DLL}" "${CUDART_DLL}" ONLY_IF_DIFFERENT)
-      file(COPY_FILE "${CUDART_SYS_DLL}" "${CUDART_DLL_NM}" ONLY_IF_DIFFERENT)
+      get_filename_component(CUDART_DLL "${CUDART_SYS_DLL}" NAME)
+      get_filename_component(CUDART_DLL_WE "${CUDART_DLL}" NAME_WE)
+      file(COPY_FILE "${CUDART_SYS_DLL}" "${MSYS2_CUDA}/${CUDART_DLL}" ONLY_IF_DIFFERENT)
+      file(COPY_FILE "${CUDART_SYS_DLL}" "${CMAKE_BINARY_DIR}/${CUDART_DLL}" ONLY_IF_DIFFERENT)
 
-      set(CUDART_DEF "${MSYS2_CUDA}/${CUDART_DLL_WE}.def")
-      set(CUDART_LIB "${MSYS2_CUDA}/libcudart.dll.a")
+      set(CUDART_DEF "${CUDART_DLL_WE}.def")
+      set(CUDART_LIB "lib${CUDART_DLL}.a")
       add_custom_command(
-        OUTPUT "${CUDART_DEF}"
+        OUTPUT "${MSYS2_CUDA}/${CUDART_DEF}"
         COMMAND "${GENDEF}" "${CUDART_DLL}"
         WORKING_DIRECTORY "${MSYS2_CUDA}"
-        DEPENDS "${CUDART_DLL}"
-        COMMENT "Generating ${CUDART_DLL_WE}.def from ${CUDART_DLL_NM}")
+        DEPENDS "${MSYS2_CUDA}/${CUDART_DLL}"
+        COMMENT "Generating ${CUDART_DEF} from ${CUDART_DLL}")
       add_custom_command(
-        OUTPUT "${CUDART_LIB}"
+        OUTPUT "${MSYS2_CUDA}/${CUDART_LIB}"
         COMMAND "${DLLTOOL}" -d "${CUDART_DEF}" -l "${CUDART_LIB}" -D
-                "${CUDART_DLL_NM}"
+                "${CUDART_DLL}"
         WORKING_DIRECTORY "${MSYS2_CUDA}"
-        DEPENDS "${CUDART_DEF}"
-        COMMENT "Creating import library libcudart.dll.a")
-      add_custom_target(cudart_lib DEPENDS "${CUDART_LIB}")
+        DEPENDS "${MSYS2_CUDA}/${CUDART_DEF}"
+        COMMENT "Creating import library ${CUDART_LIB}")
+      add_custom_target(cudart_lib DEPENDS "${MSYS2_CUDA}/${CUDART_LIB}")
 
       set(CUDA_KERNEL_OBJ "${MSYS2_CUDA}/kernels.cu.obj")
       set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
       set(NVCC_COMMAND
-          "nvcc;-Xcompiler=/GS-,/GR-,/Zl,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/src;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
+          "nvcc;-Xcompiler=/GS-,/GR-,/Zl,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/src;-I;${CMAKE_SOURCE_DIR}/third_party/clix;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
       )
       add_custom_command(
         OUTPUT "${CUDA_KERNEL_OBJ}"
@@ -139,7 +138,7 @@ if(USE_CUDA AND IS_MSYS2)
   add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES} ${CUDA_KERNEL_OBJ})
   add_dependencies(seqalign kernels)
   target_include_directories(seqalign PRIVATE "$ENV{CUDA_PATH}/include")
-  target_link_libraries(seqalign PRIVATE "${CUDART_LIB}")
+  target_link_libraries(seqalign PRIVATE "${MSYS2_CUDA}/${CUDART_LIB}")
 else()
   add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES})
 endif()
@@ -204,7 +203,7 @@ if(IS_MSYS2 OR IS_MINGW)
 endif()
 
 if(USE_CUDA AND IS_MSYS2)
-  install(FILES "${CUDART_DLL}" DESTINATION .)
+  install(FILES "${MSYS2_CUDA}/${CUDART_DLL}" DESTINATION .)
 endif()
 
 install(TARGETS seqalign RUNTIME DESTINATION .)
