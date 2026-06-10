@@ -17,6 +17,7 @@ vcpkg_installed/
 compile_commands.json
 .vscode/
 .cache/
+.idea/
 .vs/
 
 # Python
