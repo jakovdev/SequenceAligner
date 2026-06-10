@@ -63,9 +63,8 @@ bool filter(struct input *in)
 	progress_end();
 
 	in->max = 0;
-	s32 write = 0;
-	s32 used = 0;
-	for (s32 read = 0; read < in->num; read++) {
+	in->num = 0;
+	for (s32 read = 0, used = 0; read < num; read++) {
 		if (lost[read])
 			continue;
 
@@ -74,16 +73,16 @@ bool filter(struct input *in)
 		s32 off = meta.off;
 		if (used != off)
 			memmove(in->letters + used, in->letters + off, len + 1);
-		in->meta[write++] = (struct meta){ .off = used, .len = len };
+		in->meta[in->num].off = used;
+		in->meta[in->num++].len = len;
 		in->max = max(in->max, len);
 		used += len + 1;
 	}
 	free(lost);
 	bench_filter_end();
 
-	in->num = write;
-	if (write < SEQ_N_MIN) {
-		perr("Not enough filtered sequences: %d (min: %d)", write,
+	if (in->num < SEQ_N_MIN) {
+		perr("Not enough filtered sequences: %d (min: %d)", in->num,
 		     SEQ_N_MIN);
 		return false;
 	}

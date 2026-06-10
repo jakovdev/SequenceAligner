@@ -40,13 +40,13 @@ bool align(const struct input *in, const struct output *out)
 		}
 #pragma omp for schedule(dynamic)
 		for (s32 col = 1; col < num; col++) {
-			struct meta m1 = in->meta[col];
+			auto m1 = in->meta[col];
 			s32 l1 = m1.len;
 			seq s1 = in->letters + m1.off;
 			for (s32 i = 0; i < l1; ++i)
 				ind[i] = SEQ_LUT[s1[i]];
 			for (s32 row = 0; row < col; row++) {
-				struct meta m2 = in->meta[row];
+				auto m2 = in->meta[row];
 				s32 l2 = m2.len;
 				seq s2 = in->letters + m2.off;
 				cols[row] = method(l1, l2, s2, ind, table);
