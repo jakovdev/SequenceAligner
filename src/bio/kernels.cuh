@@ -5,7 +5,7 @@
 extern "C" {
 #endif
 
-#include "bio/alignment.h"
+#include "bio/align.h"
 
 constexpr s32 MAX_CUDA_SEQUENCE_LENGTH = 1023;
 

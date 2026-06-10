@@ -3,7 +3,7 @@
 #include <progress.h>
 #include <string.h>
 
-#include "bio/alignment.h"
+#include "bio/align.h"
 #include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"

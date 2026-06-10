@@ -1,15 +1,9 @@
-#ifndef BIO_ALIGNMENT_H
-#define BIO_ALIGNMENT_H
+#ifndef BIO_ALIGN_H
+#define BIO_ALIGN_H
 
 #include <args.h>
 
 #include "system/types.h"
-
-struct input;
-struct output;
-
-[[gnu::nonnull]]
-bool align(const struct input *, const struct output *);
 
 typedef const uchar *restrict seq;
 
@@ -56,4 +50,4 @@ extern const struct align {
 #define ALIGN_KERNEL(FN) static void *FN = nullptr
 #endif
 
-#endif /* BIO_ALIGNMENT_H */
+#endif /* BIO_ALIGN_H */

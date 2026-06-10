@@ -3,6 +3,9 @@
 #include <args.h>
 #include <print.h>
 
+[[gnu::nonnull]]
+bool align(const struct input *, const struct output *);
+
 #ifdef USE_CUDA
 #ifdef __MINGW64__
 #undef __cdecl
@@ -80,7 +83,7 @@ memory_error:
 	exit(EXIT_FAILURE);
 }
 
-bool cuda_align(const struct input *in, struct output *out)
+bool cuda_align(const struct input *in, const struct output *out)
 {
 	if (no_cuda)
 		return align(in, out);
@@ -311,14 +314,12 @@ ARGUMENT(disable_cuda) = {
 
 #else
 
-#include "bio/alignment.h"
-
 bool cuda_memory(size_t)
 {
 	return true;
 }
 
-bool cuda_align(const struct input *in, struct output *out)
+bool cuda_align(const struct input *in, const struct output *out)
 {
 	return align(in, out);
 }
