@@ -142,10 +142,8 @@ parse_success:
 		return false;
 	}
 
-	int large = -1;
-	s32 seq_n_long = 0;
-	int invalid = -1;
-	s32 seq_n_invalid = 0;
+	s32 large = -1;
+	s32 invalid = -1;
 	s32 i = 0;
 	s64 offset = 0;
 	for (auto &seq : this->seqs) {
@@ -155,11 +153,12 @@ parse_success:
 				bench_input_end();
 				pwarn("Sequence #%d exceeds length limits", i);
 				large = print_yN("Skip long sequences?");
+				large--;
 				bench_input_start();
 			}
 
-			if (large > 0) {
-				seq_n_long++;
+			if (large >= 0) {
+				large++;
 				continue;
 			}
 
@@ -172,11 +171,12 @@ parse_success:
 				bench_input_end();
 				pwarn("Sequence #%d has invalid letters", i);
 				invalid = print_yN("Skip invalid sequences?");
+				invalid--;
 				bench_input_start();
 			}
 
-			if (invalid > 0) {
-				seq_n_invalid++;
+			if (invalid >= 0) {
+				invalid++;
 				continue;
 			}
 
@@ -197,11 +197,11 @@ parse_success:
 		offset += len + 1;
 	}
 
-	if (seq_n_long)
-		pinfo("Skipped %d sequences that were too long", seq_n_long);
+	if (large > 0)
+		pinfo("Skipped %d sequences that were too long", large);
 
-	if (seq_n_invalid)
-		pinfo("Skipped %d invalid sequences", seq_n_invalid);
+	if (invalid > 0)
+		pinfo("Skipped %d invalid sequences", invalid);
 
 	if (in->seqs_n < SEQ_N_MIN) {
 		perr("Not enough valid sequences: %d (min: %d)", in->seqs_n,
