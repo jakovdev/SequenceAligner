@@ -3,19 +3,15 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/sequence.h"
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
-static s32 align_ga(const struct sequence *restrict seq1,
-		    const struct sequence *restrict seq2,
-		    const s32 *restrict ind, s32 *restrict table)
+static s32 align_ga(s32 len1, s32 len2, seq seq2, const s32 *restrict ind,
+		    s32 *restrict table)
 {
-	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
+	if (LEN_BAD(len1) || LEN_BAD(len2) || SEQ_BAD(seq2))
 		unreachable_release();
 
-	s32 len1 = seq1->length;
-	s32 len2 = seq2->length;
 	s64 cols = len1 + 1;
 
 	extern size_t TABLE_SIZE;
@@ -43,7 +39,7 @@ static s32 align_ga(const struct sequence *restrict seq1,
 	for (s32 i = 1; i <= len2; ++i) {
 		s64 row = cols * i;
 		s64 row_prev = cols * (i - 1);
-		s32 c2 = SEQ_LUT[(uchar)seq2->letters[i - 1]];
+		s32 c2 = SEQ_LUT[(uchar)seq2[i - 1]];
 
 		for (s32 j = 1; j <= len1; j++) {
 			s32 similarity = SUB_MAT[ind[j - 1]][c2];

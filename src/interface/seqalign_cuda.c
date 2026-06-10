@@ -80,15 +80,15 @@ memory_error:
 	exit(EXIT_FAILURE);
 }
 
-bool cuda_align(const struct input *dataset, struct output *sm)
+bool cuda_align(const struct input *in, struct output *out)
 {
 	if (no_cuda)
-		return align(dataset, sm);
+		return align(in, out);
 
 	if (!cuda_device_init())
 		return false;
 
-	if (dataset->lengths_max > MAX_CUDA_SEQUENCE_LENGTH) {
+	if (in->max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
 		return false;
 	}
@@ -103,7 +103,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	}
 
 	struct constants C = {
-		.seq_n = dataset->seqs_n,
+		.num = in->num,
 		.gap_pen = GAP_PEN,
 		.gap_open = GAP_OPN,
 		.gap_ext = GAP_EXT,
@@ -112,28 +112,24 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	memcpy(C.seq_lut, SEQ_LUT, sizeof(SEQ_LUT));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(SUB_MAT));
 
-	size_t seq_n = (size_t)dataset->seqs_n;
-	s64 *OFFSETS = dataset->offsets;
-	s32 *LENGTHS = dataset->lengths;
-	char *LETTERS = dataset->letters;
-	size_t sum = (size_t)(OFFSETS[seq_n - 1] + LENGTHS[seq_n - 1] + 1);
+	s32 num = in->num;
+	uchar *LETTERS = in->letters;
+	auto META = in->meta;
+	size_t sum = (size_t)META[num - 1].off + META[num - 1].len + 1;
 
-	CALLR(cudaMalloc((void **)&C.offsets, sizeof(*OFFSETS) * seq_n));
-	CALLR(cudaMalloc((void **)&C.lengths, sizeof(*LENGTHS) * seq_n));
 	CALLR(cudaMalloc((void **)&C.letters, sizeof(*LETTERS) * sum));
+	CALLR(cudaMalloc((void **)&C.meta, sizeof(*META) * num));
 
-	CALLR(cudaMemcpy(C.offsets, OFFSETS, sizeof(*OFFSETS) * seq_n,
-			 cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.lengths, LENGTHS, sizeof(*LENGTHS) * seq_n,
-			 cudaMemcpyHostToDevice));
 	CALLR(cudaMemcpy(C.letters, LETTERS, sizeof(*LETTERS) * sum,
 			 cudaMemcpyHostToDevice));
+	CALLR(cudaMemcpy(C.meta, META, sizeof(*META) * num,
+			 cudaMemcpyHostToDevice));
 
-	s32 *matrix = sm->matrix;
-	s64 alignments = dataset->alignments;
+	s32 *matrix = out->matrix;
+	s64 alignments = alignments((s64)num);
 	constexpr s64 batch_size = 64 << 20;
 
-	if (!cuda_memory(bytesof(matrix, seq_n * seq_n))) {
+	if (!cuda_memory(bytesof(matrix, num * num))) {
 		if (!cuda_memory(bytesof(matrix, alignments))) {
 			if (!cuda_memory(bytesof(matrix, batch_size))) {
 				perr("Not enough CUDA Device memory for alignment");
@@ -143,7 +139,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 		C.triangular = true;
 	}
 
-	if (sm->triangular)
+	if (out->triangular)
 		C.triangular = true;
 
 	s64 batch = 0, batch_last = 0, batch_done = 0;
@@ -157,8 +153,8 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 		CALLR(cudaMemset(scores[1], 0, sizeof(*matrix) * batch));
 	} else {
 		batch = alignments;
-		CALLR(cudaMalloc(&*scores, sizeof(*matrix) * seq_n * seq_n));
-		CALLR(cudaMemset(*scores, 0, sizeof(*matrix) * seq_n * seq_n));
+		CALLR(cudaMalloc(&*scores, sizeof(*matrix) * num * num));
+		CALLR(cudaMemset(*scores, 0, sizeof(*matrix) * num * num));
 	}
 
 	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
@@ -230,8 +226,7 @@ cuda_results:
 
 			if (matrix)
 				CALLR(cudaMemcpy(matrix, *scores,
-						 sizeof(*matrix) * seq_n *
-							 seq_n,
+						 sizeof(*matrix) * num * num,
 						 cudaMemcpyDeviceToHost));
 
 			matrix_copied = true;
@@ -323,9 +318,9 @@ bool cuda_memory(size_t)
 	return true;
 }
 
-bool cuda_align(const struct input *dataset, struct output *sm)
+bool cuda_align(const struct input *in, struct output *out)
 {
-	return align(dataset, sm);
+	return align(in, out);
 }
 
 static void print_cuda_ignored(void)

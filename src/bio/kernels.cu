@@ -1,11 +1,12 @@
 #include "bio/kernels.cuh"
+#include "util/macros.h"
 
 __constant__ struct constants C;
 extern "C" const void *const pC = &C;
 
 __forceinline__ __device__ s32 d_seq_lut(s32 ij, s32 pos)
 {
-	return C.seq_lut[(uchar)C.letters[C.offsets[ij] + pos]];
+	return C.seq_lut[(uchar)C.letters[C.meta[ij].off + pos]];
 }
 
 __forceinline__ __device__ s32 d_sub_mat(s32 c1, s32 c2)
@@ -15,11 +16,11 @@ __forceinline__ __device__ s32 d_sub_mat(s32 c1, s32 c2)
 
 __forceinline__ __device__ s32 d_find_j(s64 alignment)
 {
-	s32 low = 1, high = C.seq_n;
+	s32 low = 1, high = C.num;
 
 	while (low < high) {
 		s32 mid = low + (high - low) / 2;
-		if (((s64)mid * (mid - 1)) / 2 <= alignment)
+		if (alignments(static_cast<s64>(mid)) <= alignment)
 			low = mid + 1;
 		else
 			high = mid;
@@ -36,10 +37,10 @@ extern "C" __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 
 	s64 alignment = start + tid;
 	s32 j = d_find_j(alignment);
-	s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
+	s32 i = static_cast<s32>(alignment - alignments(static_cast<s64>(j)));
 
-	s32 len1 = C.lengths[i];
-	s32 len2 = C.lengths[j];
+	s32 len1 = C.meta[i].len;
+	s32 len2 = C.meta[j].len;
 
 	s32 dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -66,8 +67,8 @@ extern "C" __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 
 	s32 score = dp_prev[len2];
 	if (!C.triangular) {
-		scores[static_cast<s64>(C.seq_n) * i + j] = score;
-		scores[static_cast<s64>(C.seq_n) * j + i] = score;
+		scores[static_cast<s64>(C.num) * i + j] = score;
+		scores[static_cast<s64>(C.num) * j + i] = score;
 	} else {
 		scores[tid] = score;
 	}
@@ -83,10 +84,10 @@ extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 
 	s64 alignment = start + tid;
 	s32 j = d_find_j(alignment);
-	s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
+	s32 i = static_cast<s32>(alignment - alignments(static_cast<s64>(j)));
 
-	s32 len1 = C.lengths[i];
-	s32 len2 = C.lengths[j];
+	s32 len1 = C.meta[i].len;
+	s32 len2 = C.meta[j].len;
 
 	s32 match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -138,8 +139,8 @@ extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 
 	s32 score = match[len2];
 	if (!C.triangular) {
-		scores[static_cast<s64>(C.seq_n) * i + j] = score;
-		scores[static_cast<s64>(C.seq_n) * j + i] = score;
+		scores[static_cast<s64>(C.num) * i + j] = score;
+		scores[static_cast<s64>(C.num) * j + i] = score;
 	} else {
 		scores[tid] = score;
 	}
@@ -155,10 +156,10 @@ extern "C" __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 
 	s64 alignment = start + tid;
 	s32 j = d_find_j(alignment);
-	s32 i = static_cast<s32>(alignment - ((s64)j * (j - 1)) / 2);
+	s32 i = static_cast<s32>(alignment - alignments(static_cast<s64>(j)));
 
-	s32 len1 = C.lengths[i];
-	s32 len2 = C.lengths[j];
+	s32 len1 = C.meta[i].len;
+	s32 len2 = C.meta[j].len;
 
 	s32 match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	s32 gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -210,8 +211,8 @@ extern "C" __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 
 	s32 score = max_score;
 	if (!C.triangular) {
-		scores[static_cast<s64>(C.seq_n) * i + j] = score;
-		scores[static_cast<s64>(C.seq_n) * j + i] = score;
+		scores[static_cast<s64>(C.num) * i + j] = score;
+		scores[static_cast<s64>(C.num) * j + i] = score;
 	} else {
 		scores[tid] = score;
 	}

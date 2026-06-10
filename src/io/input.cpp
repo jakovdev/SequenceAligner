@@ -12,7 +12,6 @@ extern "C" {
 #include <print.h>
 
 #include "bio/alignment.h"
-#include "bio/sequence.h"
 #include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"
@@ -118,13 +117,13 @@ bool source::load(struct input *in, const char *path) noexcept
 	perr("Unsupported file format: %s", file_name(path));
 	return false;
 parse_success:
-	size_t seq_n = this->seqs.size();
-	if (seq_n < SEQ_N_MIN) {
-		perr("Not enough sequences: %zu (min: %d)", seq_n, SEQ_N_MIN);
+	size_t num = this->seqs.size();
+	if (num < SEQ_N_MIN) {
+		perr("Not enough sequences: %zu (min: %d)", num, SEQ_N_MIN);
 		return false;
 	}
-	if (seq_n > SEQ_N_MAX) {
-		perr("Too many sequences: %zu (max: %d)", seq_n, SEQ_N_MAX);
+	if (num > SEQ_N_MAX) {
+		perr("Too many sequences: %zu (max: %d)", num, SEQ_N_MAX);
 		return false;
 	}
 
@@ -133,19 +132,17 @@ parse_success:
 		total += seq.size() + 1;
 
 	input_free(in);
-	MALLOCA_AL(in->seqs, CACHE_LINE, seq_n);
-	MALLOCA_AL(in->lengths, CACHE_LINE, seq_n);
-	MALLOCA_AL(in->offsets, CACHE_LINE, seq_n);
+	MALLOCA_AL(in->meta, CACHE_LINE, num);
 	MALLOCA_AL(in->letters, PAGE_SIZE, total);
-	if (!in->lengths || !in->offsets || !in->seqs || !in->letters) {
-		perr("Out of memory for %zu sequences", seq_n);
+	if (!in->meta || !in->letters) {
+		perr("Out of memory for %zu sequences", num);
 		return false;
 	}
 
 	s32 large = -1;
 	s32 invalid = -1;
 	s32 i = 0;
-	s64 offset = 0;
+	s32 off = 0;
 	for (auto &seq : this->seqs) {
 		i++;
 		if (!sequence_length_limit(seq.size())) {
@@ -184,17 +181,17 @@ parse_success:
 			return false;
 		}
 
-		char *dst = in->letters + offset;
+		uchar *restrict dst = in->letters + off;
 		std::memcpy(dst, seq.data(), seq.size());
 		dst[seq.size()] = '\0';
 		s32 len = (s32)seq.size();
-
-		in->lengths[in->seqs_n] = len;
-		in->offsets[in->seqs_n] = offset;
-		in->seqs[in->seqs_n].letters = dst;
-		in->seqs[in->seqs_n++].length = len;
-		in->lengths_max = std::max(in->lengths_max, len);
-		offset += len + 1;
+		in->meta[in->num++] = { .len = len, .off = off };
+		in->max = std::max(in->max, len);
+		if ((s64)off + len + 1 > S32_MAX) {
+			perr("Loaded too many large sequences, last: %d", i);
+			return false;
+		}
+		off += len + 1;
 	}
 
 	if (large > 0)
@@ -203,8 +200,8 @@ parse_success:
 	if (invalid > 0)
 		pinfo("Skipped %d invalid sequences", invalid);
 
-	if (in->seqs_n < SEQ_N_MIN) {
-		perr("Not enough valid sequences: %d (min: %d)", in->seqs_n,
+	if (in->num < SEQ_N_MIN) {
+		perr("Not enough valid sequences: %d (min: %d)", in->num,
 		     SEQ_N_MIN);
 		return false;
 	}
@@ -218,10 +215,8 @@ static const char *INPUT_PATH;
 
 void input_free(struct input *in)
 {
-	free_aligned(in->lengths);
-	free_aligned(in->offsets);
+	free_aligned(in->meta);
 	free_aligned(in->letters);
-	free_aligned(in->seqs);
 	std::memset(in, 0, sizeof(*in));
 }
 
@@ -233,10 +228,9 @@ bool input_load(struct input *in)
 		return false;
 
 	bench_input_end();
-	in->alignments = ((s64)in->seqs_n * (in->seqs_n - 1)) / 2;
-	s32 sum = in->offsets[in->seqs_n - 1] + in->lengths[in->seqs_n - 1] + 1;
-	float average_length = (float)sum / (float)in->seqs_n - 1.0f;
-	pinfo("Loaded %d sequences", in->seqs_n);
+	s32 sum = in->meta[in->num - 1].off + in->meta[in->num - 1].len + 1;
+	float average_length = (float)sum / (float)in->num - 1.0f;
+	pinfo("Loaded %d sequences", in->num);
 	pinfo("Average sequence length: %.2f", average_length);
 	bench_input_print();
 	return true;

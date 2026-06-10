@@ -7,10 +7,11 @@
 
 struct input;
 struct output;
-struct sequence;
 
 [[gnu::nonnull]]
 bool align(const struct input *, const struct output *);
+
+typedef const uchar *restrict seq;
 
 constexpr s32 SEQ_LUT_SIZE = 1 << 7;
 extern s32 SEQ_LUT[SEQ_LUT_SIZE];
@@ -22,10 +23,16 @@ extern s32 GAP_OPN;
 extern s32 GAP_EXT;
 constexpr s32 SCORE_MIN = S32_MIN / 2;
 
+constexpr s32 SEQ_N_MIN = 2;
+constexpr s32 SEQ_N_MAX = S32_MAX;
+constexpr s32 SEQ_LEN_MIN = 1;
+constexpr s32 SEQ_LEN_MAX = (S32_MAX - 1) / SEQ_N_MIN;
+
+#define LEN_BAD(l) (l < SEQ_LEN_MIN || l > SEQ_LEN_MAX)
+#define SEQ_BAD(s) (!*s)
+
 extern const struct align {
-	s32 (*const method)(const struct sequence *restrict,
-			    const struct sequence *restrict,
-			    const s32 *restrict, s32 *restrict);
+	s32 (*const method)(s32, s32, seq, const s32 *restrict, s32 *restrict);
 	struct arg_callback (*const validate)(void);
 	const void *const kernel;
 	const char **aliases;

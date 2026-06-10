@@ -4,13 +4,13 @@
 #include "system/types.h"
 
 struct input {
-	struct sequence *seqs;
-	s32 *lengths;
-	s64 *offsets;
-	char *letters;
-	s64 alignments;
-	s32 lengths_max;
-	s32 seqs_n;
+	uchar *restrict letters;
+	struct meta {
+		s32 len;
+		s32 off;
+	} *restrict meta;
+	s32 max;
+	s32 num;
 };
 
 [[gnu::nonnull]]

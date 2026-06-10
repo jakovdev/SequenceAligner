@@ -1,17 +1,13 @@
 #include "bio/alignment.h"
-#include "bio/sequence.h"
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
-static s32 align_nw(const struct sequence *restrict seq1,
-		    const struct sequence *restrict seq2,
-		    const s32 *restrict ind, s32 *restrict table)
+static s32 align_nw(s32 len1, s32 len2, seq seq2, const s32 *restrict ind,
+		    s32 *restrict table)
 {
-	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
+	if (LEN_BAD(len1) || LEN_BAD(len2) || SEQ_BAD(seq2))
 		unreachable_release();
 
-	s32 len1 = seq1->length;
-	s32 len2 = seq2->length;
 	s64 cols = len1 + 1;
 
 	table[0] = 0;
@@ -23,7 +19,7 @@ static s32 align_nw(const struct sequence *restrict seq1,
 		table[cols * i] = i * GAP_PEN;
 
 	for (s32 i = 1; i <= len2; ++i) {
-		s32 c2 = SEQ_LUT[(uchar)seq2->letters[i - 1]];
+		s32 c2 = SEQ_LUT[seq2[i - 1]];
 		s32 *restrict sub = SUB_MAT[c2];
 		s32 *restrict curr = table + cols * i;
 		s32 *restrict prev = curr - cols;

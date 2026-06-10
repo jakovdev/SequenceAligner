@@ -4,7 +4,6 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/sequence.h"
 #include "interface/seqalign_cuda.h"
 #include "io/input.h"
 #include "system/os.h"
@@ -13,93 +12,92 @@
 static bool disable_write;
 static const char *OUTPUT_PATH;
 
-bool output_load(struct output *sm, const struct input *in)
+bool output_load(struct output *out, const struct input *in)
 {
 	if (disable_write)
 		return true;
 
-	MALLOCA(sm->seqs, in->num);
-	if (!sm->seqs) {
+	MALLOCA(out->seqs, in->num);
+	if (!out->seqs) {
 		perr("Out of memory allocating output sequence data");
 		return false;
 	}
 
 	for (s32 i = 0; i < in->num; i++)
-		sm->seqs[i] = in->seqs[i].letters;
+		out->seqs[i] = (char *)(in->letters + in->meta[i].off);
 
-	sm->triangular = false;
-	sm->dim = (size_t)in->num;
-	size_t bytes = bytesof(sm->matrix, sm->dim * sm->dim);
-	sm->mmap = bytes > (available_memory() * 3 / 4);
-	if (sm->mmap || !cuda_memory(bytes)) {
-		bytes = bytesof(sm->matrix, sm->dim * (sm->dim - 1) / 2);
-		sm->triangular = true;
+	out->triangular = false;
+	out->dim = (size_t)in->num;
+	size_t bytes = bytesof(out->matrix, out->dim * out->dim);
+	out->mmap = bytes > (available_memory() * 3 / 4);
+	if (out->mmap || !cuda_memory(bytes)) {
+		bytes = bytesof(out->matrix, alignments(out->dim));
+		out->triangular = true;
 		pverb("Using triangular matrix storage");
 	}
 
 	bench_output_start();
-	if (sm->mmap) {
+	if (out->mmap) {
 		pinfo("Similarity Matrix size exceeds memory limits");
 		pinfol("Creating temporary matrix file (%.2f GiB)",
 		       (double)bytes / (double)GiB);
-		sm->matrix = alloc_mmap(bytes);
-		if (!sm->matrix)
+		out->matrix = alloc_mmap(bytes);
+		if (!out->matrix)
 			return false;
 	} else {
-		MALLOC_AL(sm->matrix, PAGE_SIZE, bytes);
-		if (!sm->matrix) {
+		MALLOC_AL(out->matrix, PAGE_SIZE, bytes);
+		if (!out->matrix) {
 			perr("Out of memory allocating Similarity Matrix");
 			return false;
 		}
-		memset(sm->matrix, 0, bytes);
+		memset(out->matrix, 0, bytes);
 	}
 	bench_output_end();
 
-	pinfo("Similarity Matrix size: %zu x %zu", sm->dim, sm->dim);
+	pinfo("Similarity Matrix size: %zu x %zu", out->dim, out->dim);
 	return true;
 }
 
-void output_fill(const struct output *sm, const s32 *columns, size_t col)
+void output_fill(const struct output *out, const s32 *cols, size_t col)
 {
 	if (disable_write)
 		return;
 
-	if (!sm->matrix || col >= sm->dim)
+	if (!out->matrix || col >= out->dim)
 		unreachable_release();
 
-	if (sm->triangular) {
-		memcpy(sm->matrix + col * (col - 1) / 2, columns,
-		       bytesof(sm->matrix, col));
-	} else {
+	if (!out->triangular) {
 		for (size_t row = 0; row < col; row++) {
-			sm->matrix[sm->dim * row + col] = columns[row];
-			sm->matrix[sm->dim * col + row] = columns[row];
+			out->matrix[out->dim * row + col] = cols[row];
+			out->matrix[out->dim * col + row] = cols[row];
 		}
+		return;
 	}
+	memcpy(out->matrix + alignments(col), cols, bytesof(out->matrix, col));
 }
 
 bool (*FLUSH_FORMATS[FLUSH_COUNT])(const struct output *, const char *);
 enum output_format FLUSH_ID = FLUSH_HDF5 /* FLUSH_INVALID */;
 
-bool output_flush(const struct output *sm)
+bool output_flush(const struct output *out)
 {
 	if (disable_write)
 		return true;
 	bench_output_start();
-	bool retval = FLUSH_FORMATS[FLUSH_ID](sm, OUTPUT_PATH);
+	bool retval = FLUSH_FORMATS[FLUSH_ID](out, OUTPUT_PATH);
 	bench_output_end();
 	bench_output_print();
 	return retval;
 }
 
-void output_free(struct output *sm)
+void output_free(struct output *out)
 {
-	free(sm->seqs);
-	if (sm->mmap)
-		free_mmap(sm->matrix);
+	free(out->seqs);
+	if (out->mmap)
+		free_mmap(out->matrix);
 	else
-		free_aligned(sm->matrix);
-	memset(sm, 0, sizeof(*sm));
+		free_aligned(out->matrix);
+	memset(out, 0, sizeof(*out));
 }
 
 ARG_EXTERN(disable_cuda);

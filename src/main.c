@@ -19,23 +19,23 @@ int main(int argc, char *argv[])
 	args_actions();
 
 	psection("Reading Dataset");
-	[[gnu::cleanup(input_free)]] struct input dataset = {};
-	if (!input_load(&dataset))
+	[[gnu::cleanup(input_free)]] struct input in = {};
+	if (!input_load(&in))
 		return 1;
 
 	psection("Creating Similarity Matrix");
-	[[gnu::cleanup(output_free)]] struct output sm = {};
-	if (!output_load(&sm, &dataset))
+	[[gnu::cleanup(output_free)]] struct output out = {};
+	if (!output_load(&out, &in))
 		return 1;
 
 	psection("Performing Alignments");
-	if (!cuda_align(&dataset, &sm))
+	if (!cuda_align(&in, &out))
 		return 1;
 
 	psection("Writing Similarity Matrix");
-	if (!output_flush(&sm))
+	if (!output_flush(&out))
 		return 1;
 
-	bench_total_print((double)dataset.alignments);
+	bench_total_print(alignments((s64)in.num));
 	return 0;
 }

@@ -3,7 +3,7 @@
 #include <progress.h>
 #include <string.h>
 
-#include "bio/sequence.h"
+#include "bio/alignment.h"
 #include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"
@@ -11,51 +11,45 @@
 
 static float threshold;
 
-[[gnu::nonnull]]
-static double similarity(const struct sequence *restrict seq1,
-			 const struct sequence *restrict seq2)
-{
-	if (SEQ_BAD(seq1) || SEQ_BAD(seq2))
-		unreachable_release();
-
-	s32 min_len = min(seq1->length, seq2->length);
-	s32 matches = 0;
-	for (s32 i = 0; i < min_len; i++)
-		matches += (seq1->letters[i] == seq2->letters[i]);
-
-	return (double)matches / (double)min_len;
-}
-
 bool filter(struct input *in)
 {
 	if (threshold <= 0.0f)
 		return true;
 
-	size_t seq_n = (size_t)in->seqs_n;
-	bool *lost = calloc(seq_n, sizeof(*lost));
+	s32 num = in->num;
+	bool *lost = calloc(num, sizeof(*lost));
 	if (!lost) {
 		perr("Out of memory during sequence filtering");
 		return false;
 	}
 
-	if (!progress_start(seq_n - 1, THREAD_NUM, "Filtering sequences")) {
+	if (!progress_start(num - 1, THREAD_NUM, "Filtering sequences")) {
 		free(lost);
 		return false;
 	}
 
-	s32 seqs_n = in->seqs_n;
-	const struct sequence *restrict seqs = in->seqs;
 	bench_filter_start();
 #pragma omp parallel
 	{
 #pragma omp for schedule(dynamic)
-		for (s32 i = 1; i < seqs_n; i++) {
-			const struct sequence *restrict seq1 = &seqs[i];
-
+		for (s32 i = 1; i < num; i++) {
+			auto m1 = in->meta[i];
+			s32 l1 = m1.len;
+			seq s1 = in->letters + m1.off;
 			for (s32 j = 0; j < i; j++) {
 				if (lost[j])
 					continue;
-				if (similarity(seq1, &seqs[j]) >= threshold) {
+
+				auto m2 = in->meta[j];
+				s32 ml = min(l1, m2.len);
+				seq s2 = in->letters + m2.off;
+				if (LEN_BAD(ml) || SEQ_BAD(s1) || SEQ_BAD(s2))
+					unreachable_release();
+
+				s32 matches = 0;
+				for (s32 k = 0; k < ml; k++)
+					matches += s1[k] == s2[k];
+				if ((float)matches / (float)ml >= threshold) {
 					lost[i] = true;
 					break;
 				}
@@ -68,29 +62,26 @@ bool filter(struct input *in)
 	}
 	progress_end();
 
-	in->lengths_max = 0;
+	in->max = 0;
 	s32 write = 0;
-	s64 used = 0;
-	for (s32 read = 0; read < in->seqs_n; read++) {
+	s32 used = 0;
+	for (s32 read = 0; read < in->num; read++) {
 		if (lost[read])
 			continue;
 
-		s32 len = in->lengths[read];
-		s64 off = in->offsets[read];
-		char *dst = in->letters + used;
+		auto meta = in->meta[read];
+		s32 len = meta.len;
+		s32 off = meta.off;
 		if (used != off)
-			memmove(dst, in->letters + off, len + 1);
-		in->lengths[write] = len;
-		in->offsets[write] = used;
-		in->seqs[write].length = len;
-		in->seqs[write++].letters = dst;
-		in->lengths_max = max(in->lengths_max, len);
+			memmove(in->letters + used, in->letters + off, len + 1);
+		in->meta[write++] = (struct meta){ .off = used, .len = len };
+		in->max = max(in->max, len);
 		used += len + 1;
 	}
 	free(lost);
 	bench_filter_end();
 
-	in->seqs_n = write;
+	in->num = write;
 	if (write < SEQ_N_MIN) {
 		perr("Not enough filtered sequences: %d (min: %d)", write,
 		     SEQ_N_MIN);

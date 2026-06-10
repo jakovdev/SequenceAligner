@@ -11,7 +11,7 @@ constexpr size_t H5_MAX_CHUNK_SIZE = PAGE_SIZE;
 constexpr size_t H5_MIN_CHUNK_SIZE = 1 << 8;
 uint COMPRESSION;
 
-static bool flush_hdf5(const struct output *sm, const char *path)
+static bool flush_hdf5(const struct output *out, const char *path)
 {
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
@@ -23,9 +23,9 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 		return false;
 	}
 
-	pinfo("Writing %zu sequences to HDF5", sm->dim);
+	pinfo("Writing %zu sequences to HDF5", out->dim);
 
-	hsize_t seq_dims[1] = { sm->dim };
+	hsize_t seq_dims[1] = { out->dim };
 	hid_t seq_space = H5Screate_simple(1, seq_dims, nullptr);
 	if (seq_space < 0) {
 		perr("Failed to create HDF5 dataspace for sequences");
@@ -47,7 +47,7 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 	}
 
 	herr_t status = H5Dwrite(sequences_id, string_type, H5S_ALL, H5S_ALL,
-				 H5P_DEFAULT, sm->seqs);
+				 H5P_DEFAULT, out->seqs);
 	H5Dclose(sequences_id);
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
@@ -57,7 +57,7 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 		return false;
 	}
 
-	hsize_t matrix_dims[2] = { sm->dim, sm->dim };
+	hsize_t matrix_dims[2] = { out->dim, out->dim };
 	hid_t matrix_space = H5Screate_simple(2, matrix_dims, nullptr);
 	if (matrix_space < 0) {
 		perr("Failed to create HDF5 dataspace for Similarity Matrix");
@@ -67,20 +67,20 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-	size_t chunk_dim = sm->dim;
-	if (sm->dim > H5_MIN_CHUNK_SIZE) {
+	size_t chunk_dim = out->dim;
+	if (out->dim > H5_MIN_CHUNK_SIZE) {
 		chunk_dim = 64;
 		size_t square =
 			(size_t)(chunk_dim * chunk_dim) * sizeof(chunk_dim);
 		size_t target_bytes = (2 * MiB) / (1 + COMPRESSION / 3);
-		while (chunk_dim < sm->dim && square < target_bytes)
+		while (chunk_dim < out->dim && square < target_bytes)
 			chunk_dim *= 2;
-		if (chunk_dim > sm->dim || square > target_bytes)
+		if (chunk_dim > out->dim || square > target_bytes)
 			chunk_dim /= 2;
 
 		chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
 		chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
-		chunk_dim = min(chunk_dim, sm->dim);
+		chunk_dim = min(chunk_dim, out->dim);
 		hsize_t chunk_dims[2] = { chunk_dim, chunk_dim };
 		H5Pset_chunk(plist_id, 2, chunk_dims);
 		pverb("HDF5 chunk size: %zu x %zu", chunk_dim, chunk_dim);
@@ -99,10 +99,10 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 		return false;
 	}
 
-	if (!sm->triangular) {
+	if (!out->triangular) {
 		pinfo("Writing Similarity Matrix to HDF5");
 		status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL,
-				  H5P_DEFAULT, sm->matrix);
+				  H5P_DEFAULT, out->matrix);
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
 		if (status < 0) {
@@ -122,8 +122,8 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 		return false;
 	}
 
-	s64 dim = (s64)sm->dim;
-	size_t row_bytes = bytesof(sm->matrix, sm->dim);
+	s64 dim = (s64)out->dim;
+	size_t row_bytes = bytesof(out->matrix, out->dim);
 	s32 max_rows = (s32)(available / (4 * row_bytes));
 	s32 chunk_size = (s32)max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)
@@ -153,28 +153,28 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 	}
 
 	ppercent(0, "Converting to HDF5");
-#define tridx(row, col) (((s64)(col) * ((col) - 1)) / 2 + (row))
+#define tridx(row, col) (alignments((s64)(col)) + (row))
 	for (s32 off = 0; off < dim; off += chunk_size) {
 		s32 end = min(off + chunk_size, dim);
 		for (s32 i = off; i < end; i++) {
 			s64 row = dim * (i - off);
 			for (s32 j = i + 1; j < dim; j++)
-				buf[row + j] = sm->matrix[tridx(i, j)];
+				buf[row + j] = out->matrix[tridx(i, j)];
 			for (s32 j = 0; j < i; j++) {
 				if (j >= off)
 					buf[row + j] = buf[dim * (j - off) + i];
 				else
-					buf[row + j] = sm->matrix[tridx(j, i)];
+					buf[row + j] = out->matrix[tridx(j, i)];
 			}
 		}
 
 		s32 rows = end - off;
 		hsize_t start[2] = { (hsize_t)off, 0 };
-		hsize_t count[2] = { (hsize_t)rows, sm->dim };
+		hsize_t count[2] = { (hsize_t)rows, out->dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, nullptr,
 				    count, nullptr);
 
-		hsize_t mem_dims[2] = { (hsize_t)rows, sm->dim };
+		hsize_t mem_dims[2] = { (hsize_t)rows, out->dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, nullptr);
 		if (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
@@ -197,7 +197,7 @@ static bool flush_hdf5(const struct output *sm, const char *path)
 			return false;
 		}
 
-		pproport(end / sm->dim, "Converting to HDF5");
+		pproport(end / out->dim, "Converting to HDF5");
 	}
 
 	ppercent(100, "Converting to HDF5");
