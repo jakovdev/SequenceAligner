@@ -18,17 +18,17 @@ bool output_load(struct output *sm, const struct input *in)
 	if (disable_write)
 		return true;
 
-	sm->dim = (size_t)in->seqs_n;
-	MALLOCA(sm->seqs, sm->dim);
+	MALLOCA(sm->seqs, in->num);
 	if (!sm->seqs) {
 		perr("Out of memory allocating output sequence data");
 		return false;
 	}
 
-	for (size_t i = 0; i < sm->dim; i++)
+	for (s32 i = 0; i < in->num; i++)
 		sm->seqs[i] = in->seqs[i].letters;
 
 	sm->triangular = false;
+	sm->dim = (size_t)in->num;
 	size_t bytes = bytesof(sm->matrix, sm->dim * sm->dim);
 	sm->mmap = bytes > (available_memory() * 3 / 4);
 	if (sm->mmap || !cuda_memory(bytes)) {
@@ -59,29 +59,29 @@ bool output_load(struct output *sm, const struct input *in)
 	return true;
 }
 
-void output_fill(struct output *sm, const s32 *columns, s32 col)
+void output_fill(const struct output *sm, const s32 *columns, size_t col)
 {
 	if (disable_write)
 		return;
 
-	if (!sm->matrix || col < 0 || (size_t)col >= sm->dim)
+	if (!sm->matrix || col >= sm->dim)
 		unreachable_release();
 
 	if (sm->triangular) {
-		memcpy(sm->matrix + ((s64)col * (col - 1)) / 2, columns,
-		       bytesof(sm->matrix, (size_t)col));
+		memcpy(sm->matrix + col * (col - 1) / 2, columns,
+		       bytesof(sm->matrix, col));
 	} else {
-		for (s32 row = 0; row < col; row++) {
+		for (size_t row = 0; row < col; row++) {
 			sm->matrix[sm->dim * row + col] = columns[row];
 			sm->matrix[sm->dim * col + row] = columns[row];
 		}
 	}
 }
 
-bool (*FLUSH_FORMATS[FLUSH_COUNT])(struct output *, const char *);
+bool (*FLUSH_FORMATS[FLUSH_COUNT])(const struct output *, const char *);
 enum output_format FLUSH_ID = FLUSH_HDF5 /* FLUSH_INVALID */;
 
-bool output_flush(struct output *sm)
+bool output_flush(const struct output *sm)
 {
 	if (disable_write)
 		return true;

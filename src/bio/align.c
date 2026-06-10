@@ -19,7 +19,7 @@ s32 GAP_EXT;
 size_t TABLE_SIZE;
 const struct align *ALIGN;
 
-bool align(const struct input *dataset, struct output *sm)
+bool align(const struct input *dataset, const struct output *sm)
 {
 	size_t total = (size_t)dataset->alignments;
 	pinfo("Performing %zu pairwise alignments", total);

@@ -13,7 +13,7 @@
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 #define sizeof_field(t, f) (sizeof(((t *)0)->f))
-#define bytesof(ptr, nmemb) (sizeof(*(ptr)) * (nmemb))
+#define bytesof(ptr, nmemb) (sizeof(*(ptr)) * nmemb)
 
 #ifndef __cplusplus
 #define min(a, b) (((a) < (b)) ? (a) : (b))

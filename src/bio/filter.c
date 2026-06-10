@@ -9,7 +9,7 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-static double threshold;
+static float threshold;
 
 [[gnu::nonnull]]
 static double similarity(const struct sequence *restrict seq1,
@@ -28,7 +28,7 @@ static double similarity(const struct sequence *restrict seq1,
 
 bool filter(struct input *in)
 {
-	if (!threshold)
+	if (threshold <= 0.0f)
 		return true;
 
 	size_t seq_n = (size_t)in->seqs_n;
@@ -101,13 +101,13 @@ bool filter(struct input *in)
 	return true;
 }
 
-ARG_PARSE_D(filter, double, , (val < 0.0 || val > 1.0),
+ARG_PARSE_F(filter, float, , (val < 0.0f || val > 1.0f),
 	    "Filter threshold must be between 0.0 and 1.0")
 
 static void print_filter(void)
 {
-	if (threshold > 0.0)
-		pinfom("Filter threshold: %.1f%%", threshold * 100.0);
+	if (threshold > 0.0f)
+		pinfom("Filter threshold: %.1f%%", threshold * 100.0f);
 	else
 		pwarnm("Filter: Ignored");
 }
@@ -121,7 +121,7 @@ ARGUMENT(filter_threshold) = {
 	.help = "Filter sequences with similarity above threshold [0.0-1.0]",
 	.param = "FLOAT",
 	.param_req = ARG_PARAM_REQUIRED,
-	.dest = &filter,
+	.dest = &threshold,
 	.parse_callback = parse_filter,
 	.action_callback = print_filter,
 	.action_phase = ARG_CALLBACK_IF_SET,

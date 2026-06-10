@@ -10,11 +10,11 @@ struct output;
 struct sequence;
 
 [[gnu::nonnull]]
-bool align(const struct input *, struct output *);
+bool align(const struct input *, const struct output *);
 
-constexpr size_t SEQ_LUT_SIZE = 1 << 7;
+constexpr s32 SEQ_LUT_SIZE = 1 << 7;
 extern s32 SEQ_LUT[SEQ_LUT_SIZE];
-constexpr size_t SUB_MAT_DIM = 24;
+constexpr s32 SUB_MAT_DIM = 24;
 extern s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
 extern s32 GAP_PEN;

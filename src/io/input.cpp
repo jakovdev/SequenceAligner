@@ -104,7 +104,7 @@ bool source::load(struct input *in, const char *path) noexcept
 		return false;
 	}
 
-	for (auto parse : this->parsers) {
+	for (auto parse : source::parsers) {
 		switch (parse(*this)) {
 		case parse_result::SUCCESS:
 			goto parse_success;
@@ -229,14 +229,13 @@ bool input_load(struct input *in)
 {
 	bench_input_start();
 
-	source src{};
-	if (!src.load(in, INPUT_PATH))
+	if (source src{}; !src.load(in, INPUT_PATH))
 		return false;
 
 	bench_input_end();
 	in->alignments = ((s64)in->seqs_n * (in->seqs_n - 1)) / 2;
-	s64 sum = in->offsets[in->seqs_n - 1] + in->lengths[in->seqs_n - 1] + 1;
-	double average_length = (double)sum / (double)in->seqs_n - 1.0;
+	s32 sum = in->offsets[in->seqs_n - 1] + in->lengths[in->seqs_n - 1] + 1;
+	float average_length = (float)sum / (float)in->seqs_n - 1.0f;
 	pinfo("Loaded %d sequences", in->seqs_n);
 	pinfo("Average sequence length: %.2f", average_length);
 	bench_input_print();

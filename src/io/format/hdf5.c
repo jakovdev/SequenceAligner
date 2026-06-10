@@ -11,7 +11,7 @@ constexpr size_t H5_MAX_CHUNK_SIZE = PAGE_SIZE;
 constexpr size_t H5_MIN_CHUNK_SIZE = 1 << 8;
 uint COMPRESSION;
 
-static bool flush_hdf5(struct output *sm, const char *path)
+static bool flush_hdf5(const struct output *sm, const char *path)
 {
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
@@ -101,8 +101,8 @@ static bool flush_hdf5(struct output *sm, const char *path)
 
 	if (!sm->triangular) {
 		pinfo("Writing Similarity Matrix to HDF5");
-		herr_t status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, H5S_ALL,
-					 H5S_ALL, H5P_DEFAULT, sm->matrix);
+		status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL,
+				  H5P_DEFAULT, sm->matrix);
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
 		if (status < 0) {
@@ -122,7 +122,7 @@ static bool flush_hdf5(struct output *sm, const char *path)
 		return false;
 	}
 
-	s64 dim = sm->dim;
+	s64 dim = (s64)sm->dim;
 	size_t row_bytes = bytesof(sm->matrix, sm->dim);
 	s32 max_rows = (s32)(available / (4 * row_bytes));
 	s32 chunk_size = (s32)max(chunk_dim, 4);
@@ -185,8 +185,8 @@ static bool flush_hdf5(struct output *sm, const char *path)
 			return false;
 		}
 
-		herr_t status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, mem_space,
-					 file_space, H5P_DEFAULT, buf);
+		status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, mem_space,
+				  file_space, H5P_DEFAULT, buf);
 		H5Sclose(mem_space);
 		if (status < 0) {
 			perr("Failed to write chunk to HDF5");

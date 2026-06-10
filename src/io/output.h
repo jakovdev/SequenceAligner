@@ -18,9 +18,9 @@ struct output {
 [[gnu::nonnull]]
 bool output_load(struct output *, const struct input *);
 [[gnu::nonnull]]
-void output_fill(struct output *, const s32 *columns, s32 col);
+void output_fill(const struct output *, const s32 *columns, size_t col);
 [[gnu::nonnull]]
-bool output_flush(struct output *);
+bool output_flush(const struct output *);
 [[gnu::nonnull]]
 void output_free(struct output *);
 
@@ -30,7 +30,7 @@ extern enum output_format {
 	FLUSH_COUNT
 } FLUSH_ID;
 
-extern bool (*FLUSH_FORMATS[FLUSH_COUNT])(struct output *, const char *);
+extern bool (*FLUSH_FORMATS[FLUSH_COUNT])(const struct output *, const char *);
 
 #define FLUSH_REGISTER(ID, FN)                                           \
 	[[gnu::constructor]]                                             \

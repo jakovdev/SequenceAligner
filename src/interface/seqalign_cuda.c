@@ -45,10 +45,8 @@ static bool cuda_device_init(void)
 	if (init)
 		return true;
 
-	cudaError_t err = {};
-
 	int device_count = 0;
-	err = cudaGetDeviceCount(&device_count);
+	cudaError_t err = cudaGetDeviceCount(&device_count);
 	if (!device_count || err != cudaSuccess) {
 		perr("No CUDA devices available");
 		return false;
@@ -72,7 +70,7 @@ bool cuda_memory(size_t bytes)
 
 	size_t free = 0;
 	size_t total = 0;
-	cudaError_t err = {};
+	cudaError_t err;
 	CALLJ(cudaMemGetInfo(&free, &total), memory_error);
 	if (free < bytes * 4 / 3)
 		return false;
@@ -95,7 +93,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 		return false;
 	}
 
-	cudaError_t err = {};
+	cudaError_t err;
 	uint block_max = 0;
 	{
 		struct cudaDeviceProp dev_prop = {};
@@ -136,7 +134,7 @@ bool cuda_align(const struct input *dataset, struct output *sm)
 	constexpr s64 batch_size = 64 << 20;
 
 	if (!cuda_memory(bytesof(matrix, seq_n * seq_n))) {
-		if (!cuda_memory(bytesof(matrix, (size_t)alignments))) {
+		if (!cuda_memory(bytesof(matrix, alignments))) {
 			if (!cuda_memory(bytesof(matrix, batch_size))) {
 				perr("Not enough CUDA Device memory for alignment");
 				return false;

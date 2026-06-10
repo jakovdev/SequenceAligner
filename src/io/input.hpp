@@ -20,7 +20,7 @@ struct source {
 };
 
 struct input_format {
-	input_format(source::parser_fn parser) noexcept
+	explicit input_format(const source::parser_fn parser) noexcept
 	{
 		source::parsers.push_back(parser);
 	}

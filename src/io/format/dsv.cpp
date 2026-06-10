@@ -73,7 +73,7 @@ static result parse_dsv(source &src) noexcept
 	char delimiter = it->delimiter;
 	std::vector<std::string_view> tokens{};
 	dsv_split(tokens, src.lines.front(), delimiter);
-	if (!tokens.size()) {
+	if (tokens.empty()) {
 		perr("No sequences found in DSV file");
 		return result::ERROR;
 	}

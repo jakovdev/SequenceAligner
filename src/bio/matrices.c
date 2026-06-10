@@ -43,7 +43,7 @@ static const char *selected;
 
 static struct arg_callback parse_matrix(const char *str, void *)
 {
-	for (int i = 0; i < (AMINO_MAT_N + NUCLEO_MAT_N); i++) {
+	for (int i = 0; i < AMINO_MAT_N + NUCLEO_MAT_N; i++) {
 		if (strcasecmp(str, NAMES[i]) == 0) {
 			selected = NAMES[i];
 			int moff = i * SUB_MAT_DIM * SUB_MAT_DIM;

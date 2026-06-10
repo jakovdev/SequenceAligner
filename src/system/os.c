@@ -340,7 +340,7 @@ bool path_directories_create(const char *path)
 	if (*p == '/')
 		p++;
 #endif
-	int retval = -1;
+	int retval;
 	for (; *p; ++p) {
 #ifdef _WIN32
 		if (*p != '/' && *p != '\\')
