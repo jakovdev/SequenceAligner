@@ -49,6 +49,7 @@ static bool sequence_length_limit(size_t len) noexcept
 
 bool source::load(struct input *in, const char *path) noexcept
 {
+	bench_input_start();
 	std::string_view path_view(path);
 	size_t dot = path_view.rfind('.');
 	if (dot == std::string::npos) {
@@ -193,6 +194,7 @@ parse_success:
 		}
 		off += len + 1;
 	}
+	bench_input_end();
 
 	if (large > 0)
 		pinfo("Skipped %d sequences that were too long", large);
@@ -206,7 +208,15 @@ parse_success:
 		return false;
 	}
 
-	return filter(in);
+	if (!filter(in))
+		return false;
+
+	s32 sum = in->meta[in->num - 1].off + in->meta[in->num - 1].len + 1;
+	float average_length = (float)sum / (float)in->num - 1.0f;
+	pinfo("Loaded %d sequences", in->num);
+	pinfo("Average sequence length: %.2f", average_length);
+	bench_input_print();
+	return true;
 }
 
 extern "C" {
@@ -222,18 +232,8 @@ void input_free(struct input *in)
 
 bool input_load(struct input *in)
 {
-	bench_input_start();
-
-	if (source src{}; !src.load(in, INPUT_PATH))
-		return false;
-
-	bench_input_end();
-	s32 sum = in->meta[in->num - 1].off + in->meta[in->num - 1].len + 1;
-	float average_length = (float)sum / (float)in->num - 1.0f;
-	pinfo("Loaded %d sequences", in->num);
-	pinfo("Average sequence length: %.2f", average_length);
-	bench_input_print();
-	return true;
+	source src{};
+	return src.load(in, INPUT_PATH);
 }
 
 static void print_input_path(void)
