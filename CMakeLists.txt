@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.30)
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
-project(SequenceAligner C CXX)
+project(SequenceAligner C)
 
 set(ARCH_LEVEL
     "native"
@@ -20,12 +20,11 @@ if("$ENV{MSYSTEM}" STREQUAL "UCRT64")
   endif()
   string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
   set(DLL_LIST
-      ${HDF5_DLL}
       libwinpthread-1.dll
-      libsz-2.dll
       libgomp-1.dll
       libgcc_s_seh-1.dll
-      libstdc++-6.dll
+      ${HDF5_DLL}
+      libsz-2.dll
       libz-ng2.dll
       libaws-c-io.dll
       libaws-c-s3.dll
@@ -39,25 +38,21 @@ if("$ENV{MSYSTEM}" STREQUAL "UCRT64")
 elseif(MINGW)
   set(IS_MINGW TRUE)
   string(LENGTH "${CMAKE_INSTALL_LIBDIR}" ____unused)
+  string(LENGTH "${CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES}" ____unused)
   list(GET CMAKE_FIND_ROOT_PATH 0 DLL_PREFIX)
   set(DLL_LIST
-      libhdf5.dll
       libwinpthread-1.dll
-      libsz.dll
+      libssp-0.dll
       libgomp-1.dll
       libgcc_s_seh-1.dll
-      libstdc++-6.dll
-      libssp-0.dll
+      libhdf5.dll
+      libsz.dll
       zlib1.dll)
 endif()
 
 set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
-
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
 
 set(USE_CUDA FALSE)
 if(NOT IS_MINGW)
@@ -133,14 +128,13 @@ endif()
 find_package(OpenMP REQUIRED COMPONENTS C)
 
 file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
-file(GLOB_RECURSE CXX_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.cpp")
 if(USE_CUDA AND IS_MSYS2)
-  add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES} ${CUDA_KERNEL_OBJ})
+  add_executable(seqalign ${C_SOURCES} ${CUDA_KERNEL_OBJ})
   add_dependencies(seqalign kernels)
   target_include_directories(seqalign PRIVATE "$ENV{CUDA_PATH}/include")
   target_link_libraries(seqalign PRIVATE "${MSYS2_CUDA}/${CUDART_LIB}")
 else()
-  add_executable(seqalign ${C_SOURCES} ${CXX_SOURCES})
+  add_executable(seqalign ${C_SOURCES})
 endif()
 set_target_properties(seqalign PROPERTIES LINKER_LANGUAGE C)
 
@@ -164,9 +158,7 @@ target_compile_options(
   seqalign
   PRIVATE
     $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto>
-    $<$<COMPILE_LANGUAGE:CXX>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fwrapv;-fno-plt;-fvisibility=hidden;-malign-data=cacheline;-flto;-fno-exceptions;-fno-rtti>
     $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og>
-    $<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CONFIG:Debug>>:-Og>
     $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static>
     $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
 target_link_options(seqalign PRIVATE -flto=auto)

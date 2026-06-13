@@ -1,8 +1,7 @@
 #ifndef SYSTEM_OS_H
 #define SYSTEM_OS_H
 
-#include <stddef.h>
-
+#include "system/types.h"
 #include "util/macros.h"
 
 constexpr size_t KiB = 1 << 10;
@@ -12,9 +11,9 @@ constexpr size_t GiB = MiB << 10;
 constexpr size_t CACHE_LINE = 64;
 constexpr size_t PAGE_SIZE = 4 * KiB;
 
-#define MALLOC(ptr, bytes) ptr = (typeof(ptr))malloc(bytes)
+#define MALLOC(ptr, bytes) ptr = malloc(bytes)
 #define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
-#define MALLOC_AL(ptr, al, bytes) ptr = (typeof(ptr))alloc_aligned(al, bytes)
+#define MALLOC_AL(ptr, al, bytes) ptr = alloc_aligned(al, bytes)
 #define MALLOCA_AL(ptr, al, nmemb) MALLOC_AL(ptr, al, bytesof(ptr, nmemb))
 
 size_t available_memory(void);
@@ -30,6 +29,9 @@ void free_mmap(void *mmap);
 
 [[gnu::malloc, gnu::malloc(free_mmap, 1), gnu::alloc_size(1)]]
 void *alloc_mmap(size_t bytes);
+
+bool read_mmap(const char *path, void **begin, void **end);
+void unread_mmap(void *begin, const void *end);
 
 extern int THREAD_NUM;
 

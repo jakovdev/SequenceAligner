@@ -129,6 +129,84 @@ void free_mmap(void *mmap)
 #endif
 }
 
+bool read_mmap(const char *path, void **begin, void **end)
+{
+#ifdef _WIN32
+	HANDLE fd = CreateFileA(
+		path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+	if (fd == INVALID_HANDLE_VALUE) {
+		perr("Could not open file: %s", file_name(path));
+		return false;
+	}
+
+	LARGE_INTEGER st;
+	if (!GetFileSizeEx(fd, &st) || !st.QuadPart) {
+		perr("Failed to get file size or empty: %s", file_name(path));
+		CloseHandle(fd);
+		return false;
+	}
+
+	HANDLE fmh = CreateFileMappingA(fd, NULL, PAGE_READONLY, 0, 0, NULL);
+	CloseHandle(fd);
+	if (!fmh) {
+		perr("Failed to create file mapping: %s", file_name(path));
+		return false;
+	}
+
+	void *fm = MapViewOfFile(fmh, FILE_MAP_READ, 0, 0, 0);
+	CloseHandle(fmh);
+	if (!fm) {
+		perr("Failed to map file: %s", file_name(path));
+		return false;
+	}
+	*end = fm + st.QuadPart;
+#else
+	int fd = open(path, O_RDONLY);
+	if (fd < 0) {
+		perr("Could not open file: %s", file_name(path));
+		return false;
+	}
+
+	struct stat st;
+	if (fstat(fd, &st) < 0) {
+		perr("Failed to stat file size: %s", file_name(path));
+		close(fd);
+		return false;
+	}
+
+	if (st.st_size == 0) {
+		perr("Empty file: %s", file_name(path));
+		close(fd);
+		return false;
+	}
+
+	void *fm = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	close(fd);
+	if (fm == MAP_FAILED) {
+		perr("Failed to map file: %s", file_name(path));
+		return false;
+	}
+
+	madvise(fm, st.st_size, MADV_SEQUENTIAL);
+	madvise(fm, st.st_size, MADV_HUGEPAGE);
+	madvise(fm, st.st_size, MADV_DONTFORK);
+	madvise(fm, st.st_size, MADV_DONTDUMP);
+	*end = fm + st.st_size;
+#endif
+	*begin = fm;
+	return true;
+}
+
+void unread_mmap(void *begin, [[maybe_unused]] const void *end)
+{
+#ifdef _WIN32
+	UnmapViewOfFile(begin);
+#else
+	munmap(begin, end - begin);
+#endif
+}
+
 #ifdef _WIN32
 static double FREQ_INV;
 
