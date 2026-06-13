@@ -36,10 +36,9 @@ extern const struct align {
 	} gap;
 } __start_aligns[], __stop_aligns[], *ALIGN;
 
-#define ALIGN_REGISTER(NAME)                                \
-	[[gnu::aligned(alignof(struct align)), gnu::retain, \
-	  gnu::section("aligns"), gnu::used]]               \
-	static const struct align __align_##NAME
+#define ALIGN_REGISTER(NAME)                     \
+	static const struct align __align_##NAME \
+		__attribute__((SECTION(struct align, "aligns")))
 
 #define ALIGN_ALIASES(LONG, SHORT, ...) \
 	aliases = ((const char *[]){ LONG, SHORT, ##__VA_ARGS__, nullptr })

@@ -21,4 +21,10 @@ typedef unsigned long long ull;
 #define restrict __restrict__
 #endif
 
+#ifndef _WIN32
+#define SECTION(type, name) aligned(alignof(type)), section(name), used, retain
+#else
+#define SECTION(type, name) aligned(alignof(type)), section(name), used
+#endif
+
 #endif /* SYSTEM_TYPES_H */
