@@ -1,19 +1,11 @@
-#include "system/os.h"
-
-#include <args.h>
-#include <errno.h>
-#include <print.h>
-#include <string.h>
-#include <stddef.h>
-#include <stdlib.h>
-#include <omp.h>
-
 #ifdef _WIN32
 #include <direct.h>
 #include <malloc.h>
 #include <windef.h>
 #include <winbase.h>
 #else
+#define _GNU_SOURCE
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -26,21 +18,20 @@
 #define MAX_PATH PATH_MAX
 #endif
 
-struct mmap {
-#ifdef _WIN32
-	HANDLE file;
-	HANDLE map;
-#else
-	size_t bytes;
-	int fd;
-#endif
-};
+#include <args.h>
+#include <errno.h>
+#include <print.h>
+#include <string.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <omp.h>
+
+#include "system/os.h"
 
 void *alloc_mmap(size_t bytes)
 {
-	size_t total = sizeof(struct mmap) + bytes;
 #ifdef _WIN32
-	if (total > LONG_LONG_MAX) {
+	if (bytes > LONG_LONG_MAX) {
 		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
 		perr("Internal error creating temporary file");
 		return nullptr;
@@ -60,94 +51,81 @@ void *alloc_mmap(size_t bytes)
 		return nullptr;
 	}
 
-	HANDLE file = CreateFileA(
+	HANDLE fd = CreateFileA(
 		name, GENERIC_READ | GENERIC_WRITE, 0, NULL, CREATE_ALWAYS,
 		FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, NULL);
-	if (file == INVALID_HANDLE_VALUE) {
-		perr("Could not create temporary file '%s'", file_name(name));
+	if (fd == INVALID_HANDLE_VALUE) {
+		perr("Could not create a temporary file");
 		return nullptr;
 	}
 
-	LARGE_INTEGER file_size;
-	file_size.QuadPart = (LONGLONG)total;
-	SetFilePointerEx(file, file_size, NULL, FILE_BEGIN);
-	SetEndOfFile(file);
+	LARGE_INTEGER sz;
+	sz.QuadPart = (LONGLONG)bytes;
+	if (!SetFilePointerEx(fd, sz, NULL, FILE_BEGIN) || !SetEndOfFile(fd)) {
+		perr("Could not set temporary file size");
+		CloseHandle(fd);
+		return NULL;
+	}
 
-	HANDLE map = CreateFileMappingA(file, NULL, PAGE_READWRITE, 0, 0, NULL);
-	if (!map) {
-		perr("Could not create file mapping for '%s'", file_name(name));
-		CloseHandle(file);
+	HANDLE fm = CreateFileMappingA(fd, NULL, PAGE_READWRITE, 0, 0, NULL);
+	CloseHandle(fd);
+	if (!fm) {
+		perr("Could not create temporary file mapping");
 		return nullptr;
 	}
 
-	struct mmap *m = MapViewOfFile(map, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	void *m = MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	CloseHandle(fm);
 	if (!m) {
-		perr("Could not map view of file '%s'", file_name(name));
-		CloseHandle(map);
-		CloseHandle(file);
+		perr("Could not memory map temporary file");
 		return nullptr;
 	}
-	m->file = file;
-	m->map = map;
+	return m;
 #else
-	if (total > LONG_MAX) {
+	bytes += sizeof(size_t);
+	if (bytes > LONG_MAX) {
 		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
 		perr("Internal error creating temporary file");
 		return nullptr;
 	}
 
-	char name[] = "/tmp/seqalign-mmap-XXXXXX";
-	int fd = mkstemp(name);
+	int fd = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
 	if (fd == -1) {
-		if (errno != EEXIST)
-			perr("Could not create temporary file '%s'", name);
-		else
-			perr("Could not create a unique temporary file");
+		perr("Could not create a temporary file");
 		return nullptr;
 	}
 
-	if (unlink(name) == -1) {
-		perr("Could not unlink temporary file '%s'", file_name(name));
+	if (ftruncate(fd, (off_t)bytes) == -1) {
+		perr("Could not set size for temporary file");
 		close(fd);
 		return nullptr;
 	}
 
-	if (ftruncate(fd, (off_t)total) == -1) {
-		perr("Could not set size for file '%s'", file_name(name));
-		close(fd);
-		return nullptr;
-	}
-
-	struct mmap *m =
-		mmap(NULL, total, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	void *m = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	close(fd);
 	if (m == MAP_FAILED) {
-		perr("Could not memory map file '%s'", file_name(name));
-		close(fd);
+		perr("Could not memory map temporary file");
 		return nullptr;
 	}
 
-	m->fd = fd;
-	m->bytes = bytes;
-	madvise(m, total, MADV_RANDOM);
-	madvise(m, total, MADV_HUGEPAGE);
-	madvise(m, total, MADV_DONTFORK);
-	madvise(m, total, MADV_DONTDUMP);
+	madvise(m, bytes, MADV_RANDOM);
+	madvise(m, bytes, MADV_HUGEPAGE);
+	madvise(m, bytes, MADV_DONTFORK);
+	madvise(m, bytes, MADV_DONTDUMP);
+	*(size_t *)m = bytes;
+	return m + sizeof(size_t);
 #endif
-	return m + 1;
 }
 
 void free_mmap(void *mmap)
 {
 	if (!mmap)
 		return;
-	struct mmap *m = (struct mmap *)mmap - 1;
 #ifdef _WIN32
-	UnmapViewOfFile(m);
-	CloseHandle(m->map);
-	CloseHandle(m->file);
+	UnmapViewOfFile(mmap);
 #else
-	munmap(m, sizeof(*m) + m->bytes);
-	close(m->fd);
+	size_t *m = mmap - sizeof(size_t);
+	munmap(m, *m);
 #endif
 }
 
