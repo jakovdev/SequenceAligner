@@ -47,7 +47,7 @@ extern const struct align {
 #ifdef USE_CUDA
 #define ALIGN_KERNEL(FN) extern void FN(s32 *, s64, s64)
 #else
-#define ALIGN_KERNEL(FN) static void *FN = nullptr
+#define ALIGN_KERNEL(FN) constexpr void *FN = nullptr
 #endif
 
 #endif /* BIO_ALIGN_H */
