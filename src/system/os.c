@@ -113,7 +113,7 @@ void *alloc_mmap(size_t bytes)
 	madvise(m, bytes, MADV_DONTFORK);
 	madvise(m, bytes, MADV_DONTDUMP);
 	*(size_t *)m = bytes;
-	return m + sizeof(size_t);
+	return (size_t *)m + 1;
 #endif
 }
 
@@ -124,7 +124,7 @@ void free_mmap(void *mmap)
 #ifdef _WIN32
 	UnmapViewOfFile(mmap);
 #else
-	size_t *m = mmap - sizeof(size_t);
+	size_t *m = (size_t *)mmap - 1;
 	munmap(m, *m);
 #endif
 }
