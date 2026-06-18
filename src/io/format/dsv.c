@@ -92,7 +92,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 	uchar delim = pair->delimiter;
 	s32 cols = dsv_cols(p, src.fend, delim);
 
-	const char **MALLOCA(headers, cols + 2);
+	const char **MALLOCA(headers, cols + 1);
 	if (!headers) {
 		perr("Out of memory during DSV parsing");
 		return PARSER_ERROR;

@@ -44,7 +44,7 @@
  * │ ▶ Storing numbers [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■········]  86% │
  * 
  * Interactive prompt with choices
- * char *choices[] = {"hello", "second", NULL};
+ * char *choices[] = {"hello", "second"};
  * int selected = pchoice_s(choices, "Enter column number");
  * │ 1: hello                                                                     │
  * │ 2: second                                                                    │
@@ -1045,8 +1045,6 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 			pdev("Not enough choices (<2)");
 			return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
 		}
-
-		choices[c_count] = NULL;
 
 		size_t c;
 		for (c = 0; c < c_count; c++) {
