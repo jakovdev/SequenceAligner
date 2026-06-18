@@ -1,11 +1,14 @@
 #include "io/source.h"
 
+#include <ctype.h>
+#include <limits.h>
 #include <print.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include "bio/align.h"
+#include "io/input.h"
 #include "system/os.h"
-#include "system/types.h"
 #include "util/benchmark.h"
 
 static const struct dsv_pair {
@@ -24,11 +27,11 @@ static const uchar *dsv_field(const uchar **cur, const uchar *end, uchar delim,
 			      s32 *flen)
 {
 	const uchar *p = *cur;
-	const uchar *field_start = p;
+	const uchar *start = p;
 	bool quoted = false;
-	while (p < end && *p != '\n' && *p != '\r') {
+	while (p < end) {
 		if (*p == '"') {
-			if (quoted && p + 1 < end && *(p + 1) == '"') {
+			if (quoted && p + 1 < end && p[1] == '"') {
 				p += 2;
 				continue;
 			}
@@ -36,25 +39,30 @@ static const uchar *dsv_field(const uchar **cur, const uchar *end, uchar delim,
 			p++;
 			continue;
 		}
-		if (*p == delim && !quoted)
+		if (!quoted && (*p == delim || *p == '\n' || *p == '\r'))
 			break;
 		p++;
 	}
 
-	*flen = (s32)(p - field_start);
+	s32 len = (s32)(p - start);
+	if (len >= 2 && *start == '"' && start[len - 1] == '"') {
+		len -= 2;
+		start++;
+	}
+	*flen = len;
 	if (p < end && *p == delim)
 		p++;
 	*cur = p;
-	return field_start;
+	return start;
 }
 
 static s32 dsv_cols(const uchar *p, const uchar *end, uchar delim)
 {
 	s32 count = 1;
 	bool quoted = false;
-	while (p < end && *p != '\n' && *p != '\r') {
+	while (p < end) {
 		if (*p == '"') {
-			if (quoted && p + 1 < end && *(p + 1) == '"') {
+			if (quoted && p + 1 < end && p[1] == '"') {
 				p += 2;
 				continue;
 			}
@@ -62,70 +70,60 @@ static s32 dsv_cols(const uchar *p, const uchar *end, uchar delim)
 		} else if (*p == delim && !quoted) {
 			count++;
 		}
+		if (!quoted && (*p == '\n' || *p == '\r'))
+			break;
 		p++;
 	}
 	return count;
 }
 
-static enum source_result parse_dsv(struct source *src)
+static enum parse_result parse_dsv(struct source src, struct input *in)
 {
 	const struct dsv_pair *pair = DSV_PAIRS;
 	for (; pair->ext; pair++) {
-		if (strcasecmp(pair->ext, src->ext) == 0)
+		if (strcasecmp(pair->ext, src.ext) == 0)
 			break;
 	}
 	if (!pair->ext)
-		return SOURCE_UNSUPPORTED;
+		return PARSER_UNSUPPORTED;
 
-	const uchar *p = src->file;
-	const uchar *end = src->fend;
+	const uchar *p = src.file;
+	const uchar *header_line = p;
 	uchar delim = pair->delimiter;
-	s32 cols = dsv_cols(p, end, delim);
-	if (!cols) {
-		perr("No sequences found");
-		return SOURCE_ERROR;
-	}
+	s32 cols = dsv_cols(p, src.fend, delim);
 
 	const char **MALLOCA(headers, cols + 2);
 	if (!headers) {
 		perr("Out of memory during DSV parsing");
-		return SOURCE_ERROR;
+		return PARSER_ERROR;
 	}
 
-	const uchar *header_line = p;
 	for (s32 col = 0; col < cols; col++) {
 		s32 flen;
-		const uchar *field = dsv_field(&p, end, delim, &flen);
-		if (flen >= 2 && field[0] == '"' && field[flen - 1] == '"') {
-			field++;
-			flen -= 2;
+		const uchar *field = dsv_field(&p, src.fend, delim, &flen);
+		if (!flen) {
+			for (s32 j = 0; j < col; j++)
+				free((char *)headers[j]);
+			free(headers);
+			perr("First row has empty column");
+			return PARSER_ERROR;
 		}
-		while (flen > 0 && field[0] == ' ') {
-			field++;
-			flen--;
-		}
-		while (flen > 0 && field[flen - 1] == ' ')
-			flen--;
-
 		char *MALLOCA(header, flen + 1);
 		if (!header) {
 			for (s32 j = 0; j < col; j++)
 				free((char *)headers[j]);
 			free(headers);
 			perr("Out of memory during DSV parsing");
-			return SOURCE_ERROR;
+			return PARSER_ERROR;
 		}
 		memcpy(header, field, flen);
 		header[flen] = '\0';
 		headers[col] = header;
 	}
-	while (p < end && *p != '\n' && *p != '\r')
-		p++;
-	while (p < end && (*p == '\n' || *p == '\r'))
+	while (p < src.fend && (*p == '\n' || *p == '\r'))
 		p++;
 
 	s32 seq_col = -1;
-	s32 first_row = 1;
 	for (s32 col = 0; col < cols && seq_col < 0; col++) {
 		for (const char **key = KEYS; *key; key++) {
 			if (strcasecmp(headers[col], *key) == 0) {
@@ -142,7 +140,6 @@ static enum source_result parse_dsv(struct source *src)
 		s32 choice = pchoice(headers, cols + 1, "Enter column number");
 		if (choice == cols) {
 			p = header_line;
-			first_row = 0;
 			pinfol("Which column contains a sequence?");
 			seq_col = pchoice(headers, cols, "Enter column number");
 		} else {
@@ -156,79 +153,77 @@ static enum source_result parse_dsv(struct source *src)
 	free(headers);
 
 	s32 num = 0;
-	s32 sum = 0;
-	s32 row = first_row;
-	const uchar *scan = p;
-	while (scan < end) {
-		while (scan < end && (*scan == '\n' || *scan == '\r'))
-			scan++;
-		if (scan >= end)
+	s32 max = 0;
+	s64 sum = 0;
+	uchar *w = src.file;
+	while (p < src.fend) {
+		while (p < src.fend && (*p == '\n' || *p == '\r'))
+			p++;
+		if (p >= src.fend)
 			break;
 
-		if (cols != dsv_cols(scan, end, delim)) {
-			perr("Column count mismatch at row %d", row);
-			return SOURCE_ERROR;
-		}
-
-		const uchar *lp = scan;
-		s32 flen = 0;
-		for (s32 col = 0; col <= seq_col; col++)
-			dsv_field(&lp, end, delim, &flen);
-
-		if (!flen) {
-			perr("Empty sequence at row %d", row);
-			return SOURCE_ERROR;
-		}
-		if ((s64)sum + flen > S32_MAX) {
-			perr("Too many large sequences");
-			return SOURCE_ERROR;
-		}
-
-		sum += flen;
 		num++;
-		row++;
-
-		while (scan < end && *scan != '\n' && *scan != '\r')
-			scan++;
-		while (scan < end && (*scan == '\n' || *scan == '\r'))
-			scan++;
-	}
-
-	if (!num) {
-		perr("No sequences found");
-		return SOURCE_ERROR;
-	}
-
-	struct entry *MALLOCA(entries, num);
-	if (!entries) {
-		perr("Out of memory during DSV parsing");
-		return SOURCE_ERROR;
-	}
-
-	scan = p;
-	for (s32 i = 0; i < num; i++) {
-		while (scan < end && (*scan == '\n' || *scan == '\r'))
-			scan++;
-
-		const uchar *lp = scan;
 		s32 flen = 0;
-		const uchar *field = nullptr;
-		for (s32 col = 0; col <= seq_col; col++)
-			field = dsv_field(&lp, end, delim, &flen);
+		for (s32 col = 0; col < seq_col; col++) {
+			dsv_field(&p, src.fend, delim, &flen);
+			if (p >= src.fend || *p == '\n' || *p == '\r') {
+				perr("DSV row #%d has no sequence column", num);
+				return PARSER_ERROR;
+			}
+		}
+		const uchar *field = dsv_field(&p, src.fend, delim, &flen);
+		if (!flen) {
+			perr("Sequence #%d is empty", num);
+			return PARSER_ERROR;
+		}
 
-		entries[i].off = (s32)(field - src->file);
-		entries[i].len = flen;
+		s32 slen = 0;
+		for (s32 i = 0; i < flen; i++) {
+			uchar c = (uchar)toupper(field[i]);
+			if (c == '\r' || c == '\n' || c == ' ' || c == '"')
+				continue;
+			if (c == '\0' || c > SCHAR_MAX) {
+				perr("Sequence #%d is corrupted", num);
+				return PARSER_ERROR;
+			}
+			if (SEQ_LUT[c] < 0) {
+				perr("Sequence #%d is invalid", num);
+				return PARSER_ERROR;
+			}
+			*w++ = c;
+			slen++;
+		}
+		if (!slen) {
+			perr("Sequence #%d is empty", num);
+			return PARSER_ERROR;
+		}
+		if (!sequence_length_limit(slen)) {
+			perr("Sequence #%d exceeds length limits", num);
+			return PARSER_ERROR;
+		}
+		if (sum + slen + 1 > S32_MAX) {
+			perr("Length overflow after %d sequences", num);
+			return PARSER_ERROR;
+		}
+		max = max(max, slen);
+		sum += slen + 1;
+		*w++ = '\0';
 
-		while (scan < end && *scan != '\n' && *scan != '\r')
-			scan++;
-		while (scan < end && (*scan == '\n' || *scan == '\r'))
-			scan++;
+		for (s32 i = seq_col + 1; i < cols; i++) {
+			if (p >= src.fend || *p == '\n' || *p == '\r') {
+				perr("DSV row #%d has too few columns", num);
+				return PARSER_ERROR;
+			}
+			dsv_field(&p, src.fend, delim, &flen);
+		}
+		if (p < src.fend && *p != '\n' && *p != '\r') {
+			perr("DSV row #%d has too many columns", num);
+			return PARSER_ERROR;
+		}
 	}
-
-	src->entries = entries;
-	src->num = num;
-	src->sum = sum;
-	return SOURCE_SUCCESS;
+	in->max = max;
+	in->num = num;
+	return PARSER_SUCCESS;
 }
 
 SOURCE_REGISTER(dsv, parse_dsv);

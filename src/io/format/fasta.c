@@ -1,111 +1,84 @@
 #include "io/source.h"
 
+#include <ctype.h>
+#include <limits.h>
 #include <print.h>
 #include <string.h>
 
-#include "system/os.h"
+#include "bio/align.h"
+#include "io/input.h"
+#include "util/macros.h"
 
 static const char *EXTS[] = {
 	"fasta", "fa", "fas", "fna", "ffn", "faa", "frn", "mpfa", nullptr,
 };
 
-static enum source_result parse_fasta(struct source *src)
+static enum parse_result parse_fasta(struct source src, struct input *in)
 {
 	const char **ext = EXTS;
 	for (; *ext; ext++) {
-		if (strcasecmp(*ext, src->ext) == 0)
+		if (strcasecmp(*ext, src.ext) == 0)
 			break;
 	}
 	if (!*ext)
-		return SOURCE_UNSUPPORTED;
+		return PARSER_UNSUPPORTED;
 
-	const uchar *p = src->file;
-	const uchar *end = src->fend;
+	const uchar *p = src.file;
 	if (*p != '>') {
 		perr("Data before first header");
-		return SOURCE_ERROR;
+		return PARSER_ERROR;
 	}
 
 	s32 num = 0;
-	s32 sum = 0;
-	const uchar *cur = p;
-	while (cur < end) {
-		while (cur < end && *cur != '\n' && *cur != '\r')
-			cur++;
-		while (cur < end && (*cur == '\n' || *cur == '\r'))
-			cur++;
-
-		if (cur >= end) {
+	s32 max = 0;
+	s64 sum = 0;
+	uchar *w = src.file;
+	while (p < src.fend) {
+		while (p < src.fend && *p != '\n' && *p != '\r')
+			p++;
+		while (p < src.fend && (*p == '\n' || *p == '\r'))
+			p++;
+		if (p >= src.fend) {
 			perr("Last header has no data");
-			return SOURCE_ERROR;
+			return PARSER_ERROR;
 		}
 
-		s32 seq_len = 0;
-		while (cur < end && *cur != '>') {
-			const uchar *ls = cur;
-			while (cur < end && *cur != '\n' && *cur != '\r')
-				cur++;
-			s32 ll = (s32)(cur - ls);
-			if (ll > 0) {
-				if ((s64)sum + ll > S32_MAX) {
-					perr("Too many large sequences");
-					return SOURCE_ERROR;
-				}
-				seq_len += ll;
-				sum += ll;
-			}
-			while (cur < end && (*cur == '\n' || *cur == '\r'))
-				cur++;
-		}
 		num++;
-		if (!seq_len) {
-			perr("Sequence #%d is empty", num);
-			return SOURCE_ERROR;
-		}
-	}
-
-	if (!num) {
-		perr("No sequences found");
-		return SOURCE_ERROR;
-	}
-
-	struct entry *MALLOCA(entries, num);
-	if (!entries) {
-		perr("Out of memory during FASTA parsing");
-		return SOURCE_ERROR;
-	}
-
-	cur = p;
-	for (s32 i = 0; i < num; i++) {
-		while (cur < end && *cur != '\n' && *cur != '\r')
-			cur++;
-		while (cur < end && (*cur == '\n' || *cur == '\r'))
-			cur++;
-
-		const uchar *seq_start = nullptr;
-		const uchar *seq_end = nullptr;
-		while (cur < end && *cur != '>') {
-			const uchar *ls = cur;
-			while (cur < end && *cur != '\n' && *cur != '\r')
-				cur++;
-			s32 ll = (s32)(cur - ls);
-			if (ll > 0) {
-				if (!seq_start)
-					seq_start = ls;
-				seq_end = cur;
+		s32 slen = 0;
+		while (p < src.fend && *p != '>') {
+			uchar c = (uchar)toupper(*p++);
+			if (c == '\r' || c == '\n' || c == ' ')
+				continue;
+			if (c == '\0' || c > SCHAR_MAX) {
+				perr("Sequence #%d is corrupted", num);
+				return PARSER_ERROR;
 			}
-			while (cur < end && (*cur == '\n' || *cur == '\r'))
-				cur++;
+			if (SEQ_LUT[c] < 0) {
+				perr("Sequence #%d is invalid", num);
+				return PARSER_ERROR;
+			}
+			*w++ = c;
+			slen++;
 		}
-
-		entries[i].off = (s32)(seq_start - src->file);
-		entries[i].len = (s32)(seq_end - seq_start);
+		if (!slen) {
+			perr("Sequence #%d is empty", num);
+			return PARSER_ERROR;
+		}
+		if (!sequence_length_limit(slen)) {
+			perr("Sequence #%d exceeds length limits", num);
+			return PARSER_ERROR;
+		}
+		if (sum + slen + 1 > S32_MAX) {
+			perr("Length overflow after %d sequences", num);
+			return PARSER_ERROR;
+		}
+		max = max(max, slen);
+		sum += slen + 1;
+		*w++ = '\0';
 	}
-
-	src->entries = entries;
-	src->num = num;
-	src->sum = sum;
-	return SOURCE_SUCCESS;
+	in->max = max;
+	in->num = num;
+	return PARSER_SUCCESS;
 }
 
 SOURCE_REGISTER(fasta, parse_fasta);

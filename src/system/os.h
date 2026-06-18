@@ -30,8 +30,8 @@ void free_mmap(void *mmap);
 [[gnu::malloc, gnu::malloc(free_mmap, 1), gnu::alloc_size(1)]]
 void *alloc_mmap(size_t bytes);
 
-bool read_mmap(const char *path, void **begin, void **end);
-void unread_mmap(void *begin, const void *end);
+[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(3), gnu::nothrow]]
+void *copy_file(const char *path, void **end, size_t alignment);
 
 extern int THREAD_NUM;
 

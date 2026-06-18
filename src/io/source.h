@@ -3,25 +3,22 @@
 
 #include "system/types.h"
 
+struct input;
 struct source {
-	const uchar *file;
+	uchar *file;
 	const uchar *fend;
 	const char *ext;
-	struct entry {
-		s32 off;
-		s32 len;
-	} *restrict entries;
-	s32 num;
-	s32 sum;
 };
 
-enum source_result { SOURCE_SUCCESS, SOURCE_ERROR, SOURCE_UNSUPPORTED };
+enum parse_result { PARSER_SUCCESS, PARSER_ERROR, PARSER_UNSUPPORTED };
 extern const struct sources {
-	enum source_result (*const parse)(struct source *);
+	enum parse_result (*const parse)(struct source, struct input *);
 } __start_sources[], __stop_sources[];
 
 #define SOURCE_REGISTER(NAME, PARSER)                               \
 	static const struct sources __source_##NAME __attribute__(( \
 		SECTION(struct sources, "sources"))) = { .parse = PARSER }
+
+bool sequence_length_limit(s32 len);
 
 #endif /* IO_SOURCE_H */

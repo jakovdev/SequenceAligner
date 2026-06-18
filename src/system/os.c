@@ -129,7 +129,7 @@ void free_mmap(void *mmap)
 #endif
 }
 
-bool read_mmap(const char *path, void **begin, void **end)
+void *copy_file(const char *path, void **end, size_t alignment)
 {
 #ifdef _WIN32
 	HANDLE fd = CreateFileA(
@@ -147,64 +147,53 @@ bool read_mmap(const char *path, void **begin, void **end)
 		return false;
 	}
 
-	HANDLE fmh = CreateFileMappingA(fd, NULL, PAGE_READONLY, 0, 0, NULL);
-	CloseHandle(fd);
-	if (!fmh) {
-		perr("Failed to create file mapping: %s", file_name(path));
-		return false;
+	void *buf = alloc_aligned(alignment, st.QuadPart);
+	if (!buf) {
+		perr("Out of memory for file: %s", file_name(path));
+		CloseHandle(fd);
+		return nullptr;
 	}
 
-	void *fm = MapViewOfFile(fmh, FILE_MAP_READ, 0, 0, 0);
-	CloseHandle(fmh);
-	if (!fm) {
-		perr("Failed to map file: %s", file_name(path));
+	DWORD got;
+	if (!ReadFile(fd, buf, st.QuadPart, &got, NULL) || got != st.QuadPart) {
+		perr("Could not read file: %s", file_name(path));
+		free(buf);
+		CloseHandle(fd);
 		return false;
 	}
-	*end = fm + st.QuadPart;
+	CloseHandle(fd);
+	*end = (uchar *)buf + st.QuadPart;
 #else
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) {
 		perr("Could not open file: %s", file_name(path));
-		return false;
+		return nullptr;
 	}
 
 	struct stat st;
-	if (fstat(fd, &st) < 0) {
-		perr("Failed to stat file size: %s", file_name(path));
+	if (fstat(fd, &st) < 0 || st.st_size == 0) {
+		perr("Failed to stat or empty: %s", file_name(path));
 		close(fd);
-		return false;
+		return nullptr;
 	}
 
-	if (st.st_size == 0) {
-		perr("Empty file: %s", file_name(path));
+	void *buf = alloc_aligned(alignment, st.st_size);
+	if (!buf) {
+		perr("Out of memory for file: %s", file_name(path));
 		close(fd);
-		return false;
+		return nullptr;
 	}
 
-	void *fm = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (pread(fd, buf, st.st_size, 0) != st.st_size) {
+		perr("Could not read file: %s", file_name(path));
+		free(buf);
+		close(fd);
+		return nullptr;
+	}
 	close(fd);
-	if (fm == MAP_FAILED) {
-		perr("Failed to map file: %s", file_name(path));
-		return false;
-	}
-
-	madvise(fm, st.st_size, MADV_SEQUENTIAL);
-	madvise(fm, st.st_size, MADV_HUGEPAGE);
-	madvise(fm, st.st_size, MADV_DONTFORK);
-	madvise(fm, st.st_size, MADV_DONTDUMP);
-	*end = fm + st.st_size;
+	*end = (uchar *)buf + st.st_size;
 #endif
-	*begin = fm;
-	return true;
-}
-
-void unread_mmap(void *begin, [[maybe_unused]] const void *end)
-{
-#ifdef _WIN32
-	UnmapViewOfFile(begin);
-#else
-	munmap(begin, end - begin);
-#endif
+	return buf;
 }
 
 #ifdef _WIN32
