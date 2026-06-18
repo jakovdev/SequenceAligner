@@ -5,10 +5,7 @@
 
 struct input {
 	uchar *restrict letters;
-	struct {
-		s32 len;
-		s32 off;
-	} *restrict meta;
+	struct meta *restrict meta;
 	s32 max;
 	s32 num;
 };

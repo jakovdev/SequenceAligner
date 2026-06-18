@@ -18,37 +18,34 @@ s32 GAP_EXT;
 size_t TABLE_SIZE;
 const struct align *ALIGN;
 
-bool align(const struct input *in, const struct output *out)
+bool align(struct input in, struct output out)
 {
-	s32 num = in->num;
-	size_t alignments = alignments((size_t)num);
+	size_t alignments = alignments((size_t)in.num);
 	pinfo("Performing %zu pairwise alignments", alignments);
 	if (!progress_start(alignments, THREAD_NUM, "Aligning sequences"))
 		return false;
 
-	TABLE_SIZE = (in->max + 1) * (in->max + 1);
+	TABLE_SIZE = (size_t)(in.max + 1) * (in.max + 1);
 	auto method = ALIGN->method;
 	bench_align_start();
 #pragma omp parallel
 	{
 		s32 *MALLOCA_AL(table, CACHE_LINE, 3 * TABLE_SIZE);
-		s32 *MALLOCA_AL(ind, CACHE_LINE, in->max);
-		s32 *MALLOCA_AL(cols, CACHE_LINE, (size_t)num);
+		s32 *MALLOCA_AL(ind, CACHE_LINE, in.max);
+		s32 *MALLOCA_AL(cols, CACHE_LINE, in.num);
 		if (!table || !ind || !cols) {
 			perr("Out of memory allocating alignment buffers");
 			exit(EXIT_FAILURE);
 		}
 #pragma omp for schedule(dynamic)
-		for (s32 col = 1; col < num; col++) {
-			auto m1 = in->meta[col];
-			s32 l1 = m1.len;
-			seq s1 = in->letters + m1.off;
+		for (s32 col = 1; col < in.num; col++) {
+			seq s1 = in.letters + in.meta[col].off;
+			s32 l1 = in.meta[col].len;
 			for (s32 i = 0; i < l1; ++i)
 				ind[i] = SEQ_LUT[s1[i]];
 			for (s32 row = 0; row < col; row++) {
-				auto m2 = in->meta[row];
-				s32 l2 = m2.len;
-				seq s2 = in->letters + m2.off;
+				seq s2 = in.letters + in.meta[row].off;
+				s32 l2 = in.meta[row].len;
 				cols[row] = method(l1, l2, s2, ind, table);
 			}
 

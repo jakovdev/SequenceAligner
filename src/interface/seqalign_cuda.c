@@ -4,7 +4,7 @@
 #include <print.h>
 
 [[gnu::nonnull]]
-bool align(const struct input *, const struct output *);
+bool align(struct input, struct output);
 
 #ifdef USE_CUDA
 #ifdef __MINGW64__
@@ -83,7 +83,7 @@ memory_error:
 	exit(EXIT_FAILURE);
 }
 
-bool cuda_align(const struct input *in, const struct output *out)
+bool cuda_align(struct input in, struct output out)
 {
 	if (no_cuda)
 		return align(in, out);
@@ -91,22 +91,21 @@ bool cuda_align(const struct input *in, const struct output *out)
 	if (!cuda_device_init())
 		return false;
 
-	if (in->max > MAX_CUDA_SEQUENCE_LENGTH) {
+	if (in.max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
 		return false;
 	}
 
 	cudaError_t err;
-	uint block_max = 0;
-	{
-		struct cudaDeviceProp dev_prop = {};
+	uint block_max = ({
+		struct cudaDeviceProp dev_prop;
 		CALLR(cudaGetDeviceProperties(&dev_prop, 0));
 		pinfo("Using CUDA device: %s", dev_prop.name);
-		block_max = (uint)dev_prop.maxThreadsPerBlock;
-	}
+		dev_prop.maxThreadsPerBlock;
+	});
 
 	struct constants C = {
-		.num = in->num,
+		.num = in.num,
 		.gap_pen = GAP_PEN,
 		.gap_open = GAP_OPN,
 		.gap_ext = GAP_EXT,
@@ -115,20 +114,16 @@ bool cuda_align(const struct input *in, const struct output *out)
 	memcpy(C.seq_lut, SEQ_LUT, sizeof(SEQ_LUT));
 	memcpy(C.sub_mat, SUB_MAT, sizeof(SUB_MAT));
 
-	s32 num = in->num;
-	uchar *LETTERS = in->letters;
-	auto META = in->meta;
-	size_t sum = (size_t)META[num - 1].off + META[num - 1].len + 1;
+	s32 num = in.num;
+	s32 sum = in.meta[num - 1].off + in.meta[num - 1].len + 1;
+	size_t meta_bytes = bytesof(in.meta, num);
 
-	CALLR(cudaMalloc((void **)&C.letters, sizeof(*LETTERS) * sum));
-	CALLR(cudaMalloc((void **)&C.meta, sizeof(*META) * num));
+	CALLR(cudaMalloc((void **)&C.letters, sum));
+	CALLR(cudaMalloc((void **)&C.meta, meta_bytes));
+	CALLR(cudaMemcpy(C.letters, in.letters, sum, cudaMemcpyHostToDevice));
+	CALLR(cudaMemcpy(C.meta, in.meta, meta_bytes, cudaMemcpyHostToDevice));
 
-	CALLR(cudaMemcpy(C.letters, LETTERS, sizeof(*LETTERS) * sum,
-			 cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.meta, META, sizeof(*META) * num,
-			 cudaMemcpyHostToDevice));
-
-	s32 *matrix = out->matrix;
+	s32 *matrix = out.matrix;
 	s64 alignments = alignments((s64)num);
 	constexpr s64 batch_size = 64 << 20;
 
@@ -142,7 +137,7 @@ bool cuda_align(const struct input *in, const struct output *out)
 		C.triangular = true;
 	}
 
-	if (out->triangular)
+	if (out.triangular)
 		C.triangular = true;
 
 	s64 batch = 0, batch_last = 0, batch_done = 0;
@@ -150,14 +145,14 @@ bool cuda_align(const struct input *in, const struct output *out)
 	s32 active = 0;
 	if (C.triangular) {
 		batch = min(alignments, batch_size);
-		CALLR(cudaMalloc(&scores[0], sizeof(*matrix) * batch));
-		CALLR(cudaMemset(scores[0], 0, sizeof(*matrix) * batch));
-		CALLR(cudaMalloc(&scores[1], sizeof(*matrix) * batch));
-		CALLR(cudaMemset(scores[1], 0, sizeof(*matrix) * batch));
+		CALLR(cudaMalloc(&scores[0], bytesof(matrix, batch)));
+		CALLR(cudaMemset(scores[0], 0, bytesof(matrix, batch)));
+		CALLR(cudaMalloc(&scores[1], bytesof(matrix, batch)));
+		CALLR(cudaMemset(scores[1], 0, bytesof(matrix, batch)));
 	} else {
 		batch = alignments;
-		CALLR(cudaMalloc(&*scores, sizeof(*matrix) * num * num));
-		CALLR(cudaMemset(*scores, 0, sizeof(*matrix) * num * num));
+		CALLR(cudaMalloc(&*scores, bytesof(matrix, num * num)));
+		CALLR(cudaMemset(*scores, 0, bytesof(matrix, num * num)));
 	}
 
 	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
@@ -166,7 +161,7 @@ bool cuda_align(const struct input *in, const struct output *out)
 
 	const void *kernel = ALIGN->kernel;
 	dim3 block = { block_max, 1, 1 };
-	cudaStream_t compute = {}, memory = {};
+	cudaStream_t compute, memory;
 	CALLR(cudaStreamCreate(&compute));
 	CALLR(cudaStreamCreate(&memory));
 
@@ -229,7 +224,7 @@ cuda_results:
 
 			if (matrix)
 				CALLR(cudaMemcpy(matrix, *scores,
-						 sizeof(*matrix) * num * num,
+						 bytesof(matrix, num * num),
 						 cudaMemcpyDeviceToHost));
 
 			matrix_copied = true;
@@ -265,7 +260,7 @@ cuda_results:
 			if (matrix)
 				CALLR(cudaMemcpyAsync(
 					matrix + batch_done, scores[1 - active],
-					sizeof(*matrix) * n_scores,
+					bytesof(matrix, n_scores),
 					cudaMemcpyDeviceToHost, memory));
 			syncing = true;
 		} else {
@@ -276,7 +271,7 @@ cuda_results:
 			if (matrix)
 				CALLR(cudaMemcpy(matrix + batch_done,
 						 scores[active],
-						 sizeof(*matrix) * n_scores,
+						 bytesof(matrix, n_scores),
 						 cudaMemcpyDeviceToHost));
 		}
 		batch_done += (s64)n_scores;
@@ -319,7 +314,7 @@ bool cuda_memory(size_t)
 	return true;
 }
 
-bool cuda_align(const struct input *in, const struct output *out)
+bool cuda_align(struct input in, struct output out)
 {
 	return align(in, out);
 }

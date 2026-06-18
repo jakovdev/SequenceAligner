@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "interface/seqalign_cuda.h"
+#include "bio/align.h"
 #include "io/input.h"
 #include "system/os.h"
 #include "util/benchmark.h"
@@ -12,24 +13,25 @@
 static bool disable_write;
 static const char *OUTPUT_PATH;
 
-bool output_load(struct output *out, const struct input *in)
+bool output_load(struct output *out, struct input in)
 {
 	if (disable_write)
 		return true;
 
-	MALLOCA(out->seqs, in->num);
-	if (!out->seqs) {
+	const char **MALLOCA(seqs, in.num);
+	if (!seqs) {
 		perr("Out of memory allocating output sequence data");
 		return false;
 	}
 
-	for (s32 i = 0; i < in->num; i++)
-		out->seqs[i] = (char *)(in->letters + in->meta[i].off);
+	for (s32 i = 0; i < in.num; i++)
+		seqs[i] = (char *)(in.letters + in.meta[i].off);
 
+	out->seqs = seqs;
 	out->triangular = false;
-	out->dim = (size_t)in->num;
-	size_t bytes = bytesof(out->matrix, out->dim * out->dim);
-	out->mmap = bytes > (available_memory() * 3 / 4);
+	out->dim = (size_t)in.num;
+	size_t bytes = bytesof(out->matrix, in.num * in.num);
+	out->mmap = bytes > available_memory() * 3 / 4;
 	if (out->mmap || !cuda_memory(bytes)) {
 		bytes = bytesof(out->matrix, alignments(out->dim));
 		out->triangular = true;
@@ -54,26 +56,26 @@ bool output_load(struct output *out, const struct input *in)
 	}
 	bench_output_end();
 
-	pinfo("Similarity Matrix size: %zu x %zu", out->dim, out->dim);
+	pinfo("Similarity Matrix size: %d x %d", in.num, in.num);
 	return true;
 }
 
-void output_fill(const struct output *out, const s32 *cols, size_t col)
+void output_fill(struct output out, const s32 *cols, size_t col)
 {
 	if (disable_write)
 		return;
 
-	if (!out->matrix || col >= out->dim)
+	if (!out.matrix || col >= out.dim)
 		unreachable_release();
 
-	if (!out->triangular) {
+	if (!out.triangular) {
 		for (size_t row = 0; row < col; row++) {
-			out->matrix[out->dim * row + col] = cols[row];
-			out->matrix[out->dim * col + row] = cols[row];
+			out.matrix[out.dim * row + col] = cols[row];
+			out.matrix[out.dim * col + row] = cols[row];
 		}
 		return;
 	}
-	memcpy(out->matrix + alignments(col), cols, bytesof(out->matrix, col));
+	memcpy(out.matrix + alignments(col), cols, bytesof(out.matrix, col));
 }
 
 bool (*FLUSH_FORMATS[FLUSH_COUNT])(const struct output *, const char *);

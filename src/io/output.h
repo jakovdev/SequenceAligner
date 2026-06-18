@@ -16,9 +16,9 @@ struct output {
 };
 
 [[gnu::nonnull]]
-bool output_load(struct output *, const struct input *);
+bool output_load(struct output *, struct input);
 [[gnu::nonnull]]
-void output_fill(const struct output *, const s32 *cols, size_t col);
+void output_fill(struct output, const s32 *cols, size_t col);
 [[gnu::nonnull]]
 bool output_flush(const struct output *);
 [[gnu::nonnull]]

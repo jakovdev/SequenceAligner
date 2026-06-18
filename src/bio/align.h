@@ -4,6 +4,10 @@
 #include "system/types.h"
 
 typedef const uchar *restrict seq;
+struct meta {
+	s32 off;
+	s32 len;
+};
 
 constexpr s32 SEQ_LUT_SIZE = 1 << 7;
 extern s32 SEQ_LUT[SEQ_LUT_SIZE];
@@ -16,7 +20,6 @@ extern s32 GAP_EXT;
 constexpr s32 SCORE_MIN = S32_MIN / 2;
 
 constexpr s32 SEQ_N_MIN = 2;
-constexpr s32 SEQ_N_MAX = S32_MAX;
 constexpr s32 SEQ_LEN_MIN = 1;
 constexpr s32 SEQ_LEN_MAX = (S32_MAX - 1) / SEQ_N_MIN;
 

@@ -25,11 +25,11 @@ int main(int argc, char *argv[])
 
 	psection("Creating Similarity Matrix");
 	[[gnu::cleanup(output_free)]] struct output out = {};
-	if (!output_load(&out, &in))
+	if (!output_load(&out, in))
 		return 1;
 
 	psection("Performing Alignments");
-	if (!cuda_align(&in, &out))
+	if (!cuda_align(in, out))
 		return 1;
 
 	psection("Writing Similarity Matrix");

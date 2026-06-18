@@ -1,13 +1,11 @@
 #ifndef INTERFACE_SEQALIGN_CUDA_H
 #define INTERFACE_SEQALIGN_CUDA_H
 
-#include <stddef.h>
-
-struct input;
-struct output;
+#include "io/input.h"
+#include "io/output.h"
 
 bool cuda_memory(size_t bytes);
 [[gnu::nonnull]]
-bool cuda_align(const struct input *, const struct output *);
+bool cuda_align(struct input, struct output);
 
 #endif /* INTERFACE_SEQALIGN_CUDA_H */
