@@ -2,8 +2,7 @@
 #define UTIL_MACROS_H
 
 #ifndef NDEBUG
-#include <stdlib.h>
-#define unreachable_release() abort()
+#define unreachable_release() __asm__ volatile("int $0x03")
 #else /* Release */
 #define unreachable_release() __builtin_unreachable()
 #endif /* NDEBUG */
