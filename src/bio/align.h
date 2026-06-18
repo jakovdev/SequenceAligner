@@ -1,8 +1,6 @@
 #ifndef BIO_ALIGN_H
 #define BIO_ALIGN_H
 
-#include <args.h>
-
 #include "system/types.h"
 
 typedef const uchar *restrict seq;
