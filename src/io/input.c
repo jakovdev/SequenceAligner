@@ -31,7 +31,6 @@ void input_free(struct input *in)
 bool input_load(struct input *in)
 {
 	bench_input_start();
-	input_free(in);
 	const char *path = INPUT_PATH;
 	const char *name = file_name(path);
 	const char *dot = strrchr(name, '.');
