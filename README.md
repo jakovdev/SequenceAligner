@@ -215,7 +215,7 @@ Below are example commands to run the program. Adjust as needed.
 ### Parasail python equivalents
 - parasail.nw() is the Gotoh algorithm with affine gaps in SequenceAligner
 - To get actual linear gaps in Parasail you need to set the `open` and `extend` parameters to the same value
-- This also applies to the Gotoh algorithm in SequenceAligner, but you should use NW since it is faster and takes one value
+- This also applies to the Gotoh algorithm in SequenceAligner, but in that case you should use NW since it's faster
 
 | Algorithm | Parasail | SequenceAligner |
 |---|---|---|
@@ -226,7 +226,7 @@ Below are example commands to run the program. Adjust as needed.
 ## File Formats
 
 ### Input Format
-- **File Type**: FASTA or DSV (CSV, TSV, etc.) format
+- **File Type**: FASTA (.fasta, .fas, .fa, etc.) or DSV (.csv, .tsv, etc.) format
 - **Sequences**:
   - For protein sequences: IUPAC amino acid single letter codes (ARNDCQEGHILKMFPSTWYVBZX*)
   - For nucleotide sequences: IUPAC nucleotide single letter codes (ATGCSWRYKMBVHDN*)
@@ -236,13 +236,13 @@ Below are example commands to run the program. Adjust as needed.
   - The program will prompt you to select the sequence column if it can't find one automatically
 
 ### Output Format
-- **File Type**: HDF5 (.h5) - a common scientific data format
+- **File Type**: HDF5 (.h5) format
 - **Content**:
   - Sequences used during alignment (original or filtered)
   - Similarity matrix where each cell represents the alignment score between sequence pairs
 - **Size Considerations**:
   - Similarity matrix size grows quadratically with sequence count (1000 sequences = 4MB, 50000 sequences = 10GB)
-  - Large matrices above RAM limits use temporary disk-based storage, which means you will need to store 2 of them (one temporary and one final)
+  - Large matrices above RAM limits use temporary disk-based storage, which means you will need to be able to store 2 of them (one temporary and one final)
   - Compression (`-z [0-9]`) reduces the final HDF5 file size but not temporary disk or RAM usage during alignment. Levels above 5 are not recommended due to extreme compression times after alignment is complete.
 - **Viewing Results**:
   - HDF5 files can be viewed with tools like [HDFView](https://www.hdfgroup.org/downloads/hdfview/) or [myHDF5](https://myhdf5.hdfgroup.org/)
