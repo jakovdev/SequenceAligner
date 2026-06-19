@@ -281,6 +281,7 @@ void free_aligned(void *ptr)
 
 void *alloc_aligned(size_t alignment, size_t bytes)
 {
+	bytes = (bytes + alignment - 1) / alignment * alignment;
 #ifdef _WIN32
 	return _aligned_malloc(bytes, alignment);
 #else
