@@ -28,32 +28,24 @@ bool output_load(struct output *out, struct input in)
 		seqs[i] = (char *)(in.letters + in.meta[i].off);
 
 	out->seqs = seqs;
-	out->triangular = false;
 	out->dim = (size_t)in.num;
 	size_t bytes = bytesof(out->matrix, in.num * in.num);
-	out->mmap = bytes > available_memory() * 3 / 4;
-	if (out->mmap || !cuda_memory(bytes)) {
+	bool tmpf = bytes > available_memory() * 3 / 4;
+	out->triangular = tmpf || !cuda_memory(bytes);
+	if (out->triangular) {
 		bytes = bytesof(out->matrix, alignments(out->dim));
-		out->triangular = true;
 		pverb("Using triangular matrix storage");
 	}
-
-	bench_output_start();
-	if (out->mmap) {
+	if (tmpf) {
 		pinfo("Similarity Matrix size exceeds memory limits");
 		pinfol("Creating temporary matrix file (%.2f GiB)",
 		       (double)bytes / (double)GiB);
-		out->matrix = alloc_mmap(bytes);
-		if (!out->matrix)
-			return false;
-	} else {
-		MALLOC_AL(out->matrix, PAGE_SIZE, bytes);
-		if (!out->matrix) {
-			perr("Out of memory allocating Similarity Matrix");
-			return false;
-		}
-		memset(out->matrix, 0, bytes);
 	}
+
+	bench_output_start();
+	out->matrix = alloc_mmap(bytes, tmpf);
+	if (!out->matrix)
+		return false;
 	bench_output_end();
 
 	pinfo("Similarity Matrix size: %d x %d", in.num, in.num);
@@ -95,10 +87,7 @@ bool output_flush(const struct output *out)
 void output_free(struct output *out)
 {
 	free(out->seqs);
-	if (out->mmap)
-		free_mmap(out->matrix);
-	else
-		free_aligned(out->matrix);
+	free_mmap(out->matrix);
 	memset(out, 0, sizeof(*out));
 }
 

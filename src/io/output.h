@@ -11,7 +11,6 @@ struct output {
 	s32 *restrict matrix;
 	const char **seqs;
 	size_t dim;
-	bool mmap;
 	bool triangular;
 };
 

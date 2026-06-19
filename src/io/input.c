@@ -8,7 +8,6 @@
 #include "io/source.h"
 #include "system/os.h"
 #include "util/benchmark.h"
-#include "util/macros.h"
 
 static const char *INPUT_PATH;
 bool filter(struct input *);

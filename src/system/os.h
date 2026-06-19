@@ -9,7 +9,6 @@ constexpr size_t MiB = KiB << 10;
 constexpr size_t GiB = MiB << 10;
 
 constexpr size_t CACHE_LINE = 64;
-constexpr size_t PAGE_SIZE = 4 * KiB;
 
 #define MALLOC(ptr, bytes) ptr = malloc(bytes)
 #define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
@@ -25,10 +24,10 @@ void free_aligned(void *ptr);
   gnu::alloc_size(2), gnu::nothrow]]
 void *alloc_aligned(size_t alignment, size_t bytes);
 
-void free_mmap(void *mmap);
+void free_mmap(void *alloced_mmap);
 
 [[gnu::malloc, gnu::malloc(free_mmap, 1), gnu::alloc_size(1)]]
-void *alloc_mmap(size_t bytes);
+void *alloc_mmap(size_t bytes, bool tmpfile);
 
 [[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(3), gnu::nothrow]]
 void *copy_file(const char *path, void **end, size_t alignment);

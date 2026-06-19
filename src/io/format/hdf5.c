@@ -7,8 +7,8 @@
 #include "system/os.h"
 #include "util/macros.h"
 
-constexpr size_t H5_MAX_CHUNK_SIZE = PAGE_SIZE;
-constexpr size_t H5_MIN_CHUNK_SIZE = 1 << 8;
+constexpr size_t H5_MAX_CHUNK_SIZE = 4 * KiB;
+constexpr size_t H5_MIN_CHUNK_SIZE = 1 * KiB / 4;
 uint COMPRESSION;
 
 static bool flush_hdf5(const struct output *out, const char *path)
@@ -129,24 +129,18 @@ static bool flush_hdf5(const struct output *out, const char *path)
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
-	s32 *MALLOC_AL(buf, PAGE_SIZE, row_bytes * (size_t)chunk_size);
+	s32 *buf = alloc_mmap(row_bytes * chunk_size, false);
 	if (!buf) {
-		pwarn("Out of memory, trying minimal amount for conversion");
-		chunk_size = 1;
-		MALLOC_AL(buf, CACHE_LINE, row_bytes * (size_t)chunk_size);
-		if (!buf) {
-			perr("Out of memory, aborting conversion");
-			H5Dclose(matrix_id);
-			H5Fclose(file_id);
-			return false;
-		}
+		perr("Out of memory during HDF5 conversion");
+		H5Dclose(matrix_id);
+		H5Fclose(file_id);
+		return false;
 	}
-	memset(buf, 0, row_bytes * (size_t)chunk_size);
 
 	hid_t file_space = H5Dget_space(matrix_id);
 	if (file_space < 0) {
 		perr("Failed to get HDF5 dataspace for Similarity Matrix");
-		free_aligned(buf);
+		free_mmap(buf);
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
 		return false;
@@ -178,7 +172,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		hid_t mem_space = H5Screate_simple(2, mem_dims, nullptr);
 		if (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
-			free_aligned(buf);
+			free_mmap(buf);
 			H5Sclose(file_space);
 			H5Dclose(matrix_id);
 			H5Fclose(file_id);
@@ -190,7 +184,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		H5Sclose(mem_space);
 		if (status < 0) {
 			perr("Failed to write chunk to HDF5");
-			free_aligned(buf);
+			free_mmap(buf);
 			H5Sclose(file_space);
 			H5Dclose(matrix_id);
 			H5Fclose(file_id);
@@ -201,7 +195,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 	}
 
 	ppercent(100, "Converting to HDF5");
-	free_aligned(buf);
+	free_mmap(buf);
 	H5Sclose(file_space);
 	H5Dclose(matrix_id);
 	H5Fclose(file_id);

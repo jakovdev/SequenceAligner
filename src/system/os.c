@@ -28,13 +28,26 @@
 
 #include "system/os.h"
 
-void *alloc_mmap(size_t bytes)
+void *alloc_mmap(size_t bytes, bool tmpfile)
 {
 #ifdef _WIN32
+	bytes += sizeof(size_t) * 2;
 	if (bytes > LONG_LONG_MAX) {
 		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
 		perr("Internal error creating temporary file");
 		return nullptr;
+	}
+
+	size_t *m;
+	if (!tmpfile) {
+		DWORD flAllocationType = MEM_RESERVE | MEM_COMMIT;
+		/* size_t alignment = GetLargePageMinimum();
+		if (alignment) {
+			flAllocationType |= MEM_LARGE_PAGES;
+			bytes = (bytes + alignment - 1) / alignment * alignment;
+		} */
+		m = VirtualAlloc(NULL, bytes, flAllocationType, PAGE_READWRITE);
+		goto m_check_return;
 	}
 
 	char dir[MAX_PATH] = {};
@@ -62,7 +75,7 @@ void *alloc_mmap(size_t bytes)
 	LARGE_INTEGER sz;
 	sz.QuadPart = (LONGLONG)bytes;
 	if (!SetFilePointerEx(fd, sz, NULL, FILE_BEGIN) || !SetEndOfFile(fd)) {
-		perr("Could not set temporary file size");
+		perr("Could not create %zu byte temporary file", bytes);
 		CloseHandle(fd);
 		return NULL;
 	}
@@ -74,13 +87,17 @@ void *alloc_mmap(size_t bytes)
 		return nullptr;
 	}
 
-	void *m = MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	m = MapViewOfFile(fm, FILE_MAP_ALL_ACCESS, 0, 0, 0);
 	CloseHandle(fm);
+m_check_return:
 	if (!m) {
-		perr("Could not memory map temporary file");
+		perr("Could not allocate %zu bytes", bytes);
 		return nullptr;
 	}
-	return m;
+
+	m[0] = tmpfile;
+	m[1] = bytes;
+	return m + 2;
 #else
 	bytes += sizeof(size_t);
 	if (bytes > LONG_MAX) {
@@ -89,42 +106,48 @@ void *alloc_mmap(size_t bytes)
 		return nullptr;
 	}
 
-	int fd = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
-	if (fd == -1) {
-		perr("Could not create a temporary file");
-		return nullptr;
+	int fd = -1;
+	int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+	if (tmpfile) {
+		flags = MAP_SHARED;
+		fd = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
+		if (fd == -1) {
+			perr("Could not create a temporary file");
+			return nullptr;
+		}
+
+		if (ftruncate(fd, (off_t)bytes) == -1) {
+			perr("Could not create %zu byte temporary file", bytes);
+			close(fd);
+			return nullptr;
+		}
 	}
 
-	if (ftruncate(fd, (off_t)bytes) == -1) {
-		perr("Could not set size for temporary file");
+	size_t *m = mmap(NULL, bytes, PROT_READ | PROT_WRITE, flags, fd, 0);
+	if (fd != -1)
 		close(fd);
-		return nullptr;
-	}
-
-	void *m = mmap(NULL, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-	close(fd);
 	if (m == MAP_FAILED) {
-		perr("Could not memory map temporary file");
+		perr("Could not allocate %zu bytes", bytes);
 		return nullptr;
 	}
-
 	madvise(m, bytes, MADV_RANDOM);
 	madvise(m, bytes, MADV_HUGEPAGE);
 	madvise(m, bytes, MADV_DONTFORK);
 	madvise(m, bytes, MADV_DONTDUMP);
-	*(size_t *)m = bytes;
-	return (size_t *)m + 1;
+	m[0] = bytes;
+	return m + 1;
 #endif
 }
 
-void free_mmap(void *mmap)
+void free_mmap(void *alloced_mmap)
 {
-	if (!mmap)
+	if (!alloced_mmap)
 		return;
+	size_t *m = (size_t *)alloced_mmap - 1;
 #ifdef _WIN32
-	UnmapViewOfFile(mmap);
+	size_t *t = m - 1;
+	*t ? UnmapViewOfFile(t) : VirtualFree(t, 0, MEM_RELEASE);
 #else
-	size_t *m = (size_t *)mmap - 1;
 	munmap(m, *m);
 #endif
 }
@@ -137,14 +160,14 @@ void *copy_file(const char *path, void **end, size_t alignment)
 		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN, NULL);
 	if (fd == INVALID_HANDLE_VALUE) {
 		perr("Could not open file: %s", file_name(path));
-		return false;
+		return nullptr;
 	}
 
 	LARGE_INTEGER st;
 	if (!GetFileSizeEx(fd, &st) || !st.QuadPart) {
 		perr("Failed to get file size or empty: %s", file_name(path));
 		CloseHandle(fd);
-		return false;
+		return nullptr;
 	}
 
 	void *buf = alloc_aligned(alignment, st.QuadPart);
@@ -159,7 +182,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 		perr("Could not read file: %s", file_name(path));
 		free(buf);
 		CloseHandle(fd);
-		return false;
+		return nullptr;
 	}
 	CloseHandle(fd);
 	*end = (uchar *)buf + st.QuadPart;
