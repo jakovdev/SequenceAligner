@@ -9,7 +9,7 @@
 
 ## Overview
 
-SequenceAligner is a command-line tool for performing all-vs-all (all-against-all) pairwise sequence alignments on protein or DNA sequences. It leverages low level CPU optimizations like SIMD instructions (AVX/SSE), memory mapping, efficient cache utilization and optionally GPU acceleration through CUDA.
+SequenceAligner is a command-line tool for performing all-vs-all (all-against-all) pairwise sequence alignments on protein or DNA sequences. It leverages low-level CPU optimizations like SIMD instructions (AVX/SSE) via compiler auto-vectorization, efficient memory allocations and cache utilization. It also supports GPU acceleration through CUDA.
 
 > [!NOTE]
 > This software is optimized for datasets with many short sequences in an all-vs-all alignment context. For single pairwise alignments or very long sequences, other tools like [Parasail](https://github.com/jeffdaily/parasail) may be more suitable.
@@ -20,15 +20,16 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 <details open>
 <summary><strong>Features</strong></summary>
 
+- [Multiple configurable options](#usage)
 - Multiple alignment algorithms:
   - Needleman-Wunsch (global alignment)
   - Smith-Waterman (local alignment)
   - Gotoh algorithm with affine gap penalties
 - Predefined substitution matrices
 - GPU acceleration with CUDA
-- [Multiple configurable options](#usage)
-- Memory-mapped disk storage for large similarity matrices
+- FASTA and DSV (.csv, .tsv, etc.) input formats
 - HDF5 output format with optional compression
+- Automatic disk-backed fallback for large similarity matrices
 
 </details>
 
@@ -58,7 +59,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 <summary><strong>Linux</strong></summary>
 
 ### Dependencies
-- GCC 16, CMake
+- GCC 16, CMake, Ninja
 - HDF5 library (development files)
 - CUDA toolkit (optional, for GPU acceleration)
 
@@ -116,11 +117,11 @@ C:\msys64\msys2_shell.cmd -ucrt64 -use-full-path -defterm -no-start -here
 
 ```bash
 # Update package database and core system packages
-pacman -Syu --noconfirm
+pacman -Syu
 # If this only updated pacman and/or msys, reopen with the same command as step 4 and run this again. This usually happens if you have an older installation.
 
 # Install build tools and HDF5
-pacman -S --needed --noconfirm mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-hdf5
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hdf5
 ```
 
 6. Build the project using:
@@ -151,7 +152,7 @@ Double click `seqalign.exe`, it should automatically open a terminal window with
 **Required arguments:**
 | Argument | Description |
 |--------|-------------|
-| `-i, --input FILE` | Input file path: FASTA, DSV (CSV, TSV, etc.) format |
+| `-i, --input FILE` | Input file path: FASTA, DSV (.csv, .tsv, etc.) |
 | `-o, --output FILE` | Output file path: HDF5 format |
 | `-m, --matrix MATRIX` | Scoring matrix (use --list-matrices to see all available matrices) |
 | `-a, --align METHOD` | Alignment method: nw, ga, sw |
@@ -226,7 +227,7 @@ Below are example commands to run the program. Adjust as needed.
 ## File Formats
 
 ### Input Format
-- **File Type**: FASTA (.fasta, .fas, .fa, etc.) or DSV (.csv, .tsv, etc.) format
+- **File Type**: FASTA (.fasta, .fas, .fa, etc.) or DSV (.csv, .tsv, etc.)
 - **Sequences**:
   - For protein sequences: IUPAC amino acid single letter codes (ARNDCQEGHILKMFPSTWYVBZX*)
   - For nucleotide sequences: IUPAC nucleotide single letter codes (ATGCSWRYKMBVHDN*)
@@ -236,7 +237,7 @@ Below are example commands to run the program. Adjust as needed.
   - The program will prompt you to select the sequence column if it can't find one automatically
 
 ### Output Format
-- **File Type**: HDF5 (.h5) format
+- **File Type**: HDF5 (.h5)
 - **Content**:
   - Sequences used during alignment (original or filtered)
   - Similarity matrix where each cell represents the alignment score between sequence pairs
