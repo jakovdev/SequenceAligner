@@ -32,17 +32,16 @@ bool filter(struct input *in)
 #pragma omp parallel
 	{
 #pragma omp for schedule(dynamic)
-		for (s32 i = 1; i < num; i++) {
-			auto m1 = in->meta[i];
-			s32 l1 = m1.len;
-			seq s1 = in->letters + m1.off;
-			for (s32 j = 0; j < i; j++) {
-				if (lost[j])
+		for (s32 j = 1; j < num; j++) {
+			struct meta m1 = in->meta[j];
+			const uchar *restrict s1 = in->seqs + m1.off;
+			for (s32 i = 0; i < j; i++) {
+				if (lost[i])
 					continue;
 
-				auto m2 = in->meta[j];
-				s32 ml = min(l1, m2.len);
-				seq s2 = in->letters + m2.off;
+				struct meta m2 = in->meta[i];
+				const uchar *restrict s2 = in->seqs + m2.off;
+				s32 ml = min(m1.len, m2.len);
 				if (LEN_BAD(ml) || SEQ_BAD(s1) || SEQ_BAD(s2))
 					unreachable_release();
 
@@ -50,7 +49,7 @@ bool filter(struct input *in)
 				for (s32 k = 0; k < ml; k++)
 					matches += s1[k] == s2[k];
 				if ((float)matches / (float)ml >= threshold) {
-					lost[i] = true;
+					lost[j] = true;
 					break;
 				}
 			}
@@ -68,15 +67,13 @@ bool filter(struct input *in)
 		if (lost[read])
 			continue;
 
-		auto meta = in->meta[read];
-		s32 len = meta.len;
-		s32 off = meta.off;
-		if (used != off)
-			memmove(in->letters + used, in->letters + off, len + 1);
-		in->meta[in->num].off = used;
-		in->meta[in->num++].len = len;
-		in->max = max(in->max, len);
-		used += len + 1;
+		struct meta m = in->meta[read];
+		if (used != m.off)
+			memmove(in->seqs + used, in->seqs + m.off, m.len + 1);
+		m.off = used;
+		used += m.len + 1;
+		in->meta[in->num++] = m;
+		in->max = max(in->max, m.len);
 	}
 	free(lost);
 	bench_filter_end();

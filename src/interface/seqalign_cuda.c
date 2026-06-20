@@ -120,7 +120,7 @@ bool cuda_align(struct input in, struct output out)
 
 	CALLR(cudaMalloc((void **)&C.letters, sum));
 	CALLR(cudaMalloc((void **)&C.meta, meta_bytes));
-	CALLR(cudaMemcpy(C.letters, in.letters, sum, cudaMemcpyHostToDevice));
+	CALLR(cudaMemcpy(C.letters, in.seqs, sum, cudaMemcpyHostToDevice));
 	CALLR(cudaMemcpy(C.meta, in.meta, meta_bytes, cudaMemcpyHostToDevice));
 
 	s32 *matrix = out.matrix;

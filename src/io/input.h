@@ -4,7 +4,7 @@
 #include "system/types.h"
 
 struct input {
-	uchar *restrict letters;
+	uchar *restrict seqs;
 	struct meta *restrict meta;
 	s32 max;
 	s32 num;

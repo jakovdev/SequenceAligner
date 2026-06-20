@@ -3,7 +3,6 @@
 
 #include "system/types.h"
 
-typedef const uchar *restrict seq;
 struct meta {
 	s32 off;
 	s32 len;
@@ -27,7 +26,8 @@ constexpr s32 SEQ_LEN_MAX = (S32_MAX - 1) / SEQ_N_MIN;
 #define SEQ_BAD(s) (!*s)
 
 extern const struct align {
-	s32 (*const method)(s32, s32, seq, const s32 *restrict, s32 *restrict);
+	s32 (*const method)(s32, s32, const uchar *restrict,
+			    const s32 *restrict, s32 *restrict);
 	struct arg_callback (*const validate)(void);
 	const void *const kernel;
 	const char **aliases;

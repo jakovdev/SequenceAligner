@@ -25,7 +25,7 @@ bool output_load(struct output *out, struct input in)
 	}
 
 	for (s32 i = 0; i < in.num; i++)
-		seqs[i] = (char *)(in.letters + in.meta[i].off);
+		seqs[i] = (char *)(in.seqs + in.meta[i].off);
 
 	out->seqs = seqs;
 	out->dim = (size_t)in.num;

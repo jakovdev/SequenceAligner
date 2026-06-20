@@ -23,7 +23,7 @@ bool sequence_length_limit(s32 len)
 void input_free(struct input *in)
 {
 	free_aligned(in->meta);
-	free_aligned(in->letters);
+	free_aligned(in->seqs);
 	memset(in, 0, sizeof(*in));
 }
 
@@ -71,7 +71,7 @@ parse_success:
 		return false;
 	}
 
-	in->letters = file;
+	in->seqs = file;
 	const uchar *p = file;
 	for (s32 i = 0; i < num; i++) {
 		s32 len = (s32)strlen((const char *)p);
