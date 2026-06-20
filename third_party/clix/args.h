@@ -205,22 +205,22 @@ enum arg_parameter {
  * @brief Generates a typed parser callback with common conversion checks.
  * @hideinitializer
  * @details
- * The generated function is named @c parse_<name> and matches @ref argument::parse_callback.
- * It parses @p str, rejects malformed input, range errors, and custom condition failures,
- * then writes to @p dest.
+ * Generates a function @p name for @ref argument::parse_callback.
+ * It parses @p str, rejects malformed input, range errors, and custom condition
+ * failures, then writes to @ref argument::dest.
  * @param name Suffix used for generated function name.
  * @param strto Conversion routine, e.g. @c strtol or @c strtod.
- * @param ARG_BASE Macro, leave out macro for no base, or e.g. ARG_BASE(10) to pass to strto.
+ * @param ARG_BASE Macro, leave empty for no strto base or e.g. @c ARG_BASE(10)
  * @param strto_t Return type of @p strto.
- * @param dest_t Destination pointee type.
- * @param CAST Optional cast expression when narrowing/widening.
+ * @param dest_t @ref argument::dest pointee type.
+ * @param CAST Optional cast expression when narrowing/widening e.g. @c (int).
  * @param cond Rejection predicate evaluated against local variable @c val.
  * @param err Error text, falls back to @ref ARG_ERR when empty.
  * @retval ARG_VALID Input accepted and stored in @p dest.
  * @retval ARG_INVALID Input rejected with diagnostic message.
  */
 #define ARG_PARSER(name, strto, ARG_BASE, strto_t, dest_t, CAST, cond, err)    \
-	static struct arg_callback parse_##name(const char *str, void *dest)   \
+	static struct arg_callback name(const char *str, void *dest)           \
 	{                                                                      \
 		errno = 0;                                                     \
 		char *end = NULL;                                              \
@@ -732,11 +732,15 @@ struct argument {
 	 * @brief Tracks whether the user supplied this argument.
 	 * @details
 	 * If NULL, it is allocated implicitly when needed by schema features.
+	 * Useful for simple flag options
 	 */
 	bool *set;
 
 	/**
 	 * @brief Destination pointer passed as @p dest to parser callbacks.
+	 * @details
+	 * This should be a reference to your static object so that a parser
+	 * can dereference and write to it.
 	 */
 	void *dest;
 
@@ -747,8 +751,8 @@ struct argument {
 	/**
 	 * @brief Function invoked during @ref args_parse.
 	 * @details
-	 * Use @ref ARG_PARSER helpers for numeric parsing, or provide custom logic.
-	 * Callbacks aren't limited to parsing e.g. --help exiting immediately.
+	 * Use @ref ARG_PARSER helpers for numeric parsing and/or provide custom logic.
+	 * Callbacks aren't limited to parsing e.g. --help can exit immediately.
 	 * @warning @p str is NULL when @ref argument::param_req is @ref arg_parameter::ARG_PARAM_NONE.
 	 * @warning @p dest ( @ref argument::dest ) is NULL if you didn't initialize it.
 	 *
@@ -770,7 +774,7 @@ struct argument {
 	 * enum Color { COLOR_INVALID = -1, RED, GREEN, BLUE };
 	 * static enum Color color = COLOR_INVALID;
 	 * static struct arg_callback parse_color(const char *str, void *dest) {
-	 *     // Using 'color' directly is also possible in this example
+	 *     color = COLOR_INVALID;
 	 *     enum Color col = COLOR_INVALID;
 	 *     if (strcmp(str, "red") == 0)
 	 *         col = RED;
@@ -780,7 +784,8 @@ struct argument {
 	 *         col = BLUE;
 	 *     else
 	 *         return ARG_INVALID("Invalid color\n");
-	 *     *(enum Color *)dest = col;
+	 *     color = col;
+	 *     // *(enum Color *)dest = col;
 	 *     return ARG_VALID();
 	 * }
 	 * ARGUMENT(color) = {
@@ -828,7 +833,7 @@ struct argument {
 	/**
 	 * @brief Function invoked during @ref args_actions.
 	 * @details
-	 * Intended for side effects such as applying runtime configuration.
+	 * Intended for side effects such as printing runtime configuration.
 	 *
 	 * Example:
 	 * @code{.c}

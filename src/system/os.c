@@ -463,9 +463,9 @@ struct arg_callback parse_path(const char *str, void *dest)
 
 int THREAD_NUM;
 
-ARG_PARSE_UL(thread_num, 10, int, (int), val > INT_MAX, "Invalid thread count")
+ARG_PARSE_UL(parse_threads, 10, int, (int), val > 1024, "Invalid thread count")
 
-static struct arg_callback validate_thread_num(void)
+static struct arg_callback validate_threads(void)
 {
 	if (THREAD_NUM)
 		omp_set_num_threads(THREAD_NUM);
@@ -489,8 +489,8 @@ ARGUMENT(threads) = {
 	.param = "N",
 	.param_req = ARG_PARAM_REQUIRED,
 	.dest = &THREAD_NUM,
-	.parse_callback = parse_thread_num,
-	.validate_callback = validate_thread_num,
+	.parse_callback = parse_threads,
+	.validate_callback = validate_threads,
 	.action_callback = print_threads,
 	.action_order = ARG_ORDER_AFTER(ARG(disable_cuda)),
 	.help_order = ARG_ORDER_AFTER(ARG(benchmark)),

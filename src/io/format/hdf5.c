@@ -203,7 +203,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 }
 FLUSH_REGISTER(FLUSH_HDF5, flush_hdf5)
 
-ARG_PARSE_UL(compression, 10, uint, (uint), val > 9,
+ARG_PARSE_UL(parse_compression, 10, uint, (uint), val > 9,
 	     "Compression level must be between 0-9")
 
 static void print_compression(void)

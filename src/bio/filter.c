@@ -88,7 +88,7 @@ bool filter(struct input *in)
 	return true;
 }
 
-ARG_PARSE_F(filter, float, , (val < 0.0f || val > 1.0f),
+ARG_PARSE_F(parse_filter, float, , (val < 0.0f || val > 1.0f),
 	    "Filter threshold must be between 0.0 and 1.0")
 
 static void print_filter(void)
