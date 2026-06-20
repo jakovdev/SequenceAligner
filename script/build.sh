@@ -1,24 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_ARCHS=("x86-64" "x86-64-v2" "x86-64-v3" "x86-64-v4")
+BASE_ARCHS=("native")
 BUILD_DIR="${PWD}/build"
 CMAKE="cmake"
 mkdir -p "${BUILD_DIR}"
 
-if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    if [[ "${1:-}" == "cross" || "${1:-}" == "mingw" ]]; then
-        CMAKE="x86_64-w64-mingw32-cmake"
-        if ! command -v $CMAKE &> /dev/null; then
-            echo ""
-            echo "$CMAKE not detected. Will not build anything."
-            exit 1
-        fi
+for arg in "$@"; do
+    if [[ "$arg" == "all" ]]; then
+        BASE_ARCHS=("x86-64" "x86-64-v2" "x86-64-v3" "x86-64-v4")
+        break
     fi
+done
+
+if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+    for arg in "$@"; do
+        if [[ "$arg" == "cross" || "$arg" == "mingw" ]]; then
+            CMAKE="x86_64-w64-mingw32-cmake"
+            if ! command -v $CMAKE &> /dev/null; then
+                echo ""
+                echo "$CMAKE not detected. Will not build anything."
+                exit 1
+            fi
+            break
+        fi
+    done
 elif [ "$MSYSTEM" == "UCRT64" ]; then
     if ! command -v gcc &> /dev/null; then
         echo ""
-        echo "MinGW UCRT64 compiler not detected. Will not build anything."
+        echo "GCC not detected. Will not build anything."
         echo "Please install the following packages:"
         echo ""
         echo "pacman -Syu"

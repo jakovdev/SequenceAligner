@@ -40,6 +40,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 #### CPU Version
 - Any x86-64 (x64, AMD64, Intel 64 or "64-bit") processor and Operating System (Linux or Windows)
 - See: https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels to find which architecture your CPU supports
+  - If building from source it will automatically build for your specific processor
 - Disk space for output files and enough RAM for results (varies with dataset size, see [File Formats](#file-formats))
 
 #### CUDA Version
@@ -66,7 +67,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 ### Building
 
 ```bash
-./script/build_all.sh
+./script/build.sh
 ```
 
 You will find the executable inside the `release` folder once you uncompress it.
@@ -127,7 +128,7 @@ pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w
 6. Build the project using:
 
 ```bash
-./script/build_all.sh
+./script/build.sh
 ```
 
 You will find the executable inside the `release` folder once you uncompress it.
