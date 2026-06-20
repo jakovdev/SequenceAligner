@@ -1,7 +1,8 @@
 #ifndef SYSTEM_OS_H
 #define SYSTEM_OS_H
 
-#include "system/types.h"
+#include <stddef.h>
+
 #include "util/macros.h"
 
 constexpr size_t KiB = 1 << 10;

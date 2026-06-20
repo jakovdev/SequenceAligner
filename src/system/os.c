@@ -27,6 +27,7 @@
 #include <omp.h>
 
 #include "system/os.h"
+#include "system/types.h"
 
 void *alloc_mmap(size_t bytes, bool tmpfile)
 {
