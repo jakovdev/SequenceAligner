@@ -35,7 +35,8 @@ bool align(struct input in, struct output out)
 		s32 *MALLOCA_AL(cols, CACHE_LINE, in.num);
 		if (!table || !ind || !cols) {
 			perr("Out of memory allocating alignment buffers");
-			exit(EXIT_FAILURE);
+			psection_end();
+			abort();
 		}
 #pragma omp for schedule(dynamic)
 		for (s32 j = 1; j < in.num; j++) {
