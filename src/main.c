@@ -23,7 +23,6 @@ int main(int argc, char *argv[])
 	if (!input_load(&in))
 		return 1;
 
-	psection("Creating Similarity Matrix");
 	[[gnu::cleanup(output_free)]] struct output out = {};
 	if (!output_load(&out, in))
 		return 1;
@@ -32,7 +31,6 @@ int main(int argc, char *argv[])
 	if (!cuda_align(in, out))
 		return 1;
 
-	psection("Writing Similarity Matrix");
 	if (!output_flush(&out))
 		return 1;
 

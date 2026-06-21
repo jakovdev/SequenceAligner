@@ -18,6 +18,7 @@ bool output_load(struct output *out, struct input in)
 	if (disable_write)
 		return true;
 
+	psection("Preparing Similarity Matrix");
 	const char **MALLOCA(seqs, in.num);
 	if (!seqs) {
 		perr("Out of memory allocating output sequence data");
@@ -77,6 +78,7 @@ bool output_flush(const struct output *out)
 {
 	if (disable_write)
 		return true;
+	psection("Writing Output");
 	bench_output_start();
 	bool retval = FLUSH_FORMATS[FLUSH_ID](out, OUTPUT_PATH);
 	bench_output_end();
