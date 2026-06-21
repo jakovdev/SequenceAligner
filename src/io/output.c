@@ -28,14 +28,13 @@ bool output_load(struct output *out, struct input in)
 	for (s32 i = 0; i < in.num; i++)
 		seqs[i] = (char *)(in.seqs + in.meta[i].off);
 
-	out->seqs = seqs;
-	out->dim = (size_t)in.num;
+	pinfo("Similarity Matrix dimensions: %d x %d", in.num, in.num);
 	size_t bytes = bytesof(out->matrix, in.num * in.num);
 	bool tmpf = bytes > available_memory() * 3 / 4;
-	out->triangular = tmpf || !cuda_memory(bytes);
-	if (out->triangular) {
-		bytes = bytesof(out->matrix, alignments(out->dim));
-		pverb("Using triangular matrix storage");
+	bool triangular = tmpf || !cuda_memory(bytes);
+	if (triangular) {
+		bytes = bytesof(out->matrix, alignments((size_t)in.num));
+		pinfo("Using triangular matrix instead of full matrix");
 	}
 	if (tmpf) {
 		pinfo("Similarity Matrix size exceeds memory limits");
@@ -45,11 +44,16 @@ bool output_load(struct output *out, struct input in)
 
 	bench_output_start();
 	out->matrix = alloc_mmap(bytes, tmpf);
-	if (!out->matrix)
+	if (!out->matrix) {
+		free(seqs);
 		return false;
+	}
 	bench_output_end();
 
 	pinfo("Similarity Matrix size: %d x %d", in.num, in.num);
+	out->seqs = seqs;
+	out->dim = (size_t)in.num;
+	out->triangular = triangular;
 	return true;
 }
 
