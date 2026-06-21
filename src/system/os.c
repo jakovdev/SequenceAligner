@@ -315,8 +315,6 @@ void *alloc_aligned(size_t alignment, size_t bytes)
 
 const char *file_name(const char *path)
 {
-	if (!*path)
-		return nullptr;
 	const char *name1 = strrchr(path, '/');
 #ifdef _WIN32
 	const char *name2 = strrchr(path, '\\');
