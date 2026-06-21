@@ -560,7 +560,7 @@ static void terminal_read_input(char *buf, size_t buf_sz)
 	terminal_mode_raw();
 
 	size_t i = 0;
-	for (int c; (c = fgetc(p.in)) != EOF && c != '\n' && c != '\r';) {
+	for (int c; (c = fgetc(p.in)) != EOF && c != '\n';) {
 		if (c == '\b' || c == 0x7F) {
 			if (i) {
 				while (i && ((buf[i - 1] & 0xC0) == 0x80))
