@@ -19,6 +19,7 @@ bool output_load(struct output *out, struct input in)
 		return true;
 
 	psection("Preparing Similarity Matrix");
+	pverb("Using %d sequences for output", in.num);
 	const char **MALLOCA(seqs, in.num);
 	if (!seqs) {
 		perr("Out of memory allocating output sequence data");
@@ -36,10 +37,16 @@ bool output_load(struct output *out, struct input in)
 		bytes = bytesof(out->matrix, alignments((size_t)in.num));
 		pinfo("Using triangular matrix instead of full matrix");
 	}
+	double usage = (double)bytes / (double)MiB;
+	const char *unit = "MiB";
+	if (bytes > GiB / 100) {
+		usage = (double)bytes / (double)GiB;
+		unit = "GiB";
+	}
+	pinfo("Similarity Matrix size: %.2f %s", usage, unit);
 	if (tmpf) {
-		pinfo("Similarity Matrix size exceeds memory limits");
-		pinfol("Creating temporary matrix file (%.2f GiB)",
-		       (double)bytes / (double)GiB);
+		pinfom("Similarity Matrix size exceeds memory limits");
+		pinfol("Creating temporary file storage: %.2f %s", usage, unit);
 	}
 
 	bench_output_start();
@@ -50,7 +57,6 @@ bool output_load(struct output *out, struct input in)
 	}
 	bench_output_end();
 
-	pinfo("Similarity Matrix size: %d x %d", in.num, in.num);
 	out->seqs = seqs;
 	out->dim = (size_t)in.num;
 	out->triangular = triangular;

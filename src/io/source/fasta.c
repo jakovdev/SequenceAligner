@@ -15,6 +15,7 @@ static const char *EXTS[] = {
 
 static enum parse_result parse_fasta(struct source src, struct input *in)
 {
+	pverbm("Trying out FASTA parser");
 	const char **ext = EXTS;
 	for (; *ext; ext++) {
 		if (strcasecmp(*ext, src.ext) == 0)
@@ -23,6 +24,7 @@ static enum parse_result parse_fasta(struct source src, struct input *in)
 	if (!*ext)
 		return PARSER_UNSUPPORTED;
 
+	pverbm("Using FASTA parser");
 	const uchar *p = src.file;
 	if (*p != '>') {
 		perr("Data before first header");
@@ -78,6 +80,7 @@ static enum parse_result parse_fasta(struct source src, struct input *in)
 	}
 	in->max = max;
 	in->num = num;
+	pverbl("FASTA parsing finished successfuly");
 	return PARSER_SUCCESS;
 }
 

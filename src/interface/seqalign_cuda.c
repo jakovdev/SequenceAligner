@@ -16,6 +16,7 @@ bool align(struct input, struct output);
 #include "bio/kernels.cuh"
 #include "io/input.h"
 #include "io/output.h"
+#include "system/os.h"
 #include "util/benchmark.h"
 #include "util/macros.h"
 
@@ -60,6 +61,7 @@ static bool cuda_device_init(void)
 		return true;
 	}
 
+	pverb("Available CUDA Devices: %d", device_count);
 	CALLR(cudaSetDevice(0));
 	atexit(cuda_device_close);
 	init = true;
@@ -77,8 +79,13 @@ bool cuda_memory(size_t bytes)
 	size_t total = 0;
 	cudaError_t err;
 	CALLJ(cudaMemGetInfo(&free, &total), memory_error);
-	if (free < bytes * 4 / 3)
+	pverb("GPU: %.2f GiB free / %.2f GiB total", (double)free / (double)GiB,
+	      (double)total / (double)GiB);
+	if (free < bytes * 4 / 3) {
+		pverbl("%.2f GiB exceeds available GPU memory",
+		       (double)bytes * 4 / 3 / (double)GiB);
 		return false;
+	}
 
 	return true;
 memory_error:
@@ -169,7 +176,7 @@ bool cuda_align(struct input in, struct output out)
 	bool subsequent = false, syncing = false, matrix_copied = false;
 	s64 progress = 0;
 
-	pinfol("Performing %zu pairwise alignments", (size_t)alignments);
+	pinfo("Performing %zu pairwise alignments", (size_t)alignments);
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();

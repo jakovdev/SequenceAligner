@@ -79,6 +79,7 @@ static s32 dsv_cols(const uchar *p, const uchar *end, uchar delim)
 
 static enum parse_result parse_dsv(struct source src, struct input *in)
 {
+	pverbm("Trying out DSV parser");
 	const struct dsv_pair *pair = DSV_PAIRS;
 	for (; pair->ext; pair++) {
 		if (strcasecmp(pair->ext, src.ext) == 0)
@@ -87,6 +88,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 	if (!pair->ext)
 		return PARSER_UNSUPPORTED;
 
+	pverbm("Using DSV parser");
 	const uchar *p = src.file;
 	const uchar *header_line = p;
 	uchar delim = pair->delimiter;
@@ -223,6 +225,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 	}
 	in->max = max;
 	in->num = num;
+	pverbl("DSV parsing finished successfuly");
 	return PARSER_SUCCESS;
 }
 

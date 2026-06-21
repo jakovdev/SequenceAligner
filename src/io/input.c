@@ -38,11 +38,13 @@ bool input_load(struct input *in)
 		return false;
 	}
 
+	pverb("Copying %s into memory", name);
 	void *fend;
 	uchar *file = copy_file(path, &fend, CACHE_LINE);
 	if (!file || (uchar *)fend - file > S32_MAX)
 		return false;
 
+	pverbm("Trying out parsers for %s", name);
 	for (auto s = __start_sources; s < __stop_sources; s++) {
 		switch (s->parse((struct source){ file, fend, dot + 1 }, in)) {
 		case PARSER_UNSUPPORTED:
@@ -87,7 +89,7 @@ parse_success:
 	s32 sum = in->meta[in->num - 1].off + in->meta[in->num - 1].len + 1;
 	float average_length = (float)sum / (float)in->num - 1.0f;
 	pinfo("Loaded %d sequences", in->num);
-	pinfo("Average sequence length: %.2f", average_length);
+	pinfol("Average sequence length: %.2f", average_length);
 	bench_input_print();
 	return true;
 }

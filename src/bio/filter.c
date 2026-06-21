@@ -78,9 +78,9 @@ bool filter(struct input *in)
 	free(lost);
 	bench_filter_end();
 
+	pinfo("Filtered out %d sequences", num - in->num);
 	if (in->num < SEQ_N_MIN) {
-		perr("Not enough filtered sequences: %d (min: %d)", in->num,
-		     SEQ_N_MIN);
+		perr("Not enough sequences: %d (min: %d)", in->num, SEQ_N_MIN);
 		return false;
 	}
 
