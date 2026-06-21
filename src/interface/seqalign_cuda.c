@@ -42,17 +42,22 @@ static void cuda_device_close(void)
 	cudaDeviceReset();
 }
 
+static bool no_cuda;
+
 static bool cuda_device_init(void)
 {
 	static bool init;
-	if (init)
+	if (no_cuda || init)
 		return true;
 
 	int device_count = 0;
 	cudaError_t err = cudaGetDeviceCount(&device_count);
 	if (!device_count || err != cudaSuccess) {
-		perr("No CUDA devices available");
-		return false;
+		pwarn("No CUDA devices available");
+		if (!print_Yn("Would you like to switch to non-CUDA (CPU)?"))
+			return false;
+		no_cuda = true;
+		return true;
 	}
 
 	CALLR(cudaSetDevice(0));
@@ -61,15 +66,12 @@ static bool cuda_device_init(void)
 	return true;
 }
 
-static bool no_cuda;
-
 bool cuda_memory(size_t bytes)
 {
-	if (no_cuda)
-		return true;
-
 	if (!cuda_device_init())
 		return false;
+	if (no_cuda)
+		return true;
 
 	size_t free = 0;
 	size_t total = 0;
@@ -85,11 +87,10 @@ memory_error:
 
 bool cuda_align(struct input in, struct output out)
 {
-	if (no_cuda)
-		return align(in, out);
-
 	if (!cuda_device_init())
 		return false;
+	if (no_cuda)
+		return align(in, out);
 
 	if (in.max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
