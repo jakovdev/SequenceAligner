@@ -70,8 +70,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 	size_t chunk_dim = out->dim;
 	if (out->dim > H5_MIN_CHUNK_SIZE) {
 		chunk_dim = 64;
-		size_t square =
-			(size_t)(chunk_dim * chunk_dim) * sizeof(chunk_dim);
+		size_t square = chunk_dim * chunk_dim * sizeof(chunk_dim);
 		size_t target_bytes = (2 * MiB) / (1 + COMPRESSION / 3);
 		while (chunk_dim < out->dim && square < target_bytes)
 			chunk_dim *= 2;

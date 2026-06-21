@@ -33,7 +33,7 @@ static s32 align_sw(s32 len1, s32 len2, const uchar *restrict seq2,
 	for (s32 i = 1; i <= len2; ++i) {
 		s64 row = cols * i;
 		s64 row_prev = cols * (i - 1);
-		s32 c2 = SEQ_LUT[(uchar)seq2[i - 1]];
+		s32 c2 = SEQ_LUT[seq2[i - 1]];
 
 		for (s32 j = 1; j <= len1; j++) {
 			s32 similarity = SUB_MAT[ind[j - 1]][c2];
