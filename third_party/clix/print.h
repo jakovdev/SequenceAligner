@@ -255,10 +255,10 @@ extern bool print_nodetail;
 #include <unistd.h>
 #include <sys/param.h>
 #ifndef max
-#define max MAX
+#define max(a, b) MAX(a, b)
 #endif
 #ifndef min
-#define min MIN
+#define min(a, b) MIN(a, b)
 #endif
 #endif
 
@@ -455,7 +455,6 @@ static struct {
 	const char boxes[BOX_TYPE_COUNT][BOX_CHAR_COUNT][sizeof("╔")];
 	const char progress_filled_char[sizeof("■")];
 	const char progress_empty_char[sizeof("·")];
-	const char ansi_escape_start[sizeof("\x1b")];
 	char ansi_carriage_return[sizeof("\r")];
 } p = {
     .map = {
@@ -501,7 +500,6 @@ static struct {
     },
     .progress_filled_char = "■",
     .progress_empty_char = "·",
-    .ansi_escape_start = "\x1b",
     .ansi_carriage_return = "\r",
     .width = PRINT_TERMINAL_WIDTH,
 };
@@ -774,6 +772,12 @@ skip_fmt:
 
 		if (!fmt)
 			goto cleanup;
+
+		if (in_section && !content_printed) {
+			ouwrite("\x1b[A", sizeof("\x1b[A") - 1);
+			ouwrite(p.ansi_carriage_return, 1);
+			ouwrite("\x1b[K", sizeof("\x1b[K") - 1);
+		}
 
 		if (simple) {
 			ouwrite(p_buf, p_buflen);
