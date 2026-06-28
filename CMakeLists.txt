@@ -80,8 +80,10 @@ if(NOT IS_MINGW)
       file(MAKE_DIRECTORY "${MSYS2_CUDA}")
       get_filename_component(CUDART_DLL "${CUDART_SYS_DLL}" NAME)
       get_filename_component(CUDART_DLL_WE "${CUDART_DLL}" NAME_WE)
-      file(COPY_FILE "${CUDART_SYS_DLL}" "${MSYS2_CUDA}/${CUDART_DLL}" ONLY_IF_DIFFERENT)
-      file(COPY_FILE "${CUDART_SYS_DLL}" "${CMAKE_BINARY_DIR}/${CUDART_DLL}" ONLY_IF_DIFFERENT)
+      file(COPY_FILE "${CUDART_SYS_DLL}" "${MSYS2_CUDA}/${CUDART_DLL}"
+           ONLY_IF_DIFFERENT)
+      file(COPY_FILE "${CUDART_SYS_DLL}" "${CMAKE_BINARY_DIR}/${CUDART_DLL}"
+           ONLY_IF_DIFFERENT)
 
       set(CUDART_DEF "${CUDART_DLL_WE}.def")
       set(CUDART_LIB "lib${CUDART_DLL}.a")
