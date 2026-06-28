@@ -38,7 +38,7 @@ static s32 align_nw(s32 len1, s32 len2, const uchar *restrict seq2,
 		}
 	}
 
-	return table[(s64)len2 * cols + len1];
+	return table[cols * len2 + len1];
 }
 
 ALIGN_KERNEL(kernel_nw);

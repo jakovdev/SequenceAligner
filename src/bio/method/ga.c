@@ -64,7 +64,7 @@ static s32 align_ga(s32 len1, s32 len2, const uchar *restrict seq2,
 		}
 	}
 
-	return match[(s64)len2 * (len1 + 1) + len1];
+	return match[cols * len2 + len1];
 }
 
 static struct arg_callback validate_ga(void)
