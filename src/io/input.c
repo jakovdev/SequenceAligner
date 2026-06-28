@@ -15,9 +15,7 @@ bool filter(struct input *);
 bool sequence_length_limit(s32 len)
 {
 	s32 gap = -GAP_PEN;
-	if (!gap)
-		return len <= SEQ_LEN_MAX;
-	return len <= SEQ_LEN_MAX / gap;
+	return gap ? len <= SEQ_LEN_MAX / gap : len <= SEQ_LEN_MAX;
 }
 
 void input_free(struct input *in)
