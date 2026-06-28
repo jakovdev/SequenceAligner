@@ -26,11 +26,12 @@ bool align(struct input in, struct output out)
 		return false;
 
 	TABLE_SIZE = (size_t)(in.max + 1) * (in.max + 1);
+	size_t mult = ALIGN->gap == GAP_AFFINE ? 3 : 1;
 	auto method = ALIGN->method;
 	bench_align_start();
 #pragma omp parallel
 	{
-		s32 *MALLOCA_AL(table, CACHE_LINE, 3 * TABLE_SIZE);
+		s32 *MALLOCA_AL(table, CACHE_LINE, TABLE_SIZE * mult);
 		s32 *MALLOCA_AL(ind, CACHE_LINE, in.max);
 		s32 *MALLOCA_AL(cols, CACHE_LINE, in.num);
 		if (!table || !ind || !cols) {
