@@ -20,6 +20,7 @@ bool output_load(struct output *out, struct input in)
 
 	psection("Preparing Similarity Matrix");
 	pverb("Using %d sequences for output", in.num);
+	bench_output_start();
 	const char **MALLOCA(seqs, in.num);
 	if (!seqs) {
 		perr("Out of memory allocating output sequence data");
@@ -28,6 +29,7 @@ bool output_load(struct output *out, struct input in)
 
 	for (s32 i = 0; i < in.num; i++)
 		seqs[i] = (char *)(in.seqs + in.meta[i].off);
+	bench_output_end();
 
 	pinfo("Similarity Matrix dimensions: %d x %d", in.num, in.num);
 	size_t bytes = bytesof(out->matrix, in.num * in.num);
