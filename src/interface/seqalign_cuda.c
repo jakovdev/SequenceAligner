@@ -3,7 +3,6 @@
 #include <args.h>
 #include <print.h>
 
-[[gnu::nonnull]]
 bool align(struct input, struct output);
 
 #ifdef USE_CUDA

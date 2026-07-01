@@ -18,11 +18,10 @@ constexpr size_t CACHE_LINE = 64;
 
 size_t available_memory(void);
 
-[[gnu::nothrow]]
 void free_aligned(void *ptr);
 
 [[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(1),
-  gnu::alloc_size(2), gnu::nothrow]]
+  gnu::alloc_size(2)]]
 void *alloc_aligned(size_t alignment, size_t bytes);
 
 void free_mmap(void *alloced_mmap);
@@ -30,7 +29,7 @@ void free_mmap(void *alloced_mmap);
 [[gnu::malloc, gnu::malloc(free_mmap, 1), gnu::alloc_size(1)]]
 void *alloc_mmap(size_t bytes, bool tmpfile);
 
-[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(3), gnu::nothrow]]
+[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(3)]]
 void *copy_file(const char *path, void **end, size_t alignment);
 
 extern int THREAD_NUM;
