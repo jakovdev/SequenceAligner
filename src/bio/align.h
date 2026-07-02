@@ -20,7 +20,7 @@ constexpr s32 SCORE_MIN = S32_MIN / 2;
 
 constexpr s32 SEQ_N_MIN = 2;
 constexpr s32 SEQ_LEN_MIN = 1;
-constexpr s32 SEQ_LEN_MAX = (S32_MAX - 1) / SEQ_N_MIN;
+constexpr s32 SEQ_LEN_MAX = S32_MAX - 1;
 
 #define LEN_BAD(l) (l < SEQ_LEN_MIN || l > SEQ_LEN_MAX)
 #define SEQ_BAD(s) (!*s)
