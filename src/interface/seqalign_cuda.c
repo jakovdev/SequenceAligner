@@ -104,7 +104,7 @@ bool cuda_align(struct input in, struct output out)
 	}
 
 	cudaError_t err;
-	uint block_max = ({
+	unsigned int block_max = ({
 		struct cudaDeviceProp dev_prop;
 		CALLR(cudaGetDeviceProperties(&dev_prop, 0));
 		pinfo("Using CUDA device: %s", dev_prop.name);
@@ -214,7 +214,7 @@ bool cuda_align(struct input in, struct output out)
 			}
 		}
 
-		dim3 grid = { (uint)((batch + block.x - 1) / block.x), 1, 1 };
+		dim3 grid = { (batch + block.x - 1) / block.x, 1, 1 };
 		void *args[] = { &scores[active], &offset, &batch };
 		CALLR(cudaLaunchKernel(kernel, grid, block, args, 0, compute));
 		batch_last += batch;

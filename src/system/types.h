@@ -14,8 +14,6 @@ constexpr s64 S64_MAX = INT64_MAX;
 constexpr s64 S64_MIN = INT64_MIN;
 
 typedef unsigned char uchar;
-typedef unsigned int uint;
-typedef unsigned long long ull;
 
 #ifdef __cplusplus
 #define restrict __restrict__

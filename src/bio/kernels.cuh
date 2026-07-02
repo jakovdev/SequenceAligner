@@ -12,7 +12,7 @@ constexpr s32 MAX_CUDA_SEQUENCE_LENGTH = 1023;
 struct constants {
 	uchar *letters;
 	struct meta *meta;
-	ull *progress;
+	unsigned long long *progress;
 	s32 seq_lut[SEQ_LUT_SIZE];
 	s32 sub_mat[SUB_MAT_DIM * SUB_MAT_DIM];
 	s32 num;
