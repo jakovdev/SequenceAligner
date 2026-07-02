@@ -74,7 +74,7 @@ void *alloc_mmap(size_t bytes, bool tmpfile)
 	}
 
 	LARGE_INTEGER sz;
-	sz.QuadPart = (LONGLONG)bytes;
+	sz.QuadPart = bytes;
 	if (!SetFilePointerEx(fd, sz, NULL, FILE_BEGIN) || !SetEndOfFile(fd)) {
 		perr("Could not create %zu byte temporary file", bytes);
 		CloseHandle(fd);
@@ -117,7 +117,7 @@ m_check_return:
 			return nullptr;
 		}
 
-		if (ftruncate(fd, (off_t)bytes) == -1) {
+		if (ftruncate(fd, bytes) == -1) {
 			perr("Could not create %zu byte temporary file", bytes);
 			close(fd);
 			return nullptr;
@@ -186,7 +186,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 		return nullptr;
 	}
 	CloseHandle(fd);
-	*end = (u8 *)buf + st.QuadPart;
+	*end = buf + st.QuadPart;
 #else
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) {
@@ -215,7 +215,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 		return nullptr;
 	}
 	close(fd);
-	*end = (u8 *)buf + st.st_size;
+	*end = buf + st.st_size;
 #endif
 	return buf;
 }
@@ -389,7 +389,7 @@ bool path_directories_create(const char *path)
 	if (!last_sep)
 		return true;
 
-	size_t dir_len = (size_t)(last_sep - path);
+	size_t dir_len = last_sep - path;
 	if (dir_len == 0)
 		return true;
 

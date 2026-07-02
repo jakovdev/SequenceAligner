@@ -73,8 +73,8 @@ parse_success:
 	in->seqs = file;
 	const void *p = file;
 	for (s32 i = 0; i < num; i++) {
-		s32 len = (s32)strlen(p);
-		meta[i] = (struct meta){ .off = (s32)(p - file), .len = len };
+		s32 len = strlen(p);
+		meta[i] = (struct meta){ .off = p - file, .len = len };
 		p += len + 1;
 	}
 	in->meta = meta;

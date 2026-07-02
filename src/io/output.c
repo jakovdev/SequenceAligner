@@ -60,7 +60,7 @@ bool output_load(struct output *out, struct input in)
 	bench_output_end();
 
 	out->seqs = seqs;
-	out->dim = (size_t)in.num;
+	out->dim = in.num;
 	out->triangular = triangular;
 	return true;
 }

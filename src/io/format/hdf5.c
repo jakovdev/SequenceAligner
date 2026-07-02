@@ -121,10 +121,10 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		return false;
 	}
 
-	s64 dim = (s64)out->dim;
+	s64 dim = out->dim;
 	size_t row_bytes = bytesof(out->matrix, out->dim);
-	s32 max_rows = (s32)(available / (4 * row_bytes));
-	s32 chunk_size = (s32)max(chunk_dim, 4);
+	s32 max_rows = available / (4 * row_bytes);
+	s32 chunk_size = max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
@@ -162,12 +162,12 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		}
 
 		s32 rows = end - off;
-		hsize_t start[2] = { (hsize_t)off, 0 };
-		hsize_t count[2] = { (hsize_t)rows, out->dim };
+		hsize_t start[2] = { off, 0 };
+		hsize_t count[2] = { rows, out->dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, nullptr,
 				    count, nullptr);
 
-		hsize_t mem_dims[2] = { (hsize_t)rows, out->dim };
+		hsize_t mem_dims[2] = { rows, out->dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, nullptr);
 		if (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
@@ -190,7 +190,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 			return false;
 		}
 
-		pproport(end / out->dim, "Converting to HDF5");
+		pproport(end / dim, "Converting to HDF5");
 	}
 
 	ppercent(100, "Converting to HDF5");

@@ -48,7 +48,7 @@ static enum parse_result parse_fasta(struct source src, struct input *in)
 		num++;
 		s32 slen = 0;
 		while (p < src.fend && *p != '>') {
-			u8 c = (u8)toupper(*p++);
+			u8 c = toupper(*p++);
 			if (c == '\r' || c == '\n' || c == ' ')
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {

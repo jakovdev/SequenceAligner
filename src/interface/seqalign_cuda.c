@@ -259,7 +259,7 @@ cuda_results:
 			goto cuda_progress;
 		}
 
-		size_t n_scores = (size_t)min(batch, alignments - batch_done);
+		s64 n_scores = min(batch, alignments - batch_done);
 		if (!n_scores)
 			goto cuda_progress;
 
@@ -281,7 +281,7 @@ cuda_results:
 						 bytesof(matrix, n_scores),
 						 cudaMemcpyDeviceToHost));
 		}
-		batch_done += (s64)n_scores;
+		batch_done += n_scores;
 cuda_progress:
 		pproportc(progress / alignments, "Aligning sequences");
 		if (progress >= alignments)

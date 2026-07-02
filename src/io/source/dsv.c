@@ -43,7 +43,7 @@ static const u8 *dsv_field(const u8 **cur, const u8 *end, u8 delim, s32 *flen)
 		p++;
 	}
 
-	s32 len = (s32)(p - start);
+	s32 len = p - start;
 	if (len >= 2 && *start == '"' && start[len - 1] == '"') {
 		len -= 2;
 		start++;
@@ -180,7 +180,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 
 		s32 slen = 0;
 		for (s32 i = 0; i < flen; i++) {
-			u8 c = (u8)toupper(field[i]);
+			u8 c = toupper(field[i]);
 			if (c == '\r' || c == '\n' || c == ' ' || c == '"')
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {
