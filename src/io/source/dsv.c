@@ -13,7 +13,7 @@
 
 static const struct dsv_pair {
 	const char *ext;
-	uchar delimiter;
+	u8 delimiter;
 } DSV_PAIRS[] = {
 	{ "csv", ',' }, { "tsv", '\t' }, { "ssv", ';' }, { "psv", '|' }, {},
 };
@@ -23,11 +23,10 @@ static const char *KEYS[] = {
 	"amino",    "peptide", "chain",	  nullptr,
 };
 
-static const uchar *dsv_field(const uchar **cur, const uchar *end, uchar delim,
-			      s32 *flen)
+static const u8 *dsv_field(const u8 **cur, const u8 *end, u8 delim, s32 *flen)
 {
-	const uchar *p = *cur;
-	const uchar *start = p;
+	const u8 *p = *cur;
+	const u8 *start = p;
 	bool quoted = false;
 	while (p < end) {
 		if (*p == '"') {
@@ -56,7 +55,7 @@ static const uchar *dsv_field(const uchar **cur, const uchar *end, uchar delim,
 	return start;
 }
 
-static s32 dsv_cols(const uchar *p, const uchar *end, uchar delim)
+static s32 dsv_cols(const u8 *p, const u8 *end, u8 delim)
 {
 	s32 count = 1;
 	bool quoted = false;
@@ -89,9 +88,9 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 		return PARSER_UNSUPPORTED;
 
 	pverbm("Using DSV parser");
-	const uchar *p = src.file;
-	const uchar *header_line = p;
-	uchar delim = pair->delimiter;
+	const u8 *p = src.file;
+	const u8 *header_line = p;
+	u8 delim = pair->delimiter;
 	s32 cols = dsv_cols(p, src.fend, delim);
 
 	const char **MALLOCA(headers, cols + 1);
@@ -102,10 +101,10 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 
 	for (s32 col = 0; col < cols; col++) {
 		s32 flen;
-		const uchar *field = dsv_field(&p, src.fend, delim, &flen);
+		const u8 *field = dsv_field(&p, src.fend, delim, &flen);
 		if (!flen) {
 			for (s32 j = 0; j < col; j++)
-				free((char *)headers[j]);
+				free((void *)headers[j]);
 			free(headers);
 			perr("First row has empty column");
 			return PARSER_ERROR;
@@ -113,7 +112,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 		char *MALLOCA(header, flen + 1);
 		if (!header) {
 			for (s32 j = 0; j < col; j++)
-				free((char *)headers[j]);
+				free((void *)headers[j]);
 			free(headers);
 			perr("Out of memory during DSV parsing");
 			return PARSER_ERROR;
@@ -151,13 +150,13 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 	}
 
 	for (s32 col = 0; col < cols; col++)
-		free((char *)headers[col]);
+		free((void *)headers[col]);
 	free(headers);
 
 	s32 num = 0;
 	s32 max = 0;
 	s64 sum = 0;
-	uchar *w = src.file;
+	u8 *w = src.file;
 	while (p < src.fend) {
 		while (p < src.fend && (*p == '\n' || *p == '\r'))
 			p++;
@@ -173,7 +172,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 				return PARSER_ERROR;
 			}
 		}
-		const uchar *field = dsv_field(&p, src.fend, delim, &flen);
+		const u8 *field = dsv_field(&p, src.fend, delim, &flen);
 		if (!flen) {
 			perr("Sequence #%d is empty", num);
 			return PARSER_ERROR;
@@ -181,7 +180,7 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 
 		s32 slen = 0;
 		for (s32 i = 0; i < flen; i++) {
-			uchar c = (uchar)toupper(field[i]);
+			u8 c = (u8)toupper(field[i]);
 			if (c == '\r' || c == '\n' || c == ' ' || c == '"')
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {

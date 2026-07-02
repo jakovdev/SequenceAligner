@@ -28,7 +28,7 @@ bool output_load(struct output *out, struct input in)
 	}
 
 	for (s32 i = 0; i < in.num; i++)
-		seqs[i] = (char *)(in.seqs + in.meta[i].off);
+		seqs[i] = (const char *)(in.seqs + in.meta[i].off);
 	bench_output_end();
 
 	pinfo("Similarity Matrix dimensions: %d x %d", in.num, in.num);

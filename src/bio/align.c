@@ -44,19 +44,19 @@ bool align(struct input in, struct output out)
 #pragma omp for schedule(dynamic)
 		for (s32 j = 1; j < in.num; j++) {
 			struct meta m1 = in.meta[j];
-			const uchar *restrict s1 = in.seqs + m1.off;
+			const u8 *restrict s1 = in.seqs + m1.off;
 			s32 l1 = m1.len;
 			for (s32 i = 0; i < l1; ++i)
 				ind[i] = SEQ_LUT[s1[i]];
 			for (s32 i = 0; i < j; i++) {
 				struct meta m2 = in.meta[i];
-				const uchar *restrict s2 = in.seqs + m2.off;
+				const u8 *restrict s2 = in.seqs + m2.off;
 				s32 l2 = m2.len;
 				cols[i] = method(l1, l2, s2, ind, table);
 			}
 
 			output_fill(out, cols, j);
-			progress_add((size_t)j);
+			progress_add(j);
 		}
 
 		progress_flush();

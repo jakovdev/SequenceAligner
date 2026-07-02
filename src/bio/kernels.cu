@@ -6,7 +6,7 @@ extern "C" const void *const pC = &C;
 
 __forceinline__ __device__ s32 d_seq_lut(s32 ij, s32 pos)
 {
-	return C.seq_lut[(uchar)C.letters[C.meta[ij].off + pos]];
+	return C.seq_lut[C.letters[C.meta[ij].off + pos]];
 }
 
 __forceinline__ __device__ s32 d_sub_mat(s32 c1, s32 c2)

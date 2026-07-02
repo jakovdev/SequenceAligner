@@ -5,8 +5,8 @@
 
 struct input;
 struct source {
-	uchar *file;
-	const uchar *fend;
+	u8 *file;
+	const u8 *fend;
 	const char *ext;
 };
 

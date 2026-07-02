@@ -186,7 +186,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 		return nullptr;
 	}
 	CloseHandle(fd);
-	*end = (uchar *)buf + st.QuadPart;
+	*end = (u8 *)buf + st.QuadPart;
 #else
 	int fd = open(path, O_RDONLY);
 	if (fd < 0) {
@@ -215,7 +215,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 		return nullptr;
 	}
 	close(fd);
-	*end = (uchar *)buf + st.st_size;
+	*end = (u8 *)buf + st.st_size;
 #endif
 	return buf;
 }

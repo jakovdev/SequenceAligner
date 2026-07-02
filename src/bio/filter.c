@@ -34,13 +34,13 @@ bool filter(struct input *in)
 #pragma omp for schedule(dynamic)
 		for (s32 j = 1; j < num; j++) {
 			struct meta m1 = in->meta[j];
-			const uchar *restrict s1 = in->seqs + m1.off;
+			const u8 *restrict s1 = in->seqs + m1.off;
 			for (s32 i = 0; i < j; i++) {
 				if (lost[i])
 					continue;
 
 				struct meta m2 = in->meta[i];
-				const uchar *restrict s2 = in->seqs + m2.off;
+				const u8 *restrict s2 = in->seqs + m2.off;
 				s32 ml = min(m1.len, m2.len);
 				if (LEN_BAD(ml) || SEQ_BAD(s1) || SEQ_BAD(s2))
 					unreachable_release();

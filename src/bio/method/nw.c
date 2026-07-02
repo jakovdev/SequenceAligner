@@ -2,7 +2,7 @@
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
-static s32 align_nw(s32 len1, s32 len2, const uchar *restrict seq2,
+static s32 align_nw(s32 len1, s32 len2, const u8 *restrict seq2,
 		    const s32 *restrict ind, s32 *restrict table)
 {
 	if (LEN_BAD(len1) || LEN_BAD(len2) || SEQ_BAD(seq2))

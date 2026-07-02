@@ -37,9 +37,8 @@ bool input_load(struct input *in)
 	}
 
 	pverb("Copying %s into memory", name);
-	void *fend;
-	uchar *file = copy_file(path, &fend, CACHE_LINE);
-	if (!file || (uchar *)fend - file > S32_MAX)
+	void *fend, *file = copy_file(path, &fend, CACHE_LINE);
+	if (!file || fend - file > S32_MAX)
 		return false;
 
 	pverbm("Trying out parsers for %s", name);
@@ -72,9 +71,9 @@ parse_success:
 	}
 
 	in->seqs = file;
-	const uchar *p = file;
+	const void *p = file;
 	for (s32 i = 0; i < num; i++) {
-		s32 len = (s32)strlen((const char *)p);
+		s32 len = (s32)strlen(p);
 		meta[i] = (struct meta){ .off = (s32)(p - file), .len = len };
 		p += len + 1;
 	}

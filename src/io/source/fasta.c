@@ -25,7 +25,7 @@ static enum parse_result parse_fasta(struct source src, struct input *in)
 		return PARSER_UNSUPPORTED;
 
 	pverbm("Using FASTA parser");
-	const uchar *p = src.file;
+	const u8 *p = src.file;
 	if (*p != '>') {
 		perr("Data before first header");
 		return PARSER_ERROR;
@@ -34,7 +34,7 @@ static enum parse_result parse_fasta(struct source src, struct input *in)
 	s32 num = 0;
 	s32 max = 0;
 	s64 sum = 0;
-	uchar *w = src.file;
+	u8 *w = src.file;
 	while (p < src.fend) {
 		while (p < src.fend && *p != '\n' && *p != '\r')
 			p++;
@@ -48,7 +48,7 @@ static enum parse_result parse_fasta(struct source src, struct input *in)
 		num++;
 		s32 slen = 0;
 		while (p < src.fend && *p != '>') {
-			uchar c = (uchar)toupper(*p++);
+			u8 c = (u8)toupper(*p++);
 			if (c == '\r' || c == '\n' || c == ' ')
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {
