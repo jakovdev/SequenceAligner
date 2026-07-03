@@ -1,4 +1,4 @@
-#include "interface/seqalign_cuda.h"
+#include "bio/cuda.h"
 
 #include <args.h>
 #include <print.h>

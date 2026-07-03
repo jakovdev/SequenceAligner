@@ -1,7 +1,7 @@
 #include <args.h>
 #include <print.h>
 
-#include "interface/seqalign_cuda.h"
+#include "bio/cuda.h"
 #include "io/input.h"
 #include "io/output.h"
 #include "util/benchmark.h"
