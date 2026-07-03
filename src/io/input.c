@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "bio/align.h"
-#include "io/source.h"
+#include "io/reader.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 
@@ -41,14 +41,14 @@ bool input_load(struct input *in)
 	if (!file || fend - file > S32_MAX)
 		return false;
 
-	pverbm("Trying out parsers for %s", name);
-	for (auto s = __start_sources; s < __stop_sources; s++) {
-		switch (s->parse((struct source){ file, fend, dot + 1 }, in)) {
-		case PARSER_UNSUPPORTED:
+	pverbm("Trying out readers for %s", name);
+	for (auto s = __start_readers; s < __stop_readers; s++) {
+		switch (s->read((struct reader){ file, fend, dot + 1 }, in)) {
+		case READER_UNSUPPORTED:
 			continue;
-		case PARSER_SUCCESS:
-			goto parse_success;
-		case PARSER_ERROR:
+		case READER_SUCCESS:
+			goto reader_success;
+		case READER_ERROR:
 			free_aligned(file);
 			return false;
 		}
@@ -57,7 +57,7 @@ bool input_load(struct input *in)
 	free_aligned(file);
 	perr("Unsupported file format: %s", name);
 	return false;
-parse_success:
+reader_success:
 	s32 num = in->num;
 	if (num < SEQ_N_MIN) {
 		perr("Not enough sequences: %d (min: %d)", num, SEQ_N_MIN);

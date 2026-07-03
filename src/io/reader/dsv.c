@@ -1,4 +1,4 @@
-#include "io/source.h"
+#include "io/reader.h"
 
 #include <ctype.h>
 #include <limits.h>
@@ -76,38 +76,38 @@ static s32 dsv_cols(const u8 *p, const u8 *end, u8 delim)
 	return count;
 }
 
-static enum parse_result parse_dsv(struct source src, struct input *in)
+static enum reader_result read_dsv(struct reader r, struct input *in)
 {
-	pverbm("Trying out DSV parser");
+	pverbm("Trying out DSV reader");
 	const struct dsv_pair *pair = DSV_PAIRS;
 	for (; pair->ext; pair++) {
-		if (strcasecmp(pair->ext, src.ext) == 0)
+		if (strcasecmp(pair->ext, r.ext) == 0)
 			break;
 	}
 	if (!pair->ext)
-		return PARSER_UNSUPPORTED;
+		return READER_UNSUPPORTED;
 
-	pverbm("Using DSV parser");
-	const u8 *p = src.file;
+	pverbm("Using DSV reader");
+	const u8 *p = r.file;
 	const u8 *header_line = p;
 	u8 delim = pair->delimiter;
-	s32 cols = dsv_cols(p, src.fend, delim);
+	s32 cols = dsv_cols(p, r.fend, delim);
 
 	const char **MALLOCA(headers, cols + 1);
 	if (!headers) {
 		perr("Out of memory during DSV parsing");
-		return PARSER_ERROR;
+		return READER_ERROR;
 	}
 
 	for (s32 col = 0; col < cols; col++) {
 		s32 flen;
-		const u8 *field = dsv_field(&p, src.fend, delim, &flen);
+		const u8 *field = dsv_field(&p, r.fend, delim, &flen);
 		if (!flen) {
 			for (s32 j = 0; j < col; j++)
 				free((void *)headers[j]);
 			free(headers);
 			perr("First row has empty column");
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 		char *MALLOCA(header, (flen + 1));
 		if (!header) {
@@ -115,13 +115,13 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 				free((void *)headers[j]);
 			free(headers);
 			perr("Out of memory during DSV parsing");
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 		memcpy(header, field, flen);
 		header[flen] = '\0';
 		headers[col] = header;
 	}
-	while (p < src.fend && (*p == '\n' || *p == '\r'))
+	while (p < r.fend && (*p == '\n' || *p == '\r'))
 		p++;
 
 	s32 seq_col = -1;
@@ -156,26 +156,26 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 	s32 num = 0;
 	s32 max = 0;
 	s64 sum = 0;
-	u8 *w = src.file;
-	while (p < src.fend) {
-		while (p < src.fend && (*p == '\n' || *p == '\r'))
+	u8 *w = r.file;
+	while (p < r.fend) {
+		while (p < r.fend && (*p == '\n' || *p == '\r'))
 			p++;
-		if (p >= src.fend)
+		if (p >= r.fend)
 			break;
 
 		num++;
 		s32 flen = 0;
 		for (s32 col = 0; col < seq_col; col++) {
-			dsv_field(&p, src.fend, delim, &flen);
-			if (p >= src.fend || *p == '\n' || *p == '\r') {
+			dsv_field(&p, r.fend, delim, &flen);
+			if (p >= r.fend || *p == '\n' || *p == '\r') {
 				perr("DSV row #%d has no sequence column", num);
-				return PARSER_ERROR;
+				return READER_ERROR;
 			}
 		}
-		const u8 *field = dsv_field(&p, src.fend, delim, &flen);
+		const u8 *field = dsv_field(&p, r.fend, delim, &flen);
 		if (!flen) {
 			perr("Sequence #%d is empty", num);
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 
 		s32 slen = 0;
@@ -185,47 +185,47 @@ static enum parse_result parse_dsv(struct source src, struct input *in)
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {
 				perr("Sequence #%d is corrupted", num);
-				return PARSER_ERROR;
+				return READER_ERROR;
 			}
 			if (SEQ_LUT[c] < 0) {
 				perr("Sequence #%d is invalid", num);
-				return PARSER_ERROR;
+				return READER_ERROR;
 			}
 			*w++ = c;
 			slen++;
 		}
 		if (!slen) {
 			perr("Sequence #%d is empty", num);
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 		if (!sequence_length_limit(slen)) {
 			perr("Sequence #%d exceeds length limits", num);
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 		if (sum + slen + 1 > S32_MAX) {
 			perr("Length overflow after %d sequences", num);
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 		max = max(max, slen);
 		sum += slen + 1;
 		*w++ = '\0';
 
 		for (s32 i = seq_col + 1; i < cols; i++) {
-			if (p >= src.fend || *p == '\n' || *p == '\r') {
+			if (p >= r.fend || *p == '\n' || *p == '\r') {
 				perr("DSV row #%d has too few columns", num);
-				return PARSER_ERROR;
+				return READER_ERROR;
 			}
-			dsv_field(&p, src.fend, delim, &flen);
+			dsv_field(&p, r.fend, delim, &flen);
 		}
-		if (p < src.fend && *p != '\n' && *p != '\r') {
+		if (p < r.fend && *p != '\n' && *p != '\r') {
 			perr("DSV row #%d has too many columns", num);
-			return PARSER_ERROR;
+			return READER_ERROR;
 		}
 	}
 	in->max = max;
 	in->num = num;
 	pverbl("DSV parsing finished successfuly");
-	return PARSER_SUCCESS;
+	return READER_SUCCESS;
 }
 
-SOURCE_REGISTER(dsv, parse_dsv);
+READER_REGISTER(dsv, read_dsv);
