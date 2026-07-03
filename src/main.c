@@ -5,6 +5,7 @@
 #include "io/input.h"
 #include "io/output.h"
 #include "util/benchmark.h"
+#include "util/macros.h"
 
 int main(int argc, char *argv[])
 {
@@ -31,7 +32,7 @@ int main(int argc, char *argv[])
 	if (!cuda_align(in, out))
 		return 1;
 
-	if (!output_flush(&out))
+	if (!output_flush(out))
 		return 1;
 
 	bench_total_print(alignments((s64)in.num));

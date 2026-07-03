@@ -7,6 +7,7 @@
 #include "bio/align.h"
 #include "bio/cuda.h"
 #include "io/input.h"
+#include "io/writer.h"
 #include "system/os.h"
 #include "util/benchmark.h"
 
@@ -83,19 +84,29 @@ void output_fill(struct output out, const s32 *cols, size_t col)
 	memcpy(out.matrix + alignments(col), cols, bytesof(out.matrix, col));
 }
 
-bool (*FLUSH_FORMATS[FLUSH_COUNT])(const struct output *, const char *);
-enum output_format FLUSH_ID = FLUSH_HDF5 /* FLUSH_INVALID */;
-
-bool output_flush(const struct output *out)
+bool output_flush(struct output out)
 {
 	if (disable_write)
 		return true;
-	psection("Writing Output");
-	bench_output_start();
-	bool retval = FLUSH_FORMATS[FLUSH_ID](out, OUTPUT_PATH);
-	bench_output_end();
-	bench_output_print();
-	return retval;
+
+	psection("Writing Similarity Matrix");
+	pverb("Trying out writers for %s", file_name(OUTPUT_PATH));
+	for (auto s = __start_writers; s < __stop_writers; s++) {
+		bench_output_start();
+		switch (s->write(out, OUTPUT_PATH)) {
+		case WRITER_UNSUPPORTED:
+			continue;
+		case WRITER_SUCCESS:
+			bench_output_end();
+			bench_output_print();
+			return true;
+		case WRITER_ERROR:
+			return false;
+		}
+	}
+
+	perr("Unsupported output file format: %s", file_name(OUTPUT_PATH));
+	return false;
 }
 
 void output_free(struct output *out)

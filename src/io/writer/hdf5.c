@@ -1,18 +1,39 @@
+#include "io/writer.h"
+
 #include <args.h>
 #include <hdf5.h>
 #include <print.h>
 #include <string.h>
 
-#include "io/output.h"
 #include "system/os.h"
+#include "util/benchmark.h" /* TEMP */
 #include "util/macros.h"
 
 constexpr size_t H5_MAX_CHUNK_SIZE = 4 * KiB;
 constexpr size_t H5_MIN_CHUNK_SIZE = 1 * KiB / 4;
 unsigned int COMPRESSION;
 
-static bool flush_hdf5(const struct output *out, const char *path)
+static bool hdf5_ext(const char *path)
 {
+	static const char *EXTS[] = { "hdf5", "h5", nullptr };
+	const char *name = file_name(path);
+	const char *dot = strrchr(name, '.');
+	if (dot && dot != name) {
+		for (const char **ext = EXTS; *ext; ext++) {
+			if (strcasecmp(*ext, dot + 1) == 0)
+				return true;
+		}
+	}
+	return print_Yn("Invalid file extension, default to hdf5?"); /* TEMP */
+}
+
+static enum writer_result write_hdf5(struct output out, const char *path)
+{
+	pverbm("Trying out HDF5 writer");
+	if (!hdf5_ext(path))
+		return WRITER_UNSUPPORTED;
+	pverbl("Using HDF5 writer");
+	bench_output_start(); /* TEMP */
 	hid_t fapl = H5Pcreate(H5P_FILE_ACCESS);
 	H5Pset_libver_bounds(fapl, H5F_LIBVER_LATEST, H5F_LIBVER_LATEST);
 	H5Pset_alignment(fapl, H5_MAX_CHUNK_SIZE, H5_MAX_CHUNK_SIZE);
@@ -20,17 +41,17 @@ static bool flush_hdf5(const struct output *out, const char *path)
 	H5Pclose(fapl);
 	if (file_id < 0) {
 		perr("Failed to create HDF5 file: %s", file_name(path));
-		return false;
+		return WRITER_ERROR;
 	}
 
-	pinfo("Writing %zu sequences to HDF5", out->dim);
+	pinfo("Writing %zu sequences to HDF5", out.dim);
 
-	hsize_t seq_dims[1] = { out->dim };
+	hsize_t seq_dims[1] = { out.dim };
 	hid_t seq_space = H5Screate_simple(1, seq_dims, nullptr);
 	if (seq_space < 0) {
 		perr("Failed to create HDF5 dataspace for sequences");
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
 	hid_t string_type = H5Tcopy(H5T_C_S1);
@@ -43,43 +64,43 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		H5Sclose(seq_space);
 		H5Tclose(string_type);
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
 	herr_t status = H5Dwrite(sequences_id, string_type, H5S_ALL, H5S_ALL,
-				 H5P_DEFAULT, out->seqs);
+				 H5P_DEFAULT, out.seqs);
 	H5Dclose(sequences_id);
 	H5Sclose(seq_space);
 	H5Tclose(string_type);
 	if (status < 0) {
 		perr("Failed to write sequence data to HDF5 dataset");
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
-	hsize_t matrix_dims[2] = { out->dim, out->dim };
+	hsize_t matrix_dims[2] = { out.dim, out.dim };
 	hid_t matrix_space = H5Screate_simple(2, matrix_dims, nullptr);
 	if (matrix_space < 0) {
 		perr("Failed to create HDF5 dataspace for Similarity Matrix");
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-	size_t chunk_dim = out->dim;
-	if (out->dim > H5_MIN_CHUNK_SIZE) {
+	size_t chunk_dim = out.dim;
+	if (out.dim > H5_MIN_CHUNK_SIZE) {
 		chunk_dim = 64;
 		size_t square = chunk_dim * chunk_dim * sizeof(chunk_dim);
 		size_t target_bytes = (2 * MiB) / (1 + COMPRESSION / 3);
-		while (chunk_dim < out->dim && square < target_bytes)
+		while (chunk_dim < out.dim && square < target_bytes)
 			chunk_dim *= 2;
-		if (chunk_dim > out->dim || square > target_bytes)
+		if (chunk_dim > out.dim || square > target_bytes)
 			chunk_dim /= 2;
 
 		chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
 		chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
-		chunk_dim = min(chunk_dim, out->dim);
+		chunk_dim = min(chunk_dim, out.dim);
 		hsize_t chunk_dims[2] = { chunk_dim, chunk_dim };
 		H5Pset_chunk(plist_id, 2, chunk_dims);
 		pverb("HDF5 chunk size: %zu x %zu", chunk_dim, chunk_dim);
@@ -95,20 +116,21 @@ static bool flush_hdf5(const struct output *out, const char *path)
 	if (matrix_id < 0) {
 		perr("Failed to create HDF5 dataset for Similarity Matrix");
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
-	if (!out->triangular) {
+	if (!out.triangular) {
 		pinfo("Writing Similarity Matrix to HDF5");
 		status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, H5S_ALL, H5S_ALL,
-				  H5P_DEFAULT, out->matrix);
+				  H5P_DEFAULT, out.matrix);
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
 		if (status < 0) {
 			perr("Failed to write Similarity Matrix to HDF5");
-			return false;
+			return WRITER_ERROR;
 		}
-		return true;
+		pverb("HDF5 writing finished successfuly");
+		return WRITER_SUCCESS;
 	}
 
 	pinfo("Writing triangular Similarity Matrix to HDF5");
@@ -118,11 +140,11 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		perr("Failed to retrieve available memory");
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
-	s64 dim = out->dim;
-	size_t row_bytes = bytesof(out->matrix, out->dim);
+	s64 dim = out.dim;
+	size_t row_bytes = bytesof(out.matrix, out.dim);
 	s32 max_rows = available / (4 * row_bytes);
 	s32 chunk_size = max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)
@@ -133,7 +155,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		perr("Out of memory during HDF5 conversion");
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
 	hid_t file_space = H5Dget_space(matrix_id);
@@ -142,7 +164,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		free_mmap(buf);
 		H5Dclose(matrix_id);
 		H5Fclose(file_id);
-		return false;
+		return WRITER_ERROR;
 	}
 
 	ppercent(0, "Converting to HDF5");
@@ -152,22 +174,22 @@ static bool flush_hdf5(const struct output *out, const char *path)
 		for (s32 i = off; i < end; i++) {
 			s64 row = dim * (i - off);
 			for (s32 j = i + 1; j < dim; j++)
-				buf[row + j] = out->matrix[tridx(i, j)];
+				buf[row + j] = out.matrix[tridx(i, j)];
 			for (s32 j = 0; j < i; j++) {
 				if (j >= off)
 					buf[row + j] = buf[dim * (j - off) + i];
 				else
-					buf[row + j] = out->matrix[tridx(j, i)];
+					buf[row + j] = out.matrix[tridx(j, i)];
 			}
 		}
 
 		s32 rows = end - off;
 		hsize_t start[2] = { off, 0 };
-		hsize_t count[2] = { rows, out->dim };
+		hsize_t count[2] = { rows, out.dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, nullptr,
 				    count, nullptr);
 
-		hsize_t mem_dims[2] = { rows, out->dim };
+		hsize_t mem_dims[2] = { rows, out.dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, nullptr);
 		if (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");
@@ -175,7 +197,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 			H5Sclose(file_space);
 			H5Dclose(matrix_id);
 			H5Fclose(file_id);
-			return false;
+			return WRITER_ERROR;
 		}
 
 		status = H5Dwrite(matrix_id, H5T_NATIVE_INT32, mem_space,
@@ -187,7 +209,7 @@ static bool flush_hdf5(const struct output *out, const char *path)
 			H5Sclose(file_space);
 			H5Dclose(matrix_id);
 			H5Fclose(file_id);
-			return false;
+			return WRITER_ERROR;
 		}
 
 		pproport(end / dim, "Converting to HDF5");
@@ -198,9 +220,10 @@ static bool flush_hdf5(const struct output *out, const char *path)
 	H5Sclose(file_space);
 	H5Dclose(matrix_id);
 	H5Fclose(file_id);
-	return true;
+	pverb("HDF5 writing finished successfuly");
+	return WRITER_SUCCESS;
 }
-FLUSH_REGISTER(FLUSH_HDF5, flush_hdf5)
+WRITER_REGISTER(hdf5, write_hdf5);
 
 ARG_PARSE_UL(parse_compression, 10, unsigned int, (unsigned int), val > 9,
 	     "Compression level must be between 0-9")
