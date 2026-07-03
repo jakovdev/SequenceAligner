@@ -3,7 +3,7 @@
 #include <ctype.h>
 #include <limits.h>
 #include <print.h>
-#include <string.h>
+#include <strings.h>
 
 #include "bio/align.h"
 #include "io/input.h"
