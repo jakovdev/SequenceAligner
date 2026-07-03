@@ -1,9 +1,8 @@
 #ifndef IO_READER_H
 #define IO_READER_H
 
-#include "system/types.h"
+#include "io/input.h"
 
-struct input;
 struct reader {
 	u8 *file;
 	const u8 *fend;

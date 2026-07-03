@@ -55,7 +55,7 @@ bool input_load(struct input *in)
 	}
 
 	free_aligned(file);
-	perr("Unsupported file format: %s", name);
+	perr("Unsupported input file format: %s", name);
 	return false;
 reader_success:
 	s32 num = in->num;

@@ -6,7 +6,6 @@
 #include <strings.h>
 
 #include "bio/align.h"
-#include "io/input.h"
 #include "util/macros.h"
 
 static const char *EXTS[] = {
