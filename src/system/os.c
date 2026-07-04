@@ -27,7 +27,6 @@
 #include <omp.h>
 
 #include "system/os.h"
-#include "system/types.h"
 
 void *alloc_mmap(size_t bytes, bool tmpfile)
 {
@@ -181,7 +180,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 	DWORD got;
 	if (!ReadFile(fd, buf, st.QuadPart, &got, NULL) || got != st.QuadPart) {
 		perr("Could not read file: %s", file_name(path));
-		free(buf);
+		free_aligned(buf);
 		CloseHandle(fd);
 		return nullptr;
 	}
@@ -210,7 +209,7 @@ void *copy_file(const char *path, void **end, size_t alignment)
 
 	if (pread(fd, buf, st.st_size, 0) != st.st_size) {
 		perr("Could not read file: %s", file_name(path));
-		free(buf);
+		free_aligned(buf);
 		close(fd);
 		return nullptr;
 	}
