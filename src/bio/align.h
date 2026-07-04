@@ -30,24 +30,23 @@ extern const struct align {
 			    s32 *restrict);
 	struct arg_callback (*const validate)(void);
 	const void *const kernel;
-	const char **aliases;
-	enum {
-		GAP_LINEAR,
-		GAP_AFFINE,
-	} gap;
+	const char *name;
+	const char *arg;
+	const enum { GAP_LINEAR, GAP_AFFINE } gap;
 } __start_aligns[], __stop_aligns[], *ALIGN;
 
-#define ALIGN_REGISTER(NAME)                     \
-	static const struct align __align_##NAME \
-		__attribute__((SECTION(struct align, "aligns")))
-
-#define ALIGN_ALIASES(LONG, SHORT, ...) \
-	aliases = ((const char *[]){ LONG, SHORT, ##__VA_ARGS__, nullptr })
-
-#ifdef USE_CUDA
-#define ALIGN_KERNEL(FN) extern void FN(s32 *, s64, s64)
-#else
-#define ALIGN_KERNEL(FN) constexpr void *FN = nullptr
-#endif
+#define ALIGN_REGISTER(NAME, ARG, GAP)                               \
+	ROSTRING_EXTEND(alignh, "  " NAME ": " #ARG "\\n");          \
+	[[gnu::weak]] void kernel_##ARG(s32 *, s64, s64);            \
+	[[gnu::weak]] struct arg_callback validate_##ARG(void);      \
+	static const struct align __align_##ARG                      \
+		__attribute__((SECTION(struct align, "aligns"))) = { \
+			.method = align_##ARG,                       \
+			.validate = validate_##ARG,                  \
+			.kernel = kernel_##ARG,                      \
+			.arg = #ARG,                                 \
+			.name = NAME,                                \
+			.gap = GAP,                                  \
+		}
 
 #endif /* BIO_ALIGN_H */

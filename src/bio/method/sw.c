@@ -61,11 +61,4 @@ static s32 align_sw(s32 len1, s32 len2, const u8 *restrict seq2,
 	return score;
 }
 
-ALIGN_KERNEL(kernel_sw);
-
-ALIGN_REGISTER(sw) = {
-	.ALIGN_ALIASES("Smith-Waterman", "sw"),
-	.method = align_sw,
-	.kernel = kernel_sw,
-	.gap = GAP_AFFINE,
-};
+ALIGN_REGISTER("Smith-Waterman", sw, GAP_AFFINE);

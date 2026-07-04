@@ -71,26 +71,12 @@ bool align(struct input in, struct output out)
 	return true;
 }
 
-static char help[512];
-
-[[gnu::constructor]]
-static void build_help_strings(void)
-{
-	snprintf(help, sizeof(help), "Alignment method\n");
-	for (auto m = __start_aligns; m < __stop_aligns; m++) {
-		size_t len = strlen(help);
-		snprintf(help + len, sizeof(help) - len, "  %s: %s\n",
-			 *m->aliases, m->aliases[1]);
-	}
-}
-
 static struct arg_callback parse_align(const char *str, void *)
 {
 	for (ALIGN = __start_aligns; ALIGN < __stop_aligns; ALIGN++) {
-		for (const char **a = ALIGN->aliases; *a; a++) {
-			if (strcasecmp(str, *a) == 0)
-				return ARG_VALID();
-		}
+		if (strcasecmp(str, ALIGN->arg) == 0 ||
+		    strcasecmp(str, ALIGN->name) == 0)
+			return ARG_VALID();
 	}
 	return ARG_INVALID("Invalid alignment method");
 }
@@ -102,16 +88,18 @@ static struct arg_callback validate_align(void)
 
 static void print_align(void)
 {
-	pinfom("Method: %s", *ALIGN->aliases);
+	pinfom("Method: %s", ALIGN->name);
 }
 
 ARG_EXTERN(substitution_matrix);
 ARG_EXTERN(gap_penalty);
 
+ROSTRING_CREATE(alignh, "Alignment method\\n");
+
 ARGUMENT(align) = {
 	.opt = 'a',
 	.lopt = "align",
-	.help = help,
+	.help = alignh,
 	.param = "METHOD",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,

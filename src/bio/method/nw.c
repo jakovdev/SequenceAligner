@@ -41,11 +41,4 @@ static s32 align_nw(s32 len1, s32 len2, const u8 *restrict seq2,
 	return table[cols * len2 + len1];
 }
 
-ALIGN_KERNEL(kernel_nw);
-
-ALIGN_REGISTER(nw) = {
-	.ALIGN_ALIASES("Needleman-Wunsch", "nw"),
-	.method = align_nw,
-	.kernel = kernel_nw,
-	.gap = GAP_LINEAR,
-};
+ALIGN_REGISTER("Needleman-Wunsch", nw, GAP_LINEAR);

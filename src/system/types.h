@@ -21,8 +21,24 @@ typedef uint8_t u8;
 
 #ifndef _WIN32
 #define SECTION(type, name) aligned(alignof(type)), section(name), used, retain
+#define ASM_SECTION_PUSH(section) asm(".pushsection ." section ",\"a\"\n\t")
+#define ASM_SECTION_POP(section) asm(".popsection\n\t")
 #else
 #define SECTION(type, name) aligned(alignof(type)), section(name), used
+#define ASM_SECTION_PUSH(section) asm(".section ." section ",\"r\"\n\t")
+#define ASM_SECTION_POP(section) asm(".section ." section "\n\t")
 #endif
+
+#define ASM_SECTION(into, section) \
+	ASM_SECTION_PUSH(section); \
+	asm(into);                 \
+	ASM_SECTION_POP(section)
+#define ROSTRING_CREATE(name, ...)                                     \
+	extern const char name[];                                      \
+	ASM_SECTION(".globl " #name "\n\t" #name ":\n\t", #name "$A"); \
+	__VA_OPT__(ROSTRING_EXTEND(name, __VA_ARGS__);)                \
+	ASM_SECTION(".byte 0\n\t", #name "$C")
+#define ROSTRING_EXTEND(name, str) \
+	ASM_SECTION(".ascii \"" str "\"\n\t", #name "$B")
 
 #endif /* SYSTEM_TYPES_H */

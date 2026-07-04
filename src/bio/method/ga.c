@@ -67,13 +67,13 @@ static s32 align_ga(s32 len1, s32 len2, const u8 *restrict seq2,
 	return match[cols * len2 + len1];
 }
 
-static struct arg_callback validate_ga(void)
+struct arg_callback validate_ga(void)
 {
 	if (GAP_OPN != GAP_EXT)
 		return ARG_VALID();
 	auto a = __start_aligns;
 	for (; a < __stop_aligns; a++) {
-		if (strcasecmp(*a->aliases, "Needleman-Wunsch") == 0)
+		if (strcasecmp(a->name, "Needleman-Wunsch") == 0)
 			break;
 	}
 	if (a == __stop_aligns)
@@ -87,12 +87,4 @@ static struct arg_callback validate_ga(void)
 	return ARG_VALID();
 }
 
-ALIGN_KERNEL(kernel_ga);
-
-ALIGN_REGISTER(ga) = {
-	.ALIGN_ALIASES("Gotoh", "ga"),
-	.method = align_ga,
-	.validate = validate_ga,
-	.kernel = kernel_ga,
-	.gap = GAP_AFFINE,
-};
+ALIGN_REGISTER("Gotoh", ga, GAP_AFFINE);
