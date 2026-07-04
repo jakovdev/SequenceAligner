@@ -85,8 +85,8 @@ You will find the executable inside the `release` folder once you uncompress it.
     - Development
       - Compiler
         - Libraries
-          - [x] `CRT`
           - [x] `NVVM`
+          - [x] `CRT`
         - [x] `nvcc`
     - Runtime
       - Libraries
