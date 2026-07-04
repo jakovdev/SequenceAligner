@@ -105,7 +105,7 @@ if(NOT IS_MINGW)
       set(CUDA_KERNEL_OBJ "${MSYS2_CUDA}/kernels.cu.obj")
       set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
       set(NVCC_COMMAND
-          "nvcc;-Xcompiler=/GS-,/GR-,/Zl,/Zc:threadSafeInit-;-I;${CMAKE_SOURCE_DIR}/src;-I;${CMAKE_SOURCE_DIR}/third_party/clix;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
+          "nvcc;-Xcompiler=/GS-,/GR-,/Zl,/Zc:threadSafeInit-;-noeh;-I;${CMAKE_SOURCE_DIR}/src;-I;${CMAKE_SOURCE_DIR}/third_party/clix;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
       )
       add_custom_command(
         OUTPUT "${CUDA_KERNEL_OBJ}"
@@ -161,8 +161,7 @@ target_compile_options(
   PRIVATE
     $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fno-plt;-flto=auto>
     $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og>
-    $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static>
-    $<$<AND:$<COMPILE_LANGUAGE:CUDA>,$<CONFIG:Debug>>:-G>)
+    $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static;-noeh>)
 target_link_options(seqalign PRIVATE -flto=auto)
 
 if(IS_MSYS2 OR IS_MINGW)
