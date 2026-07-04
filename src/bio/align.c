@@ -31,10 +31,9 @@ bool align(struct input in, struct output out)
 	bench_align_start();
 #pragma omp parallel
 	{
-		s32 *MALLOCA_AL(table, CACHE_LINE, TABLE_SIZE * mult);
-		s32 *MALLOCA_AL(ind, CACHE_LINE, in.max);
+		s32 *MALLOCA_AL(s1i, CACHE_LINE, (TABLE_SIZE * mult + in.max));
 		s32 *MALLOCA_AL(cols, CACHE_LINE, in.num);
-		if (!table || !ind || !cols) {
+		if (!s1i || !cols) {
 #pragma omp single
 			{
 				perr("Out of memory for alignment buffers");
@@ -47,12 +46,12 @@ bool align(struct input in, struct output out)
 			const u8 *restrict s1 = in.seqs + m1.off;
 			s32 l1 = m1.len;
 			for (s32 i = 0; i < l1; ++i)
-				ind[i] = SEQ_LUT[s1[i]];
+				s1i[i] = SEQ_LUT[s1[i]];
 			for (s32 i = 0; i < j; i++) {
 				struct meta m2 = in.meta[i];
 				const u8 *restrict s2 = in.seqs + m2.off;
 				s32 l2 = m2.len;
-				cols[i] = method(l1, l2, s2, ind, table);
+				cols[i] = method(l1, l2, s1i, s2);
 			}
 
 			output_fill(out, cols, j);
@@ -61,8 +60,7 @@ bool align(struct input in, struct output out)
 
 		progress_flush();
 		free_aligned(cols);
-		free_aligned(ind);
-		free_aligned(table);
+		free_aligned(s1i);
 	}
 
 	bench_align_end();

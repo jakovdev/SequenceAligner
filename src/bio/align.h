@@ -26,8 +26,7 @@ constexpr s32 SEQ_LEN_MAX = S32_MAX - 1;
 #define SEQ_BAD(s) (!*s)
 
 extern const struct align {
-	s32 (*const method)(s32, s32, const u8 *restrict, const s32 *restrict,
-			    s32 *restrict);
+	s32 (*const method)(s32, s32, s32 *restrict, const u8 *restrict);
 	struct arg_callback (*const validate)(void);
 	const void *const kernel;
 	const char *name;
