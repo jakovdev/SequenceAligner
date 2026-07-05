@@ -31,7 +31,7 @@ bool align(struct input in, struct output out)
 	bench_align_start();
 #pragma omp parallel
 	{
-		s32 *MALLOCA_AL(s1i, CACHE_LINE, (TABLE_SIZE * mult + in.max));
+		s32 *MALLOCA_AL(s1i, CACHE_LINE, TABLE_SIZE * mult + in.max);
 		s32 *MALLOCA_AL(cols, CACHE_LINE, in.num);
 		if (!s1i || !cols) {
 #pragma omp single

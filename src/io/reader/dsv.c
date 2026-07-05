@@ -108,7 +108,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 			perr("First row has empty column");
 			return READER_ERROR;
 		}
-		char *MALLOCA(header, (flen + 1));
+		char *MALLOCA(header, flen + 1);
 		if (!header) {
 			for (s32 j = 0; j < col; j++)
 				free((void *)headers[j]);

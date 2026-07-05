@@ -11,10 +11,8 @@ constexpr size_t GiB = MiB << 10;
 
 constexpr size_t CACHE_LINE = 64;
 
-#define MALLOC(ptr, bytes) ptr = malloc(bytes)
-#define MALLOCA(ptr, nmemb) MALLOC(ptr, bytesof(ptr, nmemb))
-#define MALLOC_AL(ptr, al, bytes) ptr = alloc_aligned(al, bytes)
-#define MALLOCA_AL(ptr, al, nmemb) MALLOC_AL(ptr, al, bytesof(ptr, nmemb))
+#define MALLOCA(ptr, elem) ptr = malloc(bytesof(ptr, (elem)))
+#define MALLOCA_AL(ptr, al, elem) ptr = alloc_aligned(al, bytesof(ptr, (elem)))
 
 size_t available_memory(void);
 
