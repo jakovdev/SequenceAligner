@@ -1,13 +1,10 @@
-#include "bio/method.h"
+#include "generated/matrices.h"
 
 #include <args.h>
 #include <print.h>
 #include <string.h>
 
 #include "util/macros.h"
-
-#define GENERATED_MATRICES_IMPLEMENTATION
-#include "generated/matrices.h"
 
 s32 SEQ_LUT[SEQ_LUT_SIZE];
 s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
