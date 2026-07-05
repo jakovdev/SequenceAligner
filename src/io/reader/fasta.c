@@ -5,7 +5,7 @@
 #include <print.h>
 #include <strings.h>
 
-#include "bio/align.h"
+#include "bio/method.h"
 #include "util/macros.h"
 
 static const char *EXTS[] = {

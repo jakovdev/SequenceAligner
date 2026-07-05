@@ -1,4 +1,4 @@
-#include "bio/align.h"
+#include "bio/method.h"
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]

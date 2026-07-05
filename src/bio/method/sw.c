@@ -1,4 +1,4 @@
-#include "bio/align.h"
+#include "bio/method.h"
 #include "util/macros.h"
 
 [[gnu::nonnull, gnu::noinline, gnu::hot]]
@@ -7,7 +7,6 @@ static s32 align_sw(s32 l1, s32 l2, s32 *restrict s1i, const u8 *restrict s2)
 	if (LEN_BAD(l1) || LEN_BAD(l2) || SEQ_BAD(s2))
 		unreachable_release();
 
-	extern size_t TABLE_SIZE;
 	s32 *restrict match = s1i + l1;
 	s32 *restrict gap_x = s1i + l1 + TABLE_SIZE;
 	s32 *restrict gap_y = s1i + l1 + TABLE_SIZE * 2;

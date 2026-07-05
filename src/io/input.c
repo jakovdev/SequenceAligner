@@ -4,7 +4,7 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/align.h"
+#include "bio/method.h"
 #include "io/reader.h"
 #include "system/os.h"
 #include "util/benchmark.h"

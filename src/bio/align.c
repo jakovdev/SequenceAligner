@@ -1,10 +1,9 @@
-#include "bio/align.h"
-
 #include <args.h>
 #include <print.h>
 #include <progress.h>
-#include <string.h>
+#include <strings.h>
 
+#include "bio/method.h"
 #include "io/input.h"
 #include "io/output.h"
 #include "system/os.h"
@@ -16,7 +15,7 @@ s32 GAP_OPN;
 s32 GAP_EXT;
 
 size_t TABLE_SIZE;
-const struct align *ALIGN;
+const struct methods *ALIGN;
 
 bool align(struct input in, struct output out)
 {
@@ -71,7 +70,7 @@ bool align(struct input in, struct output out)
 
 static struct arg_callback parse_align(const char *str, void *)
 {
-	for (ALIGN = __start_aligns; ALIGN < __stop_aligns; ALIGN++) {
+	for (ALIGN = __start_methods; ALIGN < __stop_methods; ALIGN++) {
 		if (strcasecmp(str, ALIGN->arg) == 0 ||
 		    strcasecmp(str, ALIGN->name) == 0)
 			return ARG_VALID();

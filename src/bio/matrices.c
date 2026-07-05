@@ -1,4 +1,4 @@
-#include "bio/align.h"
+#include "bio/method.h"
 
 #include <args.h>
 #include <print.h>

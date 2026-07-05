@@ -4,8 +4,8 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/align.h"
 #include "bio/cuda.h"
+#include "bio/method.h"
 #include "io/input.h"
 #include "io/writer.h"
 #include "system/os.h"
