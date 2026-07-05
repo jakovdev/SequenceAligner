@@ -4,7 +4,6 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/cuda.h"
 #include "bio/method.h"
 #include "io/input.h"
 #include "io/writer.h"
@@ -34,8 +33,9 @@ bool output_load(struct output *out, struct input in)
 
 	pinfo("Similarity Matrix dimensions: %d x %d", in.num, in.num);
 	size_t bytes = bytesof(out->matrix, in.num * in.num);
-	bool tmpf = bytes > available_memory() * 3 / 4;
-	bool triangular = tmpf || !cuda_memory(bytes);
+	bool tmpf = bytes > memory_cpu() * 3 / 4;
+	size_t mem_gpu = memory_gpu() * 3 / 4;
+	bool triangular = tmpf || mem_gpu ? bytes > mem_gpu : false;
 	if (triangular) {
 		bytes = bytesof(out->matrix, alignments((size_t)in.num));
 		pinfo("Using triangular matrix instead of full matrix");

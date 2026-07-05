@@ -1,3 +1,5 @@
+#include "bio/align.h"
+
 #include <args.h>
 #include <print.h>
 #include <progress.h>
@@ -17,7 +19,7 @@ s32 GAP_EXT;
 size_t TABLE_SIZE;
 const struct methods *ALIGN;
 
-bool align(struct input in, struct output out)
+bool align_cpu(struct input in, struct output out)
 {
 	size_t alignments = alignments((size_t)in.num);
 	pinfo("Performing %zu pairwise alignments", alignments);

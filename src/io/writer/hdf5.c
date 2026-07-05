@@ -135,7 +135,7 @@ static enum writer_result write_hdf5(struct output out, const char *path)
 
 	pinfo("Writing triangular Similarity Matrix to HDF5");
 
-	size_t available = available_memory();
+	size_t available = memory_cpu();
 	if (!available) {
 		perr("Failed to retrieve available memory");
 		H5Dclose(matrix_id);

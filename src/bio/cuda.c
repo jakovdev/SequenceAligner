@@ -1,9 +1,7 @@
-#include "bio/cuda.h"
-
 #include <args.h>
 #include <print.h>
 
-bool align(struct input, struct output);
+#include "system/os.h"
 
 #ifdef USE_CUDA
 #ifdef __MINGW64__
@@ -11,104 +9,60 @@ bool align(struct input, struct output);
 #endif
 #include <cuda_runtime_api.h>
 #include <string.h>
+#include <stdlib.h>
 
+#include "bio/align.h"
 #include "bio/kernels.cuh"
 #include "io/input.h"
 #include "io/output.h"
-#include "system/os.h"
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-#define CALLR(cuda_func)                                     \
-	do {                                                 \
-		err = cuda_func;                             \
-		if (err != cudaSuccess) {                    \
-			perr("%s", cudaGetErrorString(err)); \
-			return false;                        \
-		}                                            \
+#define CALL(cuda_func)                                            \
+	do {                                                       \
+		err = cuda_func;                                   \
+		if (err != cudaSuccess) {                          \
+			perr("CUDA: %s", cudaGetErrorString(err)); \
+			goto ask_cuda;                             \
+		}                                                  \
 	} while (0)
-
-#define CALLJ(cuda_func, jmp_label)                          \
-	do {                                                 \
-		err = cuda_func;                             \
-		if (err != cudaSuccess) {                    \
-			perr("%s", cudaGetErrorString(err)); \
-			goto jmp_label;                      \
-		}                                            \
-	} while (0)
-
-static void cuda_device_close(void)
-{
-	cudaDeviceReset();
-}
 
 static bool no_cuda;
 
-static bool cuda_device_init(void)
+size_t memory_gpu(void)
 {
-	static bool init;
-	if (no_cuda || init)
-		return true;
-
-	int device_count = 0;
-	cudaError_t err = cudaGetDeviceCount(&device_count);
-	if (!device_count || err != cudaSuccess) {
-		pwarn("No CUDA devices available");
-		if (!print_Yn("Would you like to switch to non-CUDA (CPU)?"))
-			return false;
-		no_cuda = true;
-		return true;
-	}
-
-	pverb("Available CUDA Devices: %d", device_count);
-	CALLR(cudaSetDevice(0));
-	atexit(cuda_device_close);
-	init = true;
-	return true;
-}
-
-bool cuda_memory(size_t bytes)
-{
-	if (!cuda_device_init())
-		return false;
 	if (no_cuda)
-		return true;
-
+		return 0;
+	cudaError_t err;
 	size_t free = 0;
 	size_t total = 0;
-	cudaError_t err;
-	CALLJ(cudaMemGetInfo(&free, &total), memory_error);
-	pverb("GPU: %.2f GiB free / %.2f GiB total", (double)free / (double)GiB,
-	      (double)total / (double)GiB);
-	if (free < bytes * 4 / 3) {
-		pverbl("%.2f GiB exceeds available GPU memory",
-		       (double)bytes * 4 / 3 / (double)GiB);
-		return false;
-	}
-
-	return true;
-memory_error:
-	exit(EXIT_FAILURE);
+	CALL(cudaMemGetInfo(&free, &total));
+	return free;
+ask_cuda:
+	no_cuda = print_Yn("Would you like to switch to non-CUDA (CPU)?");
+	if (!no_cuda)
+		exit(EXIT_FAILURE);
+	return 0;
 }
 
-bool cuda_align(struct input in, struct output out)
+bool align_cuda(struct input in, struct output out)
 {
-	if (!cuda_device_init())
-		return false;
 	if (no_cuda)
-		return align(in, out);
+		return align_cpu(in, out);
 
 	if (in.max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
-		return false;
+		goto ask_cuda;
 	}
 
 	cudaError_t err;
 	unsigned int block_max = ({
-		struct cudaDeviceProp dev_prop;
-		CALLR(cudaGetDeviceProperties(&dev_prop, 0));
-		pinfo("Using CUDA device: %s", dev_prop.name);
-		dev_prop.maxThreadsPerBlock;
+		int device;
+		CALL(cudaGetDevice(&device));
+		struct cudaDeviceProp prop;
+		CALL(cudaGetDeviceProperties(&prop, device));
+		pinfo("Using CUDA device: %s", prop.name);
+		prop.maxThreadsPerBlock;
 	});
 
 	struct constants C = {
@@ -125,20 +79,25 @@ bool cuda_align(struct input in, struct output out)
 	s32 sum = in.meta[num - 1].off + in.meta[num - 1].len + 1;
 	size_t meta_bytes = bytesof(in.meta, num);
 
-	CALLR(cudaMalloc((void **)&C.letters, sum));
-	CALLR(cudaMalloc((void **)&C.meta, meta_bytes));
-	CALLR(cudaMemcpy(C.letters, in.seqs, sum, cudaMemcpyHostToDevice));
-	CALLR(cudaMemcpy(C.meta, in.meta, meta_bytes, cudaMemcpyHostToDevice));
+	CALL(cudaMalloc((void **)&C.letters, sum));
+	CALL(cudaMalloc((void **)&C.meta, meta_bytes));
+	CALL(cudaMemcpy(C.letters, in.seqs, sum, cudaMemcpyHostToDevice));
+	CALL(cudaMemcpy(C.meta, in.meta, meta_bytes, cudaMemcpyHostToDevice));
 
 	s32 *matrix = out.matrix;
 	s64 alignments = alignments((s64)num);
 	constexpr s64 batch_size = 64 << 20;
-
-	if (!cuda_memory(bytesof(matrix, num * num))) {
-		if (!cuda_memory(bytesof(matrix, alignments))) {
-			if (!cuda_memory(bytesof(matrix, batch_size))) {
+	size_t free = 0;
+	size_t total = 0;
+	CALL(cudaMemGetInfo(&free, &total));
+	pverb("GPU: %.2f GiB free / %.2f GiB total", (double)free / (double)GiB,
+	      (double)total / (double)GiB);
+	free = free * 3 / 4;
+	if (bytesof(matrix, num * num) > free) {
+		if (bytesof(matrix, alignments) > free) {
+			if (bytesof(matrix, batch_size) > free) {
 				perr("Not enough CUDA Device memory for alignment");
-				return false;
+				goto ask_cuda;
 			}
 		}
 		C.triangular = true;
@@ -152,25 +111,25 @@ bool cuda_align(struct input in, struct output out)
 	s32 active = 0;
 	if (C.triangular) {
 		batch = min(alignments, batch_size);
-		CALLR(cudaMalloc(&scores[0], bytesof(matrix, batch)));
-		CALLR(cudaMemset(scores[0], 0, bytesof(matrix, batch)));
-		CALLR(cudaMalloc(&scores[1], bytesof(matrix, batch)));
-		CALLR(cudaMemset(scores[1], 0, bytesof(matrix, batch)));
+		CALL(cudaMalloc(&scores[0], bytesof(matrix, batch)));
+		CALL(cudaMemset(scores[0], 0, bytesof(matrix, batch)));
+		CALL(cudaMalloc(&scores[1], bytesof(matrix, batch)));
+		CALL(cudaMemset(scores[1], 0, bytesof(matrix, batch)));
 	} else {
 		batch = alignments;
-		CALLR(cudaMalloc(&*scores, bytesof(matrix, num * num)));
-		CALLR(cudaMemset(*scores, 0, bytesof(matrix, num * num)));
+		CALL(cudaMalloc(&*scores, bytesof(matrix, num * num)));
+		CALL(cudaMemset(*scores, 0, bytesof(matrix, num * num)));
 	}
 
-	CALLR(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
-	CALLR(cudaMemset(C.progress, 0, sizeof(*C.progress)));
-	CALLR(cudaMemcpyToSymbol(pC, &C, sizeof(C), 0, cudaMemcpyHostToDevice));
+	CALL(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
+	CALL(cudaMemset(C.progress, 0, sizeof(*C.progress)));
+	CALL(cudaMemcpyToSymbol(pC, &C, sizeof(C), 0, cudaMemcpyHostToDevice));
 
 	const void *kernel = ALIGN->kernel;
 	dim3 block = { block_max, 1, 1 };
 	cudaStream_t compute, memory;
-	CALLR(cudaStreamCreate(&compute));
-	CALLR(cudaStreamCreate(&memory));
+	CALL(cudaStreamCreate(&compute));
+	CALL(cudaStreamCreate(&memory));
 
 	bool subsequent = false, syncing = false, matrix_copied = false;
 	s64 progress = 0;
@@ -183,10 +142,10 @@ bool cuda_align(struct input in, struct output out)
 		s64 offset = batch_last;
 		if (offset >= alignments) {
 			if (subsequent) {
-				CALLR(cudaDeviceSynchronize());
-				CALLR(cudaMemcpy(&progress, C.progress,
-						 sizeof(progress),
-						 cudaMemcpyDeviceToHost));
+				CALL(cudaDeviceSynchronize());
+				CALL(cudaMemcpy(&progress, C.progress,
+						sizeof(progress),
+						cudaMemcpyDeviceToHost));
 				active = 1 - active;
 			}
 			goto cuda_results;
@@ -197,26 +156,25 @@ bool cuda_align(struct input in, struct output out)
 				batch = alignments - offset;
 			if (!batch) {
 				if (subsequent) {
-					CALLR(cudaDeviceSynchronize());
-					CALLR(cudaMemcpy(
-						&progress, C.progress,
-						sizeof(progress),
-						cudaMemcpyDeviceToHost));
+					CALL(cudaDeviceSynchronize());
+					CALL(cudaMemcpy(&progress, C.progress,
+							sizeof(progress),
+							cudaMemcpyDeviceToHost));
 				}
 				goto cuda_results;
 			}
 			if (subsequent) {
-				CALLR(cudaDeviceSynchronize());
-				CALLR(cudaMemcpy(&progress, C.progress,
-						 sizeof(progress),
-						 cudaMemcpyDeviceToHost));
+				CALL(cudaDeviceSynchronize());
+				CALL(cudaMemcpy(&progress, C.progress,
+						sizeof(progress),
+						cudaMemcpyDeviceToHost));
 				active = 1 - active;
 			}
 		}
 
 		dim3 grid = { (batch + block.x - 1) / block.x, 1, 1 };
 		void *args[] = { &scores[active], &offset, &batch };
-		CALLR(cudaLaunchKernel(kernel, grid, block, args, 0, compute));
+		CALL(cudaLaunchKernel(kernel, grid, block, args, 0, compute));
 		batch_last += batch;
 cuda_results:
 
@@ -224,15 +182,14 @@ cuda_results:
 			if (matrix_copied)
 				goto cuda_progress;
 
-			CALLR(cudaStreamSynchronize(compute));
-			CALLR(cudaMemcpy(&progress, C.progress,
-					 sizeof(progress),
-					 cudaMemcpyDeviceToHost));
+			CALL(cudaStreamSynchronize(compute));
+			CALL(cudaMemcpy(&progress, C.progress, sizeof(progress),
+					cudaMemcpyDeviceToHost));
 
 			if (matrix)
-				CALLR(cudaMemcpy(matrix, *scores,
-						 bytesof(matrix, num * num),
-						 cudaMemcpyDeviceToHost));
+				CALL(cudaMemcpy(matrix, *scores,
+						bytesof(matrix, num * num),
+						cudaMemcpyDeviceToHost));
 
 			matrix_copied = true;
 			goto cuda_progress;
@@ -240,7 +197,7 @@ cuda_results:
 
 		if (batch_done >= alignments) {
 			if (syncing) {
-				CALLR(cudaStreamSynchronize(memory));
+				CALL(cudaStreamSynchronize(memory));
 				syncing = false;
 			}
 			goto cuda_progress;
@@ -250,7 +207,7 @@ cuda_results:
 			err = cudaStreamQuery(memory);
 			if (err == cudaErrorNotReady)
 				goto cuda_progress;
-			CALLR(err);
+			CALL(err);
 			syncing = false;
 		}
 
@@ -265,21 +222,20 @@ cuda_results:
 
 		if (subsequent) {
 			if (matrix)
-				CALLR(cudaMemcpyAsync(
+				CALL(cudaMemcpyAsync(
 					matrix + batch_done, scores[1 - active],
 					bytesof(matrix, n_scores),
 					cudaMemcpyDeviceToHost, memory));
 			syncing = true;
 		} else {
-			CALLR(cudaStreamSynchronize(compute));
-			CALLR(cudaMemcpy(&progress, C.progress,
-					 sizeof(progress),
-					 cudaMemcpyDeviceToHost));
+			CALL(cudaStreamSynchronize(compute));
+			CALL(cudaMemcpy(&progress, C.progress, sizeof(progress),
+					cudaMemcpyDeviceToHost));
 			if (matrix)
-				CALLR(cudaMemcpy(matrix + batch_done,
-						 scores[active],
-						 bytesof(matrix, n_scores),
-						 cudaMemcpyDeviceToHost));
+				CALL(cudaMemcpy(matrix + batch_done,
+						scores[active],
+						bytesof(matrix, n_scores),
+						cudaMemcpyDeviceToHost));
 		}
 		batch_done += n_scores;
 cuda_progress:
@@ -291,10 +247,50 @@ cuda_progress:
 	bench_align_end();
 	ppercent(100, "Aligning sequences");
 	bench_align_print();
+	cudaDeviceReset();
 	return true;
+ask_cuda:
+	no_cuda = print_Yn("Would you like to switch to non-CUDA (CPU)?");
+	if (no_cuda)
+		return align_cpu(in, out);
+	return false;
 }
 
-static void print_no_cuda(void)
+static struct arg_callback validate_cuda(void)
+{
+	int device = 0;
+	int count = 0;
+	cudaError_t err = cudaGetDeviceCount(&count);
+	if (!count || err != cudaSuccess) {
+		pwarn("No CUDA Devices found, defaulting to CPU-only");
+		goto disable_cuda;
+	}
+
+	if (count > 1) {
+		const char **MALLOCA(names, count);
+		struct cudaDeviceProp *MALLOCA(props, count);
+		if (!props || !names)
+			return ARG_INVALID("Out of memory, try -C, --no-cuda");
+		for (int i = 0; i < count; i++) {
+			CALL(cudaGetDeviceProperties(&props[i], i));
+			names[i] = props[i].name;
+		}
+		pinfo("You have %d CUDA Devices available", count);
+		device = pchoice(names, count, "Choose your CUDA Device");
+		free(props);
+		free(names);
+	}
+	CALL(cudaSetDevice(device));
+	return ARG_VALID();
+ask_cuda:
+	if (!print_Yn("Would you like to switch to non-CUDA (CPU)?"))
+		return ARG_INVALID("Try using -C, --no-cuda");
+disable_cuda:
+	no_cuda = true;
+	return ARG_VALID();
+}
+
+static void print_cuda_enabled(void)
 
 {
 	pinfom("CUDA: Enabled");
@@ -308,7 +304,9 @@ ARGUMENT(disable_cuda) = {
 	.lopt = "no-cuda",
 	.help = "Disable CUDA",
 	.set = &no_cuda,
-	.action_callback = print_no_cuda,
+	.validate_callback = validate_cuda,
+	.validate_phase = ARG_CALLBACK_IF_UNSET,
+	.action_callback = print_cuda_enabled,
 	.action_phase = ARG_CALLBACK_IF_UNSET,
 	.action_order = ARG_ORDER_AFTER(ARG(compression)),
 	.help_order = ARG_ORDER_AFTER(ARG(threads)),
@@ -316,14 +314,9 @@ ARGUMENT(disable_cuda) = {
 
 #else
 
-bool cuda_memory(size_t)
+size_t memory_gpu(void)
 {
-	return true;
-}
-
-bool cuda_align(struct input in, struct output out)
-{
-	return align(in, out);
+	return 0;
 }
 
 static void print_cuda_ignored(void)

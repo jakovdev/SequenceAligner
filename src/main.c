@@ -1,7 +1,7 @@
 #include <args.h>
 #include <print.h>
 
-#include "bio/cuda.h"
+#include "bio/align.h"
 #include "io/input.h"
 #include "io/output.h"
 #include "util/benchmark.h"
@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
 		return 1;
 
 	psection("Performing Alignments");
-	if (!cuda_align(in, out))
+	if (!align(in, out))
 		return 1;
 
 	if (!output_flush(out))

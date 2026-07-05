@@ -258,7 +258,7 @@ double time_current(void)
 
 #endif
 
-size_t available_memory(void)
+size_t memory_cpu(void)
 {
 	size_t available_mem = 0;
 #ifdef _WIN32

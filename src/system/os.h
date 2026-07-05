@@ -14,7 +14,8 @@ constexpr size_t CACHE_LINE = 64;
 #define MALLOCA(ptr, elem) ptr = malloc(bytesof(ptr, (elem)))
 #define MALLOCA_AL(ptr, al, elem) ptr = alloc_aligned(al, bytesof(ptr, (elem)))
 
-size_t available_memory(void);
+size_t memory_cpu(void);
+size_t memory_gpu(void);
 
 void free_aligned(void *ptr);
 
