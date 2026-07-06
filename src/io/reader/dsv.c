@@ -86,7 +86,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	if (!pair->ext)
 		return READER_UNSUPPORTED;
 
-	pverbm("Using DSV reader");
+	pverbl("Using DSV reader");
 	const u8 *p = r.file;
 	const u8 *header_line = p;
 	u8 delim = pair->delimiter;
@@ -136,7 +136,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	if (seq_col < 0) {
 		bench_input_end();
 		headers[cols] = "No header line";
-		pinfol("Which column contains your sequences?");
+		pinfo("Which column contains your sequences?");
 		s32 choice = pchoice(headers, cols + 1, "Enter column number");
 		if (choice == cols) {
 			p = header_line;
@@ -223,7 +223,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	}
 	in->max = max;
 	in->num = num;
-	pverbl("DSV parsing finished successfuly");
+	pverb("DSV parsing finished successfuly");
 	return READER_SUCCESS;
 }
 

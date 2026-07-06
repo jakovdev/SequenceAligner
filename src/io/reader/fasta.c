@@ -23,7 +23,7 @@ static enum reader_result read_fasta(struct reader r, struct input *in)
 	if (!*ext)
 		return READER_UNSUPPORTED;
 
-	pverbm("Using FASTA reader");
+	pverbl("Using FASTA reader");
 	const u8 *p = r.file;
 	if (*p != '>') {
 		perr("Data before first header");
@@ -79,7 +79,7 @@ static enum reader_result read_fasta(struct reader r, struct input *in)
 	}
 	in->max = max;
 	in->num = num;
-	pverbl("FASTA parsing finished successfuly");
+	pverb("FASTA parsing finished successfuly");
 	return READER_SUCCESS;
 }
 
