@@ -98,27 +98,17 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 		return READER_ERROR;
 	}
 
+	u8 *hw;
 	for (s32 col = 0; col < cols; col++) {
 		s32 flen;
-		const u8 *field = dsv_field(&p, r.fend, delim, &flen);
+		hw = (u8 *)dsv_field(&p, r.fend, delim, &flen);
 		if (!flen) {
-			for (s32 j = 0; j < col; j++)
-				free((void *)headers[j]);
 			free(headers);
 			perr("First row has empty column");
 			return READER_ERROR;
 		}
-		char *MALLOCA(header, flen + 1);
-		if (!header) {
-			for (s32 j = 0; j < col; j++)
-				free((void *)headers[j]);
-			free(headers);
-			perr("Out of memory during DSV parsing");
-			return READER_ERROR;
-		}
-		memcpy(header, field, flen);
-		header[flen] = '\0';
-		headers[col] = header;
+		hw[flen] = '\0';
+		headers[col] = (const char *)hw;
 	}
 	while (p < r.fend && (*p == '\n' || *p == '\r'))
 		p++;
@@ -135,21 +125,25 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 
 	if (seq_col < 0) {
 		bench_input_end();
-		headers[cols] = "No header line";
-		pinfo("Which column contains your sequences?");
-		s32 choice = pchoice(headers, cols + 1, "Enter column number");
+		headers[cols] = "No header line! Do not skip!";
+		pinfo("Under which header are sequences? Header is skipped!");
+		s32 choice = pchoice(headers, cols + 1, "Enter range");
 		if (choice == cols) {
 			p = header_line;
-			pinfol("Which column contains a sequence?");
-			seq_col = pchoice(headers, cols, "Enter column number");
+			pinfol("Which DSV column displays a sequence?");
+			seq_col = pchoice(headers, cols, "Enter range");
 		} else {
 			seq_col = choice;
 		}
 		bench_input_start();
 	}
 
-	for (s32 col = 0; col < cols; col++)
-		free((void *)headers[col]);
+	for (s32 i = 0; i < cols - 1; i++) {
+		hw = (u8 *)headers[i];
+		hw[strlen(headers[i])] = delim;
+	}
+	hw = (u8 *)headers[cols - 1];
+	hw[strlen(headers[cols - 1])] = '\n';
 	free(headers);
 
 	s32 num = 0;
