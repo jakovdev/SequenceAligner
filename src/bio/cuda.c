@@ -27,7 +27,7 @@
 		}                                                  \
 	} while (0)
 
-static bool no_cuda;
+bool no_cuda;
 
 size_t memory_gpu(void)
 {
@@ -47,9 +47,6 @@ ask_cuda:
 
 bool align_cuda(struct input in, struct output out)
 {
-	if (no_cuda)
-		return align_cpu(in, out);
-
 	if (in.max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
 		goto ask_cuda;
