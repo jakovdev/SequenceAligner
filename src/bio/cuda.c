@@ -65,7 +65,7 @@ bool align_cuda(struct input in, struct output out)
 	struct constants C = {
 		.num = in.num,
 		.gap_pen = GAP_PEN,
-		.gap_open = GAP_OPN,
+		.gap_opn = GAP_OPN,
 		.gap_ext = GAP_EXT,
 	};
 

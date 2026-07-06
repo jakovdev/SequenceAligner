@@ -93,7 +93,7 @@ extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 	match[0] = 0;
 	gap_x[0] = gap_y[0] = SCORE_MIN;
 	for (s32 col = 1; col <= len2; col++) {
-		gap_x[col] = max(match[col - 1] + C.gap_open,
+		gap_x[col] = max(match[col - 1] + C.gap_opn,
 				 gap_x[col - 1] + C.gap_ext);
 		match[col] = gap_x[col];
 		gap_y[col] = SCORE_MIN;
@@ -108,7 +108,7 @@ extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 
 	for (s32 row = 1; row <= len1; ++row) {
 		gap_x[0] = SCORE_MIN;
-		gap_y[0] = max(p_match[0] + C.gap_open, p_gap_y[0] + C.gap_ext);
+		gap_y[0] = max(p_match[0] + C.gap_opn, p_gap_y[0] + C.gap_ext);
 		match[0] = gap_y[0];
 
 		s32 c1 = d_seq_lut(i, row - 1);
@@ -118,11 +118,11 @@ extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 
 			s32 d_score = p_match[col - 1] + similarity;
 
-			s32 open_x = match[col - 1] + C.gap_open;
+			s32 open_x = match[col - 1] + C.gap_opn;
 			s32 extend_x = gap_x[col - 1] + C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			s32 open_y = p_match[col] + C.gap_open;
+			s32 open_y = p_match[col] + C.gap_opn;
 			s32 extend_y = p_gap_y[col] + C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 
@@ -184,11 +184,11 @@ extern "C" __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 
 			s32 d_score = p_match[col - 1] + similarity;
 
-			s32 open_x = match[col - 1] + C.gap_open;
+			s32 open_x = match[col - 1] + C.gap_opn;
 			s32 extend_x = gap_x[col - 1] + C.gap_ext;
 			gap_x[col] = max(open_x, extend_x);
 
-			s32 open_y = p_match[col] + C.gap_open;
+			s32 open_y = p_match[col] + C.gap_opn;
 			s32 extend_y = p_gap_y[col] + C.gap_ext;
 			gap_y[col] = max(open_y, extend_y);
 

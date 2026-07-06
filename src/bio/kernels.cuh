@@ -16,7 +16,7 @@ struct constants {
 	s32 sub_mat[SUB_MAT_DIM * SUB_MAT_DIM];
 	s32 num;
 	s32 gap_pen;
-	s32 gap_open;
+	s32 gap_opn;
 	s32 gap_ext;
 	bool triangular;
 };
