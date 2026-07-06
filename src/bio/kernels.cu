@@ -72,8 +72,6 @@ extern "C" __global__ void kernel_nw(s32 *scores, s64 start, s64 batch)
 	} else {
 		scores[tid] = score;
 	}
-
-	atomicAdd(C.progress, 1);
 }
 
 extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
@@ -144,8 +142,6 @@ extern "C" __global__ void kernel_ga(s32 *scores, s64 start, s64 batch)
 	} else {
 		scores[tid] = score;
 	}
-
-	atomicAdd(C.progress, 1);
 }
 
 extern "C" __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
@@ -216,6 +212,4 @@ extern "C" __global__ void kernel_sw(s32 *scores, s64 start, s64 batch)
 	} else {
 		scores[tid] = score;
 	}
-
-	atomicAdd(C.progress, 1);
 }

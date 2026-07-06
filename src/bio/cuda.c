@@ -118,8 +118,6 @@ bool align_cuda(struct input in, struct output out)
 		CALL(cudaMemset(*scores, 0, bytesof(matrix, num * num)));
 	}
 
-	CALL(cudaMalloc((void **)&C.progress, sizeof(*C.progress)));
-	CALL(cudaMemset(C.progress, 0, sizeof(*C.progress)));
 	CALL(cudaMemcpyToSymbol(pC, &C, sizeof(C), 0, cudaMemcpyHostToDevice));
 
 	const void *kernel = ALIGN->kernel;
@@ -129,7 +127,6 @@ bool align_cuda(struct input in, struct output out)
 	CALL(cudaStreamCreate(&memory));
 
 	bool subsequent = false, syncing = false, matrix_copied = false;
-	s64 progress = 0;
 
 	pinfo("Performing %zu pairwise alignments", (size_t)alignments);
 
@@ -140,9 +137,6 @@ bool align_cuda(struct input in, struct output out)
 		if (offset >= alignments) {
 			if (subsequent) {
 				CALL(cudaDeviceSynchronize());
-				CALL(cudaMemcpy(&progress, C.progress,
-						sizeof(progress),
-						cudaMemcpyDeviceToHost));
 				active = 1 - active;
 			}
 			goto cuda_results;
@@ -152,19 +146,12 @@ bool align_cuda(struct input in, struct output out)
 			if (offset + batch > alignments)
 				batch = alignments - offset;
 			if (!batch) {
-				if (subsequent) {
+				if (subsequent)
 					CALL(cudaDeviceSynchronize());
-					CALL(cudaMemcpy(&progress, C.progress,
-							sizeof(progress),
-							cudaMemcpyDeviceToHost));
-				}
 				goto cuda_results;
 			}
 			if (subsequent) {
 				CALL(cudaDeviceSynchronize());
-				CALL(cudaMemcpy(&progress, C.progress,
-						sizeof(progress),
-						cudaMemcpyDeviceToHost));
 				active = 1 - active;
 			}
 		}
@@ -174,20 +161,17 @@ bool align_cuda(struct input in, struct output out)
 		CALL(cudaLaunchKernel(kernel, grid, block, args, 0, compute));
 		batch_last += batch;
 cuda_results:
-
 		if (!C.triangular) {
 			if (matrix_copied)
 				goto cuda_progress;
 
 			CALL(cudaStreamSynchronize(compute));
-			CALL(cudaMemcpy(&progress, C.progress, sizeof(progress),
-					cudaMemcpyDeviceToHost));
-
 			if (matrix)
 				CALL(cudaMemcpy(matrix, *scores,
 						bytesof(matrix, num * num),
 						cudaMemcpyDeviceToHost));
 
+			batch_done = alignments;
 			matrix_copied = true;
 			goto cuda_progress;
 		}
@@ -226,8 +210,6 @@ cuda_results:
 			syncing = true;
 		} else {
 			CALL(cudaStreamSynchronize(compute));
-			CALL(cudaMemcpy(&progress, C.progress, sizeof(progress),
-					cudaMemcpyDeviceToHost));
 			if (matrix)
 				CALL(cudaMemcpy(matrix + batch_done,
 						scores[active],
@@ -236,8 +218,8 @@ cuda_results:
 		}
 		batch_done += n_scores;
 cuda_progress:
-		pproportc(progress / alignments, "Aligning sequences");
-		if (progress >= alignments)
+		pproportc(batch_done / alignments, "Aligning sequences");
+		if (batch_done >= alignments)
 			break;
 	}
 
