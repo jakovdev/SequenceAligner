@@ -10,31 +10,13 @@ set(ARCH_LEVEL
 
 set(IS_MINGW FALSE)
 set(IS_MSYS2 FALSE)
-
+set(HDF5_TARGET hdf5::hdf5)
 if("$ENV{MSYSTEM}" STREQUAL "UCRT64")
   set(IS_MSYS2 TRUE)
+  set(HDF5_USE_STATIC_LIBRARIES TRUE)
+  set(HDF5_TARGET hdf5-static)
   set(DLL_PREFIX "$ENV{MSYSTEM_PREFIX}")
-  file(GLOB HDF5_DLL "${DLL_PREFIX}/bin/libhdf5-[0-9]*.dll")
-  if(NOT HDF5_DLL)
-    message(FATAL_ERROR "Could not find hdf5 under ${DLL_PREFIX}/bin")
-  endif()
-  string(REGEX REPLACE ".+/(libhdf5-[0-9]+\\.dll)" "\\1" HDF5_DLL "${HDF5_DLL}")
-  set(DLL_LIST
-      libwinpthread-1.dll
-      libgomp-1.dll
-      libgcc_s_seh-1.dll
-      ${HDF5_DLL}
-      libsz-2.dll
-      libz-ng2.dll
-      libaws-c-io.dll
-      libaws-c-s3.dll
-      libaws-c-auth.dll
-      libaws-c-http.dll
-      libaws-c-common.dll
-      libaws-c-cal.dll
-      libaws-c-sdkutils.dll
-      libaws-c-compression.dll
-      libaws-checksums.dll)
+  set(DLL_LIST libwinpthread-1.dll libgomp-1.dll)
 elseif(MINGW)
   set(IS_MINGW TRUE)
   string(LENGTH "${CMAKE_INSTALL_LIBDIR}" ____unused)
@@ -120,13 +102,7 @@ if(NOT IS_MINGW)
   endif()
 endif()
 
-if(IS_MSYS2 OR IS_MINGW)
-  find_package(PkgConfig REQUIRED)
-  pkg_check_modules(HDF5 REQUIRED hdf5)
-else()
-  find_package(HDF5 REQUIRED COMPONENTS C)
-endif()
-
+find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(OpenMP REQUIRED COMPONENTS C)
 
 file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
@@ -164,18 +140,11 @@ target_compile_options(
     $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static;-noeh>)
 target_link_options(seqalign PRIVATE -flto=auto)
 
-if(IS_MSYS2 OR IS_MINGW)
-  target_include_directories(seqalign PRIVATE ${HDF5_INCLUDE_DIRS})
-  target_link_libraries(seqalign PRIVATE ${HDF5_LIBRARIES})
-  target_link_directories(seqalign PRIVATE ${HDF5_LIBRARY_DIRS})
-else()
-  target_link_libraries(seqalign PRIVATE hdf5::hdf5)
-endif()
-
 if(USE_CUDA AND NOT IS_MSYS2)
   target_link_libraries(seqalign PRIVATE CUDA::cudart_static)
 endif()
 
+target_link_libraries(seqalign PRIVATE ${HDF5_TARGET})
 target_link_libraries(seqalign PRIVATE OpenMP::OpenMP_C)
 
 if(IS_MSYS2 OR IS_MINGW)
@@ -187,10 +156,7 @@ if(IS_MSYS2 OR IS_MINGW)
       install(FILES "${DLL_PREFIX}/lib/${dll}" DESTINATION .)
       file(COPY "${DLL_PREFIX}/lib/${dll}" DESTINATION "${CMAKE_BINARY_DIR}")
     else()
-      message(
-        WARNING
-          "Could not find runtime DLL ${dll} in expected locations under prefix ${DLL_PREFIX}"
-      )
+      message(WARNING "Could not find runtime DLL ${dll} under ${DLL_PREFIX}")
     endif()
   endforeach()
 endif()
@@ -202,23 +168,6 @@ endif()
 install(TARGETS seqalign RUNTIME DESTINATION .)
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" "${CMAKE_SOURCE_DIR}/README.md"
         DESTINATION .)
-
-if(CMAKE_EXPORT_COMPILE_COMMANDS)
-  set(COMPILE_COMMANDS_SOURCE "${CMAKE_BINARY_DIR}/compile_commands.json")
-  set(COMPILE_COMMANDS_ROOT "${CMAKE_SOURCE_DIR}/compile_commands.json")
-  if(EXISTS "${COMPILE_COMMANDS_ROOT}" OR IS_SYMLINK "${COMPILE_COMMANDS_ROOT}")
-    file(REMOVE "${COMPILE_COMMANDS_ROOT}")
-  endif()
-  file(CREATE_LINK "${COMPILE_COMMANDS_SOURCE}" "${COMPILE_COMMANDS_ROOT}"
-       SYMBOLIC COPY_ON_ERROR RESULT COMPILE_COMMANDS_LINK_RESULT)
-  if(NOT COMPILE_COMMANDS_LINK_RESULT STREQUAL "0"
-     AND NOT EXISTS "${COMPILE_COMMANDS_ROOT}")
-    message(
-      WARNING
-        "Failed to link compile_commands.json to project root: ${COMPILE_COMMANDS_LINK_RESULT}"
-    )
-  endif()
-endif()
 
 set(CPACK_PACKAGE_NAME "SequenceAligner")
 set(CPACK_PACKAGE_VENDOR "Jakov Dragičević")
