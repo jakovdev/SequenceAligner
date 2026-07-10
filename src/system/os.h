@@ -35,6 +35,10 @@ extern int THREAD_NUM;
 
 double time_current(void);
 
+void *dll_open(const char *name);
+void *dll_sym(void *restrict, const char *restrict symbol);
+bool dll_close(void *);
+
 [[gnu::nonnull]]
 const char *file_name(const char *path);
 [[gnu::nonnull]]

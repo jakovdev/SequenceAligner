@@ -21,8 +21,6 @@ struct constants {
 	bool triangular;
 };
 
-extern const void *const pC;
-
 #ifdef __cplusplus
 }
 #endif

@@ -77,6 +77,7 @@ static struct arg_callback parse_align(const char *str, void *)
 		    strcasecmp(str, ALIGN->name) == 0)
 			return ARG_VALID();
 	}
+	ALIGN = nullptr;
 	return ARG_INVALID("Invalid alignment method");
 }
 

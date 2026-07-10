@@ -1,11 +1,13 @@
 #ifdef _WIN32
 #include <direct.h>
+#include <libloaderapi.h>
 #include <malloc.h>
 #include <windef.h>
 #include <winbase.h>
 #else
 #define _GNU_SOURCE
 #include <fcntl.h>
+#include <dlfcn.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -222,19 +224,9 @@ void *copy_file(const char *path, void **end, size_t alignment)
 #ifdef _WIN32
 static double FREQ_INV;
 
-#if defined(__MINGW64__) && defined(USE_CUDA)
-static void safe_exit(void)
-{
-	ExitProcess(0);
-}
-#endif
-
 [[gnu::constructor]]
 static void time_init(void)
 {
-#if defined(__MINGW64__) && defined(USE_CUDA)
-	atexit(safe_exit);
-#endif
 	LARGE_INTEGER freq;
 	QueryPerformanceFrequency(&freq);
 	FREQ_INV = 1.0 / (double)freq.QuadPart;
@@ -309,6 +301,33 @@ void *alloc_aligned(size_t alignment, size_t bytes)
 	return _aligned_malloc(bytes, alignment);
 #else
 	return aligned_alloc(alignment, bytes);
+#endif
+}
+
+void *dll_open(const char *name)
+{
+#ifdef _WIN32
+	return LoadLibraryA(name);
+#else
+	return dlopen(name, RTLD_NOW | RTLD_LOCAL);
+#endif
+}
+
+void *dll_sym(void *restrict dll, const char *restrict symbol)
+{
+#ifdef _WIN32
+	return GetProcAddress(dll, symbol);
+#else
+	return dlsym(dll, symbol);
+#endif
+}
+
+bool dll_close(void *dll)
+{
+#ifdef _WIN32
+	return FreeLibrary(dll);
+#else
+	return !dlclose(dll);
 #endif
 }
 

@@ -30,7 +30,7 @@ extern size_t TABLE_SIZE;
 extern const struct methods {
 	s32 (*const method)(s32, s32, s32 *restrict, const u8 *restrict);
 	struct arg_callback (*const validate)(void);
-	const void *const kernel;
+	const char *kernel;
 	const char *name;
 	const char *arg;
 	const enum { GAP_LINEAR, GAP_AFFINE } gap;
@@ -38,13 +38,12 @@ extern const struct methods {
 
 #define ALIGN_REGISTER(NAME, ARG, GAP)                                  \
 	ROSTRING_EXTEND(alignh, "  " NAME ": " #ARG "\\n");             \
-	[[gnu::weak]] void kernel_##ARG(s32 *, s64, s64);               \
 	[[gnu::weak]] struct arg_callback validate_##ARG(void);         \
 	static const struct methods __method_##ARG                      \
 		__attribute__((SECTION(struct methods, "methods"))) = { \
 			.method = align_##ARG,                          \
 			.validate = validate_##ARG,                     \
-			.kernel = kernel_##ARG,                         \
+			.kernel = "kernel_" #ARG,                       \
 			.arg = #ARG,                                    \
 			.name = NAME,                                   \
 			.gap = GAP,                                     \

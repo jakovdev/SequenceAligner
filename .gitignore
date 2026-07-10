@@ -9,6 +9,7 @@ release/
 
 # Compiler specific files
 *.pdb
+*.d
 
 # Dependencies
 vcpkg_installed/

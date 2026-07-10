@@ -36,91 +36,11 @@ set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
-set(USE_CUDA FALSE)
-if(NOT IS_MINGW)
-  find_package(CUDAToolkit)
-  if(CUDAToolkit_FOUND)
-    if(NOT IS_MSYS2)
-      enable_language(CUDA)
-      set(CMAKE_CUDA_STANDARD 20)
-      set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-    else()
-      find_program(GENDEF gendef REQUIRED)
-      find_program(DLLTOOL dlltool REQUIRED)
-      find_program(OBJCOPY objcopy REQUIRED)
-      file(
-        GLOB CUDART_SYS_DLL
-        LIST_DIRECTORIES FALSE
-        "$ENV{CUDA_PATH}/bin/x64/cudart64_*.dll")
-      if(NOT CUDART_SYS_DLL)
-        message(
-          FATAL_ERROR
-            "Could not find cudart64_*.dll under $ENV{CUDA_PATH}/bin/x64")
-      endif()
-
-      set(MSYS2_CUDA "${CMAKE_BINARY_DIR}/msys2_cuda")
-      file(MAKE_DIRECTORY "${MSYS2_CUDA}")
-      get_filename_component(CUDART_DLL "${CUDART_SYS_DLL}" NAME)
-      get_filename_component(CUDART_DLL_WE "${CUDART_DLL}" NAME_WE)
-      file(COPY_FILE "${CUDART_SYS_DLL}" "${MSYS2_CUDA}/${CUDART_DLL}"
-           ONLY_IF_DIFFERENT)
-      file(COPY_FILE "${CUDART_SYS_DLL}" "${CMAKE_BINARY_DIR}/${CUDART_DLL}"
-           ONLY_IF_DIFFERENT)
-
-      set(CUDART_DEF "${CUDART_DLL_WE}.def")
-      set(CUDART_LIB "lib${CUDART_DLL}.a")
-      add_custom_command(
-        OUTPUT "${MSYS2_CUDA}/${CUDART_DEF}"
-        COMMAND "${GENDEF}" "${CUDART_DLL}"
-        WORKING_DIRECTORY "${MSYS2_CUDA}"
-        DEPENDS "${MSYS2_CUDA}/${CUDART_DLL}"
-        COMMENT "Generating ${CUDART_DEF} from ${CUDART_DLL}")
-      add_custom_command(
-        OUTPUT "${MSYS2_CUDA}/${CUDART_LIB}"
-        COMMAND "${DLLTOOL}" -d "${CUDART_DEF}" -l "${CUDART_LIB}" -D
-                "${CUDART_DLL}"
-        WORKING_DIRECTORY "${MSYS2_CUDA}"
-        DEPENDS "${MSYS2_CUDA}/${CUDART_DEF}"
-        COMMENT "Creating import library ${CUDART_LIB}")
-      add_custom_target(cudart_lib DEPENDS "${MSYS2_CUDA}/${CUDART_LIB}")
-
-      set(CUDA_KERNEL_OBJ "${MSYS2_CUDA}/kernels.cu.obj")
-      set(CUDA_KERNEL_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
-      set(NVCC_COMMAND
-          "nvcc;-Xcompiler=/GS-,/GR-,/Zl,/Zc:threadSafeInit-;-noeh;-I;${CMAKE_SOURCE_DIR}/src;-I;${CMAKE_SOURCE_DIR}/third_party/clix;-O3;-DNDEBUG;-std=c++20;--generate-code=arch=compute_75,code=[compute_75,sm_75];-cudart=static;-x;cu;-c;${CUDA_KERNEL_SRC};-o;${CUDA_KERNEL_OBJ}"
-      )
-      add_custom_command(
-        OUTPUT "${CUDA_KERNEL_OBJ}"
-        COMMAND ${NVCC_COMMAND}
-        COMMAND "${OBJCOPY}" --remove-section .drectve "${CUDA_KERNEL_OBJ}"
-        DEPENDS "${CUDA_KERNEL_SRC}"
-        COMMENT "Building CUDA kernel object")
-      add_custom_target(kernels DEPENDS "${CUDA_KERNEL_OBJ}")
-      add_dependencies(kernels cudart_lib)
-    endif()
-    set(USE_CUDA TRUE)
-  endif()
-endif()
-
 find_package(HDF5 REQUIRED COMPONENTS C)
 find_package(OpenMP REQUIRED COMPONENTS C)
 
-file(GLOB_RECURSE C_SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
-if(USE_CUDA AND IS_MSYS2)
-  add_executable(seqalign ${C_SOURCES} ${CUDA_KERNEL_OBJ})
-  add_dependencies(seqalign kernels)
-  target_include_directories(seqalign PRIVATE "$ENV{CUDA_PATH}/include")
-  target_link_libraries(seqalign PRIVATE "${MSYS2_CUDA}/${CUDART_LIB}")
-else()
-  add_executable(seqalign ${C_SOURCES})
-endif()
-set_target_properties(seqalign PROPERTIES LINKER_LANGUAGE C)
-
-if(USE_CUDA AND NOT IS_MSYS2)
-  file(GLOB_RECURSE CUDA_SOURCES CONFIGURE_DEPENDS
-       "${CMAKE_SOURCE_DIR}/src/*.cu")
-  target_sources(seqalign PRIVATE ${CUDA_SOURCES})
-endif()
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
+add_executable(seqalign ${SOURCES})
 
 target_include_directories(
   seqalign PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/clix)
@@ -130,19 +50,34 @@ if(IS_MSYS2 OR IS_MINGW)
     seqalign PRIVATE "${CMAKE_SOURCE_DIR}/third_party/c11threads")
 endif()
 
-target_compile_definitions(
-  seqalign PRIVATE $<$<AND:$<COMPILE_LANGUAGE:C>,$<BOOL:${USE_CUDA}>>:USE_CUDA>)
-target_compile_options(
-  seqalign
-  PRIVATE
-    $<$<COMPILE_LANGUAGE:C>:-Wall;-Wextra;-march=${ARCH_LEVEL};-funroll-loops;-fno-plt;-flto=auto>
-    $<$<AND:$<COMPILE_LANGUAGE:C>,$<CONFIG:Debug>>:-Og>
-    $<$<COMPILE_LANGUAGE:CUDA>:-cudart=static;-noeh>)
-target_link_options(seqalign PRIVATE -flto=auto)
+find_package(CUDAToolkit QUIET)
+if(CUDAToolkit_FOUND)
+  set(CUDA_KERNELS "src/generated/kernels.fatbin")
+  set(CUDA_KERNELS_PATH "${CMAKE_SOURCE_DIR}/${CUDA_KERNELS}")
+  set(CUDA_KERNELS_SRC "${CMAKE_SOURCE_DIR}/src/bio/kernels.cu")
+  set(CUDA_KERNELS_DEPFILE "${CUDA_KERNELS_PATH}.d")
 
-if(USE_CUDA AND NOT IS_MSYS2)
-  target_link_libraries(seqalign PRIVATE CUDA::cudart_static)
+  set(NVCC_COMMAND
+      "${CUDAToolkit_NVCC_EXECUTABLE}" "-I${CMAKE_SOURCE_DIR}/src" "-arch=all"
+      "-fatbin" "${CUDA_KERNELS_SRC}" "-o" "${CUDA_KERNELS_PATH}")
+
+  add_custom_command(
+    OUTPUT "${CUDA_KERNELS_PATH}"
+    COMMAND ${NVCC_COMMAND} -MD -MF "${CUDA_KERNELS_DEPFILE}" -MT
+            "${CUDA_KERNELS_PATH}"
+    DEPENDS "${CUDA_KERNELS_SRC}"
+    DEPFILE "${CUDA_KERNELS_DEPFILE}"
+    COMMENT "Building CUDA kernels ${CUDA_KERNELS}")
+
+  add_custom_target(kernels DEPENDS "${CUDA_KERNELS_PATH}")
+  add_dependencies(seqalign kernels)
+else()
+  message(STATUS "Cuda Toolkit not found, using cached kernels")
 endif()
+
+target_compile_options(seqalign PRIVATE -Wall -Wextra -flto=auto -fno-plt
+                                        -march=${ARCH_LEVEL} -funroll-loops)
+target_link_options(seqalign PRIVATE -flto=auto)
 
 target_link_libraries(seqalign PRIVATE ${HDF5_TARGET})
 target_link_libraries(seqalign PRIVATE OpenMP::OpenMP_C)
@@ -159,10 +94,6 @@ if(IS_MSYS2 OR IS_MINGW)
       message(WARNING "Could not find runtime DLL ${dll} under ${DLL_PREFIX}")
     endif()
   endforeach()
-endif()
-
-if(USE_CUDA AND IS_MSYS2)
-  install(FILES "${MSYS2_CUDA}/${CUDART_DLL}" DESTINATION .)
 endif()
 
 install(TARGETS seqalign RUNTIME DESTINATION .)

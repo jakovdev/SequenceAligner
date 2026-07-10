@@ -122,7 +122,7 @@ pacman -Syu
 # If this only updated pacman and/or msys, reopen with the same command as step 4 and run this again. This usually happens if you have an older installation.
 
 # Install build tools and HDF5
-pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-tools mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hdf5
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hdf5
 ```
 
 6. Build the project using:

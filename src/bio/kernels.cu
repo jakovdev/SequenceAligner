@@ -2,7 +2,6 @@
 #include "util/macros.h"
 
 __constant__ struct constants C;
-extern "C" const void *const pC = &C;
 
 __forceinline__ __device__ s32 d_seq_lut(s32 ij, s32 pos)
 {
