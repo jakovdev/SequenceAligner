@@ -37,7 +37,6 @@ extern const struct methods {
 } __start_methods[], __stop_methods[], *ALIGN;
 
 #define ALIGN_REGISTER(NAME, ARG, GAP)                                  \
-	ROSTRING_EXTEND(alignh, "  " NAME ": " #ARG "\\n");             \
 	[[gnu::weak]] struct arg_callback validate_##ARG(void);         \
 	static const struct methods __method_##ARG                      \
 		__attribute__((SECTION(struct methods, "methods"))) = { \

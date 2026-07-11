@@ -3,7 +3,7 @@
 #include <args.h>
 #include <print.h>
 #include <progress.h>
-#include <strings.h>
+#include <string.h>
 
 #include "bio/method.h"
 #include "io/input.h"
@@ -94,12 +94,23 @@ static void print_align(void)
 ARG_EXTERN(substitution_matrix);
 ARG_EXTERN(gap_penalty);
 
-ROSTRING_CREATE(alignh, "Alignment method\\n");
+static char help[512];
+
+[[gnu::constructor]]
+static void build_help_strings(void)
+{
+	snprintf(help, sizeof(help), "Alignment method\n");
+	for (auto m = __start_methods; m < __stop_methods; m++) {
+		size_t len = strlen(help);
+		snprintf(help + len, sizeof(help) - len, "  %s: %s\n", m->name,
+			 m->arg);
+	}
+}
 
 ARGUMENT(align) = {
 	.opt = 'a',
 	.lopt = "align",
-	.help = alignh,
+	.help = help,
 	.param = "METHOD",
 	.param_req = ARG_PARAM_REQUIRED,
 	.arg_req = ARG_REQUIRED,
