@@ -92,6 +92,7 @@ static void free_cuda(void)
 	cuCtxDestroy(cu.ctx);
 	memset(&cu, 0, sizeof(cu));
 	dll_close(cuDynamicLibrary);
+	cuDynamicLibrary = nullptr;
 }
 
 static struct arg_callback init_cuda(void)
