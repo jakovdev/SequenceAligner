@@ -380,7 +380,7 @@ ARG_EXTERN(threads);
 ARGUMENT(disable_cuda) = {
 	.opt = 'C',
 	.lopt = "no-cuda",
-	.help = "Disable CUDA",
+	.help = "Disable CUDA (if available)",
 	.set = &no_cuda,
 	.validate_callback = init_cuda,
 	.validate_phase = ARG_CALLBACK_IF_UNSET,

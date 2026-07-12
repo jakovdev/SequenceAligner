@@ -62,7 +62,7 @@ SequenceAligner is a command-line tool for performing all-vs-all (all-against-al
 ### Dependencies
 - GCC 16, CMake, Ninja
 - HDF5 library (development files)
-- CUDA toolkit (optional, for GPU acceleration)
+- CUDA toolkit (for kernel rebuilding during development, otherwise optional)
 
 ### Building
 
@@ -80,7 +80,7 @@ You will find the executable inside the `release` folder once you uncompress it.
 ### Dependencies
 - [MSYS2](https://www.msys2.org/)
   - Use default install location (`C:\msys64`). If you changed it, adjust the paths in the build instructions accordingly.
-- [CUDA Toolkit (optional)](https://developer.nvidia.com/cuda-downloads)
+- [CUDA Toolkit (for kernel rebuilding during development, otherwise optional)](https://developer.nvidia.com/cuda-downloads)
   - CUDA
     - Development
       - Compiler
@@ -92,7 +92,7 @@ You will find the executable inside the `release` folder once you uncompress it.
       - Libraries
         - [x] `CCCL`
         - [x] `CUDART`
-- [Visual Studio Build Tools (optional, for CUDA)](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026)
+- [Visual Studio Build Tools (for kernel rebuilding during development, otherwise optional)](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2026)
   - Individual components
     - [x] `MSVC Build Tools for x64/x86 (Latest)`
     - [x] `Windows Universal CRT SDK`
@@ -119,7 +119,9 @@ C:\msys64\msys2_shell.cmd -ucrt64 -use-full-path -defterm -no-start -here
 ```bash
 # Update package database and core system packages
 pacman -Syu
-# If this only updated pacman and/or msys, reopen with the same command as step 4 and run this again. This usually happens if you have an older installation.
+# If this only updated pacman and/or msys, reopen with the same command as step 4 and run this again.
+# This usually happens if you have an older installation.
+# If you have a new installation and nothing happens then you are already up-to-date.
 
 # Install build tools and HDF5
 pacman -S --needed mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-cmake mingw-w64-ucrt-x86_64-ninja mingw-w64-ucrt-x86_64-hdf5
@@ -169,7 +171,7 @@ Double click `seqalign.exe`, it should automatically open a terminal window with
 | `-z, --compression N` | Compression level for HDF5 datasets [0-9] (default: 0, no compression) |
 | `-B, --benchmark` | Enable timing of various steps |
 | `-T, --threads N` | Number of threads (default: 0, auto) |
-| `-C, --no-cuda` | Disable CUDA |
+| `-C, --no-cuda` | Disable CUDA (if available) |
 | `-W, --no-write` | Disable writing to output file |
 | `-P, --no-progress` | Disable progress bars |
 | `-D, --no-detail` | Disable detailed printing |
