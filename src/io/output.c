@@ -4,7 +4,6 @@
 #include <print.h>
 #include <string.h>
 
-#include "bio/method.h"
 #include "io/input.h"
 #include "io/writer.h"
 #include "system/os.h"
@@ -20,16 +19,6 @@ bool output_load(struct output *out, struct input in)
 
 	psection("Preparing Similarity Matrix");
 	pverb("Using %d sequences for output", in.num);
-	bench_output_start();
-	const char **MALLOCA(seqs, in.num);
-	if (!seqs) {
-		perr("Out of memory allocating output sequence data");
-		return false;
-	}
-
-	for (s32 i = 0; i < in.num; i++)
-		seqs[i] = (const char *)(in.seqs + in.meta[i].off);
-	bench_output_end();
 
 	pinfo("Similarity Matrix dimensions: %d x %d", in.num, in.num);
 	size_t bytes = bytesof(out->matrix, in.num * in.num);
@@ -54,13 +43,10 @@ bool output_load(struct output *out, struct input in)
 
 	bench_output_start();
 	out->matrix = alloc_mmap(bytes, tmpf);
-	if (!out->matrix) {
-		free(seqs);
+	if (!out->matrix)
 		return false;
-	}
 	bench_output_end();
 
-	out->seqs = seqs;
 	out->dim = in.num;
 	out->triangular = triangular;
 	return true;
@@ -84,7 +70,7 @@ void output_fill(struct output out, const s32 *cols, size_t col)
 	memcpy(out.matrix + alignments(col), cols, bytesof(out.matrix, col));
 }
 
-bool output_flush(struct output out)
+bool output_flush(struct output out, struct input in)
 {
 	if (disable_write)
 		return true;
@@ -93,7 +79,7 @@ bool output_flush(struct output out)
 	pverb("Trying out writers for %s", file_name(OUTPUT_PATH));
 	for (auto s = __start_writers; s < __stop_writers; s++) {
 		bench_output_start();
-		switch (s->write(out, OUTPUT_PATH)) {
+		switch (s->write(out, in, OUTPUT_PATH)) {
 		case WRITER_UNSUPPORTED:
 			continue;
 		case WRITER_SUCCESS:
@@ -111,7 +97,6 @@ bool output_flush(struct output out)
 
 void output_free(struct output *out)
 {
-	free(out->seqs);
 	free_mmap(out->matrix);
 	memset(out, 0, sizeof(*out));
 }

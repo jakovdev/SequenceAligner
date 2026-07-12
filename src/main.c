@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	if (!align(in, out))
 		return 1;
 
-	if (!output_flush(out))
+	if (!output_flush(out, in))
 		return 1;
 
 	bench_total_print(alignments((s64)in.num));

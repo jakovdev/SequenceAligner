@@ -5,6 +5,7 @@
 #include <print.h>
 #include <string.h>
 
+#include "bio/method.h"
 #include "system/os.h"
 #include "util/benchmark.h" /* TEMP */
 #include "util/macros.h"
@@ -27,7 +28,8 @@ static bool hdf5_ext(const char *path)
 	return print_Yn("Invalid file extension, default to hdf5?"); /* TEMP */
 }
 
-static enum writer_result write_hdf5(struct output out, const char *path)
+static enum writer_result write_hdf5(struct output out, struct input in,
+				     const char *path)
 {
 	pverbm("Trying out HDF5 writer");
 	if (!hdf5_ext(path))
@@ -67,8 +69,22 @@ static enum writer_result write_hdf5(struct output out, const char *path)
 		return WRITER_ERROR;
 	}
 
+	const char **MALLOCA(seqs, in.num);
+	if (!seqs) {
+		perr("Out of memory allocating HDF5 sequence data");
+		H5Dclose(sequences_id);
+		H5Sclose(seq_space);
+		H5Tclose(string_type);
+		H5Fclose(file_id);
+		return WRITER_ERROR;
+	}
+
+	for (s32 i = 0; i < in.num; i++)
+		seqs[i] = (const char *)(in.seqs + in.meta[i].off);
+
 	herr_t status = H5Dwrite(sequences_id, string_type, H5S_ALL, H5S_ALL,
-				 H5P_DEFAULT, out.seqs);
+				 H5P_DEFAULT, seqs);
+	free(seqs);
 	H5Dclose(sequences_id);
 	H5Sclose(seq_space);
 	H5Tclose(string_type);

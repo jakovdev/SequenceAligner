@@ -9,7 +9,6 @@ struct input;
 struct output {
 	s32 *restrict matrix;
 	size_t dim;
-	const char **seqs;
 	bool triangular;
 };
 
@@ -18,7 +17,7 @@ bool output_load(struct output *, struct input);
 [[gnu::nonnull]]
 void output_fill(struct output, const s32 *cols, size_t col);
 
-bool output_flush(struct output);
+bool output_flush(struct output, struct input);
 [[gnu::nonnull]]
 void output_free(struct output *);
 
