@@ -19,7 +19,7 @@
 #define CuPFN(cuFunction) int(*cuFunction)
 #endif
 
-#define cuCtxCreate cuCtxCreate_v4
+#define cuCtxCreate cuCtxCreate_v2
 #define cuModuleGetGlobal cuModuleGetGlobal_v2
 #define cuMemGetInfo cuMemGetInfo_v2
 #define cuMemAlloc cuMemAlloc_v2
@@ -36,7 +36,7 @@ CuPFN(cuGetErrorString)(int, const char **);
 CuPFN(cuInit)(unsigned int);
 CuPFN(cuDeviceGetCount)(int *);
 CuPFN(cuDeviceGet)(int *, int);
-CuPFN(cuCtxCreate)(void **, void *, unsigned int, int);
+CuPFN(cuCtxCreate)(void **, unsigned int, int);
 CuPFN(cuModuleLoadData)(void **, const void *);
 CuPFN(cuModuleGetFunction)(void **, void *, const char *);
 CuPFN(cuModuleGetGlobal)(uintptr_t *, size_t *, void *, const char *);
@@ -144,7 +144,7 @@ static struct arg_callback init_cuda(void)
 
 	int device = 0; /* TODO: Allow Multi-Device Execution */
 	CALL(cuDeviceGet(&cu.device, device));
-	CALL(cuCtxCreate(&cu.ctx, nullptr, 0, cu.device));
+	CALL(cuCtxCreate(&cu.ctx, 0, cu.device));
 	static const unsigned char kernels[] = {
 #embed "../generated/kernels.fatbin"
 	};
