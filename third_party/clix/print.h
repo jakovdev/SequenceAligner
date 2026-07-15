@@ -134,17 +134,14 @@ void print_stream_in(FILE *);
 void print_stream_out(FILE *);
 void print_stream_err(FILE *);
 
-#ifdef __cplusplus
-#if defined(_MSC_VER) && !defined(__clang__)
-#define P_RESTRICT __restrict
-#else /* G++, Clang++ */
-#define P_RESTRICT __restrict__
-#endif /* MSVC C++ */
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L
 #define P_RESTRICT restrict
 #else
-/* While restrict is optional, snprintf and vsnprintf are required */
-#error "Please compile with C99 or later standard"
+#if defined(_MSC_VER) && !defined(__clang__)
+#define P_RESTRICT __restrict
+#else
+#define P_RESTRICT __restrict__
+#endif
 #endif
 
 enum p_return print(const char *P_RESTRICT, ...);
@@ -241,6 +238,9 @@ extern bool print_nodetail;
 #define WIN32_LEAN_AND_MEAN
 #define PRINT_UNDEF_WIN32_LEAN_AND_MEAN
 #endif
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma comment(lib, "user32.lib")
+#endif
 #include <windows.h>
 #ifdef PRINT_UNDEF_WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -303,9 +303,9 @@ static void terminal_init(void)
 					size_t dirLen = (size_t)(slash - path);
 					memcpy(dir, path, dirLen);
 					dir[dirLen] = '\0';
-					strcpy(name, slash + 1);
+					strcpy_s(name, MAX_PATH, slash + 1);
 				} else {
-					strcpy(name, path);
+					strcpy_s(name, MAX_PATH, path);
 					dir[0] = '\0';
 				}
 

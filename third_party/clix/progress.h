@@ -18,7 +18,7 @@
  *
  * Example #1:
  * @code{.c}
- * progress_start(total_items, "Processing items");
+ * progress_start(total_items, num_threads, "Processing items");
  * #pragma omp parallel
  * {
  *     #pragma omp for
@@ -33,7 +33,7 @@
  *
  * Example #2:
  * @code{.c}
- * progress_start(total_items, "Processing matrix");
+ * progress_start(rows * cols, num_threads, "Processing matrix");
  * double time_begin = current_time();
  * #pragma omp parallel
  * {
@@ -42,9 +42,7 @@
  *         for (int j = 0; j < cols; j++) {
  *             process_matrix_cell(i, j);
  *         }
- *         // items_per_row depends on the inner loop
- *         const s64 items_per_row = cols;
- *         progress_add(items_per_row);
+ *         progress_add(cols);
  *     }
  *     progress_flush();
  * }
@@ -56,7 +54,6 @@
  * Limitations:
  * - Only one progress monitor thread can be active at a time.
  * - @ref progress_end may cause slight delays from mutex contention.
- * - Requires C11 (atomics) to build the source file. On Windows https://github.com/tinycthread/tinycthread is recommended.
  *
  * Source code:
  * @include progress.h
@@ -73,7 +70,7 @@
  *
  * Creates a background thread that updates the progress bar periodically.
  * Must be called from the main thread before starting parallel work.
- * Automatically adjusts update frequency based on @p total.
+ * Automatically adjusts update frequency based on @p total and @p threads.
  *
  * @param total Total number of work units to complete.
  * @param threads Number of threads that will be performing work.
@@ -108,7 +105,7 @@ void progress_flush(void);
  * Must be called from the main thread after all parallel work completes.
  * May be slightly delayed due to mutex contention.
  */
-bool progress_end(void);
+void progress_end(void);
 
 #ifdef PROGRESS_EXTERN_DISABLE
 extern bool progress_disable;
@@ -117,10 +114,7 @@ extern bool progress_disable;
 #endif /* PROGRESS_H_ */
 #if defined(PROGRESS_IMPLEMENTATION) && !defined(_PROGRESS_IMPLEMENTED)
 #define _PROGRESS_IMPLEMENTED
-
-#include <stdalign.h>
-#include <stdatomic.h>
-#include <threads.h>
+bool progress_disable;
 
 #ifndef PROGRESS_PRINT_H
 #define PROGRESS_PRINT_H 0
@@ -135,110 +129,127 @@ extern bool progress_disable;
 
 #ifndef progress_bar
 #if !PROGRESS_PRINT_H
-#define progress_bar(pct, ...)           \
-	do {                             \
-		printf("\r%3d%% ", pct); \
-		printf(__VA_ARGS__);     \
-		fflush(stdout);          \
+#define progress_bar(pct, msg)                 \
+	do {                                   \
+		printf("\r%s %d%%", msg, pct); \
+		fflush(stdout);                \
 	} while (0)
 #endif /* progress_bar is a function */
 #endif /* progress_bar */
 
-#ifndef progress_err
-#if PROGRESS_PRINT_H
-#define progress_err(...) perr(__VA_ARGS__)
-#else /* Default */
-#define progress_err(...) fprintf(stderr, __VA_ARGS__)
-#endif /* PROGRESS_PRINT_H */
-#endif /* progress_err */
+#ifdef _MSC_VER
+#define P_THREAD_LOCAL __declspec(thread)
+#define P_ALIGNAS(a) __declspec(align(a))
+#else
+#define P_THREAD_LOCAL __thread
+#define P_ALIGNAS(a) __attribute__((aligned(a)))
+#endif
 
-#ifndef progress_dev
-#if PROGRESS_PRINT_H
-#define progress_dev(...) pdev(__VA_ARGS__)
-#else /* Default */
-#define progress_dev(...) fprintf(stderr, __VA_ARGS__)
-#endif /* PROGRESS_PRINT_H */
-#endif /* progress_dev */
+#ifdef _WIN32
+#include <windows.h>
+#include <process.h>
+#include <intrin.h>
+typedef HANDLE p_thread_t;
+typedef __int64 p_counter_t;
+#define p_monitor_t unsigned __stdcall
+#define P_ADD(ptr, val) _InterlockedExchangeAdd64((ptr), (val))
+#define P_LOAD(ptr) _InterlockedExchangeAdd64((ptr), 0)
+#define P_STORE(ptr, val) _InterlockedExchange64((ptr), (val))
+#define P_THREAD(t, f, a) t = (HANDLE)_beginthreadex(NULL, 0, f, a, 0, NULL)
+#define P_JOIN(t)                         \
+	WaitForSingleObject(t, INFINITE); \
+	CloseHandle(t);
+#define P_SUCCESS 0
+static HANDLE p_wait_event;
+#define P_WAIT_INIT() (p_wait_event = CreateEvent(NULL, TRUE, FALSE, NULL))
+#define P_WAIT_DESTROY() CloseHandle(p_wait_event)
+#define P_WAIT_250() WaitForSingleObject(p_wait_event, 250)
+#define P_WAIT_SIGNAL() SetEvent(p_wait_event)
+#define P_WAIT_RESET() ResetEvent(p_wait_event)
+#else
+#include <pthread.h>
+#include <time.h>
+typedef pthread_t p_thread_t;
+typedef long long p_counter_t;
+typedef void *p_monitor_t;
+#define P_ADD(ptr, val) __atomic_fetch_add((ptr), (val), __ATOMIC_RELAXED)
+#define P_LOAD(ptr) __atomic_load_n((ptr), __ATOMIC_ACQUIRE)
+#define P_STORE(ptr, val) __atomic_store_n((ptr), (val), __ATOMIC_RELEASE)
+#define P_THREAD(t, f, a) pthread_create(&t, NULL, f, a)
+#define P_JOIN(t) pthread_join(t, NULL)
+#define P_SUCCESS NULL
+static pthread_mutex_t p_mtx;
+static pthread_cond_t p_cv;
+#define P_WAIT_INIT() \
+	(!pthread_mutex_init(&p_mtx, NULL) && !pthread_cond_init(&p_cv, NULL))
+#define P_WAIT_DESTROY()               \
+	pthread_mutex_destroy(&p_mtx); \
+	pthread_cond_destroy(&p_cv)
+#define P_WAIT_RESET()
+#define P_WAIT_250()                                \
+	struct timespec ts;                         \
+	clock_gettime(CLOCK_REALTIME, &ts);         \
+	ts.tv_nsec += 250000000L;                   \
+	if (ts.tv_nsec >= 1000000000L) {            \
+		ts.tv_sec++;                        \
+		ts.tv_nsec -= 1000000000L;          \
+	}                                           \
+	pthread_mutex_lock(&p_mtx);                 \
+	pthread_cond_timedwait(&p_cv, &p_mtx, &ts); \
+	pthread_mutex_unlock(&p_mtx)
+#define P_WAIT_SIGNAL()             \
+	pthread_mutex_lock(&p_mtx); \
+	pthread_cond_signal(&p_cv); \
+	pthread_mutex_unlock(&p_mtx)
+#endif
 
-static _Thread_local size_t t_done;
+static P_THREAD_LOCAL size_t t_done;
 
-static _Alignas(64) _Atomic(size_t) p_done;
-static thrd_t p_monitor_thrd;
+static P_ALIGNAS(64) p_counter_t p_done;
+static p_thread_t p_monitor_thrd;
 
 static size_t p_total;
 static size_t p_update_limit;
-static const char *p_message;
 
-static _Atomic(bool) p_running;
-static bool progress_disable;
+static P_ALIGNAS(64) volatile p_counter_t p_running;
 
-static mtx_t p_mutex;
-static cnd_t p_cond;
-
-static int p_monitor(void *arg)
+static p_monitor_t p_monitor(void *arg)
 {
-	(void)arg;
-	progress_bar(0, "%s", p_message);
-
-	struct timespec timeout;
-
-	size_t current = 0;
-	while (atomic_load_explicit(&p_running, memory_order_acquire)) {
-		current = atomic_load_explicit(&p_done, memory_order_relaxed);
-		progress_bar((int)(100 * current / p_total), "%s", p_message);
-
-		if (timespec_get(&timeout, TIME_UTC) == 0) {
-			timeout.tv_sec = 0;
-			timeout.tv_nsec = 0;
-		}
-		timeout.tv_nsec += 250000000;
-		if (timeout.tv_nsec >= 1000000000) {
-			timeout.tv_sec++;
-			timeout.tv_nsec -= 1000000000;
-		}
-
-		mtx_lock(&p_mutex);
-		cnd_timedwait(&p_cond, &p_mutex, &timeout);
-		mtx_unlock(&p_mutex);
+	const char *msg = arg;
+	p_counter_t curr;
+	progress_bar(0, msg);
+	while (P_LOAD(&p_running)) {
+		curr = P_LOAD(&p_done);
+		progress_bar((int)(100 * curr / (p_counter_t)p_total), msg);
+		P_WAIT_250();
 	}
-
-	progress_bar(100, "%s", p_message);
-	return thrd_success;
+	progress_bar(100, msg);
+	return P_SUCCESS;
 }
 
 bool progress_start(size_t total, int threads, const char *message)
 {
 	if (progress_disable)
 		return true;
+	if (P_LOAD(&p_running) || threads < 1)
+		return false;
+	if (!P_WAIT_INIT()) /* pthread_mutex/cond_init never error */
+		return false;
 
-	if (atomic_load_explicit(&p_running, memory_order_relaxed))
-		goto p_monitor_running_error;
-
-	atomic_store_explicit(&p_running, true, memory_order_relaxed);
-	atomic_store_explicit(&p_done, 0, memory_order_relaxed);
-	p_message = message;
-	p_total = total;
-	if (!p_total)
-		p_total = 1;
+	p_total = total ? total : 1;
 	p_update_limit = total / ((size_t)threads * 100);
 	if (!p_update_limit)
 		p_update_limit = 1;
 
-	if (mtx_init(&p_mutex, mtx_plain) != thrd_success)
-		goto p_monitor_mtx_error;
-	if (cnd_init(&p_cond) != thrd_success)
-		goto p_monitor_cnd_error;
-
-	if (thrd_create(&p_monitor_thrd, p_monitor, NULL) == thrd_success)
+	P_WAIT_RESET();
+	P_STORE(&p_done, 0);
+	P_STORE(&p_running, 1);
+	P_THREAD(p_monitor_thrd, p_monitor, (void *)message);
+	if (p_monitor_thrd)
 		return true;
 
-	cnd_destroy(&p_cond);
-p_monitor_cnd_error:
-	mtx_destroy(&p_mutex);
-p_monitor_mtx_error:
-	atomic_store_explicit(&p_running, false, memory_order_relaxed);
-p_monitor_running_error:
-	progress_err("Failed to create a progress bar display");
+	P_STORE(&p_running, 0);
+	P_WAIT_DESTROY();
 	return false;
 }
 
@@ -247,7 +258,7 @@ void progress_flush(void)
 	if (progress_disable || !t_done)
 		return;
 
-	atomic_fetch_add_explicit(&p_done, t_done, memory_order_relaxed);
+	P_ADD(&p_done, (p_counter_t)t_done);
 	t_done = 0;
 }
 
@@ -259,25 +270,19 @@ void progress_add(size_t amount)
 	progress_flush();
 }
 
-bool progress_end(void)
+void progress_end(void)
 {
 	if (progress_disable)
-		return true;
-
-	if (!atomic_load_explicit(&p_running, memory_order_relaxed)) {
-		progress_dev("Tried to end non-running progress monitor");
-		progress_err("Internal error during progress bar display");
-		return false;
-	}
+		return;
+	if (!P_LOAD(&p_running))
+		return;
 
 	progress_flush();
-	atomic_store_explicit(&p_done, p_total, memory_order_relaxed);
-	atomic_store_explicit(&p_running, false, memory_order_release);
-	cnd_signal(&p_cond);
-	thrd_join(p_monitor_thrd, NULL);
-	cnd_destroy(&p_cond);
-	mtx_destroy(&p_mutex);
-	return true;
+	P_STORE(&p_done, (p_counter_t)p_total);
+	P_STORE(&p_running, 0);
+	P_WAIT_SIGNAL();
+	P_JOIN(p_monitor_thrd);
+	P_WAIT_DESTROY();
 }
 
 #endif /* PROGRESS_IMPLEMENTATION */

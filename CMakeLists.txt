@@ -45,11 +45,6 @@ add_executable(seqalign ${SOURCES})
 target_include_directories(
   seqalign PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/clix)
 
-if(IS_MSYS2 OR IS_MINGW)
-  target_include_directories(
-    seqalign PRIVATE "${CMAKE_SOURCE_DIR}/third_party/c11threads")
-endif()
-
 find_package(CUDAToolkit QUIET)
 if(CUDAToolkit_FOUND)
   set(CUDA_KERNELS "src/generated/kernels.fatbin")
