@@ -23,8 +23,7 @@ bool align_cpu(struct input in, struct output out)
 {
 	size_t alignments = alignments((size_t)in.num);
 	pinfo("Performing %zu pairwise alignments", alignments);
-	if (!progress_start(alignments, THREAD_NUM, "Aligning sequences"))
-		return false;
+	progress_start(alignments, THREAD_NUM, "Aligning sequences");
 
 	TABLE_SIZE = (size_t)(in.max + 1) * (in.max + 1);
 	size_t mult = ALIGN->gap == GAP_AFFINE ? 3 : 1;
@@ -59,7 +58,6 @@ bool align_cpu(struct input in, struct output out)
 			progress_add(j);
 		}
 
-		progress_flush();
 		free_aligned(cols);
 		free_aligned(s1i);
 	}

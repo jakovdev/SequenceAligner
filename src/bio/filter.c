@@ -23,11 +23,7 @@ bool filter(struct input *in)
 		return false;
 	}
 
-	if (!progress_start(num - 1, THREAD_NUM, "Filtering sequences")) {
-		free(lost);
-		return false;
-	}
-
+	progress_start(num - 1, THREAD_NUM, "Filtering sequences");
 	bench_filter_start();
 #pragma omp parallel
 	{
@@ -56,8 +52,6 @@ bool filter(struct input *in)
 
 			progress_add(1);
 		}
-
-		progress_flush();
 	}
 	progress_end();
 

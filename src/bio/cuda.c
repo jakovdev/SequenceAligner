@@ -262,7 +262,7 @@ bool align_cuda(struct input in, struct output out)
 
 	ppercent(0, "Aligning sequences");
 	bench_align_start();
-	while (true) {
+	while (batch_done < alignments) {
 		s64 offset = batch_last;
 		if (offset >= alignments) {
 			if (subsequent) {
@@ -346,8 +346,6 @@ cuda_results:
 		batch_done += n_scores;
 cuda_progress:
 		pproportc(batch_done / alignments, "Aligning sequences");
-		if (batch_done >= alignments)
-			break;
 	}
 
 	bench_align_end();
