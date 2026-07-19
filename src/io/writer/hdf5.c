@@ -266,3 +266,12 @@ ARGUMENT(compression) = {
 	.help_order = ARG_ORDER_AFTER(ARG(filter_threshold)),
 	ARG_DEPENDS(ARG_RELATION_PARSE, ARG(output_path)),
 };
+
+#ifdef MINGW_LIBSZ
+int SZ_BufftoBuffCompress(void *, size_t *, const void *, size_t, void *);
+int SZ_BufftoBuffDecompress(void *, size_t *, const void *, size_t, void *);
+int SZ_encoder_enabled(void);
+void *__imp_SZ_BufftoBuffCompress = (void *)SZ_BufftoBuffCompress;
+void *__imp_SZ_BufftoBuffDecompress = (void *)SZ_BufftoBuffDecompress;
+void *__imp_SZ_encoder_enabled = (void *)SZ_encoder_enabled;
+#endif
