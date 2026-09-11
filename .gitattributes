@@ -4,3 +4,4 @@
 *.cu   diff=cpp
 *.cuh  diff=cpp
 * text eol=lf
+*.h linguist-language=C
