@@ -11,8 +11,8 @@
 #include "util/benchmark.h" /* TEMP */
 #include "util/macros.h"
 
-constexpr size_t H5_MAX_CHUNK_SIZE = 4 * KiB;
-constexpr size_t H5_MIN_CHUNK_SIZE = 1 * KiB / 4;
+constexpr usz H5_MAX_CHUNK_SIZE = 4 * KiB;
+constexpr usz H5_MIN_CHUNK_SIZE = 1 * KiB / 4;
 unsigned int COMPRESSION;
 
 static bool hdf5_ext(const char *path)
@@ -80,7 +80,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	for (s32 i = 0; i < in.num; i++)
+	for (uhz i = 0; i < in.num; i++)
 		seqs[i] = (const char *)(in.seqs + in.meta[i].off);
 
 	herr_t status = H5Dwrite(sequences_id, string_type, H5S_ALL, H5S_ALL,
@@ -105,11 +105,11 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-	size_t chunk_dim = out.dim;
+	usz chunk_dim = out.dim;
 	if (out.dim > H5_MIN_CHUNK_SIZE) {
 		chunk_dim = 64;
-		size_t square = chunk_dim * chunk_dim * sizeof(chunk_dim);
-		size_t target_bytes = (2 * MiB) / (1 + COMPRESSION / 3);
+		usz square = chunk_dim * chunk_dim * sizeof(chunk_dim);
+		usz target_bytes = (2 * MiB) / (1 + COMPRESSION / 3);
 		while (chunk_dim < out.dim && square < target_bytes)
 			chunk_dim *= 2;
 		if (chunk_dim > out.dim || square > target_bytes)
@@ -152,7 +152,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 
 	pinfo("Writing triangular Similarity Matrix to HDF5");
 
-	size_t available = memory_cpu();
+	usz available = memory_cpu();
 	if (!available) {
 		perr("Failed to retrieve available memory");
 		H5Dclose(matrix_id);
@@ -160,14 +160,14 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	s64 dim = out.dim;
-	size_t row_bytes = bytesof(out.matrix, out.dim);
-	s32 max_rows = available / (4 * row_bytes);
-	s32 chunk_size = max(chunk_dim, 4);
+	usz dim = out.dim;
+	usz row_bytes = bytesof(out.matrix, out.dim);
+	uhz max_rows = available / (4 * row_bytes);
+	uhz chunk_size = max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)
 		chunk_size = max_rows;
 
-	s32 *buf = alloc_mmap(row_bytes * chunk_size, false);
+	shz *buf = alloc_mmap(row_bytes * chunk_size, false);
 	if (!buf) {
 		perr("Out of memory during HDF5 conversion");
 		H5Dclose(matrix_id);
@@ -185,14 +185,14 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 	}
 
 	ppercent(0, "Converting to HDF5");
-#define tridx(row, col) (alignments((s64)(col)) + (row))
-	for (s32 off = 0; off < dim; off += chunk_size) {
-		s32 end = min(off + chunk_size, dim);
-		for (s32 i = off; i < end; i++) {
-			s64 row = dim * (i - off);
-			for (s32 j = i + 1; j < dim; j++)
+#define tridx(row, col) (alignments((usz)(col)) + (row))
+	for (uhz off = 0; off < dim; off += chunk_size) {
+		uhz end = min(off + chunk_size, dim);
+		for (uhz i = off; i < end; i++) {
+			usz row = dim * (i - off);
+			for (uhz j = i + 1; j < dim; j++)
 				buf[row + j] = out.matrix[tridx(i, j)];
-			for (s32 j = 0; j < i; j++) {
+			for (uhz j = 0; j < i; j++) {
 				if (j >= off)
 					buf[row + j] = buf[dim * (j - off) + i];
 				else
@@ -200,7 +200,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 			}
 		}
 
-		s32 rows = end - off;
+		uhz rows = end - off;
 		hsize_t start[2] = { off, 0 };
 		hsize_t count[2] = { rows, out.dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, nullptr,
@@ -269,8 +269,8 @@ ARGUMENT(compression) = {
 };
 
 #ifdef MINGW_LIBSZ
-int SZ_BufftoBuffCompress(void *, size_t *, const void *, size_t, void *);
-int SZ_BufftoBuffDecompress(void *, size_t *, const void *, size_t, void *);
+int SZ_BufftoBuffCompress(void *, usz *, const void *, usz, void *);
+int SZ_BufftoBuffDecompress(void *, usz *, const void *, usz, void *);
 int SZ_encoder_enabled(void);
 void *__imp_SZ_BufftoBuffCompress = (void *)SZ_BufftoBuffCompress;
 void *__imp_SZ_BufftoBuffDecompress = (void *)SZ_BufftoBuffDecompress;

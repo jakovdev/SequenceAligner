@@ -1,21 +1,19 @@
 #ifndef IO_OUTPUT_H
 #define IO_OUTPUT_H
 
-#include <stddef.h>
-
 #include "system/types.h"
 
 struct input;
 struct output {
-	s32 *restrict matrix;
-	size_t dim;
+	shz *restrict matrix;
+	usz dim;
 	bool triangular;
 };
 
 [[gnu::nonnull]]
 bool output_load(struct output *, struct input);
 [[gnu::nonnull]]
-void output_fill(struct output, const s32 *cols, size_t col);
+void output_fill(struct output, const shz *cols, usz col);
 
 bool output_flush(struct output, struct input);
 [[gnu::nonnull]]

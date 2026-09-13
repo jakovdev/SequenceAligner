@@ -23,7 +23,7 @@ static const char *KEYS[] = {
 	"amino",    "peptide", "chain",	  nullptr,
 };
 
-static const u8 *dsv_field(const u8 **cur, const u8 *end, u8 delim, s32 *flen)
+static const u8 *dsv_field(const u8 **cur, const u8 *end, u8 delim, uhz *flen)
 {
 	const u8 *p = *cur;
 	const u8 *start = p;
@@ -43,7 +43,7 @@ static const u8 *dsv_field(const u8 **cur, const u8 *end, u8 delim, s32 *flen)
 		p++;
 	}
 
-	s32 len = p - start;
+	uhz len = p - start;
 	if (len >= 2 && *start == '"' && start[len - 1] == '"') {
 		len -= 2;
 		start++;
@@ -55,9 +55,9 @@ static const u8 *dsv_field(const u8 **cur, const u8 *end, u8 delim, s32 *flen)
 	return start;
 }
 
-static s32 dsv_cols(const u8 *p, const u8 *end, u8 delim)
+static uhz dsv_cols(const u8 *p, const u8 *end, u8 delim)
 {
-	s32 count = 1;
+	uhz count = 1;
 	bool quoted = false;
 	while (p < end) {
 		if (*p == '"') {
@@ -91,7 +91,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	const u8 *p = r.file;
 	const u8 *header_line = p;
 	u8 delim = pair->delimiter;
-	s32 cols = dsv_cols(p, r.fend, delim);
+	uhz cols = dsv_cols(p, r.fend, delim);
 
 	const char **MALLOCA(headers, cols + 1);
 	if (!headers) {
@@ -100,8 +100,8 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	}
 
 	u8 *hw;
-	for (s32 col = 0; col < cols; col++) {
-		s32 flen;
+	for (uhz col = 0; col < cols; col++) {
+		uhz flen;
 		hw = (u8 *)dsv_field(&p, r.fend, delim, &flen);
 		if (!flen) {
 			free(headers);
@@ -114,8 +114,8 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	while (p < r.fend && (*p == '\n' || *p == '\r'))
 		p++;
 
-	s32 seq_col = -1;
-	for (s32 col = 0; col < cols && seq_col < 0; col++) {
+	uhz seq_col = UHZ_MAX;
+	for (uhz col = 0; col < cols && seq_col != UHZ_MAX; col++) {
 		for (const char **key = KEYS; *key; key++) {
 			if (strcasecmp(headers[col], *key) == 0) {
 				seq_col = col;
@@ -124,11 +124,11 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 		}
 	}
 
-	if (seq_col < 0) {
+	if (seq_col == UHZ_MAX) {
 		bench_input_end();
 		headers[cols] = "No header line! Do not skip!";
 		pinfo("Under which header are sequences? Header is skipped!");
-		s32 choice = pchoice(headers, cols + 1, "Enter range");
+		uhz choice = pchoice(headers, cols + 1, "Enter range");
 		if (choice == cols) {
 			p = header_line;
 			pinfol("Which DSV column displays a sequence?");
@@ -139,7 +139,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 		bench_input_start();
 	}
 
-	for (s32 i = 0; i < cols - 1; i++) {
+	for (uhz i = 0; i < cols - 1; i++) {
 		hw = (u8 *)headers[i];
 		hw[strlen(headers[i])] = delim;
 	}
@@ -147,9 +147,9 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	hw[strlen(headers[cols - 1])] = '\n';
 	free(headers);
 
-	s32 num = 0;
-	s32 max = 0;
-	s64 sum = 0;
+	uhz num = 0;
+	uhz max = 0;
+	usz sum = 0;
 	u8 *w = r.file;
 	while (p < r.fend) {
 		while (p < r.fend && (*p == '\n' || *p == '\r'))
@@ -158,61 +158,61 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 			break;
 
 		num++;
-		s32 flen = 0;
-		for (s32 col = 0; col < seq_col; col++) {
+		uhz flen = 0;
+		for (uhz col = 0; col < seq_col; col++) {
 			dsv_field(&p, r.fend, delim, &flen);
 			if (p >= r.fend || *p == '\n' || *p == '\r') {
-				perr("DSV row #%d has no sequence column", num);
+				perr("DSV row #%u has no sequence column", num);
 				return READER_ERROR;
 			}
 		}
 		const u8 *field = dsv_field(&p, r.fend, delim, &flen);
 		if (!flen) {
-			perr("Sequence #%d is empty", num);
+			perr("Sequence #%u is empty", num);
 			return READER_ERROR;
 		}
 
-		s32 slen = 0;
-		for (s32 i = 0; i < flen; i++) {
+		uhz slen = 0;
+		for (uhz i = 0; i < flen; i++) {
 			u8 c = toupper(field[i]);
 			if (c == '\r' || c == '\n' || c == ' ' || c == '"')
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {
-				perr("Sequence #%d is corrupted", num);
+				perr("Sequence #%u is corrupted", num);
 				return READER_ERROR;
 			}
 			if (SEQ_LUT[c] < 0) {
-				perr("Sequence #%d is invalid", num);
+				perr("Sequence #%u is invalid", num);
 				return READER_ERROR;
 			}
 			*w++ = c;
 			slen++;
 		}
 		if (!slen) {
-			perr("Sequence #%d is empty", num);
+			perr("Sequence #%u is empty", num);
 			return READER_ERROR;
 		}
 		if (!sequence_length_limit(slen)) {
-			perr("Sequence #%d exceeds length limits", num);
+			perr("Sequence #%u exceeds length limits", num);
 			return READER_ERROR;
 		}
-		if (sum + slen + 1 > S32_MAX) {
-			perr("Length overflow after %d sequences", num);
+		if (sum + slen + 1 > UHZ_MAX) {
+			perr("Length overflow after %u sequences", num);
 			return READER_ERROR;
 		}
 		max = max(max, slen);
 		sum += slen + 1;
 		*w++ = '\0';
 
-		for (s32 i = seq_col + 1; i < cols; i++) {
+		for (uhz i = seq_col + 1; i < cols; i++) {
 			if (p >= r.fend || *p == '\n' || *p == '\r') {
-				perr("DSV row #%d has too few columns", num);
+				perr("DSV row #%u has too few columns", num);
 				return READER_ERROR;
 			}
 			dsv_field(&p, r.fend, delim, &flen);
 		}
 		if (p < r.fend && *p != '\n' && *p != '\r') {
-			perr("DSV row #%d has too many columns", num);
+			perr("DSV row #%u has too many columns", num);
 			return READER_ERROR;
 		}
 	}

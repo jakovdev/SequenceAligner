@@ -16,7 +16,7 @@ bool filter(struct input *in)
 	if (threshold <= 0.0f)
 		return true;
 
-	s32 num = in->num;
+	uhz num = in->num;
 	bool *lost = calloc(num, sizeof(*lost));
 	if (!lost) {
 		perr("Out of memory during sequence filtering");
@@ -28,21 +28,21 @@ bool filter(struct input *in)
 #pragma omp parallel
 	{
 #pragma omp for schedule(dynamic)
-		for (s32 j = 1; j < num; j++) {
+		for (uhz j = 1; j < num; j++) {
 			struct meta m1 = in->meta[j];
 			const u8 *restrict s1 = in->seqs + m1.off;
-			for (s32 i = 0; i < j; i++) {
+			for (uhz i = 0; i < j; i++) {
 				if (lost[i])
 					continue;
 
 				struct meta m2 = in->meta[i];
 				const u8 *restrict s2 = in->seqs + m2.off;
-				s32 ml = min(m1.len, m2.len);
+				uhz ml = min(m1.len, m2.len);
 				if (LEN_BAD(ml) || SEQ_BAD(s1) || SEQ_BAD(s2))
 					unreachable_release();
 
-				s32 matches = 0;
-				for (s32 k = 0; k < ml; k++)
+				uhz matches = 0;
+				for (uhz k = 0; k < ml; k++)
 					matches += s1[k] == s2[k];
 				if ((float)matches / (float)ml >= threshold) {
 					lost[j] = true;
@@ -57,7 +57,7 @@ bool filter(struct input *in)
 
 	in->max = 0;
 	in->num = 0;
-	for (s32 read = 0, used = 0; read < num; read++) {
+	for (uhz read = 0, used = 0; read < num; read++) {
 		if (lost[read])
 			continue;
 
@@ -72,9 +72,9 @@ bool filter(struct input *in)
 	free(lost);
 	bench_filter_end();
 
-	pinfo("Filtered out %d sequences", num - in->num);
+	pinfo("Filtered out %u sequences", num - in->num);
 	if (in->num < SEQ_N_MIN) {
-		perr("Not enough sequences: %d (min: %d)", in->num, SEQ_N_MIN);
+		perr("Not enough sequences: %u (min: %u)", in->num, SEQ_N_MIN);
 		return false;
 	}
 

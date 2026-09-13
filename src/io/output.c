@@ -18,15 +18,15 @@ bool output_load(struct output *out, struct input in)
 		return true;
 
 	psection("Preparing Similarity Matrix");
-	pverb("Using %d sequences for output", in.num);
+	pverb("Using %u sequences for output", in.num);
 
-	pinfo("Similarity Matrix dimensions: %d x %d", in.num, in.num);
-	size_t bytes = bytesof(out->matrix, in.num * in.num);
+	pinfo("Similarity Matrix dimensions: %u x %u", in.num, in.num);
+	usz bytes = bytesof(out->matrix, in.num * in.num);
 	bool tmpf = bytes > memory_cpu() * 3 / 4;
-	size_t mem_gpu = memory_gpu() * 3 / 4;
+	usz mem_gpu = memory_gpu() * 3 / 4;
 	bool triangular = tmpf || mem_gpu ? bytes > mem_gpu : false;
 	if (triangular) {
-		bytes = bytesof(out->matrix, alignments((size_t)in.num));
+		bytes = bytesof(out->matrix, alignments((usz)in.num));
 		pinfo("Using triangular matrix instead of full matrix");
 	}
 	double usage = (double)bytes / (double)MiB;
@@ -52,7 +52,7 @@ bool output_load(struct output *out, struct input in)
 	return true;
 }
 
-void output_fill(struct output out, const s32 *cols, size_t col)
+void output_fill(struct output out, const shz *cols, usz col)
 {
 	if (disable_write)
 		return;
@@ -61,7 +61,7 @@ void output_fill(struct output out, const s32 *cols, size_t col)
 		unreachable_release();
 
 	if (!out.triangular) {
-		for (size_t row = 0; row < col; row++) {
+		for (usz row = 0; row < col; row++) {
 			out.matrix[out.dim * row + col] = cols[row];
 			out.matrix[out.dim * col + row] = cols[row];
 		}

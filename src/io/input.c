@@ -12,9 +12,9 @@
 static const char *INPUT_PATH;
 bool filter(struct input *);
 
-bool sequence_length_limit(s32 len)
+bool sequence_length_limit(uhz len)
 {
-	s32 gap = -GAP_PEN;
+	shz gap = -GAP_PEN;
 	return gap ? len <= SEQ_LEN_MAX / gap : len <= SEQ_LEN_MAX;
 }
 
@@ -38,7 +38,7 @@ bool input_load(struct input *in)
 
 	pverb("Copying %s into memory", name);
 	void *fend, *file = copy_file(path, &fend, CACHE_LINE);
-	if (!file || fend - file > S32_MAX)
+	if (!file || fend - file > UHZ_MAX)
 		return false;
 
 	pverbm("Trying out readers for %s", name);
@@ -58,22 +58,22 @@ bool input_load(struct input *in)
 	perr("Unsupported input file format: %s", name);
 	return false;
 reader_success:
-	s32 num = in->num;
+	uhz num = in->num;
 	if (num < SEQ_N_MIN) {
-		perr("Not enough sequences: %d (min: %d)", num, SEQ_N_MIN);
+		perr("Not enough sequences: %u (min: %u)", num, SEQ_N_MIN);
 		return false;
 	}
 
 	struct meta *MALLOCA_AL(meta, CACHE_LINE, num);
 	if (!meta) {
-		perr("Out of memory for %d sequences", num);
+		perr("Out of memory for %u sequences", num);
 		return false;
 	}
 
 	in->seqs = file;
 	const void *p = file;
-	for (s32 i = 0; i < num; i++) {
-		s32 len = strlen(p);
+	for (uhz i = 0; i < num; i++) {
+		uhz len = strlen(p);
 		meta[i] = (struct meta){ .off = p - file, .len = len };
 		p += len + 1;
 	}
@@ -83,9 +83,9 @@ reader_success:
 	if (!filter(in))
 		return false;
 
-	s32 sum = in->meta[in->num - 1].off + in->meta[in->num - 1].len + 1;
+	uhz sum = in->meta[in->num - 1].off + in->meta[in->num - 1].len + 1;
 	float average_length = (float)sum / (float)in->num - 1.0f;
-	pinfo("Loaded %d sequences", in->num);
+	pinfo("Loaded %u sequences", in->num);
 	pinfol("Average sequence length: %.2f", average_length);
 	bench_input_print();
 	return true;

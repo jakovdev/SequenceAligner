@@ -24,26 +24,25 @@
 #include <errno.h>
 #include <print.h>
 #include <string.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <omp.h>
 
 #include "system/os.h"
 
-void *alloc_mmap(size_t bytes, bool tmpfile)
+void *alloc_mmap(usz bytes, bool tmpfile)
 {
 #ifdef _WIN32
-	bytes += sizeof(size_t) * 2;
+	bytes += sizeof(usz) * 2;
 	if (bytes > LONG_LONG_MAX) {
 		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
 		perr("Internal error creating temporary file");
 		return nullptr;
 	}
 
-	size_t *m;
+	usz *m;
 	if (!tmpfile) {
 		DWORD flAllocationType = MEM_RESERVE | MEM_COMMIT;
-		/* size_t alignment = GetLargePageMinimum();
+		/* usz alignment = GetLargePageMinimum();
 		if (alignment) {
 			flAllocationType |= MEM_LARGE_PAGES;
 			bytes = (bytes + alignment - 1) / alignment * alignment;
@@ -101,7 +100,7 @@ m_check_return:
 	m[1] = bytes;
 	return m + 2;
 #else
-	bytes += sizeof(size_t);
+	bytes += sizeof(usz);
 	if (bytes > LONG_MAX) {
 		pdev("alloc_mmap bytes parameter exceeds maximum supported size");
 		perr("Internal error creating temporary file");
@@ -125,7 +124,7 @@ m_check_return:
 		}
 	}
 
-	size_t *m = mmap(NULL, bytes, PROT_READ | PROT_WRITE, flags, fd, 0);
+	usz *m = mmap(NULL, bytes, PROT_READ | PROT_WRITE, flags, fd, 0);
 	if (fd != -1)
 		close(fd);
 	if (m == MAP_FAILED) {
@@ -145,16 +144,16 @@ void free_mmap(void *alloced_mmap)
 {
 	if (!alloced_mmap)
 		return;
-	size_t *m = (size_t *)alloced_mmap - 1;
+	usz *m = (usz *)alloced_mmap - 1;
 #ifdef _WIN32
-	size_t *t = m - 1;
+	usz *t = m - 1;
 	*t ? UnmapViewOfFile(t) : VirtualFree(t, 0, MEM_RELEASE);
 #else
 	munmap(m, *m);
 #endif
 }
 
-void *copy_file(const char *path, void **end, size_t alignment)
+void *copy_file(const char *path, void **end, usz alignment)
 {
 #ifdef _WIN32
 	HANDLE fd = CreateFileA(
@@ -250,9 +249,9 @@ double time_current(void)
 
 #endif
 
-size_t memory_cpu(void)
+usz memory_cpu(void)
 {
-	size_t available_mem = 0;
+	usz available_mem = 0;
 #ifdef _WIN32
 	MEMORYSTATUSEX status;
 	status.dwLength = sizeof(status);
@@ -294,7 +293,7 @@ void free_aligned(void *ptr)
 #endif
 }
 
-void *alloc_aligned(size_t alignment, size_t bytes)
+void *alloc_aligned(usz alignment, usz bytes)
 {
 	bytes = (bytes + alignment - 1) / alignment * alignment;
 #ifdef _WIN32
@@ -407,7 +406,7 @@ bool path_directories_create(const char *path)
 	if (!last_sep)
 		return true;
 
-	size_t dir_len = last_sep - path;
+	usz dir_len = last_sep - path;
 	if (dir_len == 0)
 		return true;
 

@@ -30,9 +30,9 @@ static enum reader_result read_fasta(struct reader r, struct input *in)
 		return READER_ERROR;
 	}
 
-	s32 num = 0;
-	s32 max = 0;
-	s64 sum = 0;
+	uhz num = 0;
+	uhz max = 0;
+	usz sum = 0;
 	u8 *w = r.file;
 	while (p < r.fend) {
 		while (p < r.fend && *p != '\n' && *p != '\r')
@@ -45,32 +45,32 @@ static enum reader_result read_fasta(struct reader r, struct input *in)
 		}
 
 		num++;
-		s32 slen = 0;
+		uhz slen = 0;
 		while (p < r.fend && *p != '>') {
 			u8 c = toupper(*p++);
 			if (c == '\r' || c == '\n' || c == ' ')
 				continue;
 			if (c == '\0' || c > SCHAR_MAX) {
-				perr("Sequence #%d is corrupted", num);
+				perr("Sequence #%u is corrupted", num);
 				return READER_ERROR;
 			}
 			if (SEQ_LUT[c] < 0) {
-				perr("Sequence #%d is invalid", num);
+				perr("Sequence #%u is invalid", num);
 				return READER_ERROR;
 			}
 			*w++ = c;
 			slen++;
 		}
 		if (!slen) {
-			perr("Sequence #%d is empty", num);
+			perr("Sequence #%u is empty", num);
 			return READER_ERROR;
 		}
 		if (!sequence_length_limit(slen)) {
-			perr("Sequence #%d exceeds length limits", num);
+			perr("Sequence #%u exceeds length limits", num);
 			return READER_ERROR;
 		}
-		if (sum + slen + 1 > S32_MAX) {
-			perr("Length overflow after %d sequences", num);
+		if (sum + slen + 1 > UHZ_MAX) {
+			perr("Length overflow after %u sequences", num);
 			return READER_ERROR;
 		}
 		max = max(max, slen);

@@ -13,27 +13,27 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
-s32 GAP_PEN;
-s32 GAP_OPN;
-s32 GAP_EXT;
+shz GAP_PEN;
+shz GAP_OPN;
+shz GAP_EXT;
 
-size_t TABLE_SIZE;
+usz TABLE_SIZE;
 const struct methods *ALIGN;
 
 bool align_cpu(struct input in, struct output out)
 {
-	size_t alignments = alignments((size_t)in.num);
+	usz alignments = alignments((usz)in.num);
 	pinfo("Performing %zu pairwise alignments", alignments);
 	progress_start(alignments, THREAD_NUM, "Aligning sequences");
 
-	TABLE_SIZE = (size_t)(in.max + 1) * (in.max + 1);
-	size_t mult = ALIGN->gap == GAP_AFFINE ? 3 : 1;
+	TABLE_SIZE = (usz)(in.max + 1) * (in.max + 1);
+	usz mult = ALIGN->gap == GAP_AFFINE ? 3 : 1;
 	auto method = ALIGN->method;
 	bench_align_start();
 #pragma omp parallel
 	{
-		s32 *MALLOCA_AL(s1i, CACHE_LINE, TABLE_SIZE * mult + in.max);
-		s32 *MALLOCA_AL(cols, CACHE_LINE, in.num);
+		shz *MALLOCA_AL(s1i, CACHE_LINE, TABLE_SIZE * mult + in.max);
+		shz *MALLOCA_AL(cols, CACHE_LINE, in.num);
 		if (!s1i || !cols) {
 #pragma omp single
 			{
@@ -42,16 +42,16 @@ bool align_cpu(struct input in, struct output out)
 			}
 		}
 #pragma omp for schedule(dynamic)
-		for (s32 j = 1; j < in.num; j++) {
+		for (uhz j = 1; j < in.num; j++) {
 			struct meta m1 = in.meta[j];
 			const u8 *restrict s1 = in.seqs + m1.off;
-			s32 l1 = m1.len;
-			for (s32 i = 0; i < l1; ++i)
+			uhz l1 = m1.len;
+			for (uhz i = 0; i < l1; ++i)
 				s1i[i] = SEQ_LUT[s1[i]];
-			for (s32 i = 0; i < j; i++) {
+			for (uhz i = 0; i < j; i++) {
 				struct meta m2 = in.meta[i];
 				const u8 *restrict s2 = in.seqs + m2.off;
-				s32 l2 = m2.len;
+				uhz l2 = m2.len;
 				cols[i] = method(l1, l2, s1i, s2);
 			}
 
@@ -100,7 +100,7 @@ static void build_help_strings(void)
 {
 	snprintf(help, sizeof(help), "Alignment method\n");
 	for (auto m = __start_methods; m < __stop_methods; m++) {
-		size_t len = strlen(help);
+		usz len = strlen(help);
 		snprintf(help + len, sizeof(help) - len, "  %s: %s\n", m->name,
 			 m->arg);
 	}
@@ -122,7 +122,7 @@ ARGUMENT(align) = {
 	.help_order = ARG_ORDER_AFTER(ARG(substitution_matrix)),
 };
 
-ARG_PARSE_L(parse_gap_value, 10, s32, -(s32), (val < 0 || val > S32_MAX),
+ARG_PARSE_L(parse_gap_value, 10, shz, -(shz), (val < 0 || val > SHZ_MAX),
 	    "Gap values must be positive integers")
 
 static struct arg_callback validate_gap_pen(void)

@@ -35,6 +35,6 @@ int main(int argc, char *argv[])
 	if (!output_flush(out, in))
 		return 1;
 
-	bench_total_print(alignments((s64)in.num));
+	bench_total_print(alignments((usz)in.num));
 	return 0;
 }

@@ -4,16 +4,34 @@
 #include <stdint.h>
 #include <stddef.h>
 
-/* scores, sequence lengths, offsets and counts */
-typedef int32_t s32;
-constexpr s32 S32_MAX = INT32_MAX;
-constexpr s32 S32_MIN = INT32_MIN;
 /* alignment sizes, products */
-typedef int64_t s64;
-constexpr s64 S64_MAX = INT64_MAX;
-constexpr s64 S64_MIN = INT64_MIN;
-/* sequence letters */
+typedef size_t usz;
+constexpr usz USZ_MAX = SIZE_MAX;
+
+/* bytes, sequence letters */
 typedef uint8_t u8;
+
+#if SIZE_MAX == UINT64_MAX
+/* Signed half-width size: scores */
+typedef int32_t shz;
+constexpr shz SHZ_MAX = INT32_MAX;
+constexpr shz SHZ_MIN = INT32_MIN;
+
+/* Unsigned half-width size: sequence lengths, offsets and counts */
+typedef uint32_t uhz;
+constexpr uhz UHZ_MAX = UINT32_MAX;
+#elif SIZE_MAX == UINT32_MAX
+/* Signed half-width size: scores */
+typedef int16_t shz;
+constexpr shz SHZ_MAX = INT16_MAX;
+constexpr shz SHZ_MIN = INT16_MIN;
+
+/* Unsigned half-width size: sequence lengths, offsets and counts */
+typedef uint16_t uhz;
+constexpr uhz UHZ_MAX = UINT16_MAX;
+#else
+#error "Unknown architecture"
+#endif
 
 #ifdef __cplusplus
 #define restrict __restrict__

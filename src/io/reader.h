@@ -18,6 +18,6 @@ extern const struct readers {
 	static const struct readers __reader_##NAME __attribute__(( \
 		SECTION(struct readers, "readers"))) = { .read = READER }
 
-bool sequence_length_limit(s32 len);
+bool sequence_length_limit(uhz len);
 
 #endif /* IO_READER_H */

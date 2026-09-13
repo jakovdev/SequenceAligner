@@ -6,8 +6,8 @@
 struct input {
 	u8 *restrict seqs;
 	struct meta *restrict meta;
-	s32 max;
-	s32 num;
+	uhz max;
+	uhz num;
 };
 
 [[gnu::nonnull]]

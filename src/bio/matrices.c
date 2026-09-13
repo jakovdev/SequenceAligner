@@ -7,15 +7,15 @@
 
 #include "util/macros.h"
 
-s32 SEQ_LUT[SEQ_LUT_SIZE];
-s32 SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
+shz SEQ_LUT[SEQ_LUT_SIZE];
+shz SUB_MAT[SUB_MAT_DIM][SUB_MAT_DIM];
 
-static void print_matrix_group(const char *title, s32 count, s32 start)
+static void print_matrix_group(const char *title, uhz count, uhz start)
 {
-	printf("\n%s (%d):\n", title, count);
-	for (s32 i = 0; i < count; i += 5) {
+	printf("\n%s (%u):\n", title, count);
+	for (uhz i = 0; i < count; i += 5) {
 		printf("  ");
-		for (s32 j = i; j < min(i + 5, count); j++)
+		for (uhz j = i; j < min(i + 5, count); j++)
 			printf("%-*s ", NAMES_LONGEST, NAMES[start + j]);
 		putchar('\n');
 	}
@@ -41,11 +41,11 @@ static const char *selected;
 
 static struct arg_callback parse_matrix(const char *str, void *)
 {
-	for (s32 i = 0; i < AMINO_MAT_N + NUCLEO_MAT_N; i++) {
+	for (uhz i = 0; i < AMINO_MAT_N + NUCLEO_MAT_N; i++) {
 		if (strcasecmp(str, NAMES[i]) == 0) {
 			selected = NAMES[i];
-			s32 moff = i * SUB_MAT_DIM * SUB_MAT_DIM;
-			s32 loff = i >= AMINO_MAT_N ? SEQ_LUT_SIZE : 0;
+			uhz moff = i * SUB_MAT_DIM * SUB_MAT_DIM;
+			uhz loff = i >= AMINO_MAT_N ? SEQ_LUT_SIZE : 0;
 			memcpy(SEQ_LUT, &LUT[loff], sizeof(SEQ_LUT));
 			memcpy(SUB_MAT, &MATRICES[moff], sizeof(SUB_MAT));
 			return ARG_VALID();
