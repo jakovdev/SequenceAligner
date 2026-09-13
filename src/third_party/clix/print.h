@@ -265,6 +265,8 @@ extern int fputc_unlocked(int, FILE *);
 #ifndef fwrite_unlocked
 extern size_t fwrite_unlocked(const void *, size_t, size_t, FILE *);
 #endif
+extern void flockfile(FILE *);
+extern void funlockfile(FILE *);
 #endif
 #endif
 
