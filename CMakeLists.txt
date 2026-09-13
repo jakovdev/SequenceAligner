@@ -41,7 +41,8 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 add_executable(seqalign ${SOURCES})
 
 target_include_directories(
-  seqalign PRIVATE ${CMAKE_SOURCE_DIR}/src ${CMAKE_SOURCE_DIR}/third_party/clix)
+  seqalign PRIVATE ${CMAKE_SOURCE_DIR}/src
+                   ${CMAKE_SOURCE_DIR}/src/third_party/clix)
 
 if(NOT IS_MINGW)
   find_package(CUDAToolkit QUIET)
