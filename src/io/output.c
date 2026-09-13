@@ -62,8 +62,8 @@ void output_fill(struct output out, const shz *cols, usz col)
 
 	if (!out.triangular) {
 		for (usz row = 0; row < col; row++) {
-			out.matrix[out.dim * row + col] = cols[row];
-			out.matrix[out.dim * col + row] = cols[row];
+			out.matrix[row * out.dim + col] = cols[row];
+			out.matrix[col * out.dim + row] = cols[row];
 		}
 		return;
 	}

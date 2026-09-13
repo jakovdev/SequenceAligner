@@ -47,9 +47,10 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	pinfo("Writing %zu sequences to HDF5", out.dim);
+	usz dim = in.num;
+	pinfo("Writing %zu sequences to HDF5", dim);
 
-	hsize_t seq_dims[1] = { out.dim };
+	hsize_t seq_dims[1] = { dim };
 	hid_t seq_space = H5Screate_simple(1, seq_dims, nullptr);
 	if (seq_space < 0) {
 		perr("Failed to create HDF5 dataspace for sequences");
@@ -70,7 +71,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	const char **MALLOCA(seqs, in.num);
+	const char **MALLOCA(seqs, dim);
 	if (!seqs) {
 		perr("Out of memory allocating HDF5 sequence data");
 		H5Dclose(sequences_id);
@@ -95,7 +96,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	hsize_t matrix_dims[2] = { out.dim, out.dim };
+	hsize_t matrix_dims[2] = { dim, dim };
 	hid_t matrix_space = H5Screate_simple(2, matrix_dims, nullptr);
 	if (matrix_space < 0) {
 		perr("Failed to create HDF5 dataspace for Similarity Matrix");
@@ -105,19 +106,19 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 
 	hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
 
-	usz chunk_dim = out.dim;
-	if (out.dim > H5_MIN_CHUNK_SIZE) {
+	usz chunk_dim = dim;
+	if (chunk_dim > H5_MIN_CHUNK_SIZE) {
 		chunk_dim = 64;
 		usz square = chunk_dim * chunk_dim * sizeof(chunk_dim);
 		usz target_bytes = (2 * MiB) / (1 + COMPRESSION / 3);
-		while (chunk_dim < out.dim && square < target_bytes)
+		while (chunk_dim < dim && square < target_bytes)
 			chunk_dim *= 2;
-		if (chunk_dim > out.dim || square > target_bytes)
+		if (chunk_dim > dim || square > target_bytes)
 			chunk_dim /= 2;
 
 		chunk_dim = max(chunk_dim, H5_MIN_CHUNK_SIZE);
 		chunk_dim = min(chunk_dim, H5_MAX_CHUNK_SIZE);
-		chunk_dim = min(chunk_dim, out.dim);
+		chunk_dim = min(chunk_dim, dim);
 		hsize_t chunk_dims[2] = { chunk_dim, chunk_dim };
 		H5Pset_chunk(plist_id, 2, chunk_dims);
 		pverb("HDF5 chunk size: %zu x %zu", chunk_dim, chunk_dim);
@@ -160,8 +161,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	usz dim = out.dim;
-	usz row_bytes = bytesof(out.matrix, out.dim);
+	usz row_bytes = bytesof(out.matrix, dim);
 	uhz max_rows = available / (4 * row_bytes);
 	uhz chunk_size = max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)
@@ -202,11 +202,11 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 
 		uhz rows = end - off;
 		hsize_t start[2] = { off, 0 };
-		hsize_t count[2] = { rows, out.dim };
+		hsize_t count[2] = { rows, dim };
 		H5Sselect_hyperslab(file_space, H5S_SELECT_SET, start, nullptr,
 				    count, nullptr);
 
-		hsize_t mem_dims[2] = { rows, out.dim };
+		hsize_t mem_dims[2] = { rows, dim };
 		hid_t mem_space = H5Screate_simple(2, mem_dims, nullptr);
 		if (mem_space < 0) {
 			perr("Failed to create memory dataspace for matrix chunk");

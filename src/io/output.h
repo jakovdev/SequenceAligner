@@ -6,7 +6,7 @@
 struct input;
 struct output {
 	shz *restrict matrix;
-	usz dim;
+	uhz dim;
 	bool triangular;
 };
 
