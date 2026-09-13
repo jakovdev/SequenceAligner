@@ -5,6 +5,7 @@
 #include <print.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 #include "bio/method.h"
 #include "system/os.h"

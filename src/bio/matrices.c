@@ -3,6 +3,7 @@
 #include <args.h>
 #include <print.h>
 #include <string.h>
+#include <strings.h>
 
 #include "util/macros.h"
 

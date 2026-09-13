@@ -4,6 +4,7 @@
 #include <hdf5.h>
 #include <print.h>
 #include <string.h>
+#include <strings.h>
 
 #include "bio/method.h"
 #include "system/os.h"

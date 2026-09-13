@@ -4,6 +4,7 @@
 #include <print.h>
 #include <progress.h>
 #include <string.h>
+#include <strings.h>
 
 #include "bio/method.h"
 #include "io/input.h"
