@@ -260,6 +260,10 @@ extern bool print_nodetail;
 #ifndef min
 #define min(a, b) MIN(a, b)
 #endif
+#if defined(__linux__) && defined(__GLIBC__) && !defined(_GNU_SOURCE)
+extern int fputc_unlocked(int, FILE *);
+extern size_t fwrite_unlocked(const void *, size_t, size_t, FILE *);
+#endif
 #endif
 
 #ifndef PRINT_TERMINAL_WIDTH
