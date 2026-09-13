@@ -262,7 +262,9 @@ extern bool print_nodetail;
 #endif
 #if defined(__linux__) && defined(__GLIBC__) && !defined(_GNU_SOURCE)
 extern int fputc_unlocked(int, FILE *);
+#ifndef fwrite_unlocked
 extern size_t fwrite_unlocked(const void *, size_t, size_t, FILE *);
+#endif
 #endif
 #endif
 
