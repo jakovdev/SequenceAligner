@@ -115,7 +115,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 		p++;
 
 	uhz seq_col = UHZ_MAX;
-	for (uhz col = 0; col < cols && seq_col != UHZ_MAX; col++) {
+	for (uhz col = 0; col < cols && seq_col == UHZ_MAX; col++) {
 		for (const char **key = KEYS; *key; key++) {
 			if (strcasecmp(headers[col], *key) == 0) {
 				seq_col = col;
