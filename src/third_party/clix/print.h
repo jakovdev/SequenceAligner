@@ -11,24 +11,24 @@
 
 /* REQUIRED: C99 or later */
 /* BASIC USAGE:
- * 
+ *
  * pheader("Header text");
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║                                 Header text                                  ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
- * 
+ *
  * psection("Setup");
  * ┌─────────────────────────────────── Setup ────────────────────────────────────┐
- * 
+ *
  * Automatically formats the string like printf
  * const char *input_file = "input.csv";
  * pinfo("Reading input file: %s", input_file);
  * │ • Reading input file: input.csv                                              │
- * 
+ *
  * Only prints if verbose mode is enabled
  * pverb("Batch size: %zu tasks per batch", batch_size);
  * │ · Batch size: 6163 tasks per batch                                           │
- * 
+ *
  * Specify location for simple hierarchy
  * pinfo("Input: %s", input_file);
  * pinfom("Output: %s", output_file);
@@ -36,13 +36,13 @@
  * │ • Input: in.csv                                                              │
  * │ ├ Output: out.h5                                                             │
  * │ └ Compression: 0                                                             │
- * 
+ *
  * Progress bar display, has quick return for repeats, draws over empty boxes
  * int numbers = 1000;
  * for (int i = 0; i < numbers; i++)
  *     pproport(i / numbers, "Storing numbers");
  * │ ▶ Storing numbers [■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■········]  86% │
- * 
+ *
  * Interactive prompt with choices
  * char *choices[] = {"hello", "second"};
  * int selected = pchoice_s(choices, "Enter column number");
@@ -51,36 +51,36 @@
  * │ • Enter column number (1-2): 4                                               │
  * │ ! Invalid input! Please enter a number between 1 and 2.                      │
  * If valid returns zero-based index of selected choice, invalid prints choices again
- * 
+ *
  * pwarn("Warning text");
  * │ ! Warning text                                                               │
- * 
+ *
  * perr("File not found");
  * │ ✗ File not found                                                             │
- * 
+ *
  * For getting user input
  * char result[16] = { 0 };
  * pinput_s(result, "Enter a character: ");
  * │ • Enter a character: hello                                                   │
  * result will now contain "hello"
- * 
+ *
  * Quick y/N prompt (also has Y/n and y/n variants)
  * bool answer = print_yN("Do you want to continue?");
  * │ • Do you want to continue? [y/N]: y                                          │
  * answer will be true (yes) or false (no)
- * 
+ *
  * pdev("Error %d", value);
  * │ ✗ _TO_DEV_: Error 42                                                         │
  * Is perr() only in Debug builds (NDEBUG not defined), adds "_TO_DEV_ :" to string
- * 
+ *
  * Close section (automatic on new section/header or non-abort exit)
  * psection_end();
  * └──────────────────────────────────────────────────────────────────────────────┘
- * 
+ *
  * For starting section with no text
  * psection();
  * ┌──────────────────────────────────────────────────────────────────────────────┐
- * 
+ *
  * Also available:
  * print_stream_in(stdin);
  * print_stream_out(stdout);
@@ -95,13 +95,17 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef const union _P_INPUT {
-	const char **choices;
-#define P_INPUT_C(c, n) (P_INPUT){ .choices = c }, n, P_CHOICE
-#define P_INPUT_CS(choices) P_INPUT_C(choices, sizeof(choices))
-	char *output;
-#define P_INPUT_P(out, size) (P_INPUT){ .output = (out) }, size, P_PROMPT
+typedef struct _P_INPUT {
+#define _P_IN(E, s) ((P_INPUT){ .u = { .E }, .size = (s) })
+	union _P_INPUT_UNION {
+		const char **choices;
+#define P_INPUT_C(c, n) _P_IN(choices = (c), n), P_CHOICE
+#define P_INPUT_CS(c) P_INPUT_C(c, sizeof(c) / sizeof((c)[0]))
+		char *output;
+#define P_INPUT_P(out, size) _P_IN(output = (out), size), P_PROMPT
 #define P_INPUT_PS(out) P_INPUT_P(out, sizeof(out))
+	} u;
+	size_t size;
 } P_INPUT;
 
 /* clang-format off */
@@ -119,11 +123,10 @@ typedef const union _P_INPUT {
 
 /* Useful for debugging */
 enum p_return {
-	/* All fields are customizable for easier debugging or if checks */
 	PRINT_SUCCESS = 0,
 	PRINT_SKIPPED_BECAUSE_QUIET_OR_VERBOSE_NOT_ENABLED__SUCCESS = 0,
 	PRINT_REPEAT_PROGRESS_PERCENT__SUCCESS = 0,
-	PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0, /* Editable first choice index */
+	PRINT_FIRST_CHOICE_INDEX__SUCCESS = 0,
 	PRINT_INVALID_FORMAT_ARGS__ERROR = -1,
 	PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR = -2,
 	PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR = -2,
@@ -146,7 +149,7 @@ void print_stream_err(FILE *);
 
 enum p_return print(const char *P_RESTRICT, ...);
 enum p_return progress_bar(int percent, const char *P_RESTRICT, ...);
-enum p_return input(P_INPUT, size_t, const char *P_RESTRICT, ...);
+enum p_return input(P_INPUT, const char *P_RESTRICT, ...);
 
 /* "prompt [y/N]: " */
 bool print_yN(const char *P_RESTRICT);
@@ -185,8 +188,8 @@ bool print_yn(const char *P_RESTRICT);
 #define pinput_s(out, ...) input(P_INPUT_PS(out) __VA_ARGS__)
 
 #define ppercent(pct, ...) progress_bar(pct, __VA_ARGS__)
-#define pproport(prp, ...) progress_bar((100 * prp), __VA_ARGS__)
-#define pproportc(prp, ...) progress_bar((int)(100 * prp), __VA_ARGS__)
+#define pproport(n, d, ...) progress_bar((100 * (n) / (d)), __VA_ARGS__)
+#define pproportc(n, d, ...) progress_bar((int)(100 * (n) / (d)), __VA_ARGS__)
 
 #define pheader(...) print(P_HEADER __VA_ARGS__)
 
@@ -242,6 +245,7 @@ extern bool print_nodetail;
 #pragma comment(lib, "user32.lib")
 #endif
 #include <windows.h>
+#include <io.h>
 #include <fcntl.h>
 #ifdef PRINT_UNDEF_WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
@@ -462,18 +466,6 @@ static struct {
 	const char progress_empty_char[sizeof("·")];
 	char ansi_carriage_return[sizeof("\r")];
 } p = {
-    .map = {
-        [T_NONE]     = { COLOR_RESET,       ICON_NONE,    false },
-        [T_INFO]     = { COLOR_BLUE,        ICON_INFO,    false },
-        [T_VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     true  },
-        [T_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, true  },
-        [T_ERROR]    = { COLOR_RED,         ICON_ERROR,   true  },
-        [T_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    false },
-        [T_SECTION]  = { COLOR_CYAN,        ICON_NONE,    false },
-        [T_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    true  },
-        [T_PROMPT]   = { COLOR_BLUE,        ICON_INFO,    true  },
-        [T_PROGRESS] = { COLOR_BLUE,        ICON_ARROW,   false },
-    },
 #define PCOL(t) p.map[(t)].color
 #define PCOLSIZ(t) (PCOL(t) <= COLOR_UNDER ? 4 : 5)
     .codes = {
@@ -498,6 +490,22 @@ static struct {
         [ICON_ERROR]   = "✗",
         [ICON_ARROW]   = "▶",
     },
+    .in = NULL,
+    .out = NULL,
+    .err = NULL,
+    .width = PRINT_TERMINAL_WIDTH,
+    .map = {
+        [T_NONE]     = { COLOR_RESET,       ICON_NONE,    false },
+        [T_INFO]     = { COLOR_BLUE,        ICON_INFO,    false },
+        [T_VERBOSE]  = { COLOR_GRAY,        ICON_DOT,     true  },
+        [T_WARNING]  = { COLOR_YELLOW,      ICON_WARNING, true  },
+        [T_ERROR]    = { COLOR_RED,         ICON_ERROR,   true  },
+        [T_HEADER]   = { COLOR_BRIGHT_CYAN, ICON_NONE,    false },
+        [T_SECTION]  = { COLOR_CYAN,        ICON_NONE,    false },
+        [T_CHOICE]   = { COLOR_BLUE,        ICON_INFO,    true  },
+        [T_PROMPT]   = { COLOR_BLUE,        ICON_INFO,    true  },
+        [T_PROGRESS] = { COLOR_BLUE,        ICON_ARROW,   false },
+    },
 #define BOXSIZ (sizeof(p.boxes[BOX_NORMAL][0]) - 1)
     .boxes = {
         { "┌", "├", "└", "┐", "─", "│", "┤", "┘" },
@@ -506,7 +514,6 @@ static struct {
     .progress_filled_char = "■",
     .progress_empty_char = "·",
     .ansi_carriage_return = "\r",
-    .width = PRINT_TERMINAL_WIDTH,
 };
 
 static bool print_force;
@@ -722,6 +729,7 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 		va_end(v_args);
 
 		if (p_bufsiz < 0) {
+			oflush();
 			pdev("Failed to format print string");
 			return PRINT_INVALID_FORMAT_ARGS__ERROR;
 		}
@@ -732,6 +740,7 @@ skip_fmt:
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = min((size_t)p_bufsiz, sizeof(p_buf) - 1);
 	if (p_buflen > available) { /* Overflow, no box/icon/color then */
+		oflush();
 		pdev("Print string too long, doing a simple print");
 		simple = true;
 	}
@@ -932,12 +941,15 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 	bool simple = print_nodetail;
 	const size_t available = p.width - 3 - (!PICO(T_PROGRESS) ? 0 : 2);
 	size_t p_buflen = min((size_t)p_bufsiz, sizeof(p_buf) - 1);
-	if (p_buflen > available) {
+	const int digits = p_percent < 10 ? 1 : (p_percent < 100 ? 2 : 3);
+	const size_t meta_width = (size_t)digits + 2 + 1 + 1 + 1;
+	if (p_buflen + meta_width + 1 > available) {
 		pdev("Progress bar string too long, doing a simple print");
 		simple = true;
 	}
-
-	const int digits = p_percent < 10 ? 1 : (p_percent < 100 ? 2 : 3);
+	const size_t bar_width = available - p_buflen - meta_width - 1;
+	const size_t filled_width = bar_width * (size_t)p_percent / 100;
+	const size_t empty_width = bar_width - filled_width;
 
 	if (simple) {
 		if (in_section)
@@ -957,11 +969,6 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 		content_printed = true;
 		goto cleanup;
 	}
-
-	const size_t meta_width = (size_t)digits + 2 + 1 + 1 + 1;
-	const size_t bar_width = available - p_buflen - meta_width - 1;
-	const size_t filled_width = bar_width * (size_t)p_percent / 100;
-	const size_t empty_width = bar_width - filled_width;
 
 	if (in_section)
 		ouwrite(p.ansi_carriage_return, 1);
@@ -1014,7 +1021,7 @@ cleanup:
 	return PRINT_SUCCESS;
 }
 
-enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
+enum p_return input(P_INPUT in, const char *P_RESTRICT fmt, ...)
 {
 	if (!is_init)
 		print_init();
@@ -1061,6 +1068,7 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 		va_end(v_args);
 
 		if (p_bufsiz < 0) {
+			oflush();
 			pdev("Failed to format input string");
 			return PRINT_INVALID_FORMAT_ARGS__ERROR;
 		}
@@ -1070,15 +1078,17 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
 	size_t p_buflen = min((size_t)p_bufsiz, sizeof(p_buf) - 1);
 	if (p_buflen > available) {
+		oflush();
 		pdev("Input string too long, doing a simple print");
 		simple = true;
 	}
 
 	if (type == T_CHOICE) {
-		const char **choices = in.choices;
-		size_t c_count = size;
+		const char **choices = in.u.choices;
+		size_t c_count = in.size;
 
 		if (c_count < 2) {
+			oflush();
 			pdev("Not enough choices (<2)");
 			return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
 		}
@@ -1160,8 +1170,9 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 				fwrite(content, 1, content_len, out);
 				fflush(out);
 				content_printed = true;
-				return (int)selected - 1 +
-				       PRINT_FIRST_CHOICE_INDEX__SUCCESS;
+				return (enum p_return)(
+					PRINT_FIRST_CHOICE_INDEX__SUCCESS +
+					selected - 1);
 			}
 
 			oflush();
@@ -1169,9 +1180,10 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 			      c_count);
 		} while (1);
 	} else if (type == T_PROMPT) {
-		char *result = in.output;
-		const size_t rsz = size;
+		char *result = in.u.output;
+		const size_t rsz = in.size;
 		if (rsz < 2) {
+			oflush();
 			pdev("Output buffer size is too small");
 			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}

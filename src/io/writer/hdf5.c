@@ -229,7 +229,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 			return WRITER_ERROR;
 		}
 
-		pproport(end / dim, "Converting to HDF5");
+		pproport(end, dim, "Converting to HDF5");
 	}
 
 	ppercent(100, "Converting to HDF5");
