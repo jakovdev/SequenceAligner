@@ -242,14 +242,11 @@ extern bool print_nodetail;
 #pragma comment(lib, "user32.lib")
 #endif
 #include <windows.h>
+#include <fcntl.h>
 #ifdef PRINT_UNDEF_WIN32_LEAN_AND_MEAN
 #undef WIN32_LEAN_AND_MEAN
 #undef PRINT_UNDEF_WIN32_LEAN_AND_MEAN
 #endif
-#define fputc_unlocked _fputc_nolock
-#define fwrite_unlocked _fwrite_nolock
-#define flockfile _lock_file
-#define funlockfile _unlock_file
 #else
 #include <termios.h>
 #include <unistd.h>
@@ -260,19 +257,13 @@ extern bool print_nodetail;
 #ifndef min
 #define min(a, b) MIN(a, b)
 #endif
-#if defined(__linux__) && defined(__GLIBC__) && !defined(_GNU_SOURCE)
-extern int fputc_unlocked(int, FILE *);
-#ifndef fwrite_unlocked
-extern size_t fwrite_unlocked(const void *, size_t, size_t, FILE *);
-#endif
-extern void flockfile(FILE *);
-extern void funlockfile(FILE *);
-#endif
 #endif
 
 #ifndef PRINT_TERMINAL_WIDTH
 #define PRINT_TERMINAL_WIDTH 80
 #endif
+
+#define PRINT_BUFSIZ 8192
 
 static int terminal_environment(void)
 {
@@ -359,6 +350,10 @@ static void terminal_init(void)
 #endif
 }
 
+#ifdef _WIN32
+static int _win_input_mode_old;
+#endif
+
 static void terminal_mode_raw(void)
 {
 #ifdef _WIN32
@@ -366,7 +361,7 @@ static void terminal_mode_raw(void)
 	DWORD mode, mask = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT;
 	if (GetConsoleMode(hStdin, &mode))
 		SetConsoleMode(hStdin, mode & ~mask);
-
+	_win_input_mode_old = _setmode(_fileno(p.in), _O_BINARY);
 #else
 	struct termios term;
 	tcgetattr(STDIN_FILENO, &term);
@@ -378,6 +373,8 @@ static void terminal_mode_raw(void)
 static void terminal_mode_restore(void)
 {
 #ifdef _WIN32
+	if (_win_input_mode_old != -1)
+		_setmode(_fileno(p.in), _win_input_mode_old);
 	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
 	DWORD mode;
 	GetConsoleMode(hStdin, &mode);
@@ -566,7 +563,7 @@ static void terminal_read_input(char *buf, size_t buf_sz)
 	terminal_mode_raw();
 
 	size_t i = 0;
-	for (int c; (c = fgetc(p.in)) != EOF && c != '\n';) {
+	for (int c; (c = fgetc(p.in)) != EOF && c != '\n' && c != '\r';) {
 		if (c == '\b' || c == 0x7F) {
 			if (i) {
 				while (i && ((buf[i - 1] & 0xC0) == 0x80))
@@ -625,9 +622,40 @@ bool print_yn(const char *P_RESTRICT prompt)
 	}
 }
 
-#define ouputc(c) fputc_unlocked((c), out)
-#define oprintf(...) fprintf(out, __VA_ARGS__)
-#define ouwrite(buf, size) fwrite_unlocked((buf), 1, (size), out)
+#define oflush()                                      \
+	do {                                          \
+		fwrite(content, 1, content_len, out); \
+		content_len = 0;                      \
+	} while (0)
+#define ocflush(len)                                     \
+	do {                                             \
+		if (content_len + (len) >= PRINT_BUFSIZ) \
+			oflush();                        \
+	} while (0)
+#define ouputc(c)                             \
+	do {                                  \
+		ocflush(1);                   \
+		content[content_len++] = (c); \
+	} while (0)
+#define oprintf(...)                                                        \
+	do {                                                                \
+		int _n = snprintf(content + content_len,                    \
+				  PRINT_BUFSIZ - content_len, __VA_ARGS__); \
+		if (_n > 0 && (size_t)_n >= PRINT_BUFSIZ - content_len) {   \
+			oflush();                                           \
+			_n = snprintf(content, PRINT_BUFSIZ, __VA_ARGS__);  \
+			if (_n >= PRINT_BUFSIZ)                             \
+				_n = PRINT_BUFSIZ - 1;                      \
+		}                                                           \
+		if (_n > 0)                                                 \
+			content_len += (size_t)_n;                          \
+	} while (0)
+#define ouwrite(buf, len)                                \
+	do {                                             \
+		ocflush(len);                            \
+		memcpy(content + content_len, buf, len); \
+		content_len += (len);                    \
+	} while (0)
 #define ouwico(t) ouwrite(p.icons[PICO(t)], PICOSIZ(t))
 #define ouwcol(t) ouwrite(p.codes[PCOL(t)], PCOLSIZ(t))
 #define ouwbox(bt, bpart) ouwrite(p.boxes[(bt)][bpart], BOXSIZ)
@@ -641,8 +669,11 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 
 	FILE *out = p.out;
 
-	char p_buf[BUFSIZ] = { 0 };
+	char p_buf[PRINT_BUFSIZ];
+	char content[PRINT_BUFSIZ];
 	int p_bufsiz = 0;
+	size_t content_len = 0;
+	p_buf[0] = '\0';
 
 	enum p_location loc = LOC_FIRST;
 	enum p_type type = T_NONE;
@@ -680,7 +711,7 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 		psection();
 
 	if (last_percentage != -1 && content_printed) {
-		fputc('\n', out);
+		ouputc('\n');
 		last_percentage = -1;
 	}
 
@@ -699,18 +730,13 @@ enum p_return print(const char *P_RESTRICT fmt, ...)
 skip_fmt:
 	simple = print_nodetail || (print_quiet && p.map[type].required);
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
-	size_t p_buflen = (size_t)p_bufsiz;
+	size_t p_buflen = min((size_t)p_bufsiz, sizeof(p_buf) - 1);
 	if (p_buflen > available) { /* Overflow, no box/icon/color then */
 		pdev("Print string too long, doing a simple print");
 		simple = true;
 	}
 
-	flockfile(out);
-
 	if (type == T_HEADER) {
-		if (!fmt)
-			goto cleanup;
-
 		if (simple) {
 			ouputc('\n');
 			ouwrite(p_buf, p_buflen);
@@ -719,11 +745,8 @@ skip_fmt:
 			goto cleanup;
 		}
 
-		if (in_section) {
-			funlockfile(out);
+		if (in_section)
 			psection_end();
-			flockfile(out);
-		}
 
 		ouwcol(type);
 		ouwbox(BOX_FANCY, BOX_TOP_LEFT);
@@ -860,7 +883,8 @@ skip_fmt:
 	}
 
 cleanup:
-	funlockfile(out);
+	if (content_len)
+		fwrite(content, 1, content_len, out);
 	return PRINT_SUCCESS;
 }
 
@@ -887,8 +911,11 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 	if (last_percentage == 100)
 		last_percentage = -1;
 
-	char p_buf[BUFSIZ] = { 0 };
+	char p_buf[PRINT_BUFSIZ];
+	char content[PRINT_BUFSIZ];
 	int p_bufsiz = 0;
+	size_t content_len = 0;
+	p_buf[0] = '\0';
 
 	if (fmt) {
 		va_list v_args;
@@ -904,13 +931,11 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 
 	bool simple = print_nodetail;
 	const size_t available = p.width - 3 - (!PICO(T_PROGRESS) ? 0 : 2);
-	size_t p_buflen = (size_t)p_bufsiz;
+	size_t p_buflen = min((size_t)p_bufsiz, sizeof(p_buf) - 1);
 	if (p_buflen > available) {
 		pdev("Progress bar string too long, doing a simple print");
 		simple = true;
 	}
-
-	flockfile(out);
 
 	const int digits = p_percent < 10 ? 1 : (p_percent < 100 ? 2 : 3);
 
@@ -924,12 +949,11 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 			ouwrite("100%\n", 5);
 		} else {
 			if (p_percent >= 10)
-				ouputc('0' + p_percent / 10);
-			ouputc('0' + p_percent % 10);
+				ouputc('0' + (char)(p_percent / 10));
+			ouputc('0' + (char)(p_percent % 10));
 			ouputc('%');
 		}
 
-		fflush(out);
 		content_printed = true;
 		goto cleanup;
 	}
@@ -969,8 +993,8 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 		ouwrite("100% ", 5);
 	} else {
 		if (p_percent >= 10)
-			ouputc('0' + p_percent / 10);
-		ouputc('0' + p_percent % 10);
+			ouputc('0' + (char)(p_percent / 10));
+		ouputc('0' + (char)(p_percent % 10));
 		ouwrite("% ", 2);
 	}
 
@@ -980,11 +1004,13 @@ enum p_return progress_bar(int percent, const char *P_RESTRICT fmt, ...)
 	if (p_percent == 100)
 		ouputc('\n');
 
-	fflush(out);
 	content_printed = true;
 
 cleanup:
-	funlockfile(out);
+	if (content_len) {
+		fwrite(content, 1, content_len, out);
+		fflush(out);
+	}
 	return PRINT_SUCCESS;
 }
 
@@ -1014,17 +1040,19 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 	}
 
 	FILE *out = p.out;
+	char p_buf[PRINT_BUFSIZ];
+	char content[PRINT_BUFSIZ];
+	int p_bufsiz = 0;
+	size_t content_len = 0;
+	p_buf[0] = '\0';
 
 	if (!in_section)
 		psection();
 
 	if (last_percentage != -1 && content_printed) {
-		fputc('\n', out);
+		ouputc('\n');
 		last_percentage = -1;
 	}
-
-	char p_buf[BUFSIZ] = { 0 };
-	int p_bufsiz = 0;
 
 	{
 		va_list v_args;
@@ -1040,20 +1068,17 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 
 	bool simple = print_nodetail;
 	const size_t available = p.width - 3 - (!PICO(type) ? 0 : 2);
-	size_t p_buflen = (size_t)p_bufsiz;
+	size_t p_buflen = min((size_t)p_bufsiz, sizeof(p_buf) - 1);
 	if (p_buflen > available) {
 		pdev("Input string too long, doing a simple print");
 		simple = true;
 	}
-
-	flockfile(out);
 
 	if (type == T_CHOICE) {
 		const char **choices = in.choices;
 		size_t c_count = size;
 
 		if (c_count < 2) {
-			funlockfile(out);
 			pdev("Not enough choices (<2)");
 			return PRINT_CHOICE_COLLECTION_SHOULD_CONTAIN_2_OR_MORE_CHOICES__ERROR;
 		}
@@ -1102,9 +1127,9 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 			oprintf("%zu", c_count);
 			ouwrite("): ", 3);
 
-			funlockfile(out);
+			oflush();
 			terminal_read_input(i_buffer, sizeof(i_buffer));
-			flockfile(out);
+
 			errno = 0;
 			char *endptr = NULL;
 			unsigned long selected = strtoul(i_buffer, &endptr, 10);
@@ -1132,22 +1157,21 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 			ouputc('\n');
 
 			if (selected >= 1 && selected <= c_count) {
+				fwrite(content, 1, content_len, out);
+				fflush(out);
 				content_printed = true;
-				funlockfile(out);
 				return (int)selected - 1 +
 				       PRINT_FIRST_CHOICE_INDEX__SUCCESS;
 			}
 
-			funlockfile(out);
+			oflush();
 			pwarn("Please enter a number between 1 and %zu",
 			      c_count);
-			flockfile(out);
 		} while (1);
 	} else if (type == T_PROMPT) {
 		char *result = in.output;
 		const size_t rsz = size;
 		if (rsz < 2) {
-			funlockfile(out);
 			pdev("Output buffer size is too small");
 			return PRINT_PROMPT_BUFFER_SIZE_SHOULD_BE_2_OR_MORE__ERROR;
 		}
@@ -1164,9 +1188,8 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 		ouwrite(p_buf, p_buflen);
 		ouwrite(": ", 2);
 
-		funlockfile(out);
+		oflush();
 		terminal_read_input(result, rsz);
-		flockfile(out);
 
 		if (!simple) {
 			const size_t p_len = p_buflen + 2 + strlen(result);
@@ -1184,7 +1207,10 @@ enum p_return input(P_INPUT in, size_t size, const char *P_RESTRICT fmt, ...)
 		content_printed = true;
 	}
 
-	funlockfile(out);
+	if (content_len) {
+		fwrite(content, 1, content_len, out);
+		fflush(out);
+	}
 	return PRINT_SUCCESS;
 }
 
