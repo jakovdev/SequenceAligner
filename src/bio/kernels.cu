@@ -3,6 +3,26 @@
 
 __constant__ struct constants C;
 
+struct info {
+	uhz i, j, len1, len2;
+};
+
+__forceinline__ __device__ info d_info(usz alignment)
+{
+	uhz low = 1, high = C.num;
+	while (low < high) {
+		uhz mid = low + (high - low) / 2;
+		if (alignments(static_cast<usz>(mid)) <= alignment)
+			low = mid + 1;
+		else
+			high = mid;
+	}
+
+	uhz j = low - 1;
+	uhz i = static_cast<uhz>(alignment - alignments(static_cast<usz>(j)));
+	return { i, j, C.meta[i].len, C.meta[j].len };
+}
+
 __forceinline__ __device__ shz d_seq_lut(uhz ij, uhz pos)
 {
 	return C.seq_lut[C.letters[C.meta[ij].off + pos]];
@@ -13,19 +33,15 @@ __forceinline__ __device__ shz d_sub_mat(shz c1, shz c2)
 	return C.sub_mat[c1 * SUB_MAT_DIM + c2];
 }
 
-__forceinline__ __device__ uhz d_find_j(usz alignment)
+__forceinline__ __device__ void d_scores(shz *scores, shz score, usz tid, uhz i,
+					 uhz j)
 {
-	uhz low = 1, high = C.num;
-
-	while (low < high) {
-		uhz mid = low + (high - low) / 2;
-		if (alignments(static_cast<usz>(mid)) <= alignment)
-			low = mid + 1;
-		else
-			high = mid;
+	if (!C.triangular) {
+		scores[static_cast<usz>(C.num) * i + j] = score;
+		scores[static_cast<usz>(C.num) * j + i] = score;
+	} else {
+		scores[tid] = score;
 	}
-
-	return low - 1;
 }
 
 extern "C" __global__ void kernel_nw(shz *scores, usz start, usz batch)
@@ -34,17 +50,13 @@ extern "C" __global__ void kernel_nw(shz *scores, usz start, usz batch)
 	if (tid >= batch)
 		return;
 
-	usz alignment = start + tid;
-	uhz j = d_find_j(alignment);
-	uhz i = static_cast<uhz>(alignment - alignments(static_cast<usz>(j)));
-
-	uhz len1 = C.meta[i].len;
-	uhz len2 = C.meta[j].len;
+	auto [i, j, len1, len2] = d_info(start + tid);
 
 	shz dp_prev[MAX_CUDA_SEQUENCE_LENGTH + 1];
-	shz dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (uhz col = 0; col <= len2; col++)
 		dp_prev[col] = col * C.gap_pen;
+
+	shz dp_curr[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	for (uhz row = 1; row <= len1; ++row) {
 		dp_curr[0] = row * C.gap_pen;
 
@@ -64,13 +76,7 @@ extern "C" __global__ void kernel_nw(shz *scores, usz start, usz batch)
 			dp_prev[col] = dp_curr[col];
 	}
 
-	shz score = dp_prev[len2];
-	if (!C.triangular) {
-		scores[static_cast<usz>(C.num) * i + j] = score;
-		scores[static_cast<usz>(C.num) * j + i] = score;
-	} else {
-		scores[tid] = score;
-	}
+	d_scores(scores, dp_prev[len2], tid, i, j);
 }
 
 extern "C" __global__ void kernel_ga(shz *scores, usz start, usz batch)
@@ -79,12 +85,7 @@ extern "C" __global__ void kernel_ga(shz *scores, usz start, usz batch)
 	if (tid >= batch)
 		return;
 
-	usz alignment = start + tid;
-	uhz j = d_find_j(alignment);
-	uhz i = static_cast<uhz>(alignment - alignments(static_cast<usz>(j)));
-
-	uhz len1 = C.meta[i].len;
-	uhz len2 = C.meta[j].len;
+	auto [i, j, len1, len2] = d_info(start + tid);
 
 	shz match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	shz gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -134,13 +135,7 @@ extern "C" __global__ void kernel_ga(shz *scores, usz start, usz batch)
 		}
 	}
 
-	shz score = match[len2];
-	if (!C.triangular) {
-		scores[static_cast<usz>(C.num) * i + j] = score;
-		scores[static_cast<usz>(C.num) * j + i] = score;
-	} else {
-		scores[tid] = score;
-	}
+	d_scores(scores, match[len2], tid, i, j);
 }
 
 extern "C" __global__ void kernel_sw(shz *scores, usz start, usz batch)
@@ -149,12 +144,7 @@ extern "C" __global__ void kernel_sw(shz *scores, usz start, usz batch)
 	if (tid >= batch)
 		return;
 
-	usz alignment = start + tid;
-	uhz j = d_find_j(alignment);
-	uhz i = static_cast<uhz>(alignment - alignments(static_cast<usz>(j)));
-
-	uhz len1 = C.meta[i].len;
-	uhz len2 = C.meta[j].len;
+	auto [i, j, len1, len2] = d_info(start + tid);
 
 	shz match[MAX_CUDA_SEQUENCE_LENGTH + 1];
 	shz gap_x[MAX_CUDA_SEQUENCE_LENGTH + 1];
@@ -171,7 +161,7 @@ extern "C" __global__ void kernel_sw(shz *scores, usz start, usz batch)
 		p_gap_y[col] = gap_y[col];
 	}
 
-	shz max_score = 0;
+	shz score = 0;
 	for (uhz row = 1; row <= len1; ++row) {
 		match[0] = 0;
 		gap_x[0] = gap_y[0] = SCORE_MIN;
@@ -194,8 +184,8 @@ extern "C" __global__ void kernel_sw(shz *scores, usz start, usz batch)
 			shz best = max(0, max(d_score,
 					      max(gap_x[col], gap_y[col])));
 			match[col] = best;
-			if (best > max_score)
-				max_score = best;
+			if (best > score)
+				score = best;
 		}
 
 		for (uhz col = 0; col <= len2; col++) {
@@ -204,11 +194,5 @@ extern "C" __global__ void kernel_sw(shz *scores, usz start, usz batch)
 		}
 	}
 
-	shz score = max_score;
-	if (!C.triangular) {
-		scores[static_cast<usz>(C.num) * i + j] = score;
-		scores[static_cast<usz>(C.num) * j + i] = score;
-	} else {
-		scores[tid] = score;
-	}
+	d_scores(scores, score, tid, i, j);
 }

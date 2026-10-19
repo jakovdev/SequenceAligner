@@ -5,8 +5,8 @@ struct input;
 struct output;
 
 bool align_cpu(struct input, struct output);
-extern bool no_cuda;
+extern bool cuda_disable;
 bool align_cuda(struct input, struct output);
-#define align(in, out) (no_cuda ? align_cpu(in, out) : align_cuda(in, out))
+#define align(i, o) (cuda_disable ? align_cpu(i, o) : align_cuda(i, o))
 
 #endif /* BIO_ALIGN_H */

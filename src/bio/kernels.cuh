@@ -12,12 +12,12 @@ constexpr uhz MAX_CUDA_SEQUENCE_LENGTH = 1023;
 struct constants {
 	u8 *letters;
 	struct meta *meta;
-	shz seq_lut[SEQ_LUT_SIZE];
-	shz sub_mat[SUB_MAT_DIM * SUB_MAT_DIM];
 	uhz num;
 	shz gap_pen;
 	shz gap_opn;
 	shz gap_ext;
+	shz seq_lut[SEQ_LUT_SIZE];
+	shz sub_mat[SUB_MAT_DIM * SUB_MAT_DIM];
 	bool triangular;
 };
 
