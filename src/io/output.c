@@ -21,7 +21,7 @@ bool output_load(struct output *out, struct input in)
 	pverb("Using %u sequences for output", in.num);
 
 	pinfo("Similarity Matrix dimensions: %u x %u", in.num, in.num);
-	usz bytes = bytesof(out->matrix, in.num * in.num);
+	usz bytes = bytesof(out->matrix, (usz)in.num * in.num);
 	bool tmpf = bytes > memory_cpu() * 3 / 4;
 	usz mem_gpu = memory_gpu() * 3 / 4;
 	bool triangular = tmpf || mem_gpu ? bytes > mem_gpu : false;
