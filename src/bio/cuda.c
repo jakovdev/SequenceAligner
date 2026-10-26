@@ -12,6 +12,8 @@
 #include "util/benchmark.h"
 #include "util/macros.h"
 
+constexpr usz batch_size = 64 << 20;
+
 #ifdef _WIN32
 #define CuDLL "nvcuda.dll"
 #define CuFN __stdcall
@@ -20,17 +22,18 @@
 #define CuFN
 #endif
 
-typedef void *ctx;
-typedef void *mod;
-typedef void *fun;
-typedef void *st;
-typedef void *ev;
-typedef uintptr_t dev;
-typedef unsigned int uint;
+typedef int CUresult;
+typedef int CUdevice;
+typedef uintptr_t CUdeviceptr;
+typedef struct CUctx_st *CUcontext;
+typedef struct CUmod_st *CUmodule;
+typedef struct CUfunc_st *CUfunction;
+typedef struct CUstream_st *CUstream;
+typedef struct CUevent_st *CUevent;
+typedef void(CuFN *CUhostFn)(void *);
 
-constexpr usz batch_size = 64 << 20;
-constexpr uint CU_STREAM_DEFAULT = 0;
-constexpr uint CU_EVENT_DISABLE_TIMING = 0x2;
+constexpr unsigned CU_STREAM_DEFAULT = 0;
+constexpr unsigned CU_EVENT_DISABLE_TIMING = 0x2;
 
 #define cuCtxCreate cuCtxCreate_v2
 #define cuModuleGetGlobal cuModuleGetGlobal_v2
@@ -45,45 +48,46 @@ constexpr uint CU_EVENT_DISABLE_TIMING = 0x2;
 #define cuCtxDestroy cuCtxDestroy_v2
 #define cuEventDestroy cuEventDestroy_v2
 
-#define CU_FUNCS(X)                                                           \
-	X(cuGetErrorString, (int, const char **))                             \
-	X(cuInit, (uint))                                                     \
-	X(cuDeviceGetCount, (int *))                                          \
-	X(cuDeviceGet, (int *, int))                                          \
-	X(cuCtxCreate, (ctx *, uint, int))                                    \
-	X(cuModuleLoadData, (mod *, const void *))                            \
-	X(cuModuleGetFunction, (fun *, mod, const char *))                    \
-	X(cuModuleGetGlobal, (dev *, usz *, mod, const char *))               \
-	X(cuOccupancyMaxPotentialBlockSize,                                   \
-	  (int *, int *, fun, void *, usz, int))                              \
-	X(cuStreamCreate, (st *, uint))                                       \
-	X(cuEventCreate, (ev *, uint))                                        \
-	X(cuMemGetInfo, (usz *, usz *))                                       \
-	X(cuMemAlloc, (dev *, usz))                                           \
-	X(cuMemcpyHtoD, (dev, const void *, usz))                             \
-	X(cuMemcpyDtoH, (void *, dev, usz))                                   \
-	X(cuMemcpyDtoHAsync, (void *, dev, usz, st))                          \
-	X(cuMemsetD8, (dev, uint, usz))                                       \
-	X(cuLaunchKernel, (fun, uint, uint, uint, uint, uint, uint, uint, st, \
-			   void **, void **))                                 \
-	X(cuLaunchHostFunc, (st, void(CuFN *)(void *), void *))               \
-	X(cuCtxSynchronize, (void))                                           \
-	X(cuStreamWaitEvent, (st, ev, uint))                                  \
-	X(cuEventRecord, (ev, st))                                            \
-	X(cuMemFree, (dev))                                                   \
-	X(cuStreamDestroy, (st))                                              \
-	X(cuEventDestroy, (ev))                                               \
-	X(cuModuleUnload, (mod))                                              \
-	X(cuCtxDestroy, (ctx))
+#define CU_FUNCS(X)                                                          \
+	X(cuGetErrorString, (CUresult, const char **str))                    \
+	X(cuInit, (unsigned flags))                                          \
+	X(cuDeviceGetCount, (int *count))                                    \
+	X(cuDeviceGet, (CUdevice *, int ordinal))                            \
+	X(cuCtxCreate, (CUcontext *, unsigned flags, CUdevice))              \
+	X(cuModuleLoadData, (CUmodule *, const void *data))                  \
+	X(cuModuleGetFunction, (CUfunction *, CUmodule, const char *))       \
+	X(cuModuleGetGlobal, (CUdeviceptr *, usz *, CUmodule, const char *)) \
+	X(cuOccupancyMaxPotentialBlockSize,                                  \
+	  (int *grid_min, int *blocks, CUfunction, void *, usz, int limit))  \
+	X(cuStreamCreate, (CUstream *, unsigned flags))                      \
+	X(cuEventCreate, (CUevent *, unsigned flags))                        \
+	X(cuMemGetInfo, (usz * free, usz * total))                           \
+	X(cuMemAlloc, (CUdeviceptr *, usz))                                  \
+	X(cuMemcpyHtoD, (CUdeviceptr, const void *, usz))                    \
+	X(cuMemcpyDtoH, (void *, CUdeviceptr, usz))                          \
+	X(cuMemcpyDtoHAsync, (void *, CUdeviceptr, usz, CUstream))           \
+	X(cuMemsetD8, (CUdeviceptr, unsigned char, usz))                     \
+	X(cuLaunchKernel,                                                    \
+	  (CUfunction, unsigned, unsigned, unsigned, unsigned, unsigned,     \
+	   unsigned, unsigned, CUstream, void **, void **))                  \
+	X(cuLaunchHostFunc, (CUstream, CUhostFn, void *))                    \
+	X(cuCtxSynchronize, (void))                                          \
+	X(cuStreamWaitEvent, (CUstream, CUevent, unsigned flags))            \
+	X(cuEventRecord, (CUevent, CUstream))                                \
+	X(cuMemFree, (CUdeviceptr))                                          \
+	X(cuStreamDestroy, (CUstream))                                       \
+	X(cuEventDestroy, (CUevent))                                         \
+	X(cuModuleUnload, (CUmodule))                                        \
+	X(cuCtxDestroy, (CUcontext))
 
-#define X(name, args) static CuFN int(*name) args;
+#define X(name, args) static CuFN CUresult(*name) args;
 CU_FUNCS(X)
 #undef X
 
 #define STR(FN) #FN
 #define CALL(function)                               \
 	do {                                         \
-		int err = (function);                \
+		CUresult err = (function);           \
 		if (err) {                           \
 			const char *msg;             \
 			cuGetErrorString(err, &msg); \
@@ -94,16 +98,16 @@ CU_FUNCS(X)
 
 static struct gpu_nvidia {
 	void *dll;
-	ctx context;
-	mod module;
-	fun kernel;
-	st compute;
-	st memory;
-	ev launch[2];
-	ev copy[2];
-	dev constants;
+	CUcontext context;
+	CUmodule module;
+	CUfunction kernel;
+	CUstream compute;
+	CUstream memory;
+	CUevent launch[2];
+	CUevent copy[2];
+	CUdeviceptr constants;
+	CUdevice device;
 	int bx;
-	int device;
 } cu;
 
 bool cuda_disable;
@@ -151,8 +155,8 @@ static struct arg_callback cuda_init(void)
 		goto cuda_not_found;
 	}
 
-	int device = 0; /* TODO: Allow Multi-Device Execution */
-	CALL(cuDeviceGet(&cu.device, device));
+	/* TODO: Allow Multi-Device Execution */
+	CALL(cuDeviceGet(&cu.device, 0));
 	CALL(cuCtxCreate(&cu.context, 0, cu.device));
 	static const unsigned char kernels[] = {
 #embed "../generated/kernels.fatbin"
@@ -165,8 +169,8 @@ static struct arg_callback cuda_init(void)
 		perr("CUDA Kernel got corrupted, please report this");
 		goto cuda_error;
 	}
-	int min_grid_size = 0;
-	CALL(cuOccupancyMaxPotentialBlockSize(&min_grid_size, &cu.bx, cu.kernel,
+	int grid_min = 0;
+	CALL(cuOccupancyMaxPotentialBlockSize(&grid_min, &cu.bx, cu.kernel,
 					      nullptr, 0, 0));
 	CALL(cuStreamCreate(&cu.compute, CU_STREAM_DEFAULT));
 	CALL(cuStreamCreate(&cu.memory, CU_STREAM_DEFAULT));
@@ -207,7 +211,7 @@ bool align_cuda(struct input in, struct output out)
 {
 	bool success = false;
 	uhz buffers = 1;
-	dev letters = {}, meta = {}, scores[2] = {};
+	CUdeviceptr letters = {}, meta = {}, scores[2] = {};
 
 	if (in.max > MAX_CUDA_SEQUENCE_LENGTH) {
 		perr("Sequence length exceeds CUDA Device limits");
@@ -272,7 +276,7 @@ bool align_cuda(struct input in, struct output out)
 	for (usz offset = 0, batch = 0; offset < alignments; offset += batch) {
 		batch = min(stride, alignments - offset);
 
-		st busy = cu.compute;
+		CUstream busy = cu.compute;
 		CALL(cuStreamWaitEvent(busy, cu.copy[active], 0));
 
 		void *args[] = { &scores[active], &offset, &batch };
