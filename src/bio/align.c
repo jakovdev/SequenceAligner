@@ -32,8 +32,8 @@ bool align_cpu(struct input in, struct output out)
 	bench_align_start();
 #pragma omp parallel
 	{
-		shz *MALLOCA_AL(s1i, CACHE_LINE, TABLE_SIZE * mult + in.max);
-		shz *MALLOCA_AL(cols, CACHE_LINE, in.num);
+		shz *s1i = alloc_cl(byteof(s1i, TABLE_SIZE * mult + in.max));
+		shz *cols = alloc_cl(byteof(cols, in.num));
 		if (!s1i || !cols) {
 #pragma omp single
 			{
@@ -59,8 +59,8 @@ bool align_cpu(struct input in, struct output out)
 			progress_add(j);
 		}
 
-		free_aligned(cols);
-		free_aligned(s1i);
+		free_al(cols);
+		free_al(s1i);
 	}
 
 	bench_align_end();

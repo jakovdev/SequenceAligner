@@ -8,8 +8,8 @@
 #include <strings.h>
 
 #include "bio/method.h"
-#include "system/os.h"
 #include "util/benchmark.h"
+#include "util/macros.h"
 
 static const struct dsv_pair {
 	const char *ext;
@@ -93,7 +93,7 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 	u8 delim = pair->delimiter;
 	uhz cols = dsv_cols(p, r.fend, delim);
 
-	const char **MALLOCA(headers, cols + 1);
+	const char **headers = malloc(byteof(headers, cols + 1));
 	if (!headers) {
 		perr("Out of memory during DSV parsing");
 		return READER_ERROR;

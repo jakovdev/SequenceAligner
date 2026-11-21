@@ -71,7 +71,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	const char **MALLOCA(seqs, dim);
+	const char **seqs = malloc(byteof(seqs, dim));
 	if (!seqs) {
 		perr("Out of memory allocating HDF5 sequence data");
 		H5Dclose(sequences_id);
@@ -161,7 +161,7 @@ static enum writer_result write_hdf5(struct output out, struct input in,
 		return WRITER_ERROR;
 	}
 
-	usz row_bytes = bytesof(out.matrix, dim);
+	usz row_bytes = byteof(out.matrix, dim);
 	uhz max_rows = available / (4 * row_bytes);
 	uhz chunk_size = max(chunk_dim, 4);
 	if (chunk_size > max_rows && max_rows > 4)

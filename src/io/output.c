@@ -8,6 +8,7 @@
 #include "io/writer.h"
 #include "system/os.h"
 #include "util/benchmark.h"
+#include "util/macros.h"
 
 static bool disable_write;
 static const char *OUTPUT_PATH;
@@ -21,12 +22,12 @@ bool output_load(struct output *out, struct input in)
 	pverb("Using %u sequences for output", in.num);
 
 	pinfo("Similarity Matrix dimensions: %u x %u", in.num, in.num);
-	usz bytes = bytesof(out->matrix, (usz)in.num * in.num);
+	usz bytes = byteof(out->matrix, (usz)in.num * in.num);
 	bool tmpf = bytes > memory_cpu() * 3 / 4;
 	usz mem_gpu = memory_gpu() * 3 / 4;
 	bool triangular = tmpf || mem_gpu ? bytes > mem_gpu : false;
 	if (triangular) {
-		bytes = bytesof(out->matrix, alignments((usz)in.num));
+		bytes = byteof(out->matrix, alignments((usz)in.num));
 		pinfo("Using triangular matrix instead of full matrix");
 	}
 	double usage = (double)bytes / (double)MiB;
@@ -67,7 +68,7 @@ void output_fill(struct output out, const shz *cols, usz col)
 		}
 		return;
 	}
-	memcpy(out.matrix + alignments(col), cols, bytesof(out.matrix, col));
+	memcpy(out.matrix + alignments(col), cols, byteof(out.matrix, col));
 }
 
 bool output_flush(struct output out, struct input in)

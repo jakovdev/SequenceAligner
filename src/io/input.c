@@ -8,6 +8,7 @@
 #include "io/reader.h"
 #include "system/os.h"
 #include "util/benchmark.h"
+#include "util/macros.h"
 
 static const char *INPUT_PATH;
 bool filter(struct input *);
@@ -20,8 +21,8 @@ bool sequence_length_limit(uhz len)
 
 void input_free(struct input *in)
 {
-	free_aligned(in->meta);
-	free_aligned(in->seqs);
+	free_al(in->meta);
+	free_al(in->seqs);
 	memset(in, 0, sizeof(*in));
 }
 
@@ -49,12 +50,12 @@ bool input_load(struct input *in)
 		case READER_SUCCESS:
 			goto reader_success;
 		case READER_ERROR:
-			free_aligned(file);
+			free_al(file);
 			return false;
 		}
 	}
 
-	free_aligned(file);
+	free_al(file);
 	perr("Unsupported input file format: %s", name);
 	return false;
 reader_success:
@@ -64,7 +65,7 @@ reader_success:
 		return false;
 	}
 
-	struct meta *MALLOCA_AL(meta, CACHE_LINE, num);
+	struct meta *meta = alloc_cl(byteof(meta, num));
 	if (!meta) {
 		perr("Out of memory for %u sequences", num);
 		return false;

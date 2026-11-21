@@ -28,6 +28,7 @@
 #include <omp.h>
 
 #include "system/os.h"
+#include "util/macros.h"
 
 void *alloc_mmap(usz bytes, bool tmpfile)
 {
@@ -171,7 +172,7 @@ void *copy_file(const char *path, void **end, usz alignment)
 		return nullptr;
 	}
 
-	void *buf = alloc_aligned(alignment, st.QuadPart);
+	void *buf = alloc_al(alignment, st.QuadPart);
 	if (!buf) {
 		perr("Out of memory for file: %s", file_name(path));
 		CloseHandle(fd);
@@ -181,7 +182,7 @@ void *copy_file(const char *path, void **end, usz alignment)
 	DWORD got;
 	if (!ReadFile(fd, buf, st.QuadPart, &got, NULL) || got != st.QuadPart) {
 		perr("Could not read file: %s", file_name(path));
-		free_aligned(buf);
+		free_al(buf);
 		CloseHandle(fd);
 		return nullptr;
 	}
@@ -201,7 +202,7 @@ void *copy_file(const char *path, void **end, usz alignment)
 		return nullptr;
 	}
 
-	void *buf = alloc_aligned(alignment, st.st_size);
+	void *buf = alloc_al(alignment, st.st_size);
 	if (!buf) {
 		perr("Out of memory for file: %s", file_name(path));
 		close(fd);
@@ -210,7 +211,7 @@ void *copy_file(const char *path, void **end, usz alignment)
 
 	if (pread(fd, buf, st.st_size, 0) != st.st_size) {
 		perr("Could not read file: %s", file_name(path));
-		free_aligned(buf);
+		free_al(buf);
 		close(fd);
 		return nullptr;
 	}
@@ -284,7 +285,7 @@ file_error:
 	return available_mem;
 }
 
-void free_aligned(void *ptr)
+void free_al(void *ptr)
 {
 #ifdef _WIN32
 	_aligned_free(ptr);
@@ -293,7 +294,7 @@ void free_aligned(void *ptr)
 #endif
 }
 
-void *alloc_aligned(usz alignment, usz bytes)
+void *alloc_al(usz alignment, usz bytes)
 {
 	bytes = (bytes + alignment - 1) / alignment * alignment;
 #ifdef _WIN32
@@ -410,7 +411,7 @@ bool path_directories_create(const char *path)
 	if (dir_len == 0)
 		return true;
 
-	char *MALLOCA(dirbuf, dir_len + 1);
+	char *dirbuf = malloc(byteof(dirbuf, dir_len + 1));
 	if (!dirbuf)
 		return false;
 

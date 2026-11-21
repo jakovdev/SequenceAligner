@@ -7,9 +7,7 @@
 #define unreachable_release() __builtin_unreachable()
 #endif /* NDEBUG */
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-#define sizeof_field(t, f) (sizeof(((t *)0)->f))
-#define bytesof(ptr, nmemb) (sizeof(*(ptr)) * (nmemb))
+#define byteof(ptr, nmemb) (sizeof(*(ptr)) * (nmemb))
 #define alignments(n) (((n) * ((n) - 1)) >> 1)
 
 #ifndef __cplusplus

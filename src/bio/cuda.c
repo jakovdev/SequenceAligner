@@ -232,9 +232,9 @@ bool align_cuda(struct input in, struct output out)
 	uhz sum = in.meta[num - 1].off + in.meta[num - 1].len + 1;
 
 	CALL(cuMemAlloc(&letters, sum));
-	CALL(cuMemAlloc(&meta, bytesof(in.meta, num)));
+	CALL(cuMemAlloc(&meta, byteof(in.meta, num)));
 	CALL(cuMemcpyHtoD(letters, in.seqs, sum));
-	CALL(cuMemcpyHtoD(meta, in.meta, bytesof(in.meta, num)));
+	CALL(cuMemcpyHtoD(meta, in.meta, byteof(in.meta, num)));
 	C.letters = (u8 *)letters;
 	C.meta = (struct meta *)meta;
 
@@ -249,9 +249,9 @@ bool align_cuda(struct input in, struct output out)
 	usz stride = alignments;
 	usz scores_count = num * num;
 
-	if (out.triangular || bytesof(matrix, scores_count) > free) {
+	if (out.triangular || byteof(matrix, scores_count) > free) {
 		scores_count = min(batch_size, alignments);
-		if (bytesof(matrix, scores_count * 2) > free) {
+		if (byteof(matrix, scores_count * 2) > free) {
 			perr("Not enough CUDA Device memory for alignment");
 			goto cuda_error;
 		}
@@ -263,8 +263,8 @@ bool align_cuda(struct input in, struct output out)
 	CALL(cuMemcpyHtoD(cu.constants, &C, sizeof(C)));
 
 	for (uhz b = 0; b < buffers; b++) {
-		CALL(cuMemAlloc(&scores[b], bytesof(matrix, scores_count)));
-		CALL(cuMemsetD8(scores[b], 0, bytesof(matrix, scores_count)));
+		CALL(cuMemAlloc(&scores[b], byteof(matrix, scores_count)));
+		CALL(cuMemsetD8(scores[b], 0, byteof(matrix, scores_count)));
 		CALL(cuEventRecord(cu.copy[b], cu.compute));
 	}
 
@@ -290,7 +290,7 @@ bool align_cuda(struct input in, struct output out)
 			usz count = C.triangular ? batch : scores_count;
 			CALL(cuStreamWaitEvent(busy, cu.launch[active], 0));
 			CALL(cuMemcpyDtoHAsync(matrix + offset, scores[active],
-					       bytesof(matrix, count), busy));
+					       byteof(matrix, count), busy));
 		}
 
 		CALL(cuEventRecord(cu.copy[active], busy));

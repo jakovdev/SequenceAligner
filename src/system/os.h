@@ -2,7 +2,6 @@
 #define SYSTEM_OS_H
 
 #include "system/types.h"
-#include "util/macros.h"
 
 constexpr usz KiB = 1 << 10;
 constexpr usz MiB = KiB << 10;
@@ -10,24 +9,22 @@ constexpr usz GiB = MiB << 10;
 
 constexpr usz CACHE_LINE = 64;
 
-#define MALLOCA(ptr, elem) ptr = malloc(bytesof(ptr, (elem)))
-#define MALLOCA_AL(ptr, al, elem) ptr = alloc_aligned(al, bytesof(ptr, (elem)))
-
 usz memory_cpu(void);
 usz memory_gpu(void);
 
-void free_aligned(void *ptr);
+void free_al(void *ptr);
 
-[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(1),
+[[gnu::malloc, gnu::malloc(free_al, 1), gnu::alloc_align(1),
   gnu::alloc_size(2)]]
-void *alloc_aligned(usz alignment, usz bytes);
+void *alloc_al(usz alignment, usz bytes);
+#define alloc_cl(bytes) alloc_al(CACHE_LINE, bytes)
 
 void free_mmap(void *alloced_mmap);
 
 [[gnu::malloc, gnu::malloc(free_mmap, 1), gnu::alloc_size(1)]]
 void *alloc_mmap(usz bytes, bool tmpfile);
 
-[[gnu::malloc, gnu::malloc(free_aligned, 1), gnu::alloc_align(3)]]
+[[gnu::malloc, gnu::malloc(free_al, 1), gnu::alloc_align(3)]]
 void *copy_file(const char *path, void **end, usz alignment);
 
 extern int THREAD_NUM;
