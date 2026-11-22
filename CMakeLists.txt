@@ -52,8 +52,9 @@ if(NOT IS_MINGW)
     set(CUDA_KERNELS_DEPFILE "${CUDA_KERNELS_PATH}.d")
 
     set(NVCC_COMMAND
-        "${CUDAToolkit_NVCC_EXECUTABLE}" "-I${CMAKE_SOURCE_DIR}/src"
-        "-arch=all" "-fatbin" "${CUDA_KERNELS_SRC}" "-o" "${CUDA_KERNELS_PATH}")
+        "${CUDAToolkit_NVCC_EXECUTABLE}" "-std=c++20" "-arch=all" "-fatbin"
+        "-I${CMAKE_SOURCE_DIR}/src" "${CUDA_KERNELS_SRC}" "-o"
+        "${CUDA_KERNELS_PATH}")
 
     add_custom_command(
       OUTPUT "${CUDA_KERNELS_PATH}"
