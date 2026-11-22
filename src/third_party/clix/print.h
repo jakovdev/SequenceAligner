@@ -269,128 +269,6 @@ extern bool print_nodetail;
 
 #define PRINT_BUFSIZ 8192
 
-static int terminal_environment(void)
-{
-	static int is_terminal = -1;
-	if (is_terminal == -1) {
-#ifdef _WIN32
-		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-		DWORD dwMode = 0;
-		is_terminal = (hStdout != INVALID_HANDLE_VALUE &&
-			       GetConsoleMode(hStdout, &dwMode));
-#else
-		is_terminal = isatty(STDOUT_FILENO);
-#endif
-	}
-
-	return is_terminal;
-}
-
-static void terminal_init(void)
-{
-#ifdef _WIN32
-	HWND consoleWnd = GetConsoleWindow();
-	DWORD consoleProcessId = 0;
-
-	if (consoleWnd) {
-		GetWindowThreadProcessId(consoleWnd, &consoleProcessId);
-
-		if (consoleProcessId == GetCurrentProcessId()) {
-			char path[MAX_PATH] = { 0 };
-			char dir[MAX_PATH] = { 0 };
-			char name[MAX_PATH] = { 0 };
-
-			if (GetModuleFileNameA(NULL, path, MAX_PATH)) {
-				char *slash = strrchr(path, '\\');
-				if (slash) {
-					size_t dirLen = (size_t)(slash - path);
-					memcpy(dir, path, dirLen);
-					dir[dirLen] = '\0';
-					strcpy_s(name, MAX_PATH, slash + 1);
-				} else {
-					strcpy_s(name, MAX_PATH, path);
-					dir[0] = '\0';
-				}
-
-				char cmd[2048];
-				if (dir[0]) {
-					snprintf(
-						cmd, sizeof(cmd),
-						"cmd.exe /k \"cd /d \"%s\" && \"%s\"\"",
-						dir, name);
-				} else {
-					snprintf(cmd, sizeof(cmd),
-						 "cmd.exe /k \"%s\"", name);
-				}
-
-				STARTUPINFOA si = { 0 };
-				PROCESS_INFORMATION pi = { 0 };
-				si.cb = sizeof(si);
-
-				if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
-						   CREATE_NEW_CONSOLE, NULL,
-						   dir[0] ? dir : NULL, &si,
-						   &pi)) {
-					CloseHandle(pi.hProcess);
-					CloseHandle(pi.hThread);
-					ExitProcess(0);
-				}
-			}
-		}
-	}
-
-	SetConsoleOutputCP(CP_UTF8);
-	SetConsoleCP(CP_UTF8);
-
-	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (hOut != INVALID_HANDLE_VALUE) {
-		DWORD dwMode = 0;
-		if (GetConsoleMode(hOut, &dwMode)) {
-			dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-			SetConsoleMode(hOut, dwMode);
-		}
-	}
-
-#endif
-}
-
-#ifdef _WIN32
-static int _win_input_mode_old;
-#endif
-
-static void terminal_mode_raw(void)
-{
-#ifdef _WIN32
-	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-	DWORD mode, mask = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT;
-	if (GetConsoleMode(hStdin, &mode))
-		SetConsoleMode(hStdin, mode & ~mask);
-	_win_input_mode_old = _setmode(_fileno(p.in), _O_BINARY);
-#else
-	struct termios term;
-	tcgetattr(STDIN_FILENO, &term);
-	term.c_lflag &= ~((tcflag_t)(ICANON | ECHO));
-	tcsetattr(STDIN_FILENO, TCSANOW, &term);
-#endif
-}
-
-static void terminal_mode_restore(void)
-{
-#ifdef _WIN32
-	if (_win_input_mode_old != -1)
-		_setmode(_fileno(p.in), _win_input_mode_old);
-	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
-	DWORD mode;
-	GetConsoleMode(hStdin, &mode);
-	SetConsoleMode(hStdin, mode | (ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
-#else
-	struct termios term;
-	tcgetattr(STDIN_FILENO, &term);
-	term.c_lflag |= (ICANON | ECHO);
-	tcsetattr(STDIN_FILENO, TCSANOW, &term);
-#endif
-}
-
 enum p_location {
 	LOC_FIRST,
 	LOC_MIDDLE,
@@ -524,6 +402,128 @@ static bool print_nodetail;
 static bool in_section;
 static bool content_printed;
 static bool is_init;
+
+static int terminal_environment(void)
+{
+	static int is_terminal = -1;
+	if (is_terminal == -1) {
+#ifdef _WIN32
+		HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+		DWORD dwMode = 0;
+		is_terminal = (hStdout != INVALID_HANDLE_VALUE &&
+			       GetConsoleMode(hStdout, &dwMode));
+#else
+		is_terminal = isatty(STDOUT_FILENO);
+#endif
+	}
+
+	return is_terminal;
+}
+
+static void terminal_init(void)
+{
+#ifdef _WIN32
+	HWND consoleWnd = GetConsoleWindow();
+	DWORD consoleProcessId = 0;
+
+	if (consoleWnd) {
+		GetWindowThreadProcessId(consoleWnd, &consoleProcessId);
+
+		if (consoleProcessId == GetCurrentProcessId()) {
+			char path[MAX_PATH] = { 0 };
+			char dir[MAX_PATH] = { 0 };
+			char name[MAX_PATH] = { 0 };
+
+			if (GetModuleFileNameA(NULL, path, MAX_PATH)) {
+				char *slash = strrchr(path, '\\');
+				if (slash) {
+					size_t dirLen = (size_t)(slash - path);
+					memcpy(dir, path, dirLen);
+					dir[dirLen] = '\0';
+					strcpy_s(name, MAX_PATH, slash + 1);
+				} else {
+					strcpy_s(name, MAX_PATH, path);
+					dir[0] = '\0';
+				}
+
+				char cmd[2048];
+				if (dir[0]) {
+					snprintf(
+						cmd, sizeof(cmd),
+						"cmd.exe /k \"cd /d \"%s\" && \"%s\"\"",
+						dir, name);
+				} else {
+					snprintf(cmd, sizeof(cmd),
+						 "cmd.exe /k \"%s\"", name);
+				}
+
+				STARTUPINFOA si = { 0 };
+				PROCESS_INFORMATION pi = { 0 };
+				si.cb = sizeof(si);
+
+				if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE,
+						   CREATE_NEW_CONSOLE, NULL,
+						   dir[0] ? dir : NULL, &si,
+						   &pi)) {
+					CloseHandle(pi.hProcess);
+					CloseHandle(pi.hThread);
+					ExitProcess(0);
+				}
+			}
+		}
+	}
+
+	SetConsoleOutputCP(CP_UTF8);
+	SetConsoleCP(CP_UTF8);
+
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hOut != INVALID_HANDLE_VALUE) {
+		DWORD dwMode = 0;
+		if (GetConsoleMode(hOut, &dwMode)) {
+			dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+			SetConsoleMode(hOut, dwMode);
+		}
+	}
+
+#endif
+}
+
+#ifdef _WIN32
+static int _win_input_mode_old;
+#endif
+
+static void terminal_mode_raw(void)
+{
+#ifdef _WIN32
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	DWORD mode, mask = ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT;
+	if (GetConsoleMode(hStdin, &mode))
+		SetConsoleMode(hStdin, mode & ~mask);
+	_win_input_mode_old = _setmode(_fileno(p.in), _O_BINARY);
+#else
+	struct termios term;
+	tcgetattr(STDIN_FILENO, &term);
+	term.c_lflag &= ~((tcflag_t)(ICANON | ECHO));
+	tcsetattr(STDIN_FILENO, TCSANOW, &term);
+#endif
+}
+
+static void terminal_mode_restore(void)
+{
+#ifdef _WIN32
+	if (_win_input_mode_old != -1)
+		_setmode(_fileno(p.in), _win_input_mode_old);
+	HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+	DWORD mode;
+	GetConsoleMode(hStdin, &mode);
+	SetConsoleMode(hStdin, mode | (ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT));
+#else
+	struct termios term;
+	tcgetattr(STDIN_FILENO, &term);
+	term.c_lflag |= (ICANON | ECHO);
+	tcsetattr(STDIN_FILENO, TCSANOW, &term);
+#endif
+}
 
 void print_stream_in(FILE *in)
 {
