@@ -128,13 +128,11 @@ static enum reader_result read_dsv(struct reader r, struct input *in)
 		bench_input_end();
 		headers[cols] = "No header line! Do not skip!";
 		pinfo("Under which header are sequences? Header is skipped!");
-		uhz choice = pchoice(headers, cols + 1, "Enter range");
-		if (choice == cols) {
+		seq_col = pchoice(headers, cols + 1, "Enter range");
+		if (seq_col == cols) {
 			p = header_line;
 			pinfol("Which DSV column displays a sequence?");
 			seq_col = pchoice(headers, cols, "Enter range");
-		} else {
-			seq_col = choice;
 		}
 		bench_input_start();
 	}
