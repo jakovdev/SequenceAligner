@@ -2,18 +2,26 @@
 #include <direct.h>
 #include <libloaderapi.h>
 #include <malloc.h>
+#include <process.h>
 #include <windef.h>
 #include <winbase.h>
+#define tentry_t unsigned __stdcall
+#define tentry_r 0
+#define thread_t uintptr_t
 #else
 #define _GNU_SOURCE
 #include <fcntl.h>
 #include <dlfcn.h>
+#include <pthread.h>
 #include <sys/mman.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/sysinfo.h>
 #include <time.h>
 #include <unistd.h>
+#define tentry_t void *
+#define tentry_r nullptr
+#define thread_t pthread_t
 #ifndef PATH_MAX
 #define PATH_MAX _POSIX_PATH_MAX
 #endif
@@ -483,11 +491,71 @@ ARG_PARSE_UL(parse_threads, 10, int, (int), val > 1024, "Invalid thread count")
 
 static struct arg_callback validate_threads(void)
 {
-	if (THREAD_NUM)
-		omp_set_num_threads(THREAD_NUM);
-	else
-		THREAD_NUM = omp_get_max_threads();
+	if (THREAD_NUM > 0)
+		return ARG_VALID();
+
+#ifdef _WIN32
+	int n = 0;
+	DWORD_PTR proc, sys;
+	if (GetProcessAffinityMask(GetCurrentProcess(), &proc, &sys))
+		n = __builtin_popcountll((unsigned long long)proc);
+	if (n < 1) {
+		SYSTEM_INFO si;
+		GetSystemInfo(&si);
+		n = si.dwNumberOfProcessors;
+	}
+#else
+	long n = 0;
+	cpu_set_t set;
+	if (sched_getaffinity(0, sizeof(set), &set) == 0)
+		n = CPU_COUNT(&set);
+	if (n < 1)
+		n = sysconf(_SC_NPROCESSORS_ONLN);
+#endif
+	THREAD_NUM = n < 1 ? 1 : n;
 	return ARG_VALID();
+}
+
+struct thread {
+	void (*fn)(void *);
+	void *arg;
+};
+
+static tentry_t tentry(void *p)
+{
+	struct thread *t = p;
+	t->fn(t->arg);
+	return tentry_r;
+}
+
+bool parallelize(void (*fn)(void *), void *arg)
+{
+	thread_t *ths = malloc(byteof(ths, THREAD_NUM));
+	if (!ths)
+		return false;
+	struct thread t = { fn, arg };
+	int spawned = 0;
+	for (int i = 1; i < THREAD_NUM; i++) {
+#ifdef _WIN32
+		thread_t h = _beginthreadex(nullptr, 0, tentry, &t, 0, nullptr);
+		if (h)
+			ths[spawned++] = h;
+#else
+		if (pthread_create(&ths[spawned], nullptr, tentry, &t) == 0)
+			spawned++;
+#endif
+	}
+	fn(arg);
+	for (int i = 0; i < spawned; i++) {
+#ifdef _WIN32
+		WaitForSingleObject((HANDLE)ths[i], INFINITE);
+		CloseHandle((HANDLE)ths[i]);
+#else
+		pthread_join(ths[i], nullptr);
+#endif
+	}
+	free(ths);
+	return true;
 }
 
 static void print_threads(void)

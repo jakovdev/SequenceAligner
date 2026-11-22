@@ -14,7 +14,7 @@ set(HDF5_TARGET hdf5::hdf5)
 if("$ENV{MSYSTEM}" STREQUAL "UCRT64")
   set(IS_MSYS2 TRUE)
   set(HDF5_USE_STATIC_LIBRARIES TRUE)
-  set(HDF5_TARGET hdf5-static -static winpthread -l:libgomp.a)
+  set(HDF5_TARGET hdf5-static -static winpthread)
 elseif(MINGW)
   set(IS_MINGW TRUE)
   string(LENGTH "${CMAKE_INSTALL_LIBDIR}" ____unused)
@@ -27,7 +27,7 @@ elseif(MINGW)
   set(ZLIB_USE_STATIC_LIBS ON)
   set(HDF5_USE_STATIC_LIBRARIES TRUE)
   set(HDF5_DIR "${DLL_PREFIX}/cmake/hdf5")
-  set(HDF5_TARGET hdf5-static -static winpthread -l:libgomp.a)
+  set(HDF5_TARGET hdf5-static -static winpthread)
 endif()
 
 set(CMAKE_C_STANDARD 23)
@@ -35,7 +35,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS ON)
 
 find_package(HDF5 REQUIRED COMPONENTS C)
-find_package(OpenMP REQUIRED COMPONENTS C)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/src/*.c")
 add_executable(seqalign ${SOURCES})
@@ -76,7 +75,6 @@ target_compile_options(seqalign PRIVATE -Wall -Wextra -flto=auto -fno-plt
                                         -march=${ARCH_LEVEL} -funroll-loops)
 target_link_options(seqalign PRIVATE -flto=auto)
 target_link_libraries(seqalign PRIVATE ${HDF5_TARGET})
-target_link_libraries(seqalign PRIVATE OpenMP::OpenMP_C)
 
 install(TARGETS seqalign RUNTIME DESTINATION .)
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" "${CMAKE_SOURCE_DIR}/README.md"

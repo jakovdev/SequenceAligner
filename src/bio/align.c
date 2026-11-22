@@ -3,6 +3,7 @@
 #include <args.h>
 #include <print.h>
 #include <progress.h>
+#include <stdatomic.h>
 #include <string.h>
 #include <strings.h>
 
@@ -20,6 +21,50 @@ shz GAP_EXT;
 usz TABLE_SIZE;
 const struct methods *ALIGN;
 
+struct thread_align {
+	struct input in;
+	struct output out;
+	typeof(ALIGN->method) method;
+	usz s1s;
+	_Atomic bool oom;
+	alignas(64) _Atomic usz cnt;
+};
+
+static void align_worker(void *p)
+{
+	struct thread_align *t = p;
+	usz total = t->in.num - 1;
+	shz *s1i = alloc_cl(byteof(s1i, t->s1s));
+	shz *cols = alloc_cl(byteof(cols, t->in.num));
+	if (!s1i || !cols)
+		atomic_store_explicit(&t->oom, true, memory_order_relaxed);
+begin:
+	if (atomic_load_explicit(&t->oom, memory_order_relaxed))
+		goto out;
+	usz cur = atomic_fetch_add_explicit(&t->cnt, 1, memory_order_relaxed);
+	if (cur >= total)
+		goto out;
+
+	uhz j = (uhz)(total - cur);
+	struct meta m1 = t->in.meta[j];
+	const u8 *restrict s1 = t->in.seqs + m1.off;
+	uhz l1 = m1.len;
+	for (uhz i = 0; i < l1; ++i)
+		s1i[i] = SEQ_LUT[s1[i]];
+	for (uhz i = 0; i < j; i++) {
+		struct meta m2 = t->in.meta[i];
+		const u8 *restrict s2 = t->in.seqs + m2.off;
+		cols[i] = t->method(l1, m2.len, s1i, s2);
+	}
+
+	output_fill(t->out, cols, j);
+	progress_add(j);
+	goto begin;
+out:
+	free_al(cols);
+	free_al(s1i);
+}
+
 bool align_cpu(struct input in, struct output out)
 {
 	usz alignments = alignments((usz)in.num);
@@ -27,42 +72,20 @@ bool align_cpu(struct input in, struct output out)
 	progress_start(alignments, THREAD_NUM, "Aligning sequences");
 
 	TABLE_SIZE = (usz)(in.max + 1) * (in.max + 1);
-	usz mult = ALIGN->gap == GAP_AFFINE ? 3 : 1;
-	auto method = ALIGN->method;
+	struct thread_align t = {
+		.in = in,
+		.out = out,
+		.method = ALIGN->method,
+		.s1s = TABLE_SIZE * (ALIGN->gap == GAP_AFFINE ? 3 : 1) + in.max,
+	};
+	atomic_init(&t.oom, false);
+	atomic_init(&t.cnt, 0);
+
 	bench_align_start();
-#pragma omp parallel
-	{
-		shz *s1i = alloc_cl(byteof(s1i, TABLE_SIZE * mult + in.max));
-		shz *cols = alloc_cl(byteof(cols, in.num));
-		if (!s1i || !cols) {
-#pragma omp single
-			{
-				perr("Out of memory for alignment buffers");
-				pabort();
-			}
-		}
-#pragma omp for schedule(dynamic)
-		for (uhz j = 1; j < in.num; j++) {
-			struct meta m1 = in.meta[j];
-			const u8 *restrict s1 = in.seqs + m1.off;
-			uhz l1 = m1.len;
-			for (uhz i = 0; i < l1; ++i)
-				s1i[i] = SEQ_LUT[s1[i]];
-			for (uhz i = 0; i < j; i++) {
-				struct meta m2 = in.meta[i];
-				const u8 *restrict s2 = in.seqs + m2.off;
-				uhz l2 = m2.len;
-				cols[i] = method(l1, l2, s1i, s2);
-			}
-
-			output_fill(out, cols, j);
-			progress_add(j);
-		}
-
-		free_al(cols);
-		free_al(s1i);
+	if (!parallelize(align_worker, &t) || atomic_load(&t.oom)) {
+		perr("Out of memory for Sequence Alignment");
+		return false;
 	}
-
 	bench_align_end();
 	progress_end();
 	bench_align_print();

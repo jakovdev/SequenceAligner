@@ -28,6 +28,7 @@ void *alloc_mmap(usz bytes, bool tmpfile);
 void *copy_file(const char *path, void **end, usz alignment);
 
 extern int THREAD_NUM;
+bool parallelize(void (*fn)(void *), void *arg);
 
 double time_current(void);
 
